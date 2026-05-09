@@ -27,9 +27,6 @@ Every item is a "missing → fail" check.
 | Out-of-scope features list | Section absent or fewer than 3 items | Major |
 | Platform priorities table | Missing or any platform without a priority + reason | Major |
 | Feature acceptance criteria | Any feature row without an acceptance criterion | Critical |
-| Success metrics measurement source | Any metric without a named source (table, dashboard URL, query) | Critical |
-| Success metrics target | Any metric without a numeric target | Major |
-| Success metrics window | Any metric without a bounded time window | Minor |
 | Glossary | Any domain term used in §1–§7 with no glossary entry | Minor |
 | Open questions ownership | Any open question without a named owner and deadline | Major |
 

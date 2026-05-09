@@ -63,10 +63,12 @@ Emit `Step X/6 — <title>` at the start of each step, unconditionally.
 
 Before emitting any step, check for `AHA.md` in the codebase root (the directory where `features/` lives or will live):
 
-1. Run `ls AHA.md` (or equivalent `Bash` stat). If the file exists, read it silently and hold its contents in conversation context — surface any relevant entries inline when writing §7 (Open questions) in Step 5.
-2. If `AHA.md` does not exist, create it by copying the structure from `refs/AHA-template.md`. Write the file to the codebase root as `AHA.md`. Emit one line to the user: `AHA.md created — institutional knowledge log initialised.`
+Run both checks in parallel via `Bash`:
 
-Do not ask the user about AHA.md. Do not block on this check. Proceed to Step 1 immediately after.
+1. **AHA.md** — if absent, create it from `refs/AHA-template.md` and emit: `AHA.md created — institutional knowledge log initialised.` If present, read it silently and hold its contents in context — surface relevant entries in §7 (Open questions) in Step 5.
+2. **GLOSSARY.md** — if absent, create it from `refs/GLOSSARY-template.md` and emit: `GLOSSARY.md created — shared project glossary initialised.` If present, read it silently and hold its contents in context — cross-reference when populating §8 (Glossary) in Step 5 to avoid contradicting existing definitions.
+
+Do not ask the user about either file. Do not block on these checks. Proceed to Step 1 immediately after.
 
 ## Step-by-step protocol
 
@@ -130,3 +132,4 @@ Output the recommendation as the final message. Do not invoke another skill — 
 - `refs/interview-protocol.md` — structured interview questions and format for Step 2
 - `refs/feature-table-template.md` — lightweight feature table presented inline during Step 2 for user review
 - `refs/AHA-template.md` — template used to initialise `AHA.md` in the codebase root on first run
+- `refs/GLOSSARY-template.md` — template used to initialise `GLOSSARY.md` in the codebase root on first run
