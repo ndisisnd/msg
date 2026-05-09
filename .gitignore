@@ -1,4 +1,5 @@
 .DS_Store
+**/.DS_Store
 node_modules
 dist
 .cache
@@ -7,3 +8,4 @@ dist
 plans/
 features/
 settings.local.json
+**/schemas.json
