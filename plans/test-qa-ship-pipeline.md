@@ -1,6 +1,6 @@
 ---
 name: test-qa-ship-pipeline
-description: Phase 3 of the product ship workflow — structured as pre-ship (adversarial findings cleared), ship (four parallel eng-review specialists + EM synthesis), and post-ship (confirmed production deployment). Takes reviewed code from the eng-agent-pipeline as input.
+description: Phase 3 of the product ship workflow — user runs ship, which spins up canary (security, standards, testing); issues written to feature-[n]/issue-[n].md; user pauses to fix manually or approves auto-fix; then CI/CD review, EM synthesis, and production deployment.
 type: plan
 phase: 3
 ---
@@ -12,11 +12,12 @@ phase: 3
 ```yaml
 name: test-qa-ship-pipeline
 description: >
-  Phase 3 of the product ship workflow. Structured as three sub-phases:
-  pre-ship (adversarial gate cleared, code ready for final review),
-  ship (four eng-review specialists run in parallel; EM synthesizes
-  findings into a go/no-go report; human approves), and post-ship
-  (explicit production deployment with a mandatory human confirmation gate).
+  Phase 3 of the product ship workflow. User runs ship with code ready to
+  commit. Ship spins up canary; canary runs security, standards, and testing
+  subagents in parallel. Issues are written to feature-[n]/issue-[n].md and
+  flagged to the user. User either pauses and runs fix manually, or approves
+  the ship workflow to auto-fix. Once issues are clear, CI/CD review runs,
+  em-agent synthesizes all reports, and human confirms production deployment.
 type: plan
 phase: 3
 ```
@@ -25,23 +26,27 @@ phase: 3
 
 | Skill | Role | Sub-phase |
 |-------|------|-----------|
-| `ship` | Ship orchestrator — spins up eng-review subagents; hard-blocks on critical findings | Ship |
-| `eng-review-cicd` | CI/CD specialist — reviews pipeline config, build scripts, deployment manifests | Ship |
-| `eng-review-security` | Security reviewer — reviews auth, secrets handling, attack surface | Ship |
-| `eng-review-standards` | Coding standards reviewer — reviews naming, structure, lint, style | Ship |
-| `eng-review-testing` | Code testing reviewer — reviews test coverage, test quality, gaps | Ship |
-| `em-agent` | Engineering Manager — synthesizes all eng-review reports into a go/no-go decision document | Ship |
+| `ship` | Entry point — user runs ship; spins up canary; collects all review reports; forwards to em-agent | All |
+| `canary` | Spun up by ship — runs security, standards, and testing subagents in parallel; writes issues to `feature-[n]/issue-[n].md`; flags issues to user | Pre-ship |
+| `eng-review-security` | Security reviewer — reviews auth, secrets handling, attack surface | Pre-ship (via canary) |
+| `eng-review-standards` | Coding standards reviewer — reviews naming, structure, lint, style | Pre-ship (via canary) |
+| `eng-review-testing` | Code testing reviewer — reviews test coverage, test quality, gaps | Pre-ship (via canary) |
+| `fix` | Fix agent — applies fixes for canary issues; invoked manually by user (fix flow) or automatically when user approves auto-fix | Pre-ship |
+| `eng-review-cicd` | CI/CD specialist — reviews pipeline config, build scripts, deployment manifests; triggered independently by user during pre-ship | Pre-ship (user-triggered) |
+| `em-agent` | Engineering Manager — synthesizes all review reports into a go/no-go decision document | Ship |
 
 ---
 
 ## 2. Trigger Conditions
 
-- Invoked after human dismisses or resolves adversarial review findings from `eng-agent-pipeline`
-- User invokes `/ship` slash command standalone with reviewed code in context
-- Reviewed, adversarially-tested code artifacts are present in the repository
+- User has code ready to commit and invokes the `/ship` slash command
+- Ship immediately spins up canary; canary runs security, standards, and testing subagents in parallel
+- User invoking a **pre-ship** flow independently triggers `eng-review-cicd` (not part of canary)
 
 **Hard refusals:**
-- Ship pipeline does not start without code that has passed through `eng-adversarial-review`
+- Canary must complete before ship advances to EM synthesis
+- CI/CD review result must be present before em-agent synthesizes — ship waits for it
+- Auto-fix cannot run without explicit user approval — ship must present issues and wait for a decision
 - Production deployment does not proceed without explicit human confirmation at the final gate — this gate cannot be bypassed by any prior approval in the same session
 
 ---
@@ -50,37 +55,37 @@ phase: 3
 
 ### Pre-ship
 
-**Entry condition:** Human has cleared the adversarial review gate in `eng-agent-pipeline` — either by approving that findings are fixed, or by dismissing them as false positives/accepted risk (saved to `adversarial-review-[n].md`).
+**Entry condition:** User runs `/ship` with code ready to commit.
 
-**State at entry:**
-- All code committed to repository
-- Tuned engineer plans present at `docs/plans/<domain>-plan-tuned.md`
-- Adversarial review record present (dismissed findings) or confirmed resolved (approved findings)
-- No outstanding critical or high findings pending engineer remediation
-
-**Checklist before advancing to Ship:**
-- [ ] All eng-* agents have committed their final builds
-- [ ] adversarial-review-[n].md exists in project root, or all findings confirmed fixed and re-review passed
-- [ ] No outstanding blocking findings from the plan review cycle
-
-### Ship
-
-**Entry condition:** Pre-ship checklist cleared.
-
-**`ship` orchestrator** spins up four `eng-review` subagents in parallel:
+**`ship` spins up `canary`**, which runs three eng-review subagents in parallel:
 
 | Reviewer | Scope |
 |----------|-------|
-| `eng-review-cicd` | CI/CD pipeline config, build scripts, deployment manifests, environment variable handling |
 | `eng-review-security` | Auth flows, secrets handling, input validation, attack surface, dependency vulnerabilities |
 | `eng-review-standards` | Naming conventions, code structure, lint compliance, style guide adherence |
 | `eng-review-testing` | Test coverage, test quality, missing edge case tests, test reliability |
 
-Each reviewer produces a structured report with findings classified as:
-- **Critical** — hard-blocks the pipeline; engineers must fix before re-running from Step 7 of `eng-agent-pipeline`
-- **Advisory** — surfaces in the EM synthesis report; does not block
+**Issue output:** When canary subagents find issues, canary combines their outputs using the `issue-[n].md` template and writes each issue as a separate file under the `feature-[n]/` folder. All issues are flagged to the user.
 
-If any reviewer flags a critical finding, the pipeline stops immediately. No EM synthesis is produced until all critical findings are resolved and the ship reviewers re-run.
+**User decision — two paths:**
+
+1. **Pause and fix manually** — User reviews the issues in `feature-[n]/`, then runs the `fix` flow independently. Fix applies changes, canary re-runs to verify. Pipeline resumes once canary passes clean.
+
+2. **Approve auto-fix** — User approves the ship workflow to apply fixes on its own. `fix` agent runs automatically, canary re-runs to verify. Pipeline resumes once canary passes clean.
+
+If canary passes clean (no issues), the pipeline advances immediately — no user decision required.
+
+**`eng-review-cicd`** is triggered independently when the user runs the pre-ship flow — it is not spun up by canary. Its report is collected by `ship` alongside the canary output.
+
+**Checklist before advancing to Ship:**
+- [ ] Canary passed clean (or all issues fixed and canary re-run passed)
+- [ ] CI/CD review result present (`eng-review-cicd` triggered by user pre-ship flow)
+
+### Ship
+
+**Entry condition:** Pre-ship checklist cleared — canary passed clean, CI/CD review result present.
+
+**`ship` orchestrator** collects the canary reports (testing, standards, security) and the CI/CD review report, then hands all four to `em-agent`. No additional subagents are spun up at this stage.
 
 **`em-agent` synthesis** reads all four eng-review reports and produces a structured go/no-go decision document covering:
 - Overall ship readiness
@@ -139,7 +144,8 @@ All four eng-review specialists share the same output contract:
 
 | Artifact | Format | Destination |
 |----------|--------|-------------|
-| eng-review reports ×4 | Structured markdown per reviewer | Aggregated by EM agent |
+| canary reports ×3 | Structured markdown (security, standards, testing) | Collected by ship orchestrator |
+| CI/CD review report ×1 | Structured markdown (user-triggered pre-ship) | Collected by ship orchestrator |
 | EM synthesis report | Structured decision document | Human gate before deploy |
 | Deploy artifact | Deployment to staging or production | Target platform (Vercel, Fly.io, App Store Connect, Google Play) |
 
@@ -150,33 +156,73 @@ All four eng-review specialists share the same output contract:
 ### Diagram
 
 ```
-┌──────────────────────┐
-│ PRE-SHIP             │
-│ Adversarial gate     │
-│ cleared; code ready  │
-└──────────┬───────────┘
+╔══════════════════════╗
+║ user: /ship          ║
+║ (code ready to       ║
+║  commit)             ║
+╚══════════┬═══════════╝
            │
            ▼
 ┌──────────────────────┐
-│ SHIP                 │
-│ [9] ship spins up    │
-│     eng-review       │
-│     subagents        │
-│     (cicd, security, │
-│     standards, tests)│
-│     in parallel      │
+│ [8] ship spins up    │
+│     canary           │
 └──────────┬───────────┘
            │
            ▼
-  ◇ critical findings? ◇
+┌──────────────────────┐    ┌──────────────────────────┐
+│ [8a] canary runs:    │    │ [8b] eng-review-cicd      │
+│      security,       │    │      triggered by user    │
+│      standards,      │    │      (pre-ship flow,      │
+│      testing         │    │      independent)         │
+│      in parallel     │    │                           │
+└──────────┬───────────┘    └─────────────┬─────────────┘
            │
-       ┌── yes ──▶ ◆ BLOCKED ◆
-       │   (fix and re-run
-       │    from eng-agent-pipeline
-       │    Step 7)
-       no
-       │
-       ▼
+           ▼
+   ◇ issues found? ◇
+           │
+       ┌── no ──────────────────────────────────────────┐
+       │                                                 │
+      yes                                                │
+       │                                                 │
+       ▼                                                 │
+┌──────────────────────┐                                 │
+│ canary writes        │                                 │
+│ feature-[n]/         │                                 │
+│ issue-[n].md         │                                 │
+│ flags issues to user │                                 │
+└──────────┬───────────┘                                 │
+           │                                             │
+           ▼                                             │
+╔══════════════════════╗                                 │
+║ <HUMAN: pause+fix    ║                                 │
+║ manually, or approve ║                                 │
+║ auto-fix?>           ║                                 │
+╚══════════┬═══════════╝                                 │
+           │                                             │
+    ┌──────┴──────┐                                      │
+    │             │                                      │
+  pause         auto                                     │
+    │             │                                      │
+    ▼             ▼                                      │
+[user runs    [fix agent                                 │
+ fix flow]     runs auto]                                │
+    │             │                                      │
+    └──────┬──────┘                                      │
+           │                                             │
+           ▼                                             │
+   canary re-runs ──── issues remain? ──yes──▶ (repeat) │
+           │                                             │
+          clean                                          │
+           │                                             │
+           └─────────────────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────┐
+│ [9] ship collects canary reports +       │
+│     CI/CD report; passes all to em-agent │
+└──────────────────────┬───────────────────┘
+           │
+           ▼
 ┌──────────────────────┐
 │ [10] em-agent        │
 │      synthesizes all │
@@ -224,17 +270,24 @@ All four eng-review specialists share the same output contract:
 
 ### Protocol
 
-**Pre-ship — Entry gate**
-Verify the adversarial review gate is cleared: either all findings resolved and re-review passed, or findings dismissed and saved to `adversarial-review-[n].md`. All code committed. Blocking plan review findings resolved. If any pre-ship condition is unmet, surface it to the human before activating `ship`.
+**Step 8 — ship spins up canary (Pre-ship)**
+User runs `/ship`. Ship immediately spins up canary. Canary runs three eng-review subagents in parallel: security, standards, testing. Each produces a findings report.
 
-**Step 9 — ship: eng-review subagents (Ship)**
-ship spins up four eng-review subagents in parallel:
-- `eng-review-cicd`: reviews CI/CD pipeline config, build scripts, deployment manifests, environment variable handling
-- `eng-review-security`: reviews auth flows, secrets handling, input validation, attack surface, dependency vulnerabilities
-- `eng-review-standards`: reviews naming conventions, code structure, lint compliance, style guide adherence
-- `eng-review-testing`: reviews test coverage, test quality, missing edge case tests, test reliability
+**Step 8a — canary: issue output (Pre-ship)**
+If any subagent finds issues, canary combines findings using the `issue-[n].md` template and writes one file per issue under `feature-[n]/`. All issues are flagged to the user. If no issues are found, the pipeline advances to Step 9 without a user decision.
 
-Each reviewer produces a structured report with findings classified as critical (hard-blocks the pipeline) or advisory (surfaces in EM report). If any reviewer flags a critical finding, the pipeline stops. Engineers fix the finding and re-run from Step 7 of `eng-agent-pipeline`.
+**Step 8a (issues found) — user decision: fix path**
+Present the user with two options:
+- **Pause and fix manually**: User reviews `feature-[n]/issue-[n].md` files, runs the `fix` flow themselves. Fix applies changes; canary re-runs. If canary passes clean, continue to Step 9. If issues remain, repeat.
+- **Approve auto-fix**: Ship workflow invokes the `fix` agent automatically. Fix applies changes; canary re-runs. If canary passes clean, continue to Step 9. If issues remain, present user with another decision.
+
+Ship must not advance to Step 9 until canary passes clean.
+
+**Step 8b — eng-review-cicd: CI/CD review (Pre-ship, user-triggered)**
+When the user runs the pre-ship flow, `eng-review-cicd` is triggered independently of canary. It reviews CI/CD pipeline config, build scripts, deployment manifests, and environment variable handling. Its report is collected by `ship` alongside the canary reports.
+
+**Step 9 — ship: collect and forward (Ship)**
+ship collects the three canary reports and the CI/CD report. Verifies all four are present. Passes all reports to `em-agent` for synthesis. No additional subagents are spun up at this stage.
 
 **Step 10 — em-agent: synthesis report (Ship)**
 em-agent reads all four eng-review reports. Produces a structured synthesis document covering: overall ship readiness, critical findings (if any remain), advisory findings with required actions, and a go/no-go recommendation. Presents the report to the human. Human approves to deploy or terminates.
@@ -256,4 +309,5 @@ Deployment is a separate skill invocation per platform. On rejection at the conf
 ## 7. Reference Files
 
 - `refs/reviewer-report-template.md` — structured report format for each eng-review subagent
+- `refs/issue-template.md` — `issue-[n].md` template used by canary to write per-issue files under `feature-[n]/`
 - `refs/em-synthesis-template.md` — structured synthesis report format for the em-agent
