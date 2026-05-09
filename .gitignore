@@ -3,5 +3,7 @@ node_modules
 dist
 .cache
 *.log
-*/runs
+**/run/
 plans/
+features/
+settings.local.json
