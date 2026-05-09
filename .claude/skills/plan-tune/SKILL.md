@@ -91,4 +91,5 @@ Output the recommendation as the final message. Do not invoke another skill.
 
 ## References
 
+- `refs/principles.md` — core operating principles; read this first before any other ref
 - `refs/tune-checklist.md` — adversarial audit checklist across the four dimensions, severity definitions, and finding output format

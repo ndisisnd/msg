@@ -6,7 +6,7 @@ type: reference
 
 # Interview Protocol
 
-Run 5–8 questions one at a time using `AskUserQuestion`. Each question presents 3–4 multiple-choice options plus "Other" for free text. Capture every answer in conversation context before moving to the next question.
+Run 4–6 questions one at a time using `AskUserQuestion`. Each question presents 3–4 multiple-choice options plus "Other" for free text. Capture every answer in conversation context before moving to the next question.
 
 ## Question order
 
@@ -24,26 +24,13 @@ Options (pick the most relevant 3–4):
 - Mobile (iOS + Android) + Web
 - Other / TBD
 
-### Q2 — Target user
-
-Ask who the primary user is — and who the feature explicitly does NOT serve.
-
-Options (tailor to the product context):
-- New users (first 7 days)
-- Returning / power users
-- Specific role or segment (e.g., admins, creators, teams)
-- All users equally
-- Other
-
-Follow up if the "out-of-scope user" is not obvious from the answer.
-
-### Q3 — Core features
+### Q2 — Core features
 
 Ask which capabilities are must-have for this release. Present 3–4 concrete options derived from the brief, plus Other.
 
-For each feature the user selects, mentally note that it will need an acceptance criterion and a size estimate in the PRD.
+For each feature the user selects, mentally note that it will need an acceptance criterion in the PRD.
 
-### Q4 — Out-of-scope
+### Q3 — Out-of-scope
 
 Ask what is explicitly excluded from this release. Offer at least one platform exclusion option and one feature-boundary option.
 
@@ -54,7 +41,7 @@ Options (tailor to context):
 - A future-phase item
 - Other
 
-### Q5 — Open questions
+### Q4 — Open questions
 
 Ask whether there are known unknowns or dependencies the PRD should flag. Present concrete examples from the brief as options.
 
@@ -65,9 +52,9 @@ Options (tailor to context):
 - No open questions — PRD is self-contained
 - Other
 
-### Optional follow-up questions (Q6–Q8)
+### Optional follow-up questions (Q5–Q6)
 
-Use additional questions if any of the following are unclear after Q1–Q5:
+Use additional questions if any of the following are unclear after Q1–Q4:
 
 - **Edge cases**: How should the feature behave at limits (empty state, max values, offline)?
 - **Glossary**: Are there domain terms that need a precise definition in the PRD?
@@ -76,6 +63,6 @@ Use additional questions if any of the following are unclear after Q1–Q5:
 ## Format rules
 
 - One `AskUserQuestion` call per question. Never batch multiple questions in one call.
-- Label each question with its topic in the `header` field (e.g., "Platform", "Target user").
+- Label each question with its topic in the `header` field (e.g., "Platform", "Core features").
 - If the user selects "Other", treat the free-text input as a verbatim answer and continue.
 - After all questions are answered, proceed to Step 3 (PRD numbering and scaffolding).

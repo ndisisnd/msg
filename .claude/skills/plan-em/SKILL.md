@@ -88,5 +88,6 @@ Do not invoke `eng-agent-pipeline` directly — the user runs the next slash com
 
 ## References
 
+- `refs/principles.md` — core operating principles; read this first before any other ref
 - `refs/rfc-template.md` — structured RFC format to populate during Step 5
 - `refs/scope-matrix.md` — feature-type to engineering-domain mapping applied during Step 3
