@@ -25,6 +25,7 @@ Prevents scope inflation beyond the human's intent.
 - **One problem, one PRD** — a single PRD addresses one user problem. Do not bundle.
 - **Propose splits when scope outgrows one PRD** — if the feature spans multiple problems, surfaces, or ship cycles, recommend splitting into separate PRDs before writing.
 - **Scope is fixed unless instructed otherwise** — once the human approves scope, do not expand it during drafting.
+- **Check prior PRDs before drafting** — scan `features/prd-*/` for overlap with the new brief. Surface every match by ID before the interview; never silently re-spec a problem an existing PRD already covers.
 
 ---
 

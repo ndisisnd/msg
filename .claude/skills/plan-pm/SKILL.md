@@ -57,27 +57,49 @@ allowed_tools:
 
 ## Progress emission
 
-Emit `Step X/5 — <title>` at the start of each step, unconditionally.
+Emit `Step X/6 — <title>` at the start of each step, unconditionally.
+
+## Pre-run — AHA.md check
+
+Before emitting any step, check for `AHA.md` in the codebase root (the directory where `features/` lives or will live):
+
+1. Run `ls AHA.md` (or equivalent `Bash` stat). If the file exists, read it silently and hold its contents in conversation context — surface any relevant entries inline when writing §7 (Open questions) in Step 5.
+2. If `AHA.md` does not exist, create it by copying the structure from `refs/AHA-template.md`. Write the file to the codebase root as `AHA.md`. Emit one line to the user: `AHA.md created — institutional knowledge log initialised.`
+
+Do not ask the user about AHA.md. Do not block on this check. Proceed to Step 1 immediately after.
 
 ## Step-by-step protocol
 
-**Step 1/5 — Intake**
+**Step 1/6 — Intake**
 
 Receive the product idea or brief. Check that a target user and scope are stated or inferable. If neither is present, run one `AskUserQuestion` (3–4 options + Other) to fix the gap. Hold the clarified brief in conversation context. Produce no file in this step.
 
-**Step 2/5 — Interview**
+**Step 2/6 — Scan prior PRDs for overlap**
+
+Mandatory. List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, read each prior PRD's §1 (Problem) and §5 (Features). Build an in-memory list of prior problems and feature names. Compare against the clarified brief from Step 1.
+
+If any prior PRD's problem statement or any feature overlaps with the new brief (same user goal, same surface, or same primary action), surface every overlap via one `AskUserQuestion` (3–4 options + Other). Quote the overlapping feature or problem verbatim and name the prior PRD by ID. Options:
+
+- **Extend PRD-[m]** — abandon this run; recommend the user revise the prior PRD instead.
+- **Reduce scope to non-overlapping subset** — proceed with the overlapping items removed from the new brief.
+- **Proceed despite overlap** — proceed and record the overlap in §7 (Open questions) of the new PRD with the prior PRD ID.
+- **Stop** — end the run; no PRD written.
+
+If no overlap exists, ask no question. Hold the comparison result in conversation context for Step 5.
+
+**Step 3/6 — Interview**
 
 Run the structured interview defined in `refs/interview-protocol.md`. Before Q1, check `CLAUDE.md` and `ARCHITECTURE.md` for a default platform. Always start with the platform question (Q1, single-select). Run 3–5 questions total, one at a time. After Q3 (dependencies), emit a 3–4 line summary and confirm with the user before proceeding. Capture every answer in conversation context.
 
-**Step 3/5 — Determine PRD number and scaffold folder**
+**Step 4/6 — Determine PRD number and scaffold folder**
 
 Scan `features/prd-*/` for the highest existing `[n]`. Set `n = highest + 1` (or `1` if no prior PRD). Create `features/` if absent. Create `features/prd-[n]/`. Produce no PRD file yet — the directory is the artifact of this step.
 
-**Step 4/5 — Draft and save the PRD**
+**Step 5/6 — Draft and save the PRD**
 
-Populate `prd-[n].md` from `refs/prd-template.md`. Apply every quality gate listed in that template before saving. Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
+Populate `prd-[n].md` from `refs/prd-template.md`. Apply every quality gate listed in that template before saving. Carry forward any overlap notes from Step 2 into §7. Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
 
-**Step 5/5 — Summary and human gate**
+**Step 6/6 — Summary and human gate**
 
 Before presenting options, emit a completion summary in this format:
 
@@ -90,7 +112,7 @@ Features: [count]
 Platform: [platforms from Q1]
 ```
 
-If there are open questions, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §7` before proceeding.
+If there are open questions or overlap notes, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §7` before proceeding.
 
 Then present the human gate via `AskUserQuestion` with four options:
 
@@ -107,3 +129,4 @@ Output the recommendation as the final message. Do not invoke another skill — 
 - `refs/prd-template.md` — structured PRD format to populate during Step 4
 - `refs/interview-protocol.md` — structured interview questions and format for Step 2
 - `refs/feature-table-template.md` — lightweight feature table presented inline during Step 2 for user review
+- `refs/AHA-template.md` — template used to initialise `AHA.md` in the codebase root on first run

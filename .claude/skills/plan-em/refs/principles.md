@@ -13,6 +13,7 @@ Engineer sufficiently — neither under nor over. Cost of complexity compounds; 
 - **DRY when the duplication is real** — extract on the third occurrence, not the second. Premature abstraction costs more than duplication.
 - **Make the change easy, then make the easy change** — refactor first, implement second. Never combine structural and behavioral changes in the same diff (Beck).
 - **No speculative generality** — do not design for hypothetical future requirements. Add abstraction when the second concrete need appears.
+- **Check prior PRDs and RFCs before mapping** — scan `features/prd-*/` for overlap with the input PRD's features. Reuse or refactor existing modules before authorising a parallel implementation; record every overlap by ID in §8 of the RFC.
 
 ---
 

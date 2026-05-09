@@ -9,6 +9,7 @@ description: >
 model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
+  - Bash
   - Read
   - Write
 ---
@@ -56,31 +57,46 @@ allowed_tools:
 
 ## Progress emission
 
-Emit `Step X/6 — <title>` at the start of each step, unconditionally.
+Emit `Step X/7 — <title>` at the start of each step, unconditionally.
 
 ## Step-by-step protocol
 
-**Step 1/6 — Validate input**
+**Step 1/7 — Validate input**
 
 Verify the PRD path exists and matches `features/prd-*/prd-*.md`. Derive `n` from the parent directory name. If validation fails, refuse and emit the rule. Produce no RFC on failure.
 
-**Step 2/6 — Read the PRD**
+**Step 2/7 — Read the PRD**
 
 Read the PRD file in full. Hold the content in conversation context. The artifact of this step is the in-memory PRD; no file is written.
 
-**Step 3/6 — Map features to engineering domains**
+**Step 3/7 — Scan prior PRDs and RFCs for overlap**
+
+Mandatory. List `features/prd-*/prd-*.md` and `features/prd-*/rfc-*.md` via `Bash`, excluding the input PRD's own directory. If none exist, emit `No prior PRDs or RFCs.` and proceed. Otherwise, read each prior PRD's §5 (Features) and each prior RFC's §3 (Domain map) and §5 (Phases). Build an in-memory list of prior features and engineering work.
+
+Compare each feature in the input PRD's §5 against prior work. Treat as overlap when any of: same surface and same primary action; same persisted entity; same endpoint or job name; same domain owning the same capability.
+
+If any overlap exists, surface every match via one `AskUserQuestion` (3–4 options + Other). Quote the overlapping feature verbatim and name the prior PRD or RFC by ID. Options:
+
+- **Reuse existing module from RFC-[m]** — proceed with the feature marked as `extend existing` in §3 of the new RFC and the prior module named.
+- **Refactor existing implementation** — proceed with a refactor item added to §5 (Phases) of the new RFC, sequenced before the new feature.
+- **Proceed with parallel implementation** — proceed and record the duplication as a numbered finding in §8 of the new RFC with severity `medium` minimum.
+- **Stop and reconcile with PRD author** — end the run; no RFC written.
+
+If no overlap exists, ask no question. Hold the comparison result in conversation context for Step 6.
+
+**Step 4/7 — Map features to engineering domains**
 
 For every feature row in PRD §5, apply `refs/scope-matrix.md` decision rules. Produce an in-memory mapping table — feature ID → list of domains → lead agent. Hold the mapping in conversation context.
 
-**Step 4/6 — Resolve ambiguities**
+**Step 5/7 — Resolve ambiguities**
 
-Identify any PRD section that prevents a clean domain mapping or RFC drafting. For each ambiguity, run one `AskUserQuestion` (3–4 options + Other). Quote the ambiguous PRD section verbatim in the question. Capture the answer. If no ambiguities exist, skip to Step 5 with no questions asked.
+Identify any PRD section that prevents a clean domain mapping or RFC drafting. For each ambiguity, run one `AskUserQuestion` (3–4 options + Other). Quote the ambiguous PRD section verbatim in the question. Capture the answer. If no ambiguities exist, skip to Step 6 with no questions asked.
 
-**Step 5/6 — Draft and save the RFC**
+**Step 6/7 — Draft and save the RFC**
 
-Populate `rfc-[n].md` from `refs/rfc-template.md`. Apply every quality gate listed in that template before saving. Include unresolved PRD gaps as numbered findings in §8 of the RFC. Save to `features/prd-[n]/rfc-[n].md`. The saved file is the artifact of this step.
+Populate `rfc-[n].md` from `refs/rfc-template.md`. Apply every quality gate listed in that template before saving. Include unresolved PRD gaps and overlap notes from Step 3 as numbered findings in §8 of the RFC. Save to `features/prd-[n]/rfc-[n].md`. The saved file is the artifact of this step.
 
-**Step 6/6 — Human approval gate**
+**Step 7/7 — Human approval gate**
 
 Present the RFC via `AskUserQuestion` with three options:
 
