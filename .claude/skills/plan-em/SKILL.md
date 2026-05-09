@@ -7,6 +7,10 @@ description: >
   features/prd-[n]/rfc-[n].md. Refuses without a referenced PRD .md path.
   On approval at the human gate, hands off to eng-agent-pipeline.
 model: claude-sonnet-4-6
+allowed_tools:
+  - AskUserQuestion
+  - Read
+  - Write
 ---
 
 # plan-em

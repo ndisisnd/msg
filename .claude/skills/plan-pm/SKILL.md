@@ -7,6 +7,11 @@ description: >
   with four options: tune the PRD, continue to plan-em, revise manually,
   or stop. Refuses requests that would skip the PRD stage.
 model: claude-sonnet-4-6
+allowed_tools:
+  - AskUserQuestion
+  - Bash
+  - Read
+  - Write
 ---
 
 # plan-pm
@@ -85,7 +90,7 @@ Features: [count]
 Platform: [platforms from Q1]
 ```
 
-If there are open questions, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §6` before proceeding.
+If there are open questions, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §7` before proceeding.
 
 Then present the human gate via `AskUserQuestion` with four options:
 

@@ -65,7 +65,31 @@ Table form. One row per feature. Every row carries an acceptance criterion.
 - Includes a quantifier. Time bound, count, or boolean state. Never "fast" or "smooth".
 - Names the platform if behavior differs.
 
-### 5. Open questions
+### 5. Key user interactions
+
+Bulleted list of the core actions a user can take within this feature. Each item is a single sentence starting with "User can …". Derived from Q5 of the interview.
+
+**Worked example:**
+- User can add a new habit by entering a name and target frequency.
+- User can delete an existing habit from the habit list.
+- User can edit a habit's name or frequency after creation.
+
+### 6. Error cases
+
+Table form. One row per error state. Every row requires a user-visible message or behavior.
+
+| ID | Trigger | User-visible behavior |
+|----|---------|----------------------|
+| E1 | Network timeout on habit save | Toast: "Couldn't save. Check your connection and try again." Save button re-enabled. |
+| E2 | Notification permission denied | Inline banner: "Enable notifications in Settings to get reminders." No crash. |
+| E3 | Empty habit name on submit | Inline field error: "Name is required." Form not submitted. |
+
+**Error case rules:**
+- Trigger is a concrete condition, not a category. Not "network error" — "network timeout on save."
+- User-visible behavior names the exact UI element (toast, banner, inline error) and the copy.
+- Never "gracefully handle" — name the specific behavior.
+
+### 7. Open questions
 
 Numbered list. Each question carries: the question, who must answer it, and the deadline.
 
@@ -73,7 +97,7 @@ Numbered list. Each question carries: the question, who must answer it, and the 
 1. What timezone defines "midnight" for streak calculation — device local or user profile? **Owner:** PM. **Needed by:** RFC drafting.
 2. Does notification permission denial block onboarding? **Owner:** Design. **Needed by:** Engineering kickoff.
 
-### 6. Glossary
+### 8. Glossary
 
 Define every domain term used in the PRD. One row per term.
 
@@ -90,5 +114,7 @@ Before plan-pm saves the file, every gate below must pass:
 |------|------|
 | Out-of-scope | At least three explicit exclusions, including platforms. |
 | Features | Every row has an acceptance criterion with a quantifier. |
+| Key user interactions | At least two "User can …" bullets. |
+| Error cases | At least two rows; each has a concrete trigger and named UI behavior. |
 | Open questions | Every entry has an owner and a deadline. |
-| Glossary | Every domain term used in §1–§5 has an entry. |
+| Glossary | Every domain term used in §1–§7 has an entry. |

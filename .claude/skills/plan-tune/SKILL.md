@@ -8,6 +8,10 @@ description: >
   is broken until proven otherwise. Renamed from product-plan-tune.
   Requires an existing PRD path; refuses without one.
 model: claude-sonnet-4-6
+allowed_tools:
+  - AskUserQuestion
+  - Read
+  - Write
 ---
 
 # plan-tune

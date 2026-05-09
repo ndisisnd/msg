@@ -75,8 +75,32 @@ Dependencies: <comma-separated list, or "none">
 
 Ask the user: **"Is this summary correct?"**
 
-- If **yes**: proceed to Step 3 (PRD numbering and scaffolding).
+- If **yes**: continue to Q4.
 - If **no**: ask the user what to change (free text via `AskUserQuestion`), apply the correction, and re-emit the summary. Repeat until confirmed.
+
+### Q4 — Error cases (after summary confirmed)
+
+Ask which error states this feature must handle. Derive 3–4 concrete options from the confirmed feature list.
+
+Options (tailor to context):
+- Invalid or missing user input
+- Network failure or timeout
+- Permission denied (e.g., notifications, camera, location)
+- Empty state — no data exists yet
+- Other
+
+### Q5 — Key user interactions (after Q4)
+
+Ask which core user actions this feature must support. Derive options from the confirmed feature list.
+
+Options (tailor to context):
+- User can add a new entry
+- User can edit an existing entry
+- User can delete an entry
+- User can search or filter the list
+- Other
+
+After Q5 is answered, proceed to Step 3 (PRD numbering and scaffolding).
 
 ## Format rules
 
