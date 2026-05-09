@@ -4,3 +4,4 @@ dist
 .cache
 *.log
 */runs
+plans/
