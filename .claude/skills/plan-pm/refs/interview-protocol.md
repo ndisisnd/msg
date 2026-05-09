@@ -6,63 +6,82 @@ type: reference
 
 # Interview Protocol
 
-Run 4–6 questions one at a time using `AskUserQuestion`. Each question presents 3–4 multiple-choice options plus "Other" for free text. Capture every answer in conversation context before moving to the next question.
+Run questions one at a time using `AskUserQuestion`. Each question presents 3–4 multiple-choice options plus "Other" for free text. Capture every answer in conversation context before moving to the next question.
+
+## Pre-interview: detect platform
+
+Before asking Q1, check for `CLAUDE.md` and `ARCHITECTURE.md` in the project root. If either file names a default platform (e.g., "iOS app", "web service", "React Native"), store it as `platform`. Use it to pre-select the default option in Q1.
 
 ## Question order
 
 Run in this sequence. Skip a question only if the answer was already given in the initial brief.
 
-### Q1 — Platform (always first)
+### Q1 — Platform (always first, single-select)
 
-Ask which platforms this feature targets. This gates every subsequent scope decision.
+Ask which platform this feature targets. **Only one platform may be selected.** If a default was detected in the pre-interview step, present it as the first option.
 
-Options (pick the most relevant 3–4):
+Options (pick the most relevant 3–4, list detected default first if any):
 - iOS only
 - Android only
-- iOS + Android (mobile parity)
 - Web only
-- Mobile (iOS + Android) + Web
+- Mobile (iOS + Android) — parity release
+- Mobile + Web
 - Other / TBD
 
-### Q2 — Core features
+### Q2 — Feature selection mode
 
-Ask which capabilities are must-have for this release. Present 3–4 concrete options derived from the brief, plus Other.
+Ask how the user wants to define the feature set for this release.
 
-For each feature the user selects, mentally note that it will need an acceptance criterion in the PRD.
-
-### Q3 — Out-of-scope
-
-Ask what is explicitly excluded from this release. Offer at least one platform exclusion option and one feature-boundary option.
-
-Options (tailor to context):
-- Other platforms not selected in Q1
-- A related feature the user might expect but is not in scope
-- A backend or infrastructure concern
-- A future-phase item
+Options:
+- Recommend core features for me — PM generates 3–4 suggested features from the brief; user reviews and approves
+- I'll list the features myself — user enumerates features directly
+- Start from a design screenshot or doc — user provides a design artifact as the source of truth
 - Other
 
-### Q4 — Open questions
+If the user selects **"Recommend core features for me"**:
+1. Derive 3–4 concrete feature candidates from the brief and platform context.
+2. Present them inline (not as another `AskUserQuestion`) with a clear **[RECOMMENDED — please review]** flag.
+3. Ask the user to confirm, remove, or add features before the feature table is built.
 
-Ask whether there are known unknowns or dependencies the PRD should flag. Present concrete examples from the brief as options.
+If the user selects **"I'll list the features myself"**:
+- Prompt the user: "List your features one per line. Include a short description for each."
 
-Options (tailor to context):
-- Data / analytics source to be confirmed
-- Design or UX decision not yet made
-- Third-party or API dependency unclear
-- No open questions — PRD is self-contained
-- Other
+### Feature table (after Q2 is resolved)
 
-### Optional follow-up questions (Q5–Q6)
+Once the feature list is confirmed, generate a feature table using the format in `refs/feature-table-template.md`. Present the populated table inline for the user to review before moving to Q3.
 
-Use additional questions if any of the following are unclear after Q1–Q4:
+### Q3 — Dependencies
 
-- **Edge cases**: How should the feature behave at limits (empty state, max values, offline)?
-- **Glossary**: Are there domain terms that need a precise definition in the PRD?
-- **Constraints**: Any hard deadlines, legal, accessibility, or compliance requirements?
+Ask what this feature depends on. Present two categories:
+
+**Fixed dependency (always present):**
+- Design screenshot or design doc — ask whether one exists; if yes, ask the user to paste the path or describe it
+
+**Non-fixed dependencies (generated from feature list):**
+- Derive 2–3 candidate infrastructure or service dependencies implied by the confirmed features (e.g., push notification feature → notification service; web scraping feature → scraping service/API; auth feature → OAuth provider).
+- Present them as checkboxes. User confirms which apply.
+- Allow "Other" for dependencies not listed.
+
+### Summary and confirmation
+
+After Q3, emit a 3–4 line summary of the feature in this format:
+
+```
+Feature: <short name>
+Platform: <platform from Q1>
+Core features: <comma-separated list>
+Dependencies: <comma-separated list, or "none">
+```
+
+Ask the user: **"Is this summary correct?"**
+
+- If **yes**: proceed to Step 3 (PRD numbering and scaffolding).
+- If **no**: ask the user what to change (free text via `AskUserQuestion`), apply the correction, and re-emit the summary. Repeat until confirmed.
 
 ## Format rules
 
 - One `AskUserQuestion` call per question. Never batch multiple questions in one call.
-- Label each question with its topic in the `header` field (e.g., "Platform", "Core features").
+- Label each question with its topic in the `header` field (e.g., "Platform", "Feature mode").
 - If the user selects "Other", treat the free-text input as a verbatim answer and continue.
-- After all questions are answered, proceed to Step 3 (PRD numbering and scaffolding).
+- The feature table and summary are emitted as inline text (not `AskUserQuestion`).
+- After all questions are confirmed, proceed to Step 3 (PRD numbering and scaffolding).
