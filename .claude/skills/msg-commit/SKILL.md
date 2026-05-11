@@ -4,6 +4,7 @@ description: Generates a Conventional Commits message from staged diff, LLM chan
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
+  - AskUserQuestion
 ---
 
 ## Usage
@@ -26,7 +27,8 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| commit message | plain-text subject; optional breaking-change body | shown inline, nothing else |
+| commit message | plain-text subject; optional breaking-change body | shown inline |
+| action | copy or commit | user choice via prompt |
 
 ## Step-by-step protocol
 
@@ -64,7 +66,16 @@ If `change_source` removes or renames a public interface, adds a required parame
 
 **Step 6 — Emit**
 
-Print `subject`. If `body` is non-empty, print a blank line then `body`. Print nothing else.
+Print `subject`. If `body` is non-empty, print a blank line then `body`.
+
+**Step 7 — Ask what to do**
+
+Ask the user:
+
+> (1) copy message  (2) run git commit
+
+- `1` / copy → print the commit message again in a fenced code block for easy copying. Nothing else.
+- `2` / commit → run `git commit -m "<subject>"` via Bash. If `body` is non-empty, use `git commit -m "<subject>" -m "<body>"` instead. Print the command output. Nothing else.
 
 ## Examples
 
