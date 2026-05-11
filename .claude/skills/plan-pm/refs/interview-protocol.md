@@ -36,14 +36,57 @@ Ask how the user wants to define the feature set for this release.
 
 Options:
 - Recommend core features for me — PM generates 3–4 suggested features from the brief; user reviews and approves
+- Brainstorm with me — PM asks 1–2 focused follow-up questions, then presents 3–5 candidate sub-features via AskUserQuestion for the user to pick from
 - I'll list the features myself — user enumerates features directly
 - Start from a design screenshot or doc — user provides a design artifact as the source of truth
-- Other
 
 If the user selects **"Recommend core features for me"**:
 1. Derive 3–4 concrete feature candidates from the brief and platform context.
 2. Present them as a populated table (using the format in `refs/feature-table-template.md`) with a clear **[RECOMMENDED — please review]** flag above the table. Never present recommendations as bullets.
 3. Ask the user to confirm, remove, or add features before the feature table is finalised.
+
+If the user selects **"Brainstorm with me"**:
+
+Run the brainstorm sub-protocol below before building the feature table.
+
+#### Brainstorm sub-protocol
+
+**Step B1 — Follow-up questions (1–2, sequential)**
+
+Ask 1–2 targeted questions to narrow the brainstorm scope. Derive each question from the user's brief and the platform selected in Q1. Run them one at a time via `AskUserQuestion`.
+
+Focus areas to probe (pick whichever are most ambiguous given the brief):
+- **Scope of interaction** — e.g., "Can the user take any action here, or is this view-only?"
+- **Data shown** — e.g., "What details should appear — summary only, or full breakdown?"
+- **Key constraint** — e.g., "Is there a technical or business rule that limits what this feature can do?"
+
+Tailor the options to the user's brief. If one question resolves enough ambiguity, skip the second.
+
+**Step B2 — Generate recommendations via AskUserQuestion (multiSelect)**
+
+Using the brief plus B1 answers, derive 3–5 concrete, non-overlapping sub-feature or behaviour candidates. Present them as a single `AskUserQuestion` with `multiSelect: true` so the user can select all that apply.
+
+Rules for generating candidates:
+- Each option is one concrete user-facing behaviour (not a vague category).
+- Options must not overlap — if two candidates would always ship together, merge them into one.
+- Derive options from the specific brief, not generic defaults. "User can view listing price" is better than "Display details."
+- Include an "Other — I'll describe" option to capture anything not listed.
+
+**Example (brief: "User can view their car listing")**
+
+> B1-Q1: "Can the user do anything with this listing, or is it read-only?"
+> User: "Read-only, they can only view."
+> B1-Q2: "What details should the listing show — key specs only, or a full breakdown including history and docs?"
+> User: "Full breakdown."
+>
+> B2 candidates presented via AskUserQuestion (multiSelect):
+> - View make, model, year, and mileage
+> - View asking price and price history
+> - View photo gallery (swipeable)
+> - View service history and documents
+> - View seller contact details
+
+The user's selections become the confirmed feature list. Do not add unselected options to the feature table.
 
 If the user selects **"I'll list the features myself"**:
 - Prompt the user: "List your features one per line. Include a short description for each."
@@ -107,7 +150,8 @@ After Q5 is answered, proceed to Step 3 (PRD numbering and scaffolding).
 ## Format rules
 
 - One `AskUserQuestion` call per question. Never batch multiple questions in one call.
-- Label each question with its topic in the `header` field (e.g., "Platform", "Feature mode").
+- Label each question with its topic in the `header` field (e.g., "Platform", "Feature mode", "Brainstorm").
 - If the user selects "Other", treat the free-text input as a verbatim answer and continue.
 - The feature table and summary are emitted as inline text (not `AskUserQuestion`).
+- The brainstorm B2 recommendation step is the only place `multiSelect: true` is used — all other questions are single-select.
 - After all questions are confirmed, proceed to Step 3 (PRD numbering and scaffolding).
