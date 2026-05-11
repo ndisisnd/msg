@@ -101,9 +101,11 @@ Scan `features/prd-*/` for the highest existing `[n]`. Set `n = highest + 1` (or
 
 Populate `prd-[n].md` from `refs/prd-template.md`. Apply every quality gate listed in that template before saving. Carry forward any overlap notes from Step 2 into §7. Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
 
-**Step 6/6 — Summary and human gate**
+**Step 6/6 — Emit protocol, summary, and human gate**
 
-Before presenting options, emit a completion summary in this format:
+Run the emit protocol (see **Emit protocol** section below) before emitting the summary. If P0 findings exist, surface them first and resolve before proceeding to the summary and human gate.
+
+After the emit protocol clears, emit a completion summary in this format:
 
 ```
 PRD-[n] complete.
@@ -115,7 +117,7 @@ Platform: [single platform from Q1]
 User flows: [count] — one per feature
 ```
 
-If there are open questions or overlap notes, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §7` before proceeding.
+If there are open questions or overlap notes, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §8` before proceeding.
 
 Then present the human gate via `AskUserQuestion` with four options:
 
@@ -125,6 +127,54 @@ Then present the human gate via `AskUserQuestion` with four options:
 - **Stop here — PRD is done** — end. The PRD is saved and usable as a standalone spec.
 
 Output the recommendation as the final message. Do not invoke another skill — the next slash command is the user's choice.
+
+## Emit protocol
+
+Run at the end of Step 5, before emitting the summary or human gate. Scan the saved PRD for every trigger below. Collect all findings into a single table, ordered P0 first, then P1.
+
+### Severity definitions
+
+| Severity | Meaning |
+|----------|---------|
+| P0 | Blocks hand-off to engineering. Must be resolved before the user proceeds past the gate. |
+| P1 | Does not block, but requires user review. User can proceed but should acknowledge. |
+
+### P0 triggers — block the gate
+
+| Trigger | Location |
+|---------|----------|
+| Acceptance criterion uses non-verifiable language ("fast", "smooth", "supports", "handles", "integrates") | PRD §4 |
+| Any feature row in §4 has an empty acceptance criterion | PRD §4 |
+| §3 names more than one target platform | PRD §3 |
+| Any open question in §8 is missing an owner or a "Needed by" deadline | PRD §8 |
+| An overlap with a prior PRD was recorded in §8 but no resolution is stated | PRD §8 |
+
+### P1 triggers — flag for review
+
+| Trigger | Location |
+|---------|----------|
+| A domain term used in §1–§8 is absent from the §9 glossary | PRD §9 |
+| A feature in §4 has no corresponding user flow in §5 | PRD §5 |
+| Any user flow in §5 shows only a happy path with no error branch (if the feature has known error cases in §7) | PRD §5 |
+
+### Emit format
+
+If any findings exist, emit a findings table before the summary:
+
+```
+## Emit — PRD-[n] issues requiring attention
+
+| Severity | Finding | Location | Action required |
+|----------|---------|----------|-----------------|
+| P0       | ...     | ...      | ...             |
+| P1       | ...     | ...      | ...             |
+```
+
+**If P0 findings exist:** present the table, then run one `AskUserQuestion` per P0 item asking the user to resolve it (provide the corrected value or decision). Do not emit the completion summary or human gate until all P0 items are resolved. Re-save the PRD after each resolution.
+
+**If only P1 findings exist:** emit the table inline (no `AskUserQuestion`). Note: "These are non-blocking. Review before handing off." Then proceed to the summary and human gate.
+
+**If no findings:** emit `Emit — No issues flagged.` and proceed directly to the summary and human gate.
 
 ## References
 
