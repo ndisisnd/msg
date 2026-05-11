@@ -57,10 +57,10 @@ State the current state, the pain points it causes, and what we are explicitly n
 
 ### 2. Summary
 
-Two to three sentences. State what is being built, the highest-priority platform target, and the projected shipping shape (single release, phased rollout, dark launch).
+Two to three sentences. State what is being built, the single target platform (from PRD §3), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own RFC.
 
 **Worked example:**
-> Ship a habit-tracking core flow on iOS and Android in a single coordinated release. Web ships a read-only stats dashboard one sprint behind mobile. Backend introduces one new service (`streak-service`) and extends the existing user profile schema.
+> Ship a habit-tracking core flow on iOS only. Backend introduces one new service (`streak-service`) and extends the existing user profile schema. Android and web are out of scope for this RFC.
 
 ---
 
@@ -124,26 +124,24 @@ One subsection per non-obvious implementation choice. Each decision must name th
 
 ### 6. Scope mapping
 
-Table form. Map every feature ID from PRD §5 to one or more engineering domains. Use `refs/scope-matrix.md` to determine domain assignments.
+Table form. Map every feature ID from PRD §4 to one or more engineering domains. Domains must stay within the single platform stated in PRD §3. Use `refs/scope-matrix.md` to determine domain assignments.
 
 | PRD feature ID | Feature | Domains | Lead agent |
 |----------------|---------|---------|-----------|
-| F1 | Set daily goal | iOS, Android, backend | mobile-eng |
-| F2 | Track streak | backend, iOS, Android | backend-eng |
-| F3 | Daily reminder | iOS, Android | mobile-eng |
+| F1 | Set daily goal | iOS, backend | mobile-eng |
+| F2 | Track streak | backend, iOS | backend-eng |
+| F3 | Daily reminder | iOS | mobile-eng |
 
 ---
 
 ### 7. Agent roster
 
-One row per agent that will be activated. Right-size — propose the minimal set that covers the scope. Adding an extra agent is not free.
+One row per agent that will be activated. Right-size — propose the minimal set that covers the scope. Adding an extra agent is not free. Only include agents for the target platform stated in PRD §3.
 
 | Agent | Domain | Scope | Estimated PR count |
 |-------|--------|-------|-------------------|
 | mobile-eng-ios | iOS app | F1 UI, F3 notification handler | 3–4 |
-| mobile-eng-android | Android app | F1 UI, F3 notification handler | 3–4 |
 | backend-eng | API + DB | F2 streak service, schema migration, F1/F3 endpoints | 4–5 |
-| web-eng | Web dashboard | Read-only stats view (P1, ships sprint+1) | 2 |
 
 ---
 
@@ -200,8 +198,8 @@ Bullet list. State the branching model, integration points, and CI gates.
 - **Base branch:** `main`.
 - **Feature branch:** `feature/prd-[n]-<short-name>`.
 - **Per-agent sub-branches:** `feature/prd-[n]-<short-name>/<agent-id>`. Each agent merges to the feature branch via PR.
-- **CI gates:** unit tests, integration tests, mobile build green on iOS 16+ and Android API 28+, backend schema migration reversible.
-- **Release strategy:** mobile coordinated release through stores; backend behind a feature flag (`prd_[n]_enabled`); web ships independently after mobile.
+- **CI gates:** unit tests, integration tests, build green on the target platform (e.g., iOS 16+), backend schema migration reversible.
+- **Release strategy:** target platform release through its store or deploy channel; backend behind a feature flag (`prd_[n]_enabled`).
 
 ---
 

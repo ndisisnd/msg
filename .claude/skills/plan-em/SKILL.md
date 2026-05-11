@@ -86,7 +86,7 @@ If no overlap exists, ask no question. Hold the comparison result in conversatio
 
 **Step 4/7 — Map features to engineering domains**
 
-For every feature row in PRD §5, apply `refs/scope-matrix.md` decision rules. Produce an in-memory mapping table — feature ID → list of domains → lead agent. Hold the mapping in conversation context.
+Confirm the target platform from PRD §3 before mapping. The RFC is scoped to that one platform exclusively — do not add agents or phases for other platforms. For every feature row in PRD §4, apply `refs/scope-matrix.md` decision rules. Produce an in-memory mapping table — feature ID → list of domains → lead agent. Hold the mapping in conversation context.
 
 **Step 5/7 — Resolve ambiguities**
 

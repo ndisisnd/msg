@@ -20,15 +20,15 @@ Run in this sequence. Skip a question only if the answer was already given in th
 
 ### Q1 — Platform (always first, single-select)
 
-Ask which platform this feature targets. **Only one platform may be selected.** If a default was detected in the pre-interview step, present it as the first option.
+Ask which platform this feature targets. **Only one platform may be selected. The resulting PRD and RFC are scoped exclusively to that platform.** If a default was detected in the pre-interview step, present it as the first option.
 
 Options (pick the most relevant 3–4, list detected default first if any):
-- iOS only
-- Android only
-- Web only
-- Mobile (iOS + Android) — parity release
-- Mobile + Web
+- iOS
+- Android
+- Web
 - Other / TBD
+
+**Single-platform rule:** Never present multi-platform bundles (e.g., "iOS + Android", "Mobile + Web") as a Q1 option. Each platform gets its own PRD and RFC. If the user wants parity across platforms, they run the workflow once per platform.
 
 ### Q2 — Feature selection mode
 
@@ -42,8 +42,8 @@ Options:
 
 If the user selects **"Recommend core features for me"**:
 1. Derive 3–4 concrete feature candidates from the brief and platform context.
-2. Present them inline (not as another `AskUserQuestion`) with a clear **[RECOMMENDED — please review]** flag.
-3. Ask the user to confirm, remove, or add features before the feature table is built.
+2. Present them as a populated table (using the format in `refs/feature-table-template.md`) with a clear **[RECOMMENDED — please review]** flag above the table. Never present recommendations as bullets.
+3. Ask the user to confirm, remove, or add features before the feature table is finalised.
 
 If the user selects **"I'll list the features myself"**:
 - Prompt the user: "List your features one per line. Include a short description for each."
