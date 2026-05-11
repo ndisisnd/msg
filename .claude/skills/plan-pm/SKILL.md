@@ -95,7 +95,7 @@ Run the structured interview defined in `refs/interview-protocol.md`. Before Q1,
 
 **Step 4/6 — Determine PRD number and scaffold folder**
 
-Scan `features/prd-*/` for the highest existing `[n]`. Set `n = highest + 1` (or `1` if no prior PRD). Create `features/` if absent. Create `features/prd-[n]/`. Produce no PRD file yet — the directory is the artifact of this step.
+Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the output as `n`. Create `features/` if absent. Create `features/prd-[n]/`. Produce no PRD file yet — the directory is the artifact of this step.
 
 **Step 5/6 — Draft and save the PRD**
 
@@ -184,3 +184,4 @@ If any findings exist, emit a findings table before the summary:
 - `refs/feature-table-template.md` — lightweight feature table presented inline during Step 2 for user review
 - `refs/AHA-template.md` — template used to initialise `AHA.md` in the codebase root on first run
 - `refs/GLOSSARY-template.md` — template used to initialise `GLOSSARY.md` in the codebase root on first run
+- `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
