@@ -1,17 +1,18 @@
 ---
 name: plan-tune
 description: >
-  Staff PM auditor skill. Reads an existing PRD and produces a numbered,
-  severity-tagged findings report across four dimensions: completeness,
-  consistency, agent-readability, and scope integrity. Saves the report
-  to features/prd-[n]/tune-[n].md. Adversarial posture — assumes the PRD
-  is broken until proven otherwise. Renamed from product-plan-tune.
-  Requires an existing PRD path; refuses without one.
+  Staff PM auditor skill. Reads an existing PRD, runs a numbered,
+  severity-tagged audit across four dimensions: completeness,
+  consistency, agent-readability, and scope integrity, then applies
+  all fixes directly to the PRD file. No separate report file.
+  Adversarial posture — assumes the PRD is broken until proven otherwise.
+  Renamed from product-plan-tune. Requires an existing PRD path; refuses
+  without one.
 model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
   - Read
-  - Write
+  - Edit
 ---
 
 # plan-tune
@@ -38,10 +39,13 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| Tune audit report | Severity-tagged numbered findings (markdown) | `features/prd-[n]/tune-[n].md`; printed inline |
+| Audit findings | Severity-tagged numbered findings (markdown) | Printed inline only — no file written |
+| Revised PRD | Updated `.md` file with all findings applied | `features/prd-[n]/prd-[n].md` (edited in place) |
 | Human gate prompt | `AskUserQuestion` with three options | Shown inline at end of run |
 
 `[n]` is derived from the parent directory name of the input PRD (e.g., `features/prd-3/prd-3.md` → `n=3`).
+
+**No new files or folders are created at any step.**
 
 ## Persona
 
@@ -77,19 +81,26 @@ Apply `refs/tune-checklist.md` across four dimensions in this order:
 3. **Agent-readability** — any requirement an AI agent could interpret multiple ways, vague verbs ("support", "handle", "integrate"), missing quantifiers on success metrics.
 4. **Scope integrity** — requirements that will likely cause scope creep, features with no named owner platform, missing API contract details.
 
-For each issue surfaced, draft one finding using the format in `refs/tune-checklist.md`. Tag every finding **Critical**, **Major**, or **Minor**. Every finding includes: what is wrong (with verbatim quote), why it matters for agent-readability, and a concrete suggested fix.
+For each issue surfaced, draft one finding using the format in `refs/tune-checklist.md`. Tag every finding **Critical**, **Major**, or **Minor**. Every finding includes: what is wrong (with verbatim quote) and what dimension it violates.
 
-**Step 4/5 — Save the report**
+Then ask user if they would like to fix these issues using `AskUserQuestion` (multiSelect): Critical / Major / Minor / Skip.
 
-Order findings: Critical first, then Major, then Minor. Within each severity, follow PRD section order. Write the full report to `features/prd-[n]/tune-[n].md` using the output structure defined in `refs/tune-checklist.md` (header with counts, numbered findings body). Print the report inline as well.
+- If Skip -> terminate session and emit `Fixes skipped. Issues can be found in this terminal`. 
+- If any other choices selected, proceed to Step 4.
+
+**Step 4/5 — Apply fixes to the PRD**
+
+Fix issues based on Step 3 input. Patch exact section(s). Do not write any new files, create new folders. 
+
+Once complete, emit `Plan tuned successfully! Issues selected have been fixed.`
 
 **Step 5/5 — Human gate**
 
 Present `AskUserQuestion` with three options:
 
-- **Apply & revise PRD** — recommend the user run `/plan-pm` with the audit findings as revision input.
-- **Continue to plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` next, accepting the PRD as-is.
-- **Stop here** — end. Both `prd-[n].md` and `tune-[n].md` are saved.
+- **Continue to plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` next.
+- **Re-run plan-pm** — recommend the user run `/plan-pm` to rebuild the PRD from scratch with the audit findings as context.
+- **Stop here** — end. The PRD has been revised in place.
 
 Output the recommendation as the final message. Do not invoke another skill.
 
