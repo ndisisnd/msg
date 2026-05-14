@@ -31,7 +31,7 @@ allowed_tools:
 
 **Step 1 — Determine input**
 
-Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, print `No diffs found, terminate commit.` and stop — do not proceed to later steps.
+Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, print `No diffs found, terminate commit. If you have made changes remember to run stage the changes!` and stop — do not proceed to later steps.
 
 **Step 2 — Select type**
 
@@ -63,7 +63,10 @@ If `change_source` removes or renames a public interface, adds a required parame
 
 **Step 6 — Emit**
 
-Print `subject`. If `body` is non-empty, print a blank line then `body`.
+Print the commit command in a fenced code block for easy copying:
+
+- No breaking change: `` `git commit -m "<subject>"` ``
+- With breaking change: `` `git commit -m "<subject>" -m "<body>"` ``
 
 **Step 7 — Ask what to do**
 
