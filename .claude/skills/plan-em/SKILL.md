@@ -39,7 +39,7 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| RFC engineering plan | Structured markdown (from `refs/rfc-template.md`) | `features/prd-[n]/rfc-[n].md`; human gate; passed to eng-agent-pipeline on approval |
+| RFC engineering plan | Structured markdown (from `refs/template-rfc.md`) | `features/prd-[n]/rfc-[n].md`; human gate; passed to eng-agent-pipeline on approval |
 | Human approval prompt | `AskUserQuestion` (approve / revise / stop) | Shown inline at end of run |
 
 `[n]` is derived from the parent directory name of the input PRD (e.g., `features/prd-3/prd-3.md` → `n=3`).
@@ -94,7 +94,7 @@ Identify any PRD section that prevents a clean domain mapping or RFC drafting. F
 
 **Step 6/7 — Draft and save the RFC**
 
-Run `bash .claude/scripts/scan-n.prd rfc <prd-path>` to get the RFC number. Use the output as `n`. Populate `rfc-[n].md` from `refs/rfc-template.md`. Apply every quality gate listed in that template before saving. Include unresolved PRD gaps and overlap notes from Step 3 as numbered findings in §8 of the RFC. Save to `features/prd-[n]/rfc-[n].md`. The saved file is the artifact of this step.
+Run `bash .claude/scripts/scan-n.prd rfc <prd-path>` to get the RFC number. Use the output as `n`. Populate `rfc-[n].md` from `refs/template-rfc.md`. Apply every quality gate listed in that template before saving. Include unresolved PRD gaps and overlap notes from Step 3 as numbered findings in §8 of the RFC. Save to `features/prd-[n]/rfc-[n].md`. The saved file is the artifact of this step.
 
 **Step 7/7 — Emit protocol and human approval gate**
 
@@ -161,6 +161,6 @@ If any findings exist, emit a findings table before the approval gate:
 ## References
 
 - `refs/principles.md` — core operating principles; read this first before any other ref
-- `refs/rfc-template.md` — structured RFC format to populate during Step 5
+- `refs/template-rfc.md` — structured RFC format to populate during Step 5
 - `refs/scope-matrix.md` — feature-type to engineering-domain mapping applied during Step 3
 - `.claude/scripts/scan-n.prd rfc <prd-path>` — deterministic RFC-number resolver; call in Step 6

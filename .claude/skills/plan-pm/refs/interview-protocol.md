@@ -42,7 +42,7 @@ Options:
 
 If the user selects **"Recommend core features for me"**:
 1. Derive 3–4 concrete feature candidates from the brief and platform context.
-2. Present them as a populated table (using the format in `refs/feature-table-template.md`) with a clear **[RECOMMENDED — please review]** flag above the table. Never present recommendations as bullets.
+2. Present them as a populated table (using the format in `refs/template-feature-table.md`) with a clear **[RECOMMENDED — please review]** flag above the table. Never present recommendations as bullets.
 3. Ask the user to confirm, remove, or add features before the feature table is finalised.
 
 If the user selects **"Brainstorm with me"**:
@@ -93,7 +93,7 @@ If the user selects **"I'll list the features myself"**:
 
 ### Feature table (after Q2 is resolved)
 
-Once the feature list is confirmed, generate a feature table using the format in `refs/feature-table-template.md`. Present the populated table inline for the user to review before moving to Q3.
+Once the feature list is confirmed, generate a feature table using the format in `refs/template-feature-table.md`. Present the populated table inline for the user to review before moving to Q3.
 
 ### Q3 — Dependencies
 

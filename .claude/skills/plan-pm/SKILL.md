@@ -38,7 +38,7 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| PRD | Structured markdown (from `refs/prd-template.md`) | `features/prd-[n]/prd-[n].md`; human gate |
+| PRD | Structured markdown (from `refs/template-prd.md`) | `features/prd-[n]/prd-[n].md`; human gate |
 | Human gate prompt | `AskUserQuestion` with four options | Shown inline at end of run |
 
 `[n]` is an auto-incrementing integer. Scan `features/prd-*/` for the highest existing number; set `n = highest + 1` (or `1` if none).
@@ -58,14 +58,12 @@ allowed_tools:
 
 Emit `Step X/6 — <title>` at the start of each step, unconditionally.
 
-## Pre-run — AHA.md check
+## Pre-run — foundational files check
 
-Before emitting any step, check for `AHA.md` in the codebase root (the directory where `features/` lives or will live):
+Before emitting any step, stat-check `AHA.md` and `GLOSSARY.md` in parallel via `Bash`:
 
-Run both checks in parallel via `Bash`:
-
-1. **AHA.md** — if absent, create it from `refs/AHA-template.md` and emit: `AHA.md created — institutional knowledge log initialised.` If present, read it silently and hold its contents in context — surface relevant entries in §7 (Open questions) in Step 5.
-2. **GLOSSARY.md** — if absent, create it from `refs/GLOSSARY-template.md` and emit: `GLOSSARY.md created — shared project glossary initialised.` If present, read it silently and hold its contents in context — cross-reference when populating §8 (Glossary) in Step 5 to avoid contradicting existing definitions.
+- **Present**: read silently and hold contents in context. Surface relevant `AHA.md` entries in §7 (Open questions) and cross-reference `GLOSSARY.md` when populating §8 (Glossary) in Step 5.
+- **Absent**: emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
 Do not ask the user about either file. Do not block on these checks. Proceed to Step 1 immediately after.
 
@@ -98,7 +96,7 @@ Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the ou
 
 **Step 5/6 — Draft and save the PRD**
 
-Populate `prd-[n].md` from `refs/prd-template.md`. Apply every quality gate listed in that template before saving. Carry forward any overlap notes from Step 2 into §7. Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
+Populate `prd-[n].md` from `refs/template-prd.md`. Apply every quality gate listed in that template before saving. Carry forward any overlap notes from Step 2 into §7. Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
 
 **Step 6/6 — Emit protocol, summary, and human gate**
 
@@ -178,9 +176,7 @@ If any findings exist, emit a findings table before the summary:
 ## References
 
 - `refs/principles.md` — core operating principles; read this first before any other ref
-- `refs/prd-template.md` — structured PRD format to populate during Step 4
+- `refs/template-prd.md` — structured PRD format to populate during Step 4
 - `refs/interview-protocol.md` — structured interview questions and format for Step 2
-- `refs/feature-table-template.md` — lightweight feature table presented inline during Step 2 for user review
-- `refs/AHA-template.md` — template used to initialise `AHA.md` in the codebase root on first run
-- `refs/GLOSSARY-template.md` — template used to initialise `GLOSSARY.md` in the codebase root on first run
+- `refs/template-feature-table.md` — lightweight feature table presented inline during Step 2 for user review
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
