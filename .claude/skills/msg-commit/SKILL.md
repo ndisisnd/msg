@@ -32,6 +32,12 @@ allowed_tools:
 | commit message | plain-text subject; optional breaking-change body | shown inline |
 | action | copy or commit | user choice via prompt |
 
+## Output rules
+
+- Before running Step 1, emit exactly: `Checking diff...`
+- Do NOT announce step numbers or step labels in any output (no "Step 1/6", "Step 2", etc.).
+- After Step 1 passes, go directly to emitting the commit block and the follow-up question. No intermediate status text.
+
 ## Step-by-step protocol
 
 **Step 1 — Determine input**
