@@ -18,11 +18,10 @@ allowed_tools:
 
 ## Usage
 
-**Invoke**: `/plan-pm`, `/build`, or `/product-ship`. Pass an optional product idea or brief as input.
+**Invoke**: `/plan-pm`. Pass an optional product idea or brief as input.
 
-- Slash commands: `/plan-pm`, `/build`, `/product-ship`
+- Slash commands: `/plan-pm`
 - Natural language: "start a new feature", "plan and build", "begin product workflow", "kick off the build pipeline", "draft a PRD"
-- Context: a free-text product idea or brief from the human
 
 **Hard refusals:**
 - Request lacks a target user or scope: ask one clarifying `AskUserQuestion` before proceeding.

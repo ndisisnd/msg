@@ -1,7 +1,7 @@
 ---
 name: msg-commit
-description: Generates a Conventional Commits message from staged diff, LLM change summary, or user description. Subject only; body only for breaking changes. No explanation, no emoji, no attribution. Use when the user asks for a commit message or has staged changes ready to commit.
-model: claude-sonnet-4-6
+description: Generates a Conventional Commits message from staged diff only. Subject only; body only for breaking changes. No explanation, no emoji, no attribution. Use when the user asks for a commit message or has staged changes ready to commit.
+model: claude-haiku-4-5-20251001
 allowed_tools:
   - Bash
   - AskUserQuestion
@@ -13,15 +13,12 @@ allowed_tools:
 
 - Slash command `/msg-commit`
 - Natural-language: "commit message", "write a commit", "what should I commit", "summarise these changes as a commit"
-- Context: after `git add`, after the LLM has made file changes
 
 ## Inputs
 
 | Name | Format | Source |
 |------|--------|--------|
 | staged diff | text output of `git diff --staged` | shell, auto-run |
-| change summary | prose list of changed files and what changed | LLM conversation context |
-| user description | free text describing what changed | user message |
 
 ## Outputs
 
@@ -34,7 +31,7 @@ allowed_tools:
 
 **Step 1 — Determine input**
 
-Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, check the current conversation for an LLM-generated change summary and use that. If neither exists, use the user's prompt description. Produce: `change_source`.
+Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, print `No diffs found, terminate commit.` and stop — do not proceed to later steps.
 
 **Step 2 — Select type**
 
@@ -72,10 +69,10 @@ Print `subject`. If `body` is non-empty, print a blank line then `body`.
 
 Ask the user:
 
-> (1) copy message  (2) run git commit
+> (1) end session  (2) run git commit
 
-- `1` / copy → print the commit message again in a fenced code block for easy copying. Nothing else.
-- `2` / commit → run `git commit -m "<subject>"` via Bash. If `body` is non-empty, use `git commit -m "<subject>" -m "<body>"` instead. Print the command output. Nothing else.
+- `1` / end session → end skill run
+- `2` / commit → run `git commit -m "<subject>"` via Bash. If `body` is non-empty, use `git commit -m "<subject>" -m "<body>"` instead. Print the command output.
 
 ## Examples
 
