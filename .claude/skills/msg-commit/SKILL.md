@@ -1,6 +1,11 @@
 ---
 name: msg-commit
-description: Generates a Conventional Commits message from staged diff only. Subject only; body only for breaking changes. No explanation, no emoji, no attribution. Use when the user asks for a commit message or has staged changes ready to commit.
+description: >
+  Generates a Conventional Commits message from staged git diff. Invoke
+  whenever the user asks for a commit message, says "commit this", "write a
+  commit", "what should I commit", "summarise these changes", or has staged
+  changes ready. Runs `git diff --staged`, derives type/scope/subject, emits
+  a fenced `git commit` command, then asks the user to copy or run it.
 model: claude-haiku-4-5-20251001
 allowed_tools:
   - Bash
@@ -31,7 +36,10 @@ allowed_tools:
 
 **Step 1 — Determine input**
 
-Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, print `No diffs found, terminate commit. If you have made changes remember to run stage the changes!` and stop — do not proceed to later steps.
+Run `.claude/scripts/check-staged.sh` via Bash.
+
+- Exit 0 → use stdout as `change_source` and continue.
+- Exit non-zero → print the stderr message verbatim and stop. Do not proceed to later steps.
 
 **Step 2 — Select type**
 
@@ -63,19 +71,27 @@ If `change_source` removes or renames a public interface, adds a required parame
 
 **Step 6 — Emit**
 
-Print the commit command in a fenced code block for easy copying:
+ALWAYS emit the commit command in a fenced code block before doing anything else. Never skip or merge this step with Step 7.
 
-- No breaking change: `` `git commit -m "<subject>"` ``
-- With breaking change: `` `git commit -m "<subject>" -m "<body>"` ``
+- No breaking change:
+  ```
+  git commit -m "<subject>"
+  ```
+- With breaking change:
+  ```
+  git commit -m "<subject>" -m "<body>"
+  ```
+
+The fenced block MUST appear in your output before Step 7 runs.
 
 **Step 7 — Ask what to do**
 
-Ask the user:
+Call `AskUserQuestion` with exactly two options:
 
-> (1) end session  (2) run git commit
-
-- `1` / end session → end skill run
-- `2` / commit → run `git commit -m "<subject>"` via Bash. If `body` is non-empty, use `git commit -m "<subject>" -m "<body>"` instead. Print the command output.
+| Option | Label | Action |
+|--------|-------|--------|
+| 1 | End session | Stop. |
+| 2 | Run git commit | Execute the exact command from Step 6 via Bash. Print the command output. |
 
 ## Examples
 
