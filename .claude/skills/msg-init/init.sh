@@ -116,8 +116,10 @@ else
   ' "$gf")
 
   # Language-specific sections take priority; fall back to platform.
-  case "$LANGUAGE" in
-    "Flutter"*|"Dart"*) stack_pat="^### Dart / Flutter" ;;
+  # Lowercase LANGUAGE for case-insensitive matching of free-text input.
+  lang_lc=$(printf '%s' "$LANGUAGE" | tr '[:upper:]' '[:lower:]')
+  case "$lang_lc" in
+    flutter*|dart*) stack_pat="^### Dart / Flutter" ;;
     *)
       case "$PLATFORM" in
         "Web (frontend)"*)  stack_pat="^### Web" ;;

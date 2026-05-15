@@ -1,11 +1,7 @@
 ---
 name: msg-commit
 description: >
-  Generates a Conventional Commits message from staged git diff. Invoke
-  whenever the user asks for a commit message, says "commit this", "write a
-  commit", "what should I commit", "summarise these changes", or has staged
-  changes ready. Runs `git diff --staged`, derives type/scope/subject, emits
-  a fenced `git commit` command, then asks the user to copy or run it.
+  Read the staged git diff or the last unpublished commit, generate a Conventional Commits message, emit it, then ask once whether to run git commit on behalf of the user. Invoke with /commit-this.
 model: claude-haiku-4-5-20251001
 allowed_tools:
   - Bash
@@ -32,20 +28,11 @@ allowed_tools:
 | commit message | plain-text subject; optional breaking-change body | shown inline |
 | action | copy or commit | user choice via prompt |
 
-## Output rules
-
-- Before running Step 1, emit exactly: `Checking diff...`
-- Do NOT announce step numbers or step labels in any output (no "Step 1/6", "Step 2", etc.).
-- After Step 1 passes, go directly to emitting the commit block and the follow-up question. No intermediate status text.
-
 ## Step-by-step protocol
 
 **Step 1 — Determine input**
 
-Run `.claude/scripts/check-staged.sh` via Bash.
-
-- Exit 0 → use stdout as `change_source` and continue.
-- Exit non-zero → print the stderr message verbatim and stop. Do not proceed to later steps.
+Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, print `No diffs found, terminate commit. If you have made changes remember to run stage the changes!` and stop — do not proceed to later steps.
 
 **Step 2 — Select type**
 
@@ -92,14 +79,10 @@ The fenced block MUST appear in your output before Step 7 runs.
 
 **Step 7 — Ask what to do**
 
-Call `AskUserQuestion` with exactly three options:
+Call `AskUserQuestion` with exactly two options:
 
 | Option | Label | Action |
 |--------|-------|--------|
 | 1 | End session | Stop. |
 | 2 | Run git commit | Execute the exact command from Step 6 via Bash. Print the command output. |
-| 3 | Commit & push | Execute the exact command from Step 6 via Bash, then run `git push`. Print both commands' output. |
-
-## Examples
-
-See [`refs/protocol.md`](refs/protocol.md).
+| 3 | Commit & push | Execute git commit and push automatically to branch | 

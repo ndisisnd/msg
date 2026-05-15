@@ -1,38 +1,47 @@
 #!/usr/bin/env bash
-# Installs agent-skills-standard coding standards for the detected framework.
+# Installs agent-skills-standard coding standards for the user's language.
 #
 # Usage: install-standards.sh <target_dir>
 #
 # Env vars:
-#   LANGUAGE   Q2b answer (e.g. "Flutter / Dart", "Go", "Swift (iOS)")
-#   PLATFORM   Q2 answer  (e.g. "Mobile (iOS/Android)", "Backend API")
+#   LANGUAGE   Language/framework the user named (e.g. "Flutter", "Go", "React")
 #
-# Exits 0 always — prints a skip message when no mapping exists or .skillsrc
-# already exists. Exits non-zero only if npm install or sync fails.
+# Behaviour:
+#   - Skips if LANGUAGE is empty or .skillsrc already exists.
+#   - Normalises LANGUAGE to a kebab-case framework key (two aliases only:
+#     "dart" → "flutter" and "go" → "golang" where the package name differs).
+#   - Checks for npm; installs Node.js automatically if missing.
+#   - Writes .skillsrc and runs agent-skills-standard sync --yes.
+#   - Exits 0 always on skip; exits non-zero if npm install or sync fails.
 
 set -eo pipefail
 
 TARGET="${1:-.}"
 LANGUAGE="${LANGUAGE:-}"
-PLATFORM="${PLATFORM:-}"
 
-# ── Framework mapping ─────────────────────────────────────────────────────────
+# ── Skip if no language given ─────────────────────────────────────────────────
 
-ags_framework=""
-case "$LANGUAGE" in
-  "Flutter"*|"Dart"*)      ags_framework="flutter" ;;
-  "Swift"*)                ags_framework="ios" ;;
-  "Kotlin (Android)"*)     ags_framework="android" ;;
-  "React Native"*)         ags_framework="react-native" ;;
-  "Go"*)                   ags_framework="golang" ;;
-  "Java / Kotlin"*)        ags_framework="spring-boot" ;;
-  "TypeScript / Node.js"*) ags_framework="nestjs" ;;
-esac
-
-if [[ -z "$ags_framework" ]]; then
-  echo "install-standards: no framework mapping for LANGUAGE='$LANGUAGE' — skipping."
+if [[ -z "$LANGUAGE" ]]; then
+  echo "install-standards: no language specified — skipping."
   exit 0
 fi
+
+# ── Normalise to ags framework key ────────────────────────────────────────────
+#
+# Mechanical transform: lowercase + kebab-case.
+# Two aliases for names where the ags package key differs from common usage.
+
+normalize() {
+  local key
+  key=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr ' /.' '-' | tr -s '-' | sed 's/^-//;s/-$//')
+  case "$key" in
+    go)   printf 'golang' ;;
+    dart) printf 'flutter' ;;  # ags calls the Dart SDK "flutter"
+    *)    printf '%s' "$key" ;;
+  esac
+}
+
+ags_framework=$(normalize "$LANGUAGE")
 
 # ── Idempotency ───────────────────────────────────────────────────────────────
 

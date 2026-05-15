@@ -77,19 +77,9 @@ Run 4–5 `AskUserQuestion` prompts, one at a time. Skip Q2 when exactly one sta
 |---|----------|--------|
 | 1 | Project name and one-line description? | Free text |
 | 2 | Primary platform or stack? | 4 options + Other: Web (frontend), Mobile (iOS/Android), Backend API, CLI |
-| 2b | Primary language? | Options depend on Q2 answer — see table below |
+| 2b | What is the primary language or framework? (e.g. Flutter, Go, React, NestJS, Swift) | Free text |
 | 3 | Team type? | 4 options + Other: Solo, Small team (<5), Cross-functional, Open source |
 | 4 | Any house conventions already in place? | Free text or "None yet" |
-
-**Q2b language options by platform:**
-
-| Q2 answer | Options |
-|-----------|---------|
-| Web (frontend) | TypeScript, JavaScript, HTML / CSS, Other |
-| Mobile (iOS/Android) | Swift (iOS), Kotlin (Android), Flutter / Dart, React Native |
-| Backend API | TypeScript / Node.js, Python, Go, Java / Kotlin |
-| CLI | Rust, Go, Python, Shell / Bash |
-| Other / unrecognised | Present as free text |
 
 Hold every answer in conversation context.
 
