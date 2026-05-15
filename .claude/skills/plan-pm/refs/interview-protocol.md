@@ -95,7 +95,20 @@ If the user selects **"I'll list the features myself"**:
 
 Once the feature list is confirmed, generate a feature table using the format in `refs/template-feature-table.md`. Present the populated table inline for the user to review before moving to Q3.
 
-### Q3 — Dependencies
+### Q3 — Out-of-scope (after feature table confirmed)
+
+Ask what should be explicitly excluded from this release. Use `multiSelect: true`. Non-selected platforms from Q1 are **always** added to §2 (Out-of-scope) automatically — do not present them as Q3 options.
+
+Derive 2–4 options from the confirmed feature list and brief. Common candidates:
+- A feature or scope item mentioned in the brief but not included in the confirmed list
+- Admin or backend tooling (user-facing surface only for this release)
+- Third-party integrations not confirmed as dependencies
+- A deferred edge case or error state (to be handled in a follow-up release)
+- Other — I'll describe
+
+After the user responds, proceed to Q4.
+
+### Q4 — Dependencies
 
 Ask what this feature depends on. Present two categories:
 
@@ -120,10 +133,10 @@ Dependencies: <comma-separated list, or "none">
 
 Ask the user: **"Is this summary correct?"**
 
-- If **yes**: continue to Q4.
+- If **yes**: continue to Q5.
 - If **no**: ask the user what to change (free text via `AskUserQuestion`), apply the correction, and re-emit the summary. Repeat until confirmed.
 
-### Q4 — Error cases (after summary confirmed)
+### Q5 — Error cases (after summary confirmed)
 
 Ask which error states this feature must handle. Derive 3–4 concrete options from the confirmed feature list.
 
@@ -134,7 +147,7 @@ Options (tailor to context):
 - Empty state — no data exists yet
 - Other
 
-### Q5 — Key user interactions (after Q4)
+### Q6 — Key user interactions (after Q5)
 
 Ask which core user actions this feature must support. Derive options from the confirmed feature list.
 
@@ -145,7 +158,7 @@ Options (tailor to context):
 - User can search or filter the list
 - Other
 
-After Q5 is answered, proceed to Step 3 (PRD numbering and scaffolding).
+After Q6 is answered, proceed to Step 4 (PRD numbering and scaffolding).
 
 ## Format rules
 
@@ -154,4 +167,4 @@ After Q5 is answered, proceed to Step 3 (PRD numbering and scaffolding).
 - If the user selects "Other", treat the free-text input as a verbatim answer and continue.
 - The feature table and summary are emitted as inline text (not `AskUserQuestion`).
 - The brainstorm B2 recommendation step is the only place `multiSelect: true` is used — all other questions are single-select.
-- After all questions are confirmed, proceed to Step 3 (PRD numbering and scaffolding).
+- After all questions are confirmed, proceed to Step 4 (PRD numbering and scaffolding).

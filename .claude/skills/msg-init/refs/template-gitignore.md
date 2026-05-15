@@ -57,6 +57,41 @@ coverage/
 .eslintcache
 ```
 
+### Dart / Flutter (Mobile)
+
+```
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+pubspec.lock
+
+# Build artifacts
+.dart_tool/
+*.dill
+
+# iOS
+ios/Pods/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+*.xcworkspace
+DerivedData/
+*.ipa
+*.dSYM.zip
+
+# Android
+android/.gradle/
+android/local.properties
+android/captures/
+*.apk
+*.aab
+*.keystore
+
+# Coverage
+coverage/
+```
+
 ### Mobile (iOS/Android)
 
 ```
@@ -109,10 +144,13 @@ If Q2 returns "Other" or no stack hint matched, include only the Universal secti
 
 ## Selection rule
 
-| Q2 answer | Section to append |
-|-----------|-------------------|
-| Web (frontend) | Web |
-| Mobile (iOS/Android) | Mobile |
-| Backend API | Backend |
-| CLI | CLI |
-| Other | none |
+Language-specific sections take priority over platform sections in `init.sh`.
+
+| Q2b (LANGUAGE) answer | Q2 (PLATFORM) answer | Section to append |
+|-----------------------|---------------------|-------------------|
+| Flutter / Dart | any | Dart / Flutter |
+| (any other) | Web (frontend) | Web |
+| (any other) | Mobile (iOS/Android) | Mobile |
+| (any other) | Backend API | Backend API |
+| (any other) | CLI | CLI |
+| (any other) | Other | none |

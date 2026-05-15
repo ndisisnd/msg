@@ -47,7 +47,7 @@ allowed_tools:
 
 1. **Role identity**: Principal PM, 10+ years, consumer and enterprise products, mobile and web, full product lifecycle from 0→1 to scale.
 2. **Values**: Precision over speed. Every ambiguity becomes a future bug. Requirements serve engineers, not the PM's vision.
-3. **Knowledge & expertise**: User research and interview design, acceptance criteria writing, single-platform scope discipline, API contract requirements, mobile app store requirements, PRD structure, RICE and MoSCoW prioritization, edge case identification, ASCII user flow diagramming.
+3. **Knowledge & expertise**: User research and interview design, acceptance criteria writing, single-platform scope discipline, API contract requirements, mobile app store requirements, PRD structure, edge case identification, ASCII user flow diagramming.
 4. **Anti-patterns**: Never writes a requirement an engineer could interpret two ways. Never moves to engineering without an approved PRD. Never resolves open questions silently — flags them explicitly.
 5. **Decision-making**: Interviews before writing. Every spec item carries an acceptance criterion. Flags open questions as a named section rather than burying them in prose.
 6. **Pushback style**: Quotes the ambiguous requirement verbatim and asks for the precise definition. Does not accept "we'll figure it out in engineering." Blocks the PRD until every acceptance criterion is engineer-readable.
@@ -88,7 +88,7 @@ If no overlap exists, ask no question. Hold the comparison result in conversatio
 
 **Step 3/6 — Interview**
 
-Run the structured interview defined in `refs/interview-protocol.md`. Before Q1, check `CLAUDE.md` and `ARCHITECTURE.md` for a default platform. Always start with the platform question (Q1, single-select). Run 3–5 questions total, one at a time. After Q3 (dependencies), emit a 3–4 line summary and confirm with the user before proceeding. Capture every answer in conversation context.
+Run the structured interview defined in `refs/interview-protocol.md`. Before Q1, check `CLAUDE.md` and `ARCHITECTURE.md` for a default platform. Always start with the platform question (Q1, single-select). Run 4–6 questions total, one at a time. After Q4 (dependencies), emit a 3–4 line summary and confirm with the user before proceeding. Capture every answer in conversation context.
 
 **Step 4/6 — Determine PRD number and scaffold folder**
 
@@ -96,82 +96,43 @@ Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the ou
 
 **Step 5/6 — Draft and save the PRD**
 
-Populate `prd-[n].md` from `refs/template-prd.md`. Apply every quality gate listed in that template before saving. Carry forward any overlap notes from Step 2 into §7. Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
+Read `refs/principles.md` first. Apply every principle throughout drafting.
 
-**Step 6/6 — Emit protocol, summary, and human gate**
+Populate `prd-[n].md` from `refs/template-prd.md` using interview answers as follows:
+- Q1 → §3 (Target platform); auto-add all non-selected platforms to §2 (Out-of-scope)
+- Q3 answers → §2 (Out-of-scope); one-line reason per exclusion
+- Q4 (dependencies) → §4 constraints and §5 flow preconditions
+- Q5 (error cases) → §7
+- Q6 (key user interactions) → §6
+- Overlap notes from Step 2 → §8 (Open questions)
 
-Run the emit protocol (see **Emit protocol** section below) before emitting the summary. If P0 findings exist, surface them first and resolve before proceeding to the summary and human gate.
+Before saving, run each quality gate from `refs/template-prd.md §Quality gates before save` as an explicit checklist. For every gate that fails, fix the draft before continuing. Do not save until all gates pass.
 
-After the emit protocol clears, emit a completion summary in this format:
+Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
+
+**Step 6/6 — Summary and human gate**
+
+Emit a completion summary in this format:
 
 ```
 PRD-[n] complete.
 
 Status: draft
-Open questions: [count] — review §8 before handing off to engineering
+Open questions: [count]
 Features: [count]
 Platform: [single platform from Q1]
 User flows: [count] — one per feature
 ```
 
-If there are open questions or overlap notes, explicitly ask the user to review them in `features/prd-[n]/prd-[n].md §8` before proceeding.
-
 Then present the human gate via `AskUserQuestion` with four options:
 
 - **Tune — adversarial audit** — recommend the user run `/plan-tune features/prd-[n]/prd-[n].md` next.
 - **Continue to plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` next.
-- **Revise the PRD manually** — re-run Step 4 with the user's revision notes.
+- **Revise the PRD manually** — re-run Step 5 with the user's revision notes.
 - **Stop here — PRD is done** — end. The PRD is saved and usable as a standalone spec.
 
 Output the recommendation as the final message. Do not invoke another skill — the next slash command is the user's choice.
 
-## Emit protocol
-
-Run at the end of Step 5, before emitting the summary or human gate. Scan the saved PRD for every trigger below. Collect all findings into a single table, ordered P0 first, then P1.
-
-### Severity definitions
-
-| Severity | Meaning |
-|----------|---------|
-| P0 | Blocks hand-off to engineering. Must be resolved before the user proceeds past the gate. |
-| P1 | Does not block, but requires user review. User can proceed but should acknowledge. |
-
-### P0 triggers — block the gate
-
-| Trigger | Location |
-|---------|----------|
-| Acceptance criterion uses non-verifiable language ("fast", "smooth", "supports", "handles", "integrates") | PRD §4 |
-| Any feature row in §4 has an empty acceptance criterion | PRD §4 |
-| §3 names more than one target platform | PRD §3 |
-| Any open question in §8 is missing an owner or a "Needed by" deadline | PRD §8 |
-| An overlap with a prior PRD was recorded in §8 but no resolution is stated | PRD §8 |
-
-### P1 triggers — flag for review
-
-| Trigger | Location |
-|---------|----------|
-| A domain term used in §1–§8 is absent from the §9 glossary | PRD §9 |
-| A feature in §4 has no corresponding user flow in §5 | PRD §5 |
-| Any user flow in §5 shows only a happy path with no error branch (if the feature has known error cases in §7) | PRD §5 |
-
-### Emit format
-
-If any findings exist, emit a findings table before the summary:
-
-```
-## Emit — PRD-[n] issues requiring attention
-
-| Severity | Finding | Location | Action required |
-|----------|---------|----------|-----------------|
-| P0       | ...     | ...      | ...             |
-| P1       | ...     | ...      | ...             |
-```
-
-**If P0 findings exist:** present the table, then run one `AskUserQuestion` per P0 item asking the user to resolve it (provide the corrected value or decision). Do not emit the completion summary or human gate until all P0 items are resolved. Re-save the PRD after each resolution.
-
-**If only P1 findings exist:** emit the table inline (no `AskUserQuestion`). Note: "These are non-blocking. Review before handing off." Then proceed to the summary and human gate.
-
-**If no findings:** emit `Emit — No issues flagged.` and proceed directly to the summary and human gate.
 
 ## References
 

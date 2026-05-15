@@ -7,6 +7,7 @@
 #   PROJECT_NAME         Q1 name
 #   PROJECT_DESCRIPTION  Q1 one-line description
 #   PLATFORM             Q2 answer ("Web (frontend)", "Backend API", "CLI", "Mobile (iOS/Android)")
+#   LANGUAGE             Q2b answer (e.g. "TypeScript", "Swift (iOS)", "Kotlin (Android)")
 #   TEAM_TYPE            Q3 answer
 #   CONVENTIONS          Q4 answer
 #
@@ -23,6 +24,7 @@ TARGET="${1:-.}"
 PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET")}"
 PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-Project bootstrapped with msg-init.}"
 PLATFORM="${PLATFORM:-Not specified — fill in later.}"
+LANGUAGE="${LANGUAGE:-Not specified — fill in later.}"
 TEAM_TYPE="${TEAM_TYPE:-Solo}"
 CONVENTIONS="${CONVENTIONS:-None recorded yet. Add house conventions as they emerge.}"
 
@@ -35,6 +37,7 @@ apply_subs() {
     -e "s|{{project_name}}|${PROJECT_NAME}|g" \
     -e "s|{{project_description}}|${PROJECT_DESCRIPTION}|g" \
     -e "s|{{platform}}|${PLATFORM}|g" \
+    -e "s|{{language}}|${LANGUAGE}|g" \
     -e "s|{{team_type}}|${TEAM_TYPE}|g" \
     -e "s|{{conventions}}|${CONVENTIONS}|g"
 }
@@ -112,12 +115,18 @@ else
     in_section && in_block { print }
   ' "$gf")
 
-  case "$PLATFORM" in
-    "Web (frontend)"*)  stack_pat="^### Web" ;;
-    "Mobile"*)          stack_pat="^### Mobile" ;;
-    "Backend API"*)     stack_pat="^### Backend API" ;;
-    "CLI"*)             stack_pat="^### CLI" ;;
-    *)                  stack_pat="" ;;
+  # Language-specific sections take priority; fall back to platform.
+  case "$LANGUAGE" in
+    "Flutter"*|"Dart"*) stack_pat="^### Dart / Flutter" ;;
+    *)
+      case "$PLATFORM" in
+        "Web (frontend)"*)  stack_pat="^### Web" ;;
+        "Mobile"*)          stack_pat="^### Mobile" ;;
+        "Backend API"*)     stack_pat="^### Backend API" ;;
+        "CLI"*)             stack_pat="^### CLI" ;;
+        *)                  stack_pat="" ;;
+      esac
+      ;;
   esac
 
   stack_content=""

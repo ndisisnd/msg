@@ -33,7 +33,7 @@ allowed_tools:
 
 | Name | Format | Source |
 |------|--------|--------|
-| Working directory state | File listing and stat checks | Bash scan at Step 1 |
+| Working directory state | `key=value` lines from `init-setup.sh` | `init-setup.sh` at Step 1 |
 | Project metadata | Interview answers | `AskUserQuestion` at Step 2 |
 | Optional brief | Free text | User message at invocation |
 
@@ -48,6 +48,7 @@ allowed_tools:
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | ARCHITECTURE.md | Markdown from `refs/template-ARCHITECTURE.md`, customised with platform | `<cwd>/ARCHITECTURE.md` |
 | features/ | Empty directory | `<cwd>/features/` |
+| .skillsrc | YAML for agent-skills-standard (conditional on framework detection) | `<cwd>/.skillsrc` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
 
 ## Progress emission
@@ -58,22 +59,37 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 **Step 1/5 — Scan the working directory**
 
-Run via Bash in parallel: stat-check each of `AHA.md`, `GLOSSARY.md`, `README.md`, `.gitignore`, `CLAUDE.md`, `ARCHITECTURE.md`, `features/`. Build two lists in conversation context: `present[]` and `missing[]`.
+Run `init-setup.sh` via Bash:
 
-Also detect stack hints: `package.json`, `tsconfig.json`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `Gemfile`, `pom.xml`, `build.gradle`, `Podfile`. Hold the detected stack as a default for Q2.
+```
+<skill_dir>/init-setup.sh "<cwd>"
+```
 
-If all seven targets exist, emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step.
+Parse the five `key=value` lines it prints and hold `PRESENT`, `MISSING`, and `STACK_DEFAULT` in conversation context.
+
+If `ALL_COMPLETE=true`, emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step.
 
 **Step 2/5 — Interview**
 
-Run 3–4 `AskUserQuestion` prompts, one at a time. Skip Q2 when exactly one stack hint is present (platform is unambiguous).
+Run 4–5 `AskUserQuestion` prompts, one at a time. Skip Q2 when exactly one stack hint is present (platform is unambiguous).
 
 | Q | Question | Format |
 |---|----------|--------|
 | 1 | Project name and one-line description? | Free text |
 | 2 | Primary platform or stack? | 4 options + Other: Web (frontend), Mobile (iOS/Android), Backend API, CLI |
+| 2b | Primary language? | Options depend on Q2 answer — see table below |
 | 3 | Team type? | 4 options + Other: Solo, Small team (<5), Cross-functional, Open source |
 | 4 | Any house conventions already in place? | Free text or "None yet" |
+
+**Q2b language options by platform:**
+
+| Q2 answer | Options |
+|-----------|---------|
+| Web (frontend) | TypeScript, JavaScript, HTML / CSS, Other |
+| Mobile (iOS/Android) | Swift (iOS), Kotlin (Android), Flutter / Dart, React Native |
+| Backend API | TypeScript / Node.js, Python, Go, Java / Kotlin |
+| CLI | Rust, Go, Python, Shell / Bash |
+| Other / unrecognised | Present as free text |
 
 Hold every answer in conversation context.
 
@@ -85,12 +101,25 @@ Run `init.sh` via Bash, passing interview answers as env vars and the working di
 PROJECT_NAME="<Q1 name>" \
 PROJECT_DESCRIPTION="<Q1 description>" \
 PLATFORM="<Q2 answer>" \
+LANGUAGE="<Q2b answer>" \
 TEAM_TYPE="<Q3 answer>" \
 CONVENTIONS="<Q4 answer>" \
 <skill_dir>/init.sh "<cwd>"
 ```
 
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
+
+**Coding standards install**
+
+After `init.sh` exits 0, run:
+
+```
+LANGUAGE="<Q2b answer>" \
+PLATFORM="<Q2 answer>" \
+<skill_dir>/install-standards.sh "<cwd>"
+```
+
+The script: checks npm is available (installs via nvm / Homebrew / apt if not), derives the framework key from LANGUAGE + PLATFORM, writes `.skillsrc`, and runs `agent-skills-standard sync --yes`. It exits 0 with a skip message if the language has no mapping or `.skillsrc` already exists.
 
 **Step 4/5 — Verify**
 
@@ -106,7 +135,9 @@ Do not invoke another skill. The next slash command is the user's choice.
 
 ## References
 
+- `init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`
 - `init.sh` — deterministic template writer; called at Step 3 with interview answers as env vars
+- `install-standards.sh` — checks/installs npm, maps LANGUAGE → ags_framework, writes `.skillsrc`, runs `agent-skills-standard sync --yes`; called at Step 3 after `init.sh`
 - `refs/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/template-README.md` — template for README.md (project placeholder)
