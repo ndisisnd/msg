@@ -15,19 +15,6 @@ allowed_tools:
 - Slash command `/msg-commit`
 - Natural-language: "commit message", "write a commit", "what should I commit", "summarise these changes as a commit"
 
-## Inputs
-
-| Name | Format | Source |
-|------|--------|--------|
-| staged diff | text output of `git diff --staged` | shell, auto-run |
-
-## Outputs
-
-| Name | Format | Destination |
-|------|--------|-------------|
-| commit message | plain-text subject; optional breaking-change body | shown inline |
-| action | copy or commit | user choice via prompt |
-
 ## Step-by-step protocol
 
 **Step 1 — Determine input**
