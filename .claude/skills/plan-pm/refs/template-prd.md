@@ -25,14 +25,7 @@ created: YYYY-MM-DD
 
 ## Required sections
 
-### 1. Problem statement
-
-One sentence. Name the user pain and its context.
-
-**Worked example:**
-> First-time users abandon the habit-tracking flow at the streak-setup step because they don't understand what counts as a streak.
-
-### 2. Out-of-scope
+### 1. Out-of-scope
 
 Bulleted list of features or behaviors explicitly excluded. Each item has a one-line reason.
 
@@ -40,7 +33,7 @@ Bulleted list of features or behaviors explicitly excluded. Each item has a one-
 - Social sharing of streaks — covered in PRD-4 (separate workstream).
 - Backfill of historical habits — out of scope; users start from sign-up date.
 
-### 3. Target platform
+### 2. Target platform
 
 | Field | Value |
 |-------|-------|
@@ -53,7 +46,7 @@ Bulleted list of features or behaviors explicitly excluded. Each item has a one-
 | Platform | iOS |
 | Min OS version | iOS 16.0+ |
 
-### 4. User flows
+### 3. User flows
 
 At least one ASCII flow diagram per feature. Each flow must show the happy path from entry point to completion. Use boxes (`[ ]`), arrows (`-->`), and decision diamonds (`< >`). Label every step with the screen name or action.
 
@@ -96,7 +89,7 @@ Feature: Set daily goal
                 row appears instantly]
 ```
 
-### 5. Key user interactions
+### 4. Key user interactions
 
 Bulleted list of the core actions a user can take within this feature. Each item is a single sentence starting with "User can …". Derived from Q5 of the interview.
 
@@ -105,11 +98,11 @@ Bulleted list of the core actions a user can take within this feature. Each item
 - User can delete an existing habit from the habit list.
 - User can edit a habit's name or frequency after creation.
 
-### 6. Error cases
+### 5. Error cases
 
 Format, rules, and examples: see `refs/template-error.md`.
 
-### 7. Open questions
+### 6. Open questions
 
 Bulleted list. Each item is a single unresolved question that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved AHA.md entries, any ambiguity surfaced during the interview.
 
@@ -117,7 +110,7 @@ Bulleted list. Each item is a single unresolved question that must be answered b
 - PRD-2 also handles streak resets — confirm which PRD owns the reset logic before building.
 - Target OS minimum not confirmed; assumed iOS 16.0+ pending design sign-off.
 
-### 8. Glossary
+### 7. Glossary
 
 Table of domain terms used in this PRD. Cross-reference `GLOSSARY.md`; include any term defined there that appears in this document. Add new terms not yet in `GLOSSARY.md`.
 
@@ -131,13 +124,3 @@ Table of domain terms used in this PRD. Cross-reference `GLOSSARY.md`; include a
 | Streak | Consecutive days a habit is marked complete. Resets to 0 on a missed day. |
 | Habit | A user-defined recurring activity tracked by the app. |
 
-## Quality gates before save
-
-Before plan-pm saves the file, every gate below must pass:
-
-| Gate | Rule |
-|------|------|
-| Out-of-scope | At least two explicit exclusions with reasons. |
-| User flows | At least one ASCII flow per feature; every flow shows the happy path. |
-| Key user interactions | At least two "User can …" bullets. |
-| Error cases | At least two rows; each has a concrete trigger and named UI behavior. |

@@ -96,7 +96,7 @@ Document every meaningful approach that was evaluated and rejected. This is the 
 
 ### 5. Design decisions
 
-One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §14.
+One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §16.
 
 **Format per decision:**
 
@@ -124,7 +124,7 @@ One subsection per non-obvious implementation choice. Each decision must name th
 
 ### 6. Scope mapping
 
-Table form. Map every feature ID from PRD §4 to one or more engineering domains. Domains must stay within the single platform stated in PRD §3. Use `refs/scope-matrix.md` to determine domain assignments.
+Table form. Map every feature ID from PRD §4 to one or more engineering domains. Domains must stay within the single platform stated in PRD §3.
 
 | PRD feature ID | Feature | Domains | Lead agent |
 |----------------|---------|---------|-----------|
@@ -157,7 +157,35 @@ Numbered phases. Each phase names its blocking dependency and exit criterion.
 
 ---
 
-### 9. Developer experience
+### 9. Integration contracts
+
+Cover all cross-service and cross-layer contracts introduced or changed by this RFC. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
+
+**API contracts:** List every new or changed API endpoint (REST, GraphQL, or RPC). For each, state the method, path or operation name, request shape, response shape, and the owning agent. Mark `NEW` or `CHANGED`.
+
+| Method | Path / Operation | Request | Response | Owner | Status |
+|--------|-----------------|---------|----------|-------|--------|
+| POST | `/api/v1/streaks` | `{ userId, date }` | `{ streakId, count }` | backend-eng | NEW |
+
+**Schema changes:** List every database schema change. State whether each change is additive-only or requires a migration script. Mark `ADDITIVE` or `MIGRATION REQUIRED`.
+
+| Table / Collection | Change | Type |
+|-------------------|--------|------|
+| `streaks` | New table — `id`, `user_id`, `date`, `count` | MIGRATION REQUIRED |
+| `users` | Add column `streak_id` (nullable FK) | ADDITIVE |
+
+**Authentication patterns:** State which authentication mechanism this feature uses (JWT, session cookie, API key, OAuth token, etc.) and whether it introduces a new flow or reuses an existing one. If a new auth flow is introduced, describe the token lifecycle: how the token is issued, validated, refreshed, and revoked.
+
+**Webhooks and hooks:** List every webhook emitted or consumed and every framework or platform hook invoked. For webhooks: name the event, payload shape, and consumer. For hooks: name the extension point and execution context. Write `None.` if this feature introduces no webhooks or hooks.
+
+| Type | Name / Event | Payload shape | Consumer / Context |
+|------|-------------|---------------|--------------------|
+| Webhook (outbound) | `streak.completed` | `{ userId, streak, timestamp }` | third-party integrations |
+| Lifecycle hook | `onSessionExpire` | `(session: Session)` | auth middleware |
+
+---
+
+### 10. Developer experience
 
 Show what the feature looks like from the outside before and after. Use a code diff or side-by-side comparison. This section exists to validate that the implementation actually solves the problem stated in §1.
 
@@ -175,7 +203,7 @@ If the change is entirely internal (no user-facing API change), write `No user-f
 
 ---
 
-### 10. Migration and breaking changes
+### 11. Migration and breaking changes
 
 State explicitly whether this RFC introduces breaking changes and what the upgrade path is. If none, write `No breaking changes.`
 
@@ -191,7 +219,7 @@ State explicitly whether this RFC introduces breaking changes and what the upgra
 
 ---
 
-### 11. Branching and CI strategy
+### 12. Branching and CI strategy
 
 Bullet list. State the branching model, integration points, and CI gates.
 
@@ -203,7 +231,7 @@ Bullet list. State the branching model, integration points, and CI gates.
 
 ---
 
-### 12. Risks and mitigations
+### 13. Risks and mitigations
 
 Table form. One row per risk that could block ship.
 
@@ -215,7 +243,7 @@ Table form. One row per risk that could block ship.
 
 ---
 
-### 13. Findings — PRD gaps
+### 14. Findings — PRD gaps
 
 Numbered findings. Each carries a severity and a required action. If `plan-em` ran clarifying questions during drafting, capture the unresolved ones here. If no findings, write `None.` and continue.
 
@@ -230,7 +258,7 @@ Numbered findings. Each carries a severity and a required action. If `plan-em` r
 
 ---
 
-### 14. Cost and timeline
+### 15. Cost and timeline
 
 Bullet list. State engineering days per agent and a target ship date. Round up; reviewers prefer honest over-estimates.
 
@@ -242,7 +270,7 @@ Bullet list. State engineering days per agent and a target ship date. Round up; 
 
 ---
 
-### 15. Open questions for human gate
+### 16. Open questions for human gate
 
 Numbered. Each question must be answerable with a single decision. Mark any design decisions from §5 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
 
@@ -260,9 +288,10 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 | PRD coverage | Every PRD §5 feature ID appears in §6 scope mapping. |
 | Agent set | Every agent in §7 has at least one row in §6 it owns. |
 | Phases | Every phase names a blocking dependency and an exit criterion. |
-| Developer experience | §9 shows a before/after or explicitly states no user-facing change. |
-| Migration | §10 explicitly states whether breaking changes exist and names the rollback plan. |
+| Integration contracts | §9 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
+| Developer experience | §10 shows a before/after or explicitly states no user-facing change. |
+| Migration | §11 explicitly states whether breaking changes exist and names the rollback plan. |
 | Risks | At least three risks named, each with a mitigation. |
 | Findings | If PRD gaps exist, every finding has severity and action. |
-| Timeline | Every agent in §7 has an engineer-day estimate in §14. |
-| Open questions | Any OPEN design decision in §5 appears in §15. |
+| Timeline | Every agent in §7 has an engineer-day estimate in §15. |
+| Open questions | Any OPEN design decision in §5 appears in §16. |

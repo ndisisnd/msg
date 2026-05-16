@@ -6,7 +6,7 @@ description: >
   specialist agents to activate (asks for approval), spins them up to write
   engineering sections directly into the PRD, prompts for eng-tune, then
   synthesises the full output. Refuses without a referenced PRD .md path.
-model: claude-opus-4-7
+model: claude-opus-4-6
 allowed_tools:
   - Agent
   - AskUserQuestion
@@ -78,7 +78,14 @@ Then, mandatory pre-flight scan. Read all of the following in order:
 2. `GLOSSARY.md` — load canonical term definitions. Flag any PRD terms that deviate from the glossary.
 3. `ARCHITECTURE.md` — load system constraints, existing layers, and integration points. Note any constraints that affect the PRD's features.
 4. The PRD file in full.
-5. Prior PRDs for overlap: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD, read its features section and compare against the input PRD's features.
+5. Codebase scan — run targeted searches to surface the actual state of the codebase for every domain the PRD touches. This scan determines the first layer: what already exists, what must be extended, and what must be built from scratch. At minimum, search for:
+   - **API routes / endpoints**: grep for route definitions, controller files, OpenAPI specs, or GraphQL schema files relevant to PRD features.
+   - **Database schemas**: locate migration files, ORM model definitions, or schema files. Note every table and column that the PRD features will read or write.
+   - **Authentication patterns**: find existing auth middleware, token handling, session logic, or guard decorators. Note the mechanism in use (JWT, session cookie, API key, OAuth, etc.).
+   - **Webhooks and hooks**: search for existing webhook dispatch logic, event emitters, lifecycle hooks, or platform hook registrations that the PRD features may extend or conflict with.
+
+   Record findings per domain. These findings feed directly into the pre-flight report and constrain what first-layer fixes are possible without user input.
+6. Prior PRDs for overlap: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD, read its features section and compare against the input PRD's features.
 
 Produce an in-memory pre-flight report:
 

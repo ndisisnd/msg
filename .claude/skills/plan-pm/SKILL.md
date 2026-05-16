@@ -5,7 +5,7 @@ description: >
   then produces a structured PRD saved to features/prd-[n]/prd-[n].md.
   Default entry point for the product ship workflow. Refuses requests that
   would skip the PRD stage.
-model: claude-sonnet-4-6
+model: claude-opus-4-6
 allowed_tools:
   - AskUserQuestion
   - Bash
@@ -42,8 +42,8 @@ Emit `Step X/6 — <title>` at the start of each step, unconditionally.
 Before emitting any step, stat-check `AHA.md`, `GLOSSARY.md`, and `CLAUDE.md` in parallel via `Bash`:
 
 - **Present**: read silently and hold contents in context. Apply each file's contents as follows:
-  - `AHA.md` — surface relevant entries in §7 (Open questions)
-  - `GLOSSARY.md` — cross-reference when populating §8 (Glossary) in Step 5
+  - `AHA.md` — surface relevant entries in §6 (Open questions)
+  - `GLOSSARY.md` — cross-reference when populating §7 (Glossary) in Step 5
   - `CLAUDE.md` — extract tech stack constraints, conventions, and architecture notes; use these to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup
 - **Absent**: emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
@@ -57,19 +57,25 @@ Receive the product idea or brief. Check that a target user and scope are stated
 
 **Step 2/6 — Scan prior PRDs for overlap**
 
-List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, read each prior PRD's §1 (Problem) and §5 (Features). If any prior PRD's problem statement or feature overlaps with the new brief, record each overlapping PRD by ID in §7 (Open questions) of the new PRD. Proceed immediately to Step 3.
+List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, read each prior PRD's §1 (Problem) and §5 (Features). If any prior PRD's problem statement or feature overlaps with the new brief, record each overlapping PRD by ID in §6 (Open questions) of the new PRD. Proceed immediately to Step 3.
 
 **Step 3/6 — Interview**
 
 Run the structured interview defined in `refs/interview-protocol.md`. Platform is detected by the pre-flight script inside the protocol — do not ask the user. Run 5 questions total, one at a time. Capture every answer in conversation context.
 
-**Step 4/6 — Determine PRD number and initialize template**
+**Step 4/6 — Pre-light run and initialize template**
 
-Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the output as `n`. Create `features/` if absent. Create `features/prd-[n]/`.
+**Part 1 — Pre-light run**
+
+Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Store the output as `n`. Store the platform detected in Step 3's interview protocol as `platform`.
+
+**Part 2 — Initialize template**
+
+Create `features/` if absent. Create `features/prd-[n]/`.
 
 Write `features/prd-[n]/prd-[n].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
 - `name`: `prd-[n]`
-- `platform`: platform detected in the pre-flight (from Step 3's interview protocol)
+- `platform`: `platform` stored in Part 1
 - `status`: `product`
 - `tuned`: `no`
 
@@ -83,18 +89,17 @@ Populate each section in `features/prd-[n]/prd-[n].md` from the interview answer
 
 | Section | Source |
 |---------|--------|
-| §1 Problem statement | Brief from Step 1 |
-| §2 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
-| §3 Target platform | Platform from pre-flight |
-| §4 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature |
-| §5 Key user interactions | Q5 answers |
-| §6 Error cases | Q4 answers; format from `refs/template-error.md` |
-| §7 Open questions | Overlap from Step 2 + relevant AHA.md entries |
-| §8 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
+| §1 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
+| §2 Target platform | Platform from pre-flight |
+| §3 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature |
+| §4 Key user interactions | Q5 answers |
+| §5 Error cases | Q4 answers; format from `refs/template-error.md` |
+| §6 Open questions | Overlap from Step 2 + relevant AHA.md entries |
+| §7 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
 
 Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout.
 
-After populating all sections, run each quality gate from `refs/template-prd.md §Quality gates before save` as an explicit checklist. Fix every failing gate before continuing. The populated file is the artifact of this step.
+The populated file is the artifact of this step.
 
 **Step 6/6 — Summary and next steps**
 
@@ -102,7 +107,7 @@ After populating all sections, run each quality gate from `refs/template-prd.md 
 
 Before emitting the completion summary, identify learnings from this run worth capturing. A learning qualifies if any of:
 - A feature was constrained or invalidated by a CLAUDE.md rule
-- Overlap with a prior PRD was found and recorded in §7
+- Overlap with a prior PRD was found and recorded in §6
 - Intake required clarification because target user or scope was missing
 - An interview answer revealed an assumption that significantly narrowed scope
 
@@ -119,31 +124,37 @@ Entries go under `## Entries`, most recent first. If `AHA.md` does not exist, cr
 Emit a completion summary in this format:
 
 ```
-PRD-[n] complete.
-
-Status: draft
-Open questions: [count]
-Features: [count]
-Platform: [platform from pre-flight]
-User flows: [count] — one per feature
+PRD generated for <feature>. There are <value> open questions.
 ```
 
-Then emit:
+**Open questions loop (if open questions count > 0)**
 
-```
-Next steps:
-- /plan-tune features/prd-[n]/prd-[n].md — adversarial audit of the PRD
-- /plan-em features/prd-[n]/prd-[n].md — continue to engineering planning
-- Edit features/prd-[n]/prd-[n].md manually — revise before continuing
-```
+Ask the user: "Would you like to address the open questions now?" via `AskUserQuestion` (options: Yes / Skip all). If the user chooses Yes, iterate through each open question one at a time:
 
-Do not invoke another skill. The next slash command is the user's choice.
+- Present the question text and a set of plausible answers as a `multiSelect` `AskUserQuestion`. Always include "Skip" as one option.
+- If the user selects "Skip" (or only "Skip"), record no answer for that question and move to the next.
+- If the user provides an answer, update §6 of the PRD to reflect the resolution inline next to the question (e.g., append `→ <answer>`).
+
+After all questions have been presented (answered or skipped), proceed to the next-step prompt.
+
+**Next-step prompt**
+
+Ask via `AskUserQuestion` (single-select):
+
+> What would you like to do next?
+
+Options:
+- Tune the plan — run `/plan-tune` on this PRD
+- Plan the eng execution — run `/plan-em` on this PRD
+- Terminate the session
+
+Do not invoke another skill. The user's selection ends this run.
 
 
 ## References
 
 - `refs/principles.md` — core operating principles; read this first before any other ref
-- `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 4 and for quality gates in Step 5
-- `refs/template-error.md` — error case format, rules, and examples; used when populating §6 in Step 5
+- `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 4
+- `refs/template-error.md` — error case format, rules, and examples; used when populating §5 in Step 5
 - `refs/interview-protocol.md` — structured interview questions and format for Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
