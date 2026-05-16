@@ -87,7 +87,15 @@ If epic detected:
 
 **Step 2/6 — Scan prior PRDs for overlap**
 
-List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, read each prior PRD's §1 (Problem) and §5 (Features). If any prior PRD's problem statement or feature overlaps with the new brief, record each overlapping PRD by ID in §6 (Open questions) of the new PRD. Proceed immediately to Step 3.
+List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, for each prior PRD:
+1. Read its YAML frontmatter (`module`, `affects`, `depends_on`) first for a fast signal.
+2. If the new brief's domain matches a prior PRD's `module`, or the prior PRD's `affects` list references the new feature area, flag it and read its features section in full.
+3. Classify each flagged relationship and hold in context for Step 4 frontmatter population:
+   - **Dependency** (`depends_on`): the new PRD requires a prior PRD's output to function (e.g., relies on an auth system, schema, or API that prior PRD owns). Record the prior PRD's ID.
+   - **Affects** (`affects`): the new PRD modifies scope, contracts, or module ownership that a prior PRD also touches. Record the prior PRD's ID.
+4. Record each overlapping PRD by ID in §6 (Open questions) of the new PRD.
+
+Proceed immediately to Step 3.
 
 **Step 3/6 — Interview**
 
@@ -105,9 +113,14 @@ Create `features/` if absent. Create `features/prd-[n]/`.
 
 Write `features/prd-[n]/prd-[n].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
 - `name`: `prd-[n]`
+- `feature`: short feature name from Q1
+- `module`: primary module or domain inferred from Q1 answers (e.g., `auth`, `payments`, `notifications`, `onboarding`). Use one lowercase word or hyphenated phrase. If ambiguous, use the broadest domain name that covers the feature.
+- `affects`: list of prior PRD IDs classified as **Affects** in Step 2 (e.g., `[prd-1, prd-3]`). Empty list `[]` if none.
+- `depends_on`: list of prior PRD IDs classified as **Dependency** in Step 2 (e.g., `[prd-2]`). Empty list `[]` if none.
 - `platform`: `platform` stored in Part 1
 - `status`: `product`
 - `tuned`: `no`
+- `created`: today's date in `YYYY-MM-DD`
 
 All section bodies remain as placeholders. This initialized file is the artifact of this step.
 

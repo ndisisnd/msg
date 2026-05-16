@@ -14,6 +14,9 @@ Populate every section. Do not delete a section — if a section does not apply,
 ---
 name: prd-[n]
 feature: <short feature name>
+module: <primary module or domain this PRD touches, e.g. auth | payments | notifications>
+affects: []   # prd-[n] IDs whose scope this PRD overlaps or may break
+depends_on: []  # prd-[n] IDs that must ship before this one
 platform: <detected platform, e.g. mobile | web | backend>
 status: product
 tuned: no

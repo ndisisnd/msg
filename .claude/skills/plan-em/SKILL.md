@@ -86,14 +86,32 @@ Then, mandatory pre-flight scan. Read all of the following in order:
    - **Feature flags and remote config**: search for existing feature flag implementations, toggle keys, remote config entries, or A/B testing framework usage. Note the system in use and any keys the PRD features will need to add or extend; flag naming conflicts with existing keys.
 
    Record findings per domain. These findings feed directly into the pre-flight report and constrain what first-layer fixes are possible without user input.
-6. Prior PRDs for overlap: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD, read its features section and compare against the input PRD's features.
+6. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
+   - **Fast scan via frontmatter first**: read the `module`, `affects`, and `depends_on` fields in the YAML frontmatter. If the input PRD's `module` matches another PRD's `module`, or the input PRD appears in another PRD's `affects` list, or the input PRD's `depends_on` names a prior PRD — flag it immediately.
+   - **Full read only when flagged**: for any PRD flagged by frontmatter, read its features section in full and classify the relationship as one of:
+     - **Dependency** — the input PRD's `depends_on` lists this PRD; it must ship first or be in flight. Confirm its current status.
+     - **Breaking change** — the input PRD's features alter a contract, schema, or module that a prior PRD also owns (may break an already-shipped feature). Name the specific contract at risk.
+     - **Overlap** — the two PRDs share user-facing scope without a clear ownership boundary.
+   - **No frontmatter**: fall back to reading the features section of every prior PRD and compare against the input PRD's features.
+
+   If any flagged PRD is found, present via one `AskUserQuestion` per relationship type (dependency, breaking change, overlap), with options appropriate to the type:
+   - **Dependency**: Confirm dependency is satisfied / Merge dependency into this plan / Stop and ship the dependency first / Proceed at risk
+   - **Breaking change**: Add backward-compat shim / Coordinate with owning PRD author / Proceed with explicit breakage noted / Stop and reconcile
+   - **Overlap**: Reuse existing / Refactor existing / Proceed with parallel implementation / Stop and reconcile with PRD author
+
+   **Frontmatter writeback** — after all resolutions are complete, update the input PRD's YAML frontmatter via `Edit` to reflect confirmed relationships:
+   - Add any newly confirmed dependency PRD IDs to `depends_on` (merge with existing list, no duplicates).
+   - Add any newly confirmed overlap or breaking-change PRD IDs to `affects` (merge with existing list, no duplicates).
+   - If `module` is blank or a placeholder, infer it from the PRD's feature domain and set it now.
+
+   Also update the frontmatter of any prior PRD whose `affects` list should include the input PRD (i.e., if the input PRD is confirmed to break or overlap a prior PRD's scope, add the input PRD's ID to that prior PRD's `affects` field).
 
 Produce an in-memory pre-flight report:
 
 - **Terminology deviations** — PRD terms not matching GLOSSARY.md
 - **Architecture conflicts** — features that contradict or ignore ARCHITECTURE.md constraints
 - **AHA.md warnings** — past learnings that apply to this PRD
-- **Overlap findings** — prior PRDs whose features overlap; if any found, present via one `AskUserQuestion` (3–4 options: Reuse existing, Refactor existing, Proceed with parallel implementation, Stop and reconcile with PRD author)
+- **Multi-PRD findings** — dependencies, breaking changes, and overlaps with prior PRDs, each classified and actioned as above
 - **PRD gaps** — sections ambiguous or incomplete enough to block domain mapping
 
 Emit a brief summary of pre-flight findings before proceeding.
