@@ -1,6 +1,6 @@
 # Principles
 
-Five categories of rules for producing an RFC engineering plan. Apply all of them, every time.
+Five categories of rules for producing an engineering execution plan. Apply all of them, every time.
 
 ---
 
@@ -24,7 +24,7 @@ Reversible decisions are cheap; irreversible ones are not. Plan for the worst ca
 - **Estimate blast radius up front** — for every decision, name the worst case and how many systems and people it affects.
 - **Prefer reversible over revolutionary** — feature flags, canaries, A/B tests, incremental rollouts. Make the cost of being wrong low.
 - **Strangler fig over rewrite** — incremental migrations beat big-bang replacements. Run old and new in parallel until traffic shifts.
-- **One innovation token per RFC, max** — if the plan introduces more than one unfamiliar technology, split it or pick one.
+- **One innovation token per plan, max** — if the plan introduces more than one unfamiliar technology, split it or pick one.
 
 ---
 

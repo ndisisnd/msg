@@ -1,18 +1,18 @@
 ---
-name: RFC Template
-description: Structured RFC / engineering plan format for plan-em to populate
+name: Engineering Execution Plan Template
+description: Structured engineering execution plan format for plan-em subagents to populate and append to the PRD
 type: reference
 ---
 
-# RFC Template
+# Engineering Execution Plan Template
 
-Populate every section. The RFC is a decision document, not a status update. It must answer "what are we building, why are we building it, what did we consider and reject, who builds what, and what blocks shipping?" without further conversation.
+Populate every section. This is an execution document, not a status update. It must answer "what are we building, what did we consider and reject, who builds what, and what blocks shipping?" without further conversation.
 
 ## File header
 
 ```markdown
 ---
-name: rfc-[n]
+name: eng-plan-[n]
 feature: <short feature name, must match prd-[n].md>
 prd: prd-[n].md
 author: plan-em
@@ -20,61 +20,31 @@ status: draft | approved
 created: YYYY-MM-DD
 ---
 
-# RFC-[n]: <Feature Name>
+# Engineering Plan [n]: <Feature Name>
 ```
 
 ## Required sections
 
-### 1. Problem
+### 1. Summary
 
-State the current state, the pain points it causes, and what we are explicitly not trying to solve.
-
-**Current state:** One to two sentences describing what exists today and why it is insufficient.
-
-**Pain points:** Bullet list of specific developer or user frustrations. Each point should be concrete enough that a reader can verify it.
-
-- Pain point one — describe the friction
-- Pain point two — describe the friction
-
-**Non-goals (we want to avoid):** Bullet list of things this RFC explicitly will not do. This guards scope and prevents future misinterpretation.
-
-- Not solving X this cycle
-- Not breaking Y if possible
+Two to three sentences. State what is being built, the single target platform (from PRD §3), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own engineering plan.
 
 **Worked example:**
-> **Current state:** Developers must copy-paste a `User` entity with all auth fields into every new project. Auth fields (email, password) are mixed with business logic fields (tasks, address) in the same model.
->
-> **Pain points:**
-> - Boilerplate copy-paste required on every new project
-> - Switching auth methods requires manual schema migrations and data moves
-> - Auth implementation details leak into application code
->
-> **Non-goals:**
-> - We will not redesign the session management layer in this RFC
-> - We will not break existing apps if avoidable
+> Ship a habit-tracking core flow on iOS only. Backend introduces one new service (`streak-service`) and extends the existing user profile schema. Android and web are out of scope for this plan.
 
 ---
 
-### 2. Summary
-
-Two to three sentences. State what is being built, the single target platform (from PRD §3), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own RFC.
-
-**Worked example:**
-> Ship a habit-tracking core flow on iOS only. Backend introduces one new service (`streak-service`) and extends the existing user profile schema. Android and web are out of scope for this RFC.
-
----
-
-### 3. PRD reference
+### 2. PRD reference
 
 Bullet list. Cite the PRD path, the version hash or date, and any tune audit applied.
 
 - **PRD:** `features/prd-[n]/prd-[n].md`
 - **PRD version:** date or git SHA
-- **Tune audit:** `features/prd-[n]/tune-[n].md` (if applicable) — list which findings were resolved before RFC drafting
+- **Tune audit:** `features/prd-[n]/tune-[n].md` (if applicable) — list which findings were resolved before engineering plan drafting
 
 ---
 
-### 4. Alternatives considered
+### 3. Alternatives considered
 
 Document every meaningful approach that was evaluated and rejected. This is the most important section for future readers who wonder "why not just do X?" If no alternative was seriously considered, write a single sentence explaining why the chosen approach is obviously correct — do not write `None.`
 
@@ -94,9 +64,9 @@ Document every meaningful approach that was evaluated and rejected. This is the 
 
 ---
 
-### 5. Design decisions
+### 4. Design decisions
 
-One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §16.
+One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §15.
 
 **Format per decision:**
 
@@ -122,9 +92,9 @@ One subsection per non-obvious implementation choice. Each decision must name th
 
 ---
 
-### 6. Scope mapping
+### 5. Scope mapping
 
-Table form. Map every feature ID from PRD §4 to one or more engineering domains. Domains must stay within the single platform stated in PRD §3.
+Table form. Map every feature ID from the PRD to one or more engineering domains. Domains must stay within the single platform stated in PRD §3.
 
 | PRD feature ID | Feature | Domains | Lead agent |
 |----------------|---------|---------|-----------|
@@ -134,7 +104,7 @@ Table form. Map every feature ID from PRD §4 to one or more engineering domains
 
 ---
 
-### 7. Agent roster
+### 6. Agent roster
 
 One row per agent that will be activated. Right-size — propose the minimal set that covers the scope. Adding an extra agent is not free. Only include agents for the target platform stated in PRD §3.
 
@@ -145,7 +115,7 @@ One row per agent that will be activated. Right-size — propose the minimal set
 
 ---
 
-### 8. Phases and dependencies
+### 7. Phases and dependencies
 
 Numbered phases. Each phase names its blocking dependency and exit criterion.
 
@@ -157,9 +127,9 @@ Numbered phases. Each phase names its blocking dependency and exit criterion.
 
 ---
 
-### 9. Integration contracts
+### 8. Integration contracts
 
-Cover all cross-service and cross-layer contracts introduced or changed by this RFC. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
+Cover all cross-service and cross-layer contracts introduced or changed by this plan. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
 
 **API contracts:** List every new or changed API endpoint (REST, GraphQL, or RPC). For each, state the method, path or operation name, request shape, response shape, and the owning agent. Mark `NEW` or `CHANGED`.
 
@@ -185,9 +155,9 @@ Cover all cross-service and cross-layer contracts introduced or changed by this 
 
 ---
 
-### 10. Developer experience
+### 9. Developer experience
 
-Show what the feature looks like from the outside before and after. Use a code diff or side-by-side comparison. This section exists to validate that the implementation actually solves the problem stated in §1.
+Show what the feature looks like from the outside before and after. Use a code diff or side-by-side comparison.
 
 **Before:**
 ```
@@ -203,9 +173,9 @@ If the change is entirely internal (no user-facing API change), write `No user-f
 
 ---
 
-### 11. Migration and breaking changes
+### 10. Migration and breaking changes
 
-State explicitly whether this RFC introduces breaking changes and what the upgrade path is. If none, write `No breaking changes.`
+State explicitly whether this plan introduces breaking changes and what the upgrade path is. If none, write `No breaking changes.`
 
 - **Schema migrations:** Does this add, remove, or rename database columns? If yes, is the migration reversible?
 - **API changes:** Any removed or renamed fields in public APIs or SDKs?
@@ -219,7 +189,7 @@ State explicitly whether this RFC introduces breaking changes and what the upgra
 
 ---
 
-### 12. Branching and CI strategy
+### 11. Branching and CI strategy
 
 Bullet list. State the branching model, integration points, and CI gates.
 
@@ -231,7 +201,7 @@ Bullet list. State the branching model, integration points, and CI gates.
 
 ---
 
-### 13. Risks and mitigations
+### 12. Risks and mitigations
 
 Table form. One row per risk that could block ship.
 
@@ -243,13 +213,13 @@ Table form. One row per risk that could block ship.
 
 ---
 
-### 14. Findings — PRD gaps
+### 13. Findings — PRD gaps
 
 Numbered findings. Each carries a severity and a required action. If `plan-em` ran clarifying questions during drafting, capture the unresolved ones here. If no findings, write `None.` and continue.
 
 **Severity tags:**
-- **Critical** — RFC cannot ship without resolution. Block engineering kickoff.
-- **Major** — RFC ships but a follow-up PRD revision is required mid-flight.
+- **Critical** — Engineering plan cannot ship without resolution. Block engineering kickoff.
+- **Major** — Engineering plan ships but a follow-up PRD revision is required mid-flight.
 - **Minor** — Note for future PRDs; no action required this cycle.
 
 **Worked example:**
@@ -258,7 +228,7 @@ Numbered findings. Each carries a severity and a required action. If `plan-em` r
 
 ---
 
-### 15. Cost and timeline
+### 14. Cost and timeline
 
 Bullet list. State engineering days per agent and a target ship date. Round up; reviewers prefer honest over-estimates.
 
@@ -270,9 +240,9 @@ Bullet list. State engineering days per agent and a target ship date. Round up; 
 
 ---
 
-### 16. Open questions for human gate
+### 15. Open questions for human gate
 
-Numbered. Each question must be answerable with a single decision. Mark any design decisions from §5 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
+Numbered. Each question must be answerable with a single decision. Mark any design decisions from §4 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
 
 1. **OPEN — Token identity:** Should the JWT contain `User.id` or `Auth.id`? Both uniquely identify a user; the choice affects middleware and client SDK surface area.
 
@@ -282,16 +252,16 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 
 | Gate | Rule |
 |------|------|
-| Problem | §1 states current state, at least two pain points, and at least one explicit non-goal. |
-| Alternatives | §4 documents at least one rejected option with a reason. |
-| Design decisions | §5 has a subsection for every non-obvious implementation choice. Each has trade-offs and a resolution or is marked OPEN. |
-| PRD coverage | Every PRD §5 feature ID appears in §6 scope mapping. |
-| Agent set | Every agent in §7 has at least one row in §6 it owns. |
+| Summary | §1 states what is being built, the target platform, and shipping shape. |
+| Alternatives | §3 documents at least one rejected option with a reason. |
+| Design decisions | §4 has a subsection for every non-obvious implementation choice. Each has trade-offs and a resolution or is marked OPEN. |
+| PRD coverage | Every PRD feature ID appears in §5 (Scope mapping). |
+| Agent set | Every agent in §6 has at least one row in §5 it owns. |
 | Phases | Every phase names a blocking dependency and an exit criterion. |
-| Integration contracts | §9 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
-| Developer experience | §10 shows a before/after or explicitly states no user-facing change. |
-| Migration | §11 explicitly states whether breaking changes exist and names the rollback plan. |
+| Integration contracts | §8 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
+| Developer experience | §9 shows a before/after or explicitly states no user-facing change. |
+| Migration | §10 explicitly states whether breaking changes exist and names the rollback plan. |
 | Risks | At least three risks named, each with a mitigation. |
 | Findings | If PRD gaps exist, every finding has severity and action. |
-| Timeline | Every agent in §7 has an engineer-day estimate in §15. |
-| Open questions | Any OPEN design decision in §5 appears in §16. |
+| Timeline | Every agent in §6 has an engineer-day estimate in §14. |
+| Open questions | Any OPEN design decision in §4 appears in §15. |
