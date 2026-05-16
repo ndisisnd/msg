@@ -83,6 +83,7 @@ Then, mandatory pre-flight scan. Read all of the following in order:
    - **Database schemas**: locate migration files, ORM model definitions, or schema files. Note every table and column that the PRD features will read or write.
    - **Authentication patterns**: find existing auth middleware, token handling, session logic, or guard decorators. Note the mechanism in use (JWT, session cookie, API key, OAuth, etc.).
    - **Webhooks and hooks**: search for existing webhook dispatch logic, event emitters, lifecycle hooks, or platform hook registrations that the PRD features may extend or conflict with.
+   - **Feature flags and remote config**: search for existing feature flag implementations, toggle keys, remote config entries, or A/B testing framework usage. Note the system in use and any keys the PRD features will need to add or extend; flag naming conflicts with existing keys.
 
    Record findings per domain. These findings feed directly into the pre-flight report and constrain what first-layer fixes are possible without user input.
 6. Prior PRDs for overlap: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD, read its features section and compare against the input PRD's features.
@@ -170,7 +171,7 @@ Activate each approved agent as a parallel subagent via the `Agent` tool. For ea
 
 1. The PRD path
 2. The specific PRD features this agent owns (by feature ID and name)
-3. The instruction: produce a structured engineering section as markdown, following the section structure in `.claude/skills/plan-em/refs/template-eng-plan.md`. Cover: summary, design decisions, phases and dependencies, integration contracts (API contracts, schema changes, authentication patterns, webhooks/hooks), risks, and open questions for the owned features only. Also fill in the Execution steps column for every row in the PRD's Execution Table where the Agent column matches this agent's name.
+3. The instruction: produce a structured engineering section as markdown, following the section structure in `.claude/skills/plan-em/refs/template-eng-plan.md`. Cover: summary, design decisions, phases and dependencies, integration contracts (API contracts, schema changes, authentication patterns, webhooks/hooks), risks, and open questions for the owned features only. Also fill in the Execution steps column for every row in the PRD's Execution Table where the Agent column matches this agent's name — follow `.claude/skills/plan-em/refs/protocol-exec.md` for step format, granularity, and dependency notation.
 4. The constraint: do not create a new file — return the section as output for the orchestrator to append.
 
 Collect all agent outputs. Once all agents complete, append each agent's section to the PRD file via `Edit`, under new top-level sections:
@@ -213,3 +214,4 @@ Final state: the PRD contains all engineering sections, the synthesis is visible
 - `refs/principles.md` — core operating principles; read before any other ref
 - `refs/template-eng-plan.md` — engineering execution plan format; consult when structuring agent output sections appended to the PRD
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents
+- `refs/protocol-exec.md` — how subagents write the Execution steps column: format, granularity, dependency notation, worked examples per concern type

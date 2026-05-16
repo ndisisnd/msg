@@ -63,7 +63,7 @@ Append the skeleton to the PRD as a new section immediately before the engineeri
 
 ## How agents fill in execution steps
 
-Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name. The step format itself is defined per-agent — this template only guarantees the skeleton.
+Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name. The step format, granularity rules, cross-agent dependency notation, and worked examples are defined in `refs/protocol-exec.md` — read that before writing a single step.
 
 ## Quality gate
 
