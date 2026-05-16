@@ -75,14 +75,14 @@ Read the entire PRD file in full. Do not skim. Hold the document in conversation
 
 **Step 3/5 — Apply the four-dimension audit**
 
-Apply `refs/tune-checklist.md` across four dimensions in this order:
+Apply `refs/tune.md` across four dimensions in this order:
 
 1. **Completeness** — missing sections, undefined terms, absent acceptance criteria, unaddressed edge cases.
 2. **Consistency** — internal contradictions, feature requirements that conflict with out-of-scope declarations, mismatched platform constraints.
 3. **Agent-readability** — any requirement an AI agent could interpret multiple ways, vague verbs ("support", "handle", "integrate"), missing quantifiers on success metrics.
 4. **Scope integrity** — requirements that will likely cause scope creep, features with no named owner platform, missing API contract details.
 
-For each issue surfaced, draft one finding using the format in `refs/tune-checklist.md`. Tag every finding **Critical**, **Major**, or **Minor**. Every finding includes: what is wrong (with verbatim quote) and what dimension it violates.
+For each issue surfaced, draft one finding using the format in `refs/tune.md`. Tag every finding **Critical**, **Major**, or **Minor**. Every finding includes: what is wrong (with verbatim quote) and what dimension it violates.
 
 Then ask user if they would like to fix these issues using `AskUserQuestion` (multiSelect): Critical / Major / Minor / Skip.
 
@@ -110,4 +110,4 @@ Output the recommendation as the final message. Do not invoke another skill.
 ## References
 
 - `refs/principles.md` — core operating principles; read this first before any other ref
-- `refs/tune-checklist.md` — adversarial audit checklist across the four dimensions, severity definitions, and finding output format
+- `refs/tune.md` — adversarial audit checklist across the four dimensions, severity definitions, and finding output format

@@ -105,18 +105,29 @@ Bulleted list of the core actions a user can take within this feature. Each item
 
 ### 6. Error cases
 
-Table form. One row per error state. Every row requires a user-visible message or behavior.
+Format, rules, and examples: see `refs/template-error.md`.
 
-| ID | Trigger | User-visible behavior |
-|----|---------|----------------------|
-| E1 | Network timeout on habit save | Toast: "Couldn't save. Check your connection and try again." Save button re-enabled. |
-| E2 | Notification permission denied | Inline banner: "Enable notifications in Settings to get reminders." No crash. |
-| E3 | Empty habit name on submit | Inline field error: "Name is required." Form not submitted. |
+### 7. Open questions
 
-**Error case rules:**
-- Trigger is a concrete condition, not a category. Not "network error" — "network timeout on save."
-- User-visible behavior names the exact UI element (toast, banner, inline error) and the copy.
-- Never "gracefully handle" — name the specific behavior.
+Bulleted list. Each item is a single unresolved question that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved AHA.md entries, any ambiguity surfaced during the interview.
+
+**Worked example:**
+- PRD-2 also handles streak resets — confirm which PRD owns the reset logic before building.
+- Target OS minimum not confirmed; assumed iOS 16.0+ pending design sign-off.
+
+### 8. Glossary
+
+Table of domain terms used in this PRD. Cross-reference `GLOSSARY.md`; include any term defined there that appears in this document. Add new terms not yet in `GLOSSARY.md`.
+
+| Term | Definition |
+|------|------------|
+
+**Worked example:**
+
+| Term | Definition |
+|------|------------|
+| Streak | Consecutive days a habit is marked complete. Resets to 0 on a missed day. |
+| Habit | A user-defined recurring activity tracked by the app. |
 
 ## Quality gates before save
 

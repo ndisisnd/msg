@@ -44,6 +44,7 @@ Before emitting any step, stat-check `AHA.md` and `GLOSSARY.md` in parallel via 
 - **Present**: read silently and hold contents in context. Surface relevant `AHA.md` entries in §7 (Open questions) and cross-reference `GLOSSARY.md` when populating §8 (Glossary) in Step 5.
 - **Absent**: emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
+
 Do not ask the user about either file. Do not block on these checks. Proceed to Step 1 immediately after.
 
 ## Step-by-step protocol
@@ -54,32 +55,38 @@ Receive the product idea or brief. Check that a target user and scope are stated
 
 **Step 2/6 — Scan prior PRDs for overlap**
 
-List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, read each prior PRD's §1 (Problem) and §5 (Features). If any prior PRD's problem statement or feature overlaps with the new brief, record each overlapping PRD by ID in §8 (Open questions) of the new PRD. Proceed immediately to Step 3.
+List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, read each prior PRD's §1 (Problem) and §5 (Features). If any prior PRD's problem statement or feature overlaps with the new brief, record each overlapping PRD by ID in §7 (Open questions) of the new PRD. Proceed immediately to Step 3.
 
 **Step 3/6 — Interview**
 
 Run the structured interview defined in `refs/interview-protocol.md`. Platform is detected by the pre-flight script inside the protocol — do not ask the user. Run 5 questions total, one at a time. Capture every answer in conversation context.
 
-**Step 4/6 — Determine PRD number and scaffold folder**
+**Step 4/6 — Determine PRD number and initialize template**
 
-Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the output as `n`. Create `features/` if absent. Create `features/prd-[n]/`. Produce no PRD file yet — the directory is the artifact of this step.
+Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the output as `n`. Create `features/` if absent. Create `features/prd-[n]/`.
 
-**Step 5/6 — Draft and save the PRD**
+Write `features/prd-[n]/prd-[n].md` from `refs/template-prd.md` with `prd-[n]` substituted in the frontmatter and file header. All section bodies remain as placeholders. This initialized file is the artifact of this step.
 
-Read `refs/principles.md` first. Apply every principle throughout drafting.
+**Step 5/6 — Populate sections**
 
-Populate `prd-[n].md` from `refs/template-prd.md` using interview answers as follows:
-- Platform from pre-flight → §3 (Target platform); non-targeted platforms → §2 (Out-of-scope)
-- Q1 (features) → feature list used throughout all sections
-- Q2 (out-of-scope) → §2 (Out-of-scope); one-line reason per exclusion
-- Q3 (dependencies) → §4 (User flows) as flow preconditions
-- Q4 (error cases) → §6 (Error cases)
-- Q5 (key user interactions) → §5 (Key user interactions)
-- Overlap notes from Step 2 → §8 (Open questions)
+Read `refs/principles.md` first. Apply every principle throughout.
 
-Before saving, run each quality gate from `refs/template-prd.md §Quality gates before save` as an explicit checklist. For every gate that fails, fix the draft before continuing. Do not save until all gates pass.
+Populate each section in `features/prd-[n]/prd-[n].md` from the interview answers:
 
-Save to `features/prd-[n]/prd-[n].md`. The saved file is the artifact of this step.
+| Section | Source |
+|---------|--------|
+| §1 Problem statement | Brief from Step 1 |
+| §2 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
+| §3 Target platform | Platform from pre-flight |
+| §4 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature |
+| §5 Key user interactions | Q5 answers |
+| §6 Error cases | Q4 answers; format from `refs/template-error.md` |
+| §7 Open questions | Overlap from Step 2 + relevant AHA.md entries |
+| §8 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
+
+Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout.
+
+After populating all sections, run each quality gate from `refs/template-prd.md §Quality gates before save` as an explicit checklist. Fix every failing gate before continuing. The populated file is the artifact of this step.
 
 **Step 6/6 — Summary and next steps**
 
@@ -110,6 +117,7 @@ Do not invoke another skill. The next slash command is the user's choice.
 ## References
 
 - `refs/principles.md` — core operating principles; read this first before any other ref
-- `refs/template-prd.md` — structured PRD format to populate during Step 5
+- `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 4 and for quality gates in Step 5
+- `refs/template-error.md` — error case format, rules, and examples; used when populating §6 in Step 5
 - `refs/interview-protocol.md` — structured interview questions and format for Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
