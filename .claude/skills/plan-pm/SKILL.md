@@ -39,13 +39,15 @@ Emit `Step X/6 — <title>` at the start of each step, unconditionally.
 
 ## Pre-run — foundational files check
 
-Before emitting any step, stat-check `AHA.md` and `GLOSSARY.md` in parallel via `Bash`:
+Before emitting any step, stat-check `AHA.md`, `GLOSSARY.md`, and `CLAUDE.md` in parallel via `Bash`:
 
-- **Present**: read silently and hold contents in context. Surface relevant `AHA.md` entries in §7 (Open questions) and cross-reference `GLOSSARY.md` when populating §8 (Glossary) in Step 5.
+- **Present**: read silently and hold contents in context. Apply each file's contents as follows:
+  - `AHA.md` — surface relevant entries in §7 (Open questions)
+  - `GLOSSARY.md` — cross-reference when populating §8 (Glossary) in Step 5
+  - `CLAUDE.md` — extract tech stack constraints, conventions, and architecture notes; use these to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup
 - **Absent**: emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
-
-Do not ask the user about either file. Do not block on these checks. Proceed to Step 1 immediately after.
+Do not ask the user about any of these files. Do not block on these checks. Proceed to Step 1 immediately after.
 
 ## Step-by-step protocol
 
