@@ -57,6 +57,13 @@ Read every requirement as if an AI coding agent will execute it without asking t
 | works correctly | Untestable | List every observable state |
 | feels fast / smooth | Untestable | "Renders within Nms p95" |
 | looks good | Untestable | Reference a design spec or screenshot |
+| ensure | No observable mechanism — who ensures it? how is it verified? | "The system validates X by checking Y; if Y fails, the system does Z" |
+| manage | Covers create/edit/delete/archive — which operations? | Name the exact operations: "users can create, edit, and delete X" |
+| process | No defined input→output contract | "Receives X, transforms it by Y, writes Z to destination D" |
+| allow | No permission boundary stated | "Users with role R can perform action A; all other roles see an error" |
+| optimize | No metric, baseline, or target | "Reduces P95 latency of endpoint E from Xms to Yms under Z load" |
+| should | Implies optionality where `must` is intended | Replace with `must` for required behavior; `may` for optional |
+| may / can | Optional behavior with undefined trigger or scope | State the exact condition: "when X, the system may Y; otherwise Z" |
 
 **Quantifier checks:**
 
@@ -143,4 +150,4 @@ Summary:
 
 Body: numbered findings, ordered by severity (Critical first), then by PRD section order within each severity.
 
-Footer: present `AskUserQuestion` with three options — Apply & revise PRD / Continue to plan-em / Stop here.
+Footer: present `AskUserQuestion` with three options — Continue to plan-em / Re-run plan-pm / Stop here.

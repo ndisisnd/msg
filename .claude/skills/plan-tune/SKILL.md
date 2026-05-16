@@ -6,9 +6,10 @@ description: >
   consistency, agent-readability, and scope integrity, then applies
   all fixes directly to the PRD file. No separate report file.
   Adversarial posture — assumes the PRD is broken until proven otherwise.
-  Renamed from product-plan-tune. Requires an existing PRD path; refuses
+  Targets specificity and ambiguity — flags weasel words, approximation
+  language, and soft constraints. Requires an existing PRD path; refuses
   without one.
-model: claude-sonnet-4-6
+model: claude-opus-4-7
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -90,7 +91,9 @@ Then ask user if they would like to fix these issues using `AskUserQuestion` (mu
 
 **Step 4/5 — Apply fixes to the PRD**
 
-Fix issues based on Step 3 input. Patch exact section(s). Do not write any new files, create new folders. 
+Fix issues based on Step 3 input. Patch exact section(s). Do not write any new files, create new folders.
+
+After patching each section, re-read the patched text and verify: (1) it contains no forbidden verbs from Dimension 3, (2) it contains no weasel words or approximation language, (3) it satisfies the Suggested fix from its finding. If the patch introduces a new issue, fix it before continuing.
 
 Once complete, emit `Plan tuned successfully! Issues selected have been fixed.`
 
