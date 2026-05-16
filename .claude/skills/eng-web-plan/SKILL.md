@@ -24,7 +24,7 @@ Read, in order:
    - `## Engineering — eng-web` — design decisions, integration contracts, risks, and phases.
    - `## Execution Table` — features, execution steps, and agent assignments.
    If either is missing, halt: `"[PLAN BLOCKED] Missing <section> in PRD — run plan-em in plan mode first."`
-2. `AHA.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, `DESIGN-SYSTEM.md` at the project root — for product assumptions, system topology, domain terms, and existing component registry / design patterns.
+2. `AHA.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, `DESIGN-SYSTEM.md`, `OPEN-QUESTIONS.md` at the project root — for product assumptions, system topology, domain terms, existing component registry / design patterns, and any unresolved decisions that may constrain owned features. If `OPEN-QUESTIONS.md` contains questions that touch the owned feature set, surface them before emitting the plan.
 
 Extract owned rows: filter the Execution Table for rows where **Agent** = `eng-web`. For each row record:
 - The **Feature** column value verbatim (e.g., `F1: Set daily goal — Client implementation`)

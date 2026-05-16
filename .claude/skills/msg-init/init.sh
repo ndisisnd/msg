@@ -95,7 +95,9 @@ done
 
 for pair in \
   "AHA.md:template-AHA.md" \
-  "GLOSSARY.md:template-GLOSSARY.md"
+  "GLOSSARY.md:template-GLOSSARY.md" \
+  "CHANGELOG.md:template-CHANGELOG.md" \
+  "OPEN-QUESTIONS.md:template-OPEN-QUESTIONS.md"
 do
   f="${pair%%:*}"; t="${pair##*:}"
   content=$(strip_frontmatter "$REFS/$t")

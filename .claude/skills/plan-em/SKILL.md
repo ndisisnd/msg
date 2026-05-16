@@ -78,7 +78,8 @@ Then, mandatory pre-flight scan. Read all of the following in order:
 2. `GLOSSARY.md` — load canonical term definitions. Flag any PRD terms that deviate from the glossary.
 3. `ARCHITECTURE.md` — load system constraints, existing layers, and integration points. Note any constraints that affect the PRD's features.
 4. `DESIGN-SYSTEM.md` — load the component registry. For each component: note which PRD features would impact it, which could reuse it without changes, and which require new data ingestion. Record findings per component — they feed into the pre-flight report and constrain the frontend agent scope.
-5. The PRD file in full.
+5. `OPEN-QUESTIONS.md` — scan for unresolved decisions that overlap this PRD's domain or feature set. Note each relevant question; include it in the pre-flight report under a new **Open questions** section. If a question directly blocks a PRD feature, escalate it as a PRD gap in Step 2.
+6. The PRD file in full.
 6. Codebase scan — run `.claude/scripts/plan-em-eng-scan.sh` from the project root. This script searches all five concern areas (API routes, schema/migrations, auth patterns, webhooks/hooks, feature flags) and emits structured markdown. Interpret the output against the PRD features: note what already exists, what must be extended, and what must be built from scratch. Record findings per domain — they feed directly into the pre-flight report and constrain first-layer fixes.
 7. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
    - **Fast scan via frontmatter first**: read the `module`, `affects`, and `depends_on` fields in the YAML frontmatter. If the input PRD's `module` matches another PRD's `module`, or the input PRD appears in another PRD's `affects` list, or the input PRD's `depends_on` names a prior PRD — flag it immediately.

@@ -4,9 +4,10 @@ description: >
   One-time project bootstrap. Scans the working directory, asks 3–4
   questions about the project, then creates any missing foundational
   files: AHA.md, GLOSSARY.md, README.md, .gitignore, CLAUDE.md,
-  ARCHITECTURE.md, DESIGN-SYSTEM.md, and the features/ directory.
-  Idempotent — skips files that already exist; never overwrites. All
-  other msg skills read these files but never create them.
+  ARCHITECTURE.md, DESIGN-SYSTEM.md, CHANGELOG.md, OPEN-QUESTIONS.md,
+  and the features/ directory. Idempotent — skips files that already exist; never
+  overwrites. All other msg skills read these files but never create
+  them.
 model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
@@ -48,6 +49,8 @@ allowed_tools:
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | ARCHITECTURE.md | Markdown from `refs/template-ARCHITECTURE.md`, customised with platform | `<cwd>/ARCHITECTURE.md` |
 | DESIGN-SYSTEM.md | Markdown from `refs/template-DESIGN-SYSTEM.md`, customised with project name | `<cwd>/DESIGN-SYSTEM.md` |
+| CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, written and updated by subagents | `<cwd>/CHANGELOG.md` |
+| OPEN-QUESTIONS.md | Markdown from `refs/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/OPEN-QUESTIONS.md` |
 | features/ | Empty directory | `<cwd>/features/` |
 | .skillsrc | YAML for agent-skills-standard (conditional on framework detection) | `<cwd>/.skillsrc` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
@@ -136,3 +139,5 @@ Do not invoke another skill. The next slash command is the user's choice.
 - `refs/template-CLAUDE.md` — template for CLAUDE.md (Claude Code project instructions)
 - `refs/template-ARCHITECTURE.md` — template for ARCHITECTURE.md (architecture stub)
 - `refs/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry)
+- `refs/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, written by subagents)
+- `refs/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)
