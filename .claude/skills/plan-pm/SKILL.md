@@ -92,6 +92,24 @@ After populating all sections, run each quality gate from `refs/template-prd.md 
 
 **Step 6/6 — Summary and next steps**
 
+**AHA.md update (conditional)**
+
+Before emitting the completion summary, identify learnings from this run worth capturing. A learning qualifies if any of:
+- A feature was constrained or invalidated by a CLAUDE.md rule
+- Overlap with a prior PRD was found and recorded in §7
+- Intake required clarification because target user or scope was missing
+- An interview answer revealed an assumption that significantly narrowed scope
+
+For each qualifying learning, append one entry to `AHA.md` using the format:
+
+```
+### [YYYY-MM-DD] <Summary title>
+**Why**: <Root cause>
+**Note**: <Concrete action or warning for future runs>
+```
+
+Entries go under `## Entries`, most recent first. If `AHA.md` does not exist, create it by copying the header from `.claude/skills/msg-init/refs/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
+
 Emit a completion summary in this format:
 
 ```

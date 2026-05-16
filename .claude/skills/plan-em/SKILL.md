@@ -98,6 +98,23 @@ Run `bash .claude/scripts/scan-n.prd rfc <prd-path>` to get the RFC number. Use 
 
 **Step 7/7 — Emit protocol and human approval gate**
 
+**AHA.md update (conditional)**
+
+Before running the emit protocol, identify learnings from this run worth capturing. A learning qualifies if any of:
+- A PRD gap was found during ambiguity resolution that could have been caught in plan-pm
+- Overlap with a prior RFC was found and required a resolution decision
+- A PRD section was ambiguous enough to require clarification before domain mapping
+
+For each qualifying learning, append one entry to `AHA.md` using the format:
+
+```
+### [YYYY-MM-DD] <Summary title>
+**Why**: <Root cause>
+**Note**: <Concrete action or warning for future runs>
+```
+
+Entries go under `## Entries`, most recent first. If `AHA.md` does not exist, create it by copying the header from `.claude/skills/msg-init/refs/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
+
 Run the emit protocol (see **Emit protocol** section below) before presenting the approval gate. If P0 findings exist, surface them and resolve before proceeding.
 
 After the emit protocol clears, present the RFC via `AskUserQuestion` with three options:
