@@ -90,7 +90,7 @@ emit() {
 
 printf '# Codebase Scan — plan-em pre-flight\n\n'
 printf 'Root: `%s`\n\n' "$(cd "$ROOT" && pwd)"
-printf '---\n\n'
+printf '%s\n\n' '---'
 
 # =============================================================
 section "1. API Routes and Endpoints"

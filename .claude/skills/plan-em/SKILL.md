@@ -78,14 +78,7 @@ Then, mandatory pre-flight scan. Read all of the following in order:
 2. `GLOSSARY.md` — load canonical term definitions. Flag any PRD terms that deviate from the glossary.
 3. `ARCHITECTURE.md` — load system constraints, existing layers, and integration points. Note any constraints that affect the PRD's features.
 4. The PRD file in full.
-5. Codebase scan — run targeted searches to surface the actual state of the codebase for every domain the PRD touches. This scan determines the first layer: what already exists, what must be extended, and what must be built from scratch. At minimum, search for:
-   - **API routes / endpoints**: grep for route definitions, controller files, OpenAPI specs, or GraphQL schema files relevant to PRD features.
-   - **Database schemas**: locate migration files, ORM model definitions, or schema files. Note every table and column that the PRD features will read or write.
-   - **Authentication patterns**: find existing auth middleware, token handling, session logic, or guard decorators. Note the mechanism in use (JWT, session cookie, API key, OAuth, etc.).
-   - **Webhooks and hooks**: search for existing webhook dispatch logic, event emitters, lifecycle hooks, or platform hook registrations that the PRD features may extend or conflict with.
-   - **Feature flags and remote config**: search for existing feature flag implementations, toggle keys, remote config entries, or A/B testing framework usage. Note the system in use and any keys the PRD features will need to add or extend; flag naming conflicts with existing keys.
-
-   Record findings per domain. These findings feed directly into the pre-flight report and constrain what first-layer fixes are possible without user input.
+5. Codebase scan — run `.claude/scripts/plan-em-eng-scan.sh` from the project root. This script searches all five concern areas (API routes, schema/migrations, auth patterns, webhooks/hooks, feature flags) and emits structured markdown. Interpret the output against the PRD features: note what already exists, what must be extended, and what must be built from scratch. Record findings per domain — they feed directly into the pre-flight report and constrain first-layer fixes.
 6. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
    - **Fast scan via frontmatter first**: read the `module`, `affects`, and `depends_on` fields in the YAML frontmatter. If the input PRD's `module` matches another PRD's `module`, or the input PRD appears in another PRD's `affects` list, or the input PRD's `depends_on` names a prior PRD — flag it immediately.
    - **Full read only when flagged**: for any PRD flagged by frontmatter, read its features section in full and classify the relationship as one of:
