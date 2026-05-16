@@ -91,7 +91,7 @@ List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` 
 
 **Step 3/6 — Interview**
 
-Run the structured interview defined in `refs/interview-protocol.md`. Platform is detected by the pre-flight script inside the protocol — do not ask the user. Run 5 questions total, one at a time. Capture every answer in conversation context.
+Run the structured interview defined in `refs/protocol-interview.md`. Platform is detected by the pre-flight script inside the protocol — do not ask the user. Run 5 questions total, one at a time. Capture every answer in conversation context.
 
 **Step 4/6 — Pre-flight run and initialize template**
 
@@ -214,5 +214,5 @@ Terminate. Do not ask a follow-up question.
 - `refs/principles.md` — core operating principles; read this first before any other ref
 - `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 4
 - `refs/template-error.md` — error case format, rules, and examples; used when populating §5 in Step 5
-- `refs/interview-protocol.md` — structured interview questions and format for Step 3
+- `refs/protocol-interview.md` — structured interview questions and format for Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
