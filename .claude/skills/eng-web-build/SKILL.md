@@ -58,7 +58,19 @@ If the `## Implementation Plan — eng-web` section is missing, halt immediately
 [BUILD BLOCKED] No implementation plan found — run eng-web-plan first.
 ```
 
-### Phase 2 — Pre-flight scan
+### Phase 2 — Pre-flight scan (script + review)
+
+First, run the pre-flight script — it is the authoritative check:
+
+```bash
+bash .claude/scripts/eng-web-build-preflight.sh <prd-path>
+```
+
+The script exits `2` on P0 (BUILD BLOCKED), `1` on P1 (warning), `0` on clear. Use its output directly as the pre-flight report — do not re-derive file presence manually.
+
+Then review `OPEN-QUESTIONS.md` (if present) for stale or out-of-sync content. That step requires judgment and cannot be scripted.
+
+The severity rules and option-presentation protocol below apply to any issues the script reports or that you identify during the OPEN-QUESTIONS.md review.
 
 Check for foundational files. For each, note: present / missing / stale.
 
@@ -100,6 +112,41 @@ C. Stop build entirely
 ```
 
 Emit the pre-flight result before advancing.
+
+### Phase 2.5 — Open Questions Gate
+
+Check the implementation plan for a `## Open Questions — eng-web` section.
+
+**If blocking questions exist** that affect owned steps: escalate as P0 or P1 per the issue rules above. Do not advance past this phase until the user resolves or explicitly accepts the blocker.
+
+**If resolvable questions exist**: present them via `AskUserQuestion` before emitting the step list:
+
+```
+[Open Questions] N resolvable issue(s) found before build.
+
+<list each question and its suggested resolution>
+
+Options:
+A. Resolve these first, then build the execution table
+   Works because: issues are addressed before feature code is written; reduces inline friction.
+   Trades off: adds preliminary steps before the main build begins.
+
+B. Proceed without resolving — handle inline during build
+   Works because: keeps the build moving; issues can be flagged per step.
+   Trades off: resolvable issues may surface as blockers mid-build.
+
+C. Stop and investigate
+   Works because: ensures the plan is clean before any code is committed.
+   Trades off: build halts until the user returns with a decision.
+```
+
+On **A (Resolve first)**: insert the resolutions as preliminary steps numbered `0.1`, `0.2`, etc. Execute them with the same human gates as Phase 4 before advancing to Phase 3. Mark each resolved question in `OPEN-QUESTIONS.md` when done.
+
+On **B (Proceed)**: advance to Phase 3. Surface each resolvable question inline when the relevant step is reached.
+
+On **C (Stop)**: halt. Await guidance.
+
+If neither section exists (or `OPEN-QUESTIONS.md` is absent), skip this phase silently.
 
 ### Phase 3 — Emit the full step list
 
@@ -165,8 +212,9 @@ C. Stop build and investigate
 
 | Check | Rule |
 |-------|------|
-| Plan present | Implementation plan section found before any execution begins. |
-| Pre-flight complete | All foundational files checked; P0 issues resolved before Phase 3. |
+| Plan present | `eng-web-build-preflight.sh` confirmed plan section before any execution begins. |
+| Pre-flight complete | `eng-web-build-preflight.sh` ran and P0 issues resolved before Phase 2.5. |
+| Open questions gate | Resolvable and blocking open questions surfaced; user choice recorded before Phase 3. |
 | Full list emitted | All steps shown to user before execution starts. |
 | Gate on every step | No step executes without an explicit Proceed. |
 | Escalation on deviation | Any deviation from the plan raises an explicit escalation — not a silent change. |
