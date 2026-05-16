@@ -16,7 +16,7 @@ The execution table is a flat breakdown of every feature into its discrete execu
 **Column definitions:**
 
 - **Feature** — `<ID>: <name> — <execution concern>`. Combines the PRD feature ID, feature name, and the specific execution concern for this row (e.g., `F1: Set daily goal — API contract`). One row per execution concern per feature.
-- **Execution steps** — Left blank by `plan-em`. The assigned agent fills this in with numbered, concrete implementation steps (see format below).
+- **Execution steps** — Left blank by `plan-em`. The assigned agent fills this in later; the step format is defined per-agent.
 - **Agent** — Pre-populated by `plan-em` from the approved agent roster. Matches the agent responsible for this concern.
 
 ## Execution concerns to cover
@@ -63,22 +63,7 @@ Append the skeleton to the PRD as a new section immediately before the engineeri
 
 ## How agents fill in execution steps
 
-Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name.
-
-Execution steps format — numbered, concrete, and sequenced. Each step must be actionable by a single engineer:
-
-```
-1. Define `POST /api/v1/goals` request/response schema in OpenAPI spec
-2. Add Zod validation schema to `src/api/goals/schema.ts`
-3. Implement controller in `src/api/goals/controller.ts`
-4. Wire route in `src/router.ts`
-5. Add integration test in `src/api/goals/__tests__/goals.test.ts`
-```
-
-Steps must be:
-- **Concrete** — name the file, function, or command where known
-- **Sequenced** — ordered by dependency (schema before controller, contract before client)
-- **Bounded** — 3–8 steps per row; if more are needed, split into two rows with distinct concerns
+Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name. The step format itself is defined per-agent — this template only guarantees the skeleton.
 
 ## Quality gate
 
