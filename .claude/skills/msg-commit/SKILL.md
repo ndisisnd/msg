@@ -5,6 +5,7 @@ description: >
 model: claude-haiku-4-5-20251001
 allowed_tools:
   - Bash
+  - Read
   - AskUserQuestion
 ---
 
@@ -17,11 +18,21 @@ allowed_tools:
 
 ## Step-by-step protocol
 
+Do not narrate steps or emit step numbers. Output only the three progress lines shown below at the exact moments specified.
+
 **Step 1 — Determine input**
 
-Run `git diff --staged` via Bash. If output is non-empty, use it as `change_source`. If empty, print `No diffs found, terminate commit. If you have made changes remember to run stage the changes!` and stop — do not proceed to later steps.
+Output exactly: `Checking git diff...`
+
+Run both commands via Bash:
+1. `git diff --staged --name-only` → produces `file_list` (all staged files)
+2. `git diff --staged` → produces `change_source` (full diff content)
+
+If `file_list` is empty, print `No diffs found. If you have made changes remember to stage them first!` and stop.
 
 **Step 2 — Select type**
+
+Output exactly: `Creating message...`
 
 From `change_source`, choose exactly one type from this list — no others are valid:
 
@@ -35,15 +46,7 @@ Derive an optional scope from the primary changed directory or module (e.g. `aut
 
 **Step 4 — Write subject**
 
-Compose `type(scope?): description`. Apply all rules:
-
-- Imperative mood (`add`, `fix`, `remove` — not `added`, `fixes`, `removing`)
-- Lowercase first word of description
-- No trailing period
-- Prefer ≤50 chars total; hard cap 72
-- No emoji, no AI attribution, no co-author lines
-
-Produce: `subject`.
+Read `refs/protocol.md` for subject rules. Compose `type(scope?): description` covering ALL files in `file_list` — do not anchor on the first changed file only. Produce: `subject`.
 
 **Step 5 — Check for breaking change**
 
@@ -51,7 +54,9 @@ If `change_source` removes or renames a public interface, adds a required parame
 
 **Step 6 — Emit**
 
-ALWAYS emit the commit command in a fenced code block before doing anything else. Never skip or merge this step with Step 7.
+Output exactly: `Your commit message`
+
+ALWAYS emit the commit command in a fenced code block immediately after the progress line. Never skip or merge this step with Step 7.
 
 - No breaking change:
   ```
@@ -66,10 +71,10 @@ The fenced block MUST appear in your output before Step 7 runs.
 
 **Step 7 — Ask what to do**
 
-Call `AskUserQuestion` with exactly two options:
+Call `AskUserQuestion` with exactly three options:
 
 | Option | Label | Action |
 |--------|-------|--------|
 | 1 | End session | Stop. |
 | 2 | Run git commit | Execute the exact command from Step 6 via Bash. Print the command output. |
-| 3 | Commit & push | Execute git commit and push automatically to branch | 
+| 3 | Commit & push | Execute git commit then `git push` via Bash. Print both outputs. |
