@@ -150,4 +150,4 @@ Summary:
 
 Body: numbered findings, ordered by severity (Critical first), then by PRD section order within each severity.
 
-Footer: present `AskUserQuestion` with three options — Continue to plan-em / Re-run plan-pm / Stop here.
+Footer: present the human gate defined in SKILL.md Step 5.
