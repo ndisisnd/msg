@@ -6,7 +6,7 @@ type: reference
 
 # GLOSSARY — Project Domain Terms
 
-Canonical definitions for terms used across PRDs, RFCs, and engineering specs. Each entry supersedes any inline definition in individual documents.
+Canonical definitions for terms used across PRDs and engineering specs. Each entry supersedes any inline definition in individual documents.
 
 ---
 

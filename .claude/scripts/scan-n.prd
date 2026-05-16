@@ -3,9 +3,8 @@
 #
 # Usage:
 #   scan-n.prd prd                  next available PRD number (plan-pm)
-#   scan-n.prd rfc <prd-path>       next available RFC number for the given PRD (plan-em)
 #
-# Run from the project root. Both modes read from features/.
+# Run from the project root. Reads from features/.
 
 set -euo pipefail
 
@@ -24,43 +23,8 @@ case "$mode" in
     echo $(( max + 1 ))
     ;;
 
-  rfc)
-    prd_path="${2:-}"
-    if [[ -z "$prd_path" ]]; then
-      echo "Error: rfc mode requires a prd-path argument" >&2
-      echo "Usage: scan-n.prd rfc <prd-path>" >&2
-      exit 1
-    fi
-
-    prd_dir="$(dirname "$prd_path")"
-    prd_n="${prd_dir#features/prd-}"
-
-    if ! [[ "$prd_n" =~ ^[0-9]+$ ]]; then
-      echo "Error: could not parse PRD number from path: $prd_path" >&2
-      exit 1
-    fi
-
-    # Scan for existing rfc-*.md files in this PRD directory.
-    # First RFC in a directory uses the PRD's own number (rfc-N.md inside prd-N/).
-    # Subsequent revisions increment from there.
-    max=0
-    for rfc in "$prd_dir"/rfc-*.md; do
-      [[ -f "$rfc" ]] || continue
-      n="$(basename "$rfc" .md)"
-      n="${n#rfc-}"
-      [[ "$n" =~ ^[0-9]+$ ]] || continue
-      (( n > max )) && max=$n
-    done
-
-    if (( max == 0 )); then
-      echo "$prd_n"
-    else
-      echo $(( max + 1 ))
-    fi
-    ;;
-
   *)
-    echo "Usage: scan-n.prd prd | scan-n.prd rfc <prd-path>" >&2
+    echo "Usage: scan-n.prd prd" >&2
     exit 1
     ;;
 esac

@@ -176,13 +176,13 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 
 ---
 
-**Step 4/6 — Agents write**
+**Step 4/6 — Agents write (plan mode)**
 
-Activate each approved agent as a parallel subagent via the `Agent` tool. For each agent, the prompt must include:
+Activate each approved agent as a parallel subagent via the `Agent` tool in **plan mode**. Each agent reads its assigned PRD features and returns a structured engineering section — no code is written. For each agent, the prompt must include:
 
 1. The PRD path
 2. The specific PRD features this agent owns (by feature ID and name)
-3. The instruction: produce a structured engineering section as markdown, following the section structure in `.claude/skills/plan-em/refs/template-eng-plan.md`. Cover: summary, design decisions, phases and dependencies, integration contracts (API contracts, schema changes, authentication patterns, webhooks/hooks), risks, and open questions for the owned features only. Also fill in the Execution steps column for every row in the PRD's Execution Table where the Agent column matches this agent's name — follow `.claude/skills/plan-em/refs/protocol-exec.md` for step format, granularity, and dependency notation.
+3. The mode: `plan` — assess the PRD features and produce a structured engineering section as markdown, following `.claude/skills/plan-em/refs/template-eng-plan.md`. Cover: summary, design decisions, phases and dependencies, integration contracts (API contracts, schema changes, authentication patterns, webhooks/hooks), risks, and open questions for the owned features only. Also fill in the Execution steps column for every row in the PRD's Execution Table where the Agent column matches this agent's name — follow `.claude/skills/plan-em/refs/protocol-exec.md` for step format, granularity, and dependency notation.
 4. The constraint: do not create a new file — return the section as output for the orchestrator to append.
 
 Collect all agent outputs. Once all agents complete, append each agent's section to the PRD file via `Edit`, under new top-level sections:
@@ -218,11 +218,20 @@ Read the full updated PRD. Produce a synthesis report inline:
 
 If Critical findings exist, present them via `AskUserQuestion` and resolve before declaring the run complete.
 
-Final state: the PRD contains all engineering sections, the synthesis is visible to the user, and no Critical findings are unresolved.
+3. **Suggested branch** — derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words). Emit the suggested branch name following the convention defined in `refs/template-eng-plan.md` §11:
+
+   ```
+   feat/prd-[n]-<short-name>
+   ```
+
+   Example: `feat/prd-3-habit-tracking`. This is the branch engineers should cut from `main` before starting work.
+
+Final state: the PRD contains all engineering sections, the synthesis is visible to the user, no Critical findings are unresolved, and the suggested branch is emitted.
 
 ## References
 
 - `refs/principles.md` — core operating principles; read before any other ref
-- `refs/template-eng-plan.md` — engineering execution plan format; consult when structuring agent output sections appended to the PRD
+- `refs/protocol-eng-agent.md` — eng-agent two-mode protocol (plan and code); consult when building agent prompts in Step 4
+- `refs/template-eng-plan.md` — plan-mode output format; consult when structuring agent output sections appended to the PRD
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents
 - `refs/protocol-exec.md` — how subagents write the Execution steps column: format, granularity, dependency notation, worked examples per concern type

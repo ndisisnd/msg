@@ -1,27 +1,14 @@
 ---
 name: Engineering Execution Plan Template
-description: Structured engineering execution plan format for plan-em subagents to populate and append to the PRD
+description: Plan-mode output format for eng-agent subagents — sections are returned as markdown and appended to the PRD by plan-em; no standalone file is created
 type: reference
 ---
 
-# Engineering Execution Plan Template
+# Engineering Execution Plan — Plan Mode
+
+This is the output format for an eng-agent running in **plan mode**. The agent returns a structured markdown section covering only its assigned features. plan-em appends it to the PRD under `## Engineering — <Agent Name>`. No standalone file is created.
 
 Populate every section. This is an execution document, not a status update. It must answer "what are we building, what did we consider and reject, who builds what, and what blocks shipping?" without further conversation.
-
-## File header
-
-```markdown
----
-name: eng-plan-[n]
-feature: <short feature name, must match prd-[n].md>
-prd: prd-[n].md
-author: plan-em
-status: draft | approved
-created: YYYY-MM-DD
----
-
-# Engineering Plan [n]: <Feature Name>
-```
 
 ## Required sections
 
@@ -104,18 +91,7 @@ Table form. Map every feature ID from the PRD to one or more engineering domains
 
 ---
 
-### 6. Agent roster
-
-One row per agent that will be activated. Right-size — propose the minimal set that covers the scope. Adding an extra agent is not free. Only include agents for the target platform stated in PRD §3.
-
-| Agent | Domain | Scope | Estimated PR count |
-|-------|--------|-------|-------------------|
-| mobile-eng-ios | iOS app | F1 UI, F3 notification handler | 3–4 |
-| backend-eng | API + DB | F2 streak service, schema migration, F1/F3 endpoints | 4–5 |
-
----
-
-### 7. Phases and dependencies
+### 6. Phases and dependencies
 
 Numbered phases. Each phase names its blocking dependency and exit criterion.
 
@@ -127,7 +103,7 @@ Numbered phases. Each phase names its blocking dependency and exit criterion.
 
 ---
 
-### 8. Integration contracts
+### 7. Integration contracts
 
 Cover all cross-service and cross-layer contracts introduced or changed by this plan. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
 
@@ -155,7 +131,7 @@ Cover all cross-service and cross-layer contracts introduced or changed by this 
 
 ---
 
-### 9. Developer experience
+### 8. Developer experience
 
 Show what the feature looks like from the outside before and after. Use a code diff or side-by-side comparison.
 
@@ -173,7 +149,7 @@ If the change is entirely internal (no user-facing API change), write `No user-f
 
 ---
 
-### 10. Migration and breaking changes
+### 9. Migration and breaking changes
 
 State explicitly whether this plan introduces breaking changes and what the upgrade path is. If none, write `No breaking changes.`
 
@@ -189,19 +165,19 @@ State explicitly whether this plan introduces breaking changes and what the upgr
 
 ---
 
-### 11. Branching and CI strategy
+### 10. Branching and CI strategy
 
 Bullet list. State the branching model, integration points, and CI gates.
 
 - **Base branch:** `main`.
-- **Feature branch:** `feature/prd-[n]-<short-name>`.
-- **Per-agent sub-branches:** `feature/prd-[n]-<short-name>/<agent-id>`. Each agent merges to the feature branch via PR.
+- **Feature branch:** `feat/prd-[n]-<short-name>`.
+- **Per-agent sub-branches:** `feat/prd-[n]-<short-name>/<agent-id>`. Each agent merges to the feature branch via PR.
 - **CI gates:** unit tests, integration tests, build green on the target platform (e.g., iOS 16+), backend schema migration reversible.
 - **Release strategy:** target platform release through its store or deploy channel; backend behind a feature flag (`prd_[n]_enabled`).
 
 ---
 
-### 12. Risks and mitigations
+### 11. Risks and mitigations
 
 Table form. One row per risk that could block ship.
 
@@ -213,7 +189,7 @@ Table form. One row per risk that could block ship.
 
 ---
 
-### 13. Findings — PRD gaps
+### 12. Findings — PRD gaps
 
 Numbered findings. Each carries a severity and a required action. If `plan-em` ran clarifying questions during drafting, capture the unresolved ones here. If no findings, write `None.` and continue.
 
@@ -228,19 +204,16 @@ Numbered findings. Each carries a severity and a required action. If `plan-em` r
 
 ---
 
-### 14. Cost and timeline
+### 13. Cost and timeline
 
-Bullet list. State engineering days per agent and a target ship date. Round up; reviewers prefer honest over-estimates.
+Bullet list. State engineering days for this agent and a target ship date. Round up; reviewers prefer honest over-estimates.
 
-- **mobile-eng-ios:** 8 engineer-days
-- **mobile-eng-android:** 8 engineer-days
-- **backend-eng:** 6 engineer-days
-- **web-eng:** 4 engineer-days (sprint+1)
-- **Target ship date:** YYYY-MM-DD (mobile); YYYY-MM-DD (web)
+- **This agent:** N engineer-days
+- **Target ship date:** YYYY-MM-DD
 
 ---
 
-### 15. Open questions for human gate
+### 14. Open questions for human gate
 
 Numbered. Each question must be answerable with a single decision. Mark any design decisions from §4 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
 
@@ -255,13 +228,12 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 | Summary | §1 states what is being built, the target platform, and shipping shape. |
 | Alternatives | §3 documents at least one rejected option with a reason. |
 | Design decisions | §4 has a subsection for every non-obvious implementation choice. Each has trade-offs and a resolution or is marked OPEN. |
-| PRD coverage | Every PRD feature ID appears in §5 (Scope mapping). |
-| Agent set | Every agent in §6 has at least one row in §5 it owns. |
+| PRD coverage | Every assigned PRD feature ID appears in §5 (Scope mapping). |
 | Phases | Every phase names a blocking dependency and an exit criterion. |
-| Integration contracts | §8 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
-| Developer experience | §9 shows a before/after or explicitly states no user-facing change. |
-| Migration | §10 explicitly states whether breaking changes exist and names the rollback plan. |
+| Integration contracts | §7 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
+| Developer experience | §8 shows a before/after or explicitly states no user-facing change. |
+| Migration | §9 explicitly states whether breaking changes exist and names the rollback plan. |
 | Risks | At least three risks named, each with a mitigation. |
 | Findings | If PRD gaps exist, every finding has severity and action. |
-| Timeline | Every agent in §6 has an engineer-day estimate in §14. |
-| Open questions | Any OPEN design decision in §4 appears in §15. |
+| Timeline | §13 has an engineer-day estimate for this agent. |
+| Open questions | Any OPEN design decision in §4 appears in §14. |
