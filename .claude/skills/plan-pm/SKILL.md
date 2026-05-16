@@ -67,7 +67,13 @@ Run the structured interview defined in `refs/interview-protocol.md`. Platform i
 
 Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Use the output as `n`. Create `features/` if absent. Create `features/prd-[n]/`.
 
-Write `features/prd-[n]/prd-[n].md` from `refs/template-prd.md` with `prd-[n]` substituted in the frontmatter and file header. All section bodies remain as placeholders. This initialized file is the artifact of this step.
+Write `features/prd-[n]/prd-[n].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
+- `name`: `prd-[n]`
+- `platform`: platform detected in the pre-flight (from Step 3's interview protocol)
+- `status`: `product`
+- `tuned`: `no`
+
+All section bodies remain as placeholders. This initialized file is the artifact of this step.
 
 **Step 5/6 — Populate sections**
 

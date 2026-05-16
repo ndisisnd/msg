@@ -14,7 +14,9 @@ Populate every section. Do not delete a section — if a section does not apply,
 ---
 name: prd-[n]
 feature: <short feature name>
-status: draft | approved
+platform: <detected platform, e.g. mobile | web | backend>
+status: product
+tuned: no
 created: YYYY-MM-DD
 ---
 
