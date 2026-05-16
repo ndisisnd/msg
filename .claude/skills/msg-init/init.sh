@@ -83,7 +83,8 @@ write_file() {
 for pair in \
   "README.md:template-README.md" \
   "CLAUDE.md:template-CLAUDE.md" \
-  "ARCHITECTURE.md:template-ARCHITECTURE.md"
+  "ARCHITECTURE.md:template-ARCHITECTURE.md" \
+  "DESIGN-SYSTEM.md:template-DESIGN-SYSTEM.md"
 do
   f="${pair%%:*}"; t="${pair##*:}"
   content=$(extract_body "$REFS/$t" | apply_subs)

@@ -77,9 +77,10 @@ Then, mandatory pre-flight scan. Read all of the following in order:
 1. `AHA.md` — scan for past learnings applicable to this PRD's domain or feature type. Note every entry that is directly relevant.
 2. `GLOSSARY.md` — load canonical term definitions. Flag any PRD terms that deviate from the glossary.
 3. `ARCHITECTURE.md` — load system constraints, existing layers, and integration points. Note any constraints that affect the PRD's features.
-4. The PRD file in full.
-5. Codebase scan — run `.claude/scripts/plan-em-eng-scan.sh` from the project root. This script searches all five concern areas (API routes, schema/migrations, auth patterns, webhooks/hooks, feature flags) and emits structured markdown. Interpret the output against the PRD features: note what already exists, what must be extended, and what must be built from scratch. Record findings per domain — they feed directly into the pre-flight report and constrain first-layer fixes.
-6. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
+4. `DESIGN-SYSTEM.md` — load the component registry. For each component: note which PRD features would impact it, which could reuse it without changes, and which require new data ingestion. Record findings per component — they feed into the pre-flight report and constrain the frontend agent scope.
+5. The PRD file in full.
+6. Codebase scan — run `.claude/scripts/plan-em-eng-scan.sh` from the project root. This script searches all five concern areas (API routes, schema/migrations, auth patterns, webhooks/hooks, feature flags) and emits structured markdown. Interpret the output against the PRD features: note what already exists, what must be extended, and what must be built from scratch. Record findings per domain — they feed directly into the pre-flight report and constrain first-layer fixes.
+7. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
    - **Fast scan via frontmatter first**: read the `module`, `affects`, and `depends_on` fields in the YAML frontmatter. If the input PRD's `module` matches another PRD's `module`, or the input PRD appears in another PRD's `affects` list, or the input PRD's `depends_on` names a prior PRD — flag it immediately.
    - **Full read only when flagged**: for any PRD flagged by frontmatter, read its features section in full and classify the relationship as one of:
      - **Dependency** — the input PRD's `depends_on` lists this PRD; it must ship first or be in flight. Confirm its current status.
@@ -104,6 +105,7 @@ Produce an in-memory pre-flight report:
 - **Terminology deviations** — PRD terms not matching GLOSSARY.md
 - **Architecture conflicts** — features that contradict or ignore ARCHITECTURE.md constraints
 - **AHA.md warnings** — past learnings that apply to this PRD
+- **Design system impact** — components impacted by the PRD's features, whether they need data-ingestion changes, and whether new components are required (from DESIGN-SYSTEM.md scan)
 - **Multi-PRD findings** — dependencies, breaking changes, and overlaps with prior PRDs, each classified and actioned as above
 - **PRD gaps** — sections ambiguous or incomplete enough to block domain mapping
 
@@ -231,6 +233,7 @@ Final state: the PRD contains all engineering sections, the synthesis is visible
 ## References
 
 - `refs/principles.md` — core operating principles; read before any other ref
+- `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements
 - `refs/protocol-eng-agent.md` — eng-agent two-mode protocol (plan and code); consult when building agent prompts in Step 4
 - `refs/template-eng-plan.md` — plan-mode output format; consult when structuring agent output sections appended to the PRD
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents

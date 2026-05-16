@@ -4,9 +4,9 @@ description: >
   One-time project bootstrap. Scans the working directory, asks 3–4
   questions about the project, then creates any missing foundational
   files: AHA.md, GLOSSARY.md, README.md, .gitignore, CLAUDE.md,
-  ARCHITECTURE.md, and the features/ directory. Idempotent — skips files
-  that already exist; never overwrites. All other msg skills read these
-  files but never create them.
+  ARCHITECTURE.md, DESIGN-SYSTEM.md, and the features/ directory.
+  Idempotent — skips files that already exist; never overwrites. All
+  other msg skills read these files but never create them.
 model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
@@ -47,6 +47,7 @@ allowed_tools:
 | .gitignore | Plain text from `refs/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | ARCHITECTURE.md | Markdown from `refs/template-ARCHITECTURE.md`, customised with platform | `<cwd>/ARCHITECTURE.md` |
+| DESIGN-SYSTEM.md | Markdown from `refs/template-DESIGN-SYSTEM.md`, customised with project name | `<cwd>/DESIGN-SYSTEM.md` |
 | features/ | Empty directory | `<cwd>/features/` |
 | .skillsrc | YAML for agent-skills-standard (conditional on framework detection) | `<cwd>/.skillsrc` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
@@ -134,3 +135,4 @@ Do not invoke another skill. The next slash command is the user's choice.
 - `refs/template-gitignore.md` — .gitignore content keyed by platform/stack
 - `refs/template-CLAUDE.md` — template for CLAUDE.md (Claude Code project instructions)
 - `refs/template-ARCHITECTURE.md` — template for ARCHITECTURE.md (architecture stub)
+- `refs/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry)

@@ -42,12 +42,13 @@ In multi-PRD mode, prefix each step emission with `[PRD N/K] ` (e.g., `[PRD 2/4]
 
 ## Pre-run — foundational files check
 
-Before emitting any step, stat-check `AHA.md`, `GLOSSARY.md`, and `CLAUDE.md` in parallel via `Bash`:
+Before emitting any step, stat-check `AHA.md`, `GLOSSARY.md`, `CLAUDE.md`, and `DESIGN-SYSTEM.md` in parallel via `Bash`:
 
 - **Present**: read silently and hold contents in context. Apply each file's contents as follows:
   - `AHA.md` — surface relevant entries in §6 (Open questions)
   - `GLOSSARY.md` — cross-reference when populating §7 (Glossary) in Step 5
   - `CLAUDE.md` — extract tech stack constraints, conventions, and architecture notes; use these to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup
+  - `DESIGN-SYSTEM.md` — load the component registry; when populating §3 (User flows) and §4 (Key user interactions), identify which components the proposed feature would impact or reuse and note them inline
 - **Absent**: emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
 Do not ask the user about any of these files. Do not block on these checks. Proceed to Step 1 immediately after.
