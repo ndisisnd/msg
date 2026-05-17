@@ -3,5 +3,18 @@
     "allow": [
       "WebSearch"
     ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"\nimport sys, json\nd = json.load(sys.stdin)\ncmd = d.get('tool_input', {}).get('command', '')\nif any(x in cmd for x in ['git add', 'git stage']):\n    print('Changes staged — invoke /msg-commit to generate a commit message.')\n\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
   }
 }
