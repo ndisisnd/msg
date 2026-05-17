@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(bash /Users/andychan/.claude/skills/agent-audit/scripts/run-evals.sh *)",
+      "Bash(bash /Users/andychan/.claude/scripts/plan-tune-preflight.sh *)"
     ]
   },
   "hooks": {
