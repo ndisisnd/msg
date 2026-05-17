@@ -34,7 +34,7 @@ Read, in order:
    - `## Engineering — eng-web` — design decisions, integration contracts, risks, and phases.
    - `## Execution Table` — features, execution steps, and agent assignments.
    If either is missing, halt: `"[PLAN BLOCKED] Missing <section> in PRD — run plan-em in plan mode first."`
-2. `AHA.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, `DESIGN-SYSTEM.md`, `OPEN-QUESTIONS.md` at the project root — for product assumptions, system topology, domain terms, existing component registry / design patterns, and any unresolved decisions that may constrain owned features.
+2. `AHA.md`, `ARCHITECTURE.md`, `GLOSSARY.md`, `DESIGN-SYSTEM.md`, `OPEN-QUESTIONS.md` at the project root — for past mistakes and learnings, system topology, domain terms, existing component registry / design patterns, and any unresolved decisions that may constrain owned features.
 
    For any question in `OPEN-QUESTIONS.md` that touches the owned feature set, classify it:
    - **Resolvable** — answer can be determined from existing code, conventions, or design patterns (tech debt, naming, patterns, minor architectural choices). Note the suggested resolution.

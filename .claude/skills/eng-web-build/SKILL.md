@@ -76,7 +76,7 @@ Check for foundational files. For each, note: present / missing / stale.
 
 | File | Purpose |
 |------|---------|
-| `AHA.md` | Product principles — governs UX and scope decisions |
+| `AHA.md` | Institutional knowledge log — past mistakes, learnings, and codebase quirks |
 | `GLOSSARY.md` | Canonical domain terms — used in naming |
 | `DESIGN-SYSTEM.md` | Component registry — enforces reuse, no duplication |
 | `ARCHITECTURE.md` | System topology — constraints on where code lives |
@@ -205,6 +205,19 @@ C. Stop build and investigate
    Works because: ensures no incomplete code is committed.
    Trades off: build halts; user must resolve the dependency before resuming.
 ```
+
+---
+
+## On-demand refs
+
+Load these files only when the relevant context arises — do not pre-load both at the start of every build.
+
+| Ref | Path | Load when |
+|-----|------|-----------|
+| Performance strategies | `.claude/skills/eng-web-build/refs/performance.md` | A step involves images, bundle size, above-the-fold rendering, caching, or the PRD mentions a perf requirement |
+| Testing strategies | `.claude/skills/eng-web-build/refs/testing.md` | A step produces or modifies a component, hook, utility, or API route that should have test coverage, or the plan includes a dedicated test step |
+
+After loading a ref, apply its rules to the current step. Do not re-load a ref that is already in context.
 
 ---
 

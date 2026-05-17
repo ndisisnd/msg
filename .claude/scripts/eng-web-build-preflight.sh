@@ -41,7 +41,7 @@ printf '# Pre-flight — eng-web-build\n\n'
 # --- Foundational files ---
 check_file P0 "DESIGN-SYSTEM.md"  "$root/DESIGN-SYSTEM.md"  "(component registry — cannot enforce reuse without it)"
 check_file P0 "ARCHITECTURE.md"   "$root/ARCHITECTURE.md"   "(system topology — cannot verify code placement without it)"
-check_file P1 "AHA.md"            "$root/AHA.md"            "(product principles — UX/scope decisions are unguided)"
+check_file P1 "AHA.md"            "$root/AHA.md"            "(institutional knowledge log — past mistakes and learnings unavailable)"
 check_file P1 "GLOSSARY.md"       "$root/GLOSSARY.md"       "(domain terms — naming decisions are unguided)"
 check_file P2 "OPEN-QUESTIONS.md" "$root/OPEN-QUESTIONS.md" "(unresolved decisions will not be surfaced)"
 check_file P3 "CLAUDE.md"         "$root/CLAUDE.md"         "(repo-level agent instructions missing)"
