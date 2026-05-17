@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# plan-tune-preflight.sh [path-hint]
+# Resolves, validates, and detects content type of a PRD file.
+# Outputs KEY=VALUE lines to stdout. Exit 0 = success; exit 1 = error.
+#
+# Success outputs:
+#   RESOLVED_PATH=features/prd-N/prd-N.md
+#   PRD_N=N
+#   TUNE_SUGGESTION=product|eng
+#
+# Error outputs:
+#   ERROR=no_path | invalid_pattern | not_found
+#   RESOLVED_PATH=<attempted path>  (when applicable)
+
+set -uo pipefail
+
+hint="${1:-}"
+
+if [[ -z "$hint" ]]; then
+  echo "ERROR=no_path"
+  exit 1
+fi
+
+resolved="${hint%/}"
+
+# Derive file path from directory or extensionless path
+if [[ -d "$resolved" ]] || [[ "$resolved" != *.md ]]; then
+  n=$(basename "$resolved" | grep -oE '[0-9]+$' || true)
+  if [[ -n "$n" ]]; then
+    resolved="${resolved}/prd-${n}.md"
+  fi
+fi
+
+# Validate pattern: features/prd-N/prd-N.md with matching N
+if [[ ! "$resolved" =~ features/prd-([0-9]+)/prd-([0-9]+)\.md$ ]] || \
+   [[ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ]]; then
+  echo "ERROR=invalid_pattern"
+  echo "RESOLVED_PATH=$resolved"
+  exit 1
+fi
+
+n="${BASH_REMATCH[1]}"
+
+if [[ ! -f "$resolved" ]]; then
+  echo "ERROR=not_found"
+  echo "RESOLVED_PATH=$resolved"
+  exit 1
+fi
+
+if grep -qE "^## Engineering —" "$resolved"; then
+  tune_suggestion="eng"
+else
+  tune_suggestion="product"
+fi
+
+echo "RESOLVED_PATH=$resolved"
+echo "PRD_N=$n"
+echo "TUNE_SUGGESTION=$tune_suggestion"
+exit 0
