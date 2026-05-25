@@ -5,7 +5,5 @@
 
 _Sh*t tastes so good, it's probably loaded with MSG._
 
-
-
 </div>
 

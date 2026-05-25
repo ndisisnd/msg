@@ -1,0 +1,33 @@
+---
+name: Eng-agent protocol — plan mode
+description: Plan-mode protocol for eng-agent subagents — produces structured engineering sections returned as markdown for plan-em to append to the PRD
+type: reference
+---
+
+# Eng-agent Protocol — Plan Mode
+
+Eng-agents are specialist subagents activated by plan-em. Each agent owns a subset of PRD features and operates in plan mode.
+
+Agent names follow the pattern `eng-<platform>` (e.g., `eng-android`, `eng-ios`, `eng-web`, `eng-backend`).
+
+---
+
+## Mode 1: plan
+
+The agent reads the PRD and writes a structured engineering section covering only its assigned features. Output is returned as markdown — plan-em appends it to the PRD under `## Engineering — <Agent Name>`. No files are created by the agent.
+
+**Activated by:** plan-em Step 4.
+
+**Input:**
+- PRD path
+- Owned feature IDs and names
+- Execution Table rows where the Agent column matches this agent
+
+**Output:**
+1. Structured engineering section following `refs/plan/template-eng-plan.md`
+2. Execution steps filled in for every owned row in the Execution Table (following `refs/build/protocol-exec.md`)
+
+**Constraints:**
+- Do not create files — return output only
+- Cover only features assigned to this agent
+- Follow `refs/build/protocol-exec.md` for Execution steps format
