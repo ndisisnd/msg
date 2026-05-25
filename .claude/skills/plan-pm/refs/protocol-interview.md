@@ -10,7 +10,13 @@ Run questions one at a time using `AskUserQuestion`. Each question presents opti
 
 ## Pre-interview: detect platform
 
-Run `bash .claude/scripts/detect-platform.sh` to extract the platform from `ARCHITECTURE.md`. Store the output as `platform`. If the output is empty, set `platform` to `"TBD"` and record it as an open question in §8 of the PRD.
+Run the following to extract the platform from `ARCHITECTURE.md`:
+
+```bash
+rtk bash -c '[[ -f ARCHITECTURE.md ]] || exit 0; for e in "Expo:\bExpo\b" "Flutter:\bFlutter\b" "React Native:\bReact Native\b" "iOS:\biOS\b" "Android:\bAndroid\b" "Desktop:\b(Electron|Tauri)\b" "Web:\b(web app|web application|web frontend|web client|browser|SPA|PWA)\b" "Backend:\b(REST API|GraphQL|microservice|server-side|backend|API server)\b"; do grep -qiE "${e#*:}" ARCHITECTURE.md && echo "${e%%:*}"; done'
+```
+
+Store each line of output as a platform label. If the output is empty, set `platform` to `"TBD"` and record it as an open question in §8 of the PRD.
 
 Do not ask the user about the platform.
 
