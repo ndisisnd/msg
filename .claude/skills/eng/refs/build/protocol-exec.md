@@ -1,6 +1,6 @@
 ---
 name: Execution Steps Guide
-description: How subagents write the Execution steps column in the PRD's Execution Table — format, granularity, dependency notation, and worked examples per concern type
+description: How eng agents write the Execution steps column in the PRD's Execution Table — format, granularity, dependency notation, and worked examples per concern type
 type: reference
 ---
 
@@ -26,7 +26,7 @@ Each execution step is one imperative sentence. Write steps as a numbered list i
 
 ## Concern-specific patterns
 
-Use these as starting points. Adapt to what the codebase scan revealed in Step 1.
+Use these as starting points. Adapt to what the codebase scan revealed in Step 4.
 
 ### API contract
 

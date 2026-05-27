@@ -2,12 +2,12 @@
 
 ## Core
 
-1. SKILL.md exists at `.claude/skills/eng/SKILL.md` and declares `build` as one of its modes with a fully distinct protocol code path.
+1. `.claude/skills/eng/SKILL.md` routes the `--build` flag (Step 0) to `refs/build/protocol.md`, where the build-mode protocol is defined as a fully distinct code path. SKILL.md holds only the shared protocol spine and the router (which hard-fails unless exactly one of `--plan | --build | --review` is present); build-mode specifics live in the ref file.
 2. In `build` mode, eng writes code to derived file paths and emits a structured summary listing: files created, files modified, platform, concern, and execution table row ID.
 
 ## Input contract
 
-3. Build mode input contract requires three fields: `mode=build`, `prd-path`, and `rows`. Eng hard-refuses invocation if any field is missing.
+3. Build mode input contract requires three fields: `--build`, `prd-path`, and `rows`. Eng hard-refuses invocation if any field is missing.
 4. Eng does not accept file paths as input. File paths are derived from the codebase scan and execution table.
 5. If any assigned execution table row has blank Execution steps, eng blocks and reports a hard failure immediately — before reading any other file or writing any code.
 
@@ -40,7 +40,7 @@
 
 ## plan-em invocation contract
 
-18. SKILL.md documents the invocation contract for plan-em build mode: prompt must include `prd-path`, assigned exec-table row identifiers (Feature + Concern pairs), working branch name, and `mode=build`.
+18. SKILL.md documents the invocation contract for plan-em build mode: prompt must include `prd-path`, assigned exec-table row identifiers (Feature + Concern pairs), working branch name, and `--build`.
 19. Eng reads the full execution table from the PRD and filters to its assigned rows before any other step. The Execution steps column for each row is treated as the authoritative code spec.
 
 ## TDD protocol

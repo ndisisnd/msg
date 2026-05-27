@@ -2,12 +2,12 @@
 
 ## Core
 
-1. SKILL.md exists at `.claude/skills/eng/SKILL.md` and declares `plan` as one of its modes with a fully distinct protocol code path.
+1. `.claude/skills/eng/SKILL.md` routes the `--plan` flag (Step 0) to `refs/plan/protocol.md`, where the plan-mode protocol is defined as a fully distinct code path. SKILL.md holds only the shared protocol spine and the router (which hard-fails unless exactly one of `--plan | --build | --review` is present); plan-mode specifics — summary content and proposed-changes output contract — live in the ref file.
 2. In `plan` mode, eng emits a proposed changes document listing files to create or modify and what each change does. No code is written or modified.
 
 ## Input contract
 
-3. Plan mode input contract requires three fields: `mode=plan`, `prd-path`, and `rows`. Eng hard-refuses invocation if any field is missing.
+3. Plan mode input contract requires three fields: `--plan`, `prd-path`, and `rows`. Eng hard-refuses invocation if any field is missing.
 4. Eng does not accept file paths as input. File paths are derived from the codebase scan and execution table.
 
 ## PRD summary and approval gate

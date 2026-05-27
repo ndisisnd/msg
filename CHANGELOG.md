@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Add handoff skill; refactor eng skill to modular protocols
+
+- `.claude/skills/eng/SKILL.md`
+- `.claude/skills/eng/refs/build/protocol.md`
+- `.claude/skills/eng/refs/plan/protocol.md`
+- `.claude/skills/eng/refs/review/protocol.md`
+- `.claude/skills/handoff/SKILL.md`
+- `.claude/skills/improve/7.1-eng-build/acceptance.md`
+- `.claude/skills/improve/7.1-eng-build/plan.md`
+- `.claude/skills/improve/7.3-eng-review/acceptance.md`
+- `.claude/skills/improve/7.3-eng-review/plan.md`
+- `.claude/skills/improve/done/7.2-eng-plan/acceptance.md`
+- `.claude/skills/improve/done/7.2-eng-plan/plan.md`
+- `.claude/skills/improve/done/8-handoff/acceptance.md`
+- `.claude/skills/improve/done/8-handoff/plan.md`
+- `handoff/1.md`
+
+---
+
 ### `a009b15` — Add CHANGELOG gate hook and `eng` engineering skill
 
 - `.claude/scripts/changelog-gate.py`

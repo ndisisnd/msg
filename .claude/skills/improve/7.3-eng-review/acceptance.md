@@ -2,12 +2,12 @@
 
 ## Core
 
-1. SKILL.md exists at `.claude/skills/eng/SKILL.md` and declares `review` as one of its modes with a fully distinct protocol code path.
+1. `.claude/skills/eng/SKILL.md` routes the `--review` flag (Step 0) to `refs/review/protocol.md`, where the review-mode protocol is defined as a fully distinct code path. SKILL.md holds only the shared protocol spine and the router (which hard-fails unless exactly one of `--plan | --build | --review` is present); review-mode specifics live in the ref file.
 2. In `review` mode, eng reads existing code, runs tests, audits assertions, scans for gaps and quality issues, and writes a JSON review file. Eng never writes or modifies code in this mode.
 
 ## Input contract
 
-3. Review mode input contract requires three fields: `mode=review` (or `--review` flag), `prd-path`, and `rows`. Eng hard-refuses invocation if any field is missing.
+3. Review mode input contract requires three fields: `--review`, `prd-path`, and `rows`. Eng hard-refuses invocation if any field is missing.
 4. Eng does not accept file paths as input. File paths are derived from the same codebase scan logic used in build mode.
 
 ## PRD summary and approval gate

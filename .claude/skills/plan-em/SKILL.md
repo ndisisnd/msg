@@ -179,27 +179,21 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 
 **Mode detection:** Scan the PRD for any heading matching `## Engineering —`. If none exist → `$MODE = plan`. If one or more exist → `$MODE = build`. Use `refs/$MODE/` when constructing all agent protocol paths below.
 
-**Plan mode (`$MODE = plan`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent reads its assigned PRD features and returns a structured engineering section — no code is written. For each agent, the prompt must include:
+**Plan mode (`$MODE = plan`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--plan` mode. For each agent, the prompt must include:
 
-1. The PRD path
-2. The specific PRD features this agent owns (by feature ID and name)
-3. The mode: `plan` — assess the PRD features and produce a structured engineering section as markdown, following `.claude/skills/plan-em/refs/plan/template-eng-plan.md`. Cover: summary, design decisions, phases and dependencies, integration contracts (API contracts, schema changes, authentication patterns, webhooks/hooks), risks, and open questions for the owned features only. Also fill in the Execution steps column for every row in the PRD's Execution Table where the Agent column matches this agent's name — follow `.claude/skills/plan-em/refs/plan/protocol-eng-agent.md` for the plan-mode protocol and `.claude/skills/plan-em/refs/build/protocol-exec.md` for step format, granularity, and dependency notation.
-4. The constraint: do not create a new file — return the section as output for the orchestrator to append.
+1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
+2. Mode flag: `--plan`
+3. `prd-path`: the PRD file path
+4. `rows`: the space-separated `Feature:Concern` exec-table identifiers assigned to this agent
+5. "Return your complete engineering section as your final output — do not write to any file; plan-em appends it to the PRD."
 
-**Build mode (`$MODE = build`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent uses the PRD's existing engineering section as its specification and writes implementation code to its working branch. For each agent, the prompt must include:
+**Build mode (`$MODE = build`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
 
-1. The PRD path (with engineering sections already appended)
-2. The specific PRD features this agent owns (by feature ID and name)
-3. The working branch name: `feature/prd-[n]-<short-name>/eng-<platform>`
-4. The mode: `build` — follow `.claude/skills/plan-em/refs/build/protocol-eng-agent.md` for the build-mode protocol and `.claude/skills/plan-em/refs/build/protocol-exec.md` for Execution steps format.
-5. **Devkit reads** (build mode) — include this instruction verbatim in the agent prompt:
-   > "Before writing any code, read the following devkit files and apply them throughout implementation:
-   > - `devkit/AHA.md` — past learnings; avoid repeating resolved mistakes
-   > - `CLAUDE.md` — tech stack conventions, naming rules, import patterns
-   > - `devkit/ARCHITECTURE.md` — system layers and hard constraints
-   > - `devkit/DESIGN-SYSTEM.md` — component registry; reuse before creating new
-   >
-   > If `devkit/` does not exist, emit a warning and proceed."
+1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
+2. Mode flag: `--build`
+3. `prd-path`: the PRD file path (with engineering sections already appended)
+4. `rows`: the space-separated `Feature:Concern` exec-table identifiers assigned to this agent
+5. `branch`: `feat/prd-[n]-<short-name>` (the feature branch derived in plan mode)
 
 Collect all agent outputs. Once all agents complete, append each agent's section to the PRD file via `Edit` (plan mode only — build mode agents commit code directly), under new top-level sections:
 
@@ -240,7 +234,7 @@ Read the full updated PRD. Produce a synthesis report inline:
 
 If Critical findings exist, present them via `AskUserQuestion` and resolve before declaring the run complete.
 
-3. **Suggested branch** — derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words). Emit the suggested branch name following the convention defined in `refs/template-eng-plan.md` §11:
+3. **Suggested branch** — derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words). Emit the suggested branch name following the convention defined in `.claude/skills/eng/refs/plan/template-eng-plan.md` §10:
 
    ```
    feat/prd-[n]-<short-name>
@@ -256,7 +250,4 @@ Final state: the PRD contains all engineering sections, the synthesis is visible
 - `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents (shared)
-- `refs/plan/protocol-eng-agent.md` — eng-agent plan-mode protocol; pass to agents activated in Step 4 plan mode (plan)
-- `refs/plan/template-eng-plan.md` — plan-mode output format; pass to agents activated in Step 4 plan mode (plan)
-- `refs/build/protocol-eng-agent.md` — eng-agent build-mode protocol; pass to agents activated in Step 4 build mode (build)
-- `refs/build/protocol-exec.md` — how subagents write the Execution steps column: format, granularity, dependency notation, worked examples per concern type (build)
+- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode

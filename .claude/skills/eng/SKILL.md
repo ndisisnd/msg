@@ -14,52 +14,59 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent. Operates in one of three modes determined by the `--plan`, `--build`, or `--review` flag. Each mode has a fully distinct protocol code path.
+Platform-agnostic engineering agent. Operates in one of three modes — `--plan`, `--build`, `--review` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
 
 ---
 
-## Mode: --plan
+## Step 0 — Route to the active mode
 
-Reads the assigned PRD section and exec-table rows. Proposes a concrete list of file changes (create / modify) for human approval — **no code is written**.
+Read the invocation flag and load exactly one mode protocol:
 
-### Input contract
+| Flag | Read |
+|------|------|
+| `--plan` | `refs/plan/protocol.md` |
+| `--build` | `refs/build/protocol.md` |
+| `--review` | `refs/review/protocol.md` |
 
-Three fields are required. Hard-refuse if any are missing:
+Exactly one mode flag must be present. If zero or more than one is given, emit:
+
+```
+Hard failure: exactly one mode flag required (--plan | --build | --review). Got: <list>.
+```
+
+Stop. Otherwise read the active mode file **fully** before any other step. It defines the mode-specific input rules, the summary content, the work steps, and the output contract. The numbered steps below are the shared spine — they run for every mode and point to the active mode file where the path diverges.
+
+---
+
+## Step 1 — Input validation
+
+All modes require three fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
-| `--plan` | Flag activating plan mode |
+| mode flag | `--plan`, `--build`, or `--review` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
 | `rows` | Space-separated `Feature:Concern` identifiers assigned to this invocation |
 
-**Example invocation:**
+If any field is missing, emit:
+
 ```
-/eng --plan prd-path=features/prd-4/prd-4.md rows="Streaks:Schema migration Streaks:API contract"
+Hard failure: missing required field(s): <list>. Provide the mode flag, prd-path, and rows to continue.
 ```
+
+Stop. Do not proceed. The active mode file may add mode-specific input rules — apply those too.
 
 Eng derives all file paths from the codebase scan and exec-table. It does **not** accept file paths as input.
 
 ---
 
-### Protocol
+## Step 2 — Pre-flight: read everything in one pass
 
-#### Step 1 — Input validation
+Before producing any output, read the PRD, all devkit files, and all relevant codebase files in parallel — a single consolidated scan.
 
-Check that `--plan`, `prd-path`, and `rows` are all present. If any field is missing, emit:
+**PRD + exec-table:** Read the full PRD at `prd-path`. Locate the Execution Table. Filter rows where the Feature:Concern pair matches the assigned `rows` list.
 
-```
-Hard failure: missing required field(s): <list>. Provide --plan, prd-path, and rows to continue.
-```
-
-Stop. Do not proceed.
-
----
-
-#### Step 2 — Read PRD and exec-table rows
-
-Read the full PRD at `prd-path`. Locate the Execution Table. Filter rows where the Feature:Concern pair matches the assigned `rows` list.
-
-Read devkit files in parallel (apply throughout):
+**Devkit files** (read in parallel with PRD):
 
 | File | How to apply |
 |------|-------------|
@@ -71,48 +78,7 @@ Read devkit files in parallel (apply throughout):
 
 If `devkit/` does not exist, emit a single warning and continue. Missing individual files: emit a per-file warning and continue.
 
----
-
-#### Step 3 — PRD summary + approval gate
-
-After reading the PRD and exec-table rows, emit a **short summary** (3–4 lines maximum):
-
-- Line 1: What is being built — one sentence naming the feature and its user-facing purpose.
-- Lines 2–3: How to achieve it in code — the main layers touched and the primary structural change.
-- Line 4 (optional): Scope of the assigned rows relative to the full feature.
-
-Then ask:
-
-```
-AskUserQuestion:
-  "Does this summary look right before I scan the codebase?"
-  Options:
-    - Yes, proceed
-    - No, needs correction
-    - I have a follow-up question
-```
-
-**If "Yes, proceed":** continue to Step 4.
-
-**If "No, needs correction":** rewrite the summary once incorporating the correction, re-ask. If still rejected, stop and ask the user to clarify the scope directly.
-
-**If "I have a follow-up question":** enter user interview (Step 3a), then re-present the summary.
-
-Never proceed to Step 4 without an explicit "Yes, proceed."
-
-##### Step 3a — User interview (on demand)
-
-Ask up to 3 focused questions, one at a time. Each question must:
-- Name the specific exec-table row or PRD section it concerns
-- Offer 3–4 concrete options via `AskUserQuestion` (no open-ended questions)
-
-If more than 3 ambiguities exist, surface them as a numbered list and ask which to prioritise. After the interview, resume from the point where the protocol paused — do not restart.
-
----
-
-#### Step 4 — Codebase scan
-
-After approval, read files relevant to the assigned rows. Relevance is matched by concern type:
+**Codebase scan** (read in parallel with PRD + devkit): Read files relevant to the assigned rows. Relevance is matched by concern type:
 
 | Concern type | What to scan |
 |-------------|-------------|
@@ -127,11 +93,46 @@ For each scanned file, determine:
 - **Modify** — file exists and will be changed
 - **Create** — file does not exist and will be created
 
-Note existing naming conventions, patterns, and constraints. These constrain the proposed changes document.
+Note existing naming conventions, patterns, and constraints. These constrain the mode output.
+
+Complete this entire pre-flight read before moving to Step 3. Do not emit output during this step.
 
 ---
 
-#### Step 5 — Derive platform and pull coding standards
+## Step 3 — Pre-run (1 of 2): Summary + approval gate
+
+Emit a **short summary** (3–4 lines maximum). The content of those lines is defined in the active mode file's "Summary content" section.
+
+Then ask:
+
+```
+AskUserQuestion:
+  "Does this summary look right?"
+  Options:
+    - Yes, proceed
+    - No, needs correction
+    - I have a follow-up question
+```
+
+**If "Yes, proceed":** continue to Step 4.
+
+**If "No, needs correction":** rewrite the summary once incorporating the correction, re-ask. If still rejected, stop and ask the user to clarify the scope directly.
+
+**If "I have a follow-up question":** enter the user interview (Step 3a), then re-present the summary.
+
+Never proceed to Step 4 without an explicit "Yes, proceed."
+
+### Step 3a — User interview (on demand)
+
+Ask up to 3 focused questions, one at a time. Each question must:
+- Name the specific exec-table row or PRD section it concerns
+- Offer 3–4 concrete options via `AskUserQuestion` (no open-ended questions)
+
+If more than 3 ambiguities exist, surface them as a numbered list and ask which to prioritise. After the interview, resume from the point where the protocol paused — do not restart.
+
+---
+
+## Step 4 — Pre-run (2 of 2): Pull coding standards via /cook
 
 Map the concern type of each assigned row to a platform identifier:
 
@@ -143,49 +144,34 @@ Map the concern type of each assigned row to a platform identifier:
 
 If rows span multiple platforms, derive a platform per row and pull standards for each.
 
-Invoke the coding standards skill with the derived platform identifier. Read the result fully before producing any output. Eng has no hardcoded standards.
+Invoke `/cook` with the derived platform identifier. Read the result fully before producing any output. Eng has no hardcoded standards — `/cook` is the sole source of coding standards and must always be called.
 
 ---
 
-#### Step 6 — Emit proposed changes document
+## Step 5 — Run the active mode's work and emit output
 
-Produce a structured proposed changes document. **No code is written.** Descriptions only.
+Follow the work steps and output contract in the active mode file. This is where the modes diverge:
 
-For each assigned exec-table row:
-
-```markdown
-### Feature: <Feature name> — <Concern>
-
-**Files to create:**
-- `path/to/new/file.ext` — Purpose: what this file will contain and why it is needed.
-
-**Files to modify:**
-- `path/to/existing/file.ext` — Section: <which section or function>. Change: <what will be added, removed, or changed>.
-
-**Gaps / execution steps that cannot be satisfied by a file change:**
-- <Description of gap> — flagged; requires clarification before build.
-```
-
-If a row has no gaps, omit the gaps subsection. If a row has no files to create, omit that subsection. Never propose changes outside the scope of the assigned rows.
+- `--plan` → emit a proposed changes document; no code is written.
+- `--build` → write code to derived paths; emit a build summary.
+- `--review` → run the checks; write a review file.
 
 ---
 
-#### Step 7 — Scope enforcement (continuous)
+## Step 6 — Scope enforcement (continuous)
 
-Throughout Steps 4–6, enforce strict scope:
-- Propose changes only for what the assigned exec-table rows specify
-- Do not propose additional refactors, unrelated file touches, or changes outside row scope
-- If a row is ambiguous and cannot be resolved from the PRD, exec-table, or codebase scan → surface it as a named gap in the proposed changes document
-- Never resolve ambiguity by assumption
+Throughout Steps 2–5, enforce strict scope:
 
----
-
-## Mode: --build
-
-*(Defined in improvement plan 7.1-eng-build — protocol TBD)*
+- Act only on what the assigned exec-table rows specify.
+- Do not propose or make additional refactors, unrelated file touches, or changes outside row scope.
+- If a row is ambiguous and cannot be resolved from the PRD, exec-table, or codebase scan → surface it as a named gap (plan / review) or block and ask (build). Never resolve ambiguity by assumption.
 
 ---
 
-## Mode: --review
+## References
 
-*(Defined in improvement plan 7.3-eng-review — protocol TBD)*
+- `refs/plan/protocol.md` — `--plan` mode: summary content, engineering section output contract, return-as-output rule.
+- `refs/plan/template-eng-plan.md` — plan-mode output format; §1–14 required sections, quality gates.
+- `refs/build/protocol.md` — `--build` mode: branch, work steps, commit and PR contract.
+- `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.
+- `refs/review/protocol.md` — `--review` mode: protocol TBD (improvement plan 7.3-eng-review).
