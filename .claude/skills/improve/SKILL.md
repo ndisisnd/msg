@@ -22,9 +22,9 @@ allowed_tools:
 
 **Step 1 — Clarify**
 
-If invoked without a description, ask via `AskUserQuestion`: **What would you like to improve?** with a single free-text option. Wait for the response before proceeding.
+If invoked without a description, call `AskUserQuestion` with a `questions` array containing one entry: `header: "Improve"`, `question: "What would you like to improve?"`, `multiSelect: false`, and at least two placeholder options (e.g. "Describe below" and "Not sure yet") — the user will use the auto-added "Other" field to type freely. Wait for the response before proceeding.
 
-Ask follow-up questions via `AskUserQuestion`, one at a time, up to 5. Stop earlier when the picture is clear. Each question should be guided by these principles:
+Call `AskUserQuestion` for each follow-up question, one at a time, up to 5. Always pass a `questions` array (never a bare `question` key). Stop earlier when the picture is clear. Each question should be guided by these principles:
 
 - **Understand the gap** — what is broken, missing, or suboptimal and in which context does it surface?
 - **Understand the stakes** — what breaks or degrades if this is left unfixed?
@@ -48,6 +48,6 @@ For every discrete change in the plan, write one or more testable assertions to 
 
 Emit `$OUT` as a markdown link.
 
-Ask via `AskUserQuestion`: **What would you like to do next?**
+Call `AskUserQuestion` with a `questions` array: `header: "Next step"`, `question: "What would you like to do next?"`, `multiSelect: false`, `options`:
 - **Revise** — ask what to change, then read and edit `$OUT/plan.md` and `$OUT/acceptance.md` in place. Re-emit Step 5.
-- **Terminate** — emit exactly: "Plan and acceptance criteria emitted. Please double-check the plan or run another agent to do an adversarial review."
+- **Done** — emit exactly: "Plan and acceptance criteria emitted. Please double-check the plan or run another agent to do an adversarial review."
