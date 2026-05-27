@@ -59,10 +59,18 @@ strip_frontmatter() {
 
 # Write content string to TARGET/<filename>; track in manifest arrays.
 # Using a content variable (not stdin) so array writes happen in the main shell.
+# Pass a subdirectory as $3 (e.g. "devkit") to write into TARGET/<subdir>/<filename>.
 write_file() {
   local filename="$1"
   local content="$2"
-  local dest="$TARGET/$filename"
+  local subdir="${3:-}"
+  local dest
+  if [[ -n "$subdir" ]]; then
+    dest="$TARGET/$subdir/$filename"
+    filename="$subdir/$filename"
+  else
+    dest="$TARGET/$filename"
+  fi
 
   if [[ -e "$dest" ]]; then
     SKIPPED+=("$filename")
@@ -78,26 +86,55 @@ write_file() {
   fi
 }
 
-# ── Templates with fenced ## Template body blocks ────────────────────────────
+# ── devkit/ directory ─────────────────────────────────────────────────────────
+
+if [[ -d "$TARGET/devkit" ]]; then
+  SKIPPED+=("devkit/")
+elif mkdir -p "$TARGET/devkit"; then
+  CREATED+=("devkit/|—")
+else
+  FAILED+=("devkit/")
+fi
+
+# ── Root-level templates (fenced ## Template body blocks) ─────────────────────
+# README.md and CLAUDE.md stay at project root; .gitignore and CHANGELOG.md too.
 
 for pair in \
   "README.md:template-README.md" \
-  "CLAUDE.md:template-CLAUDE.md" \
-  "ARCHITECTURE.md:template-ARCHITECTURE.md" \
-  "DESIGN-SYSTEM.md:template-DESIGN-SYSTEM.md"
+  "CLAUDE.md:template-CLAUDE.md"
 do
   f="${pair%%:*}"; t="${pair##*:}"
   content=$(extract_body "$REFS/$t" | apply_subs)
   write_file "$f" "$content"
 done
 
-# ── Flat templates (strip frontmatter; no placeholders) ───────────────────────
+# ── devkit/ templates (fenced ## Template body blocks) ────────────────────────
+
+for pair in \
+  "ARCHITECTURE.md:template-ARCHITECTURE.md" \
+  "DESIGN-SYSTEM.md:template-DESIGN-SYSTEM.md"
+do
+  f="${pair%%:*}"; t="${pair##*:}"
+  content=$(extract_body "$REFS/$t" | apply_subs)
+  write_file "$f" "$content" "devkit"
+done
+
+# ── devkit/ flat templates (strip frontmatter; no placeholders) ───────────────
 
 for pair in \
   "AHA.md:template-AHA.md" \
   "GLOSSARY.md:template-GLOSSARY.md" \
-  "CHANGELOG.md:template-CHANGELOG.md" \
   "OPEN-QUESTIONS.md:template-OPEN-QUESTIONS.md"
+do
+  f="${pair%%:*}"; t="${pair##*:}"
+  content=$(strip_frontmatter "$REFS/$t")
+  write_file "$f" "$content" "devkit"
+done
+
+# ── Root-level flat templates ─────────────────────────────────────────────────
+
+for pair in \
+  "CHANGELOG.md:template-CHANGELOG.md"
 do
   f="${pair%%:*}"; t="${pair##*:}"
   content=$(strip_frontmatter "$REFS/$t")

@@ -40,16 +40,20 @@ Emit `Step X/6 — <title>` at the start of each step, unconditionally.
 
 In multi-PRD mode, prefix each step emission with `[PRD N/K] ` (e.g., `[PRD 2/4] Step 3/6 — Interview`).
 
-## Pre-run — foundational files check
+## Pre-run — devkit reads
 
-Before emitting any step, stat-check `AHA.md`, `GLOSSARY.md`, `CLAUDE.md`, and `DESIGN-SYSTEM.md` in parallel via `Bash`:
+Before emitting any step, stat-check and read the following files in parallel via `Bash`. These files are written to `devkit/` by `msg-init`; `CLAUDE.md` stays at project root.
 
-- **Present**: read silently and hold contents in context. Apply each file's contents as follows:
-  - `AHA.md` — surface relevant entries in §6 (Open questions)
-  - `GLOSSARY.md` — cross-reference when populating §7 (Glossary) in Step 5
-  - `CLAUDE.md` — extract tech stack constraints, conventions, and architecture notes; use these to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup
-  - `DESIGN-SYSTEM.md` — load the component registry; when populating §3 (User flows) and §4 (Key user interactions), identify which components the proposed feature would impact or reuse and note them inline
-- **Absent**: emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
+| File | How to apply |
+|------|-------------|
+| `devkit/AHA.md` | Surface relevant entries in §6 (Open questions) |
+| `devkit/GLOSSARY.md` | Cross-reference when populating §7 (Glossary) in Step 5 |
+| `CLAUDE.md` | Extract tech stack constraints, conventions, and architecture notes; use to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup |
+| `devkit/ARCHITECTURE.md` | Load system layers and existing integration points; validate feasibility of proposed features against existing constraints and note any conflicts in §6 (Open questions) |
+| `devkit/DESIGN-SYSTEM.md` | Load the component registry; when populating §3 (User flows) and §4 (Key user interactions), identify which components the proposed feature would impact or reuse and note them inline |
+| `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that may block or constrain proposed features; surface relevant entries in §6 (Open questions) |
+
+**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
 Do not ask the user about any of these files. Do not block on these checks. Proceed to Step 1 immediately after.
 
@@ -230,3 +234,4 @@ Terminate. Do not ask a follow-up question.
 - `refs/template-error.md` — error case format, rules, and examples; used when populating §5 in Step 5
 - `refs/protocol-interview.md` — structured interview questions and format for Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
+- `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md

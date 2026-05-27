@@ -71,15 +71,18 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 First, validate: verify the PRD path exists and matches `features/prd-*/prd-*.md`. Derive `n` from the parent directory name. If validation fails, refuse and emit the rule. Produce no output on failure.
 
-Then, mandatory pre-flight scan. Read all of the following in order:
+Then, mandatory pre-flight scan (devkit + PRD). Devkit files live in `devkit/` (created by `msg-init`); `CLAUDE.md` is at project root. Read all of the following in order:
 
-1. `AHA.md` — scan for past learnings applicable to this PRD's domain or feature type. Note every entry that is directly relevant.
-2. `GLOSSARY.md` — load canonical term definitions. Flag any PRD terms that deviate from the glossary.
-3. `ARCHITECTURE.md` — load system constraints, existing layers, and integration points. Note any constraints that affect the PRD's features.
-4. `DESIGN-SYSTEM.md` — load the component registry. For each component: note which PRD features would impact it, which could reuse it without changes, and which require new data ingestion. Record findings per component — they feed into the pre-flight report and constrain the frontend agent scope.
-5. `OPEN-QUESTIONS.md` — scan for unresolved decisions that overlap this PRD's domain or feature set. Note each relevant question; include it in the pre-flight report under a new **Open questions** section. If a question directly blocks a PRD feature, flag it as a blocking gap in the pre-flight report.
-6. The PRD file in full.
-7. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
+1. `devkit/AHA.md` — scan for past learnings applicable to this PRD's domain or feature type. Note every entry that is directly relevant.
+2. `devkit/GLOSSARY.md` — load canonical term definitions. Flag any PRD terms that deviate from the glossary.
+3. `devkit/ARCHITECTURE.md` — load system constraints, existing layers, and integration points. Note any constraints that affect the PRD's features.
+4. `CLAUDE.md` — load tech stack constraints, naming conventions, and architecture notes. Note any conventions that constrain agent scope or engineering choices in this run.
+5. `devkit/DESIGN-SYSTEM.md` — load the component registry. For each component: note which PRD features would impact it, which could reuse it without changes, and which require new data ingestion. Record findings per component — they feed into the pre-flight report and constrain the frontend agent scope.
+6. `devkit/OPEN-QUESTIONS.md` — scan for unresolved decisions that overlap this PRD's domain or feature set. Note each relevant question; include it in the pre-flight report under a new **Open questions** section. If a question directly blocks a PRD feature, flag it as a blocking gap in the pre-flight report.
+7. The PRD file in full.
+
+**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual devkit file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
+8. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
    - **Fast scan via frontmatter first**: read the `module`, `affects`, and `depends_on` fields in the YAML frontmatter. If the input PRD's `module` matches another PRD's `module`, or the input PRD appears in another PRD's `affects` list, or the input PRD's `depends_on` names a prior PRD — flag it immediately.
    - **Full read only when flagged**: for any PRD flagged by frontmatter, read its features section in full and classify the relationship as one of:
      - **Dependency** — the input PRD's `depends_on` lists this PRD; it must ship first or be in flight. Confirm its current status.
@@ -189,6 +192,14 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 2. The specific PRD features this agent owns (by feature ID and name)
 3. The working branch name: `feature/prd-[n]-<short-name>/eng-<platform>`
 4. The mode: `build` — follow `.claude/skills/plan-em/refs/build/protocol-eng-agent.md` for the build-mode protocol and `.claude/skills/plan-em/refs/build/protocol-exec.md` for Execution steps format.
+5. **Devkit reads** (build mode) — include this instruction verbatim in the agent prompt:
+   > "Before writing any code, read the following devkit files and apply them throughout implementation:
+   > - `devkit/AHA.md` — past learnings; avoid repeating resolved mistakes
+   > - `CLAUDE.md` — tech stack conventions, naming rules, import patterns
+   > - `devkit/ARCHITECTURE.md` — system layers and hard constraints
+   > - `devkit/DESIGN-SYSTEM.md` — component registry; reuse before creating new
+   >
+   > If `devkit/` does not exist, emit a warning and proceed."
 
 Collect all agent outputs. Once all agents complete, append each agent's section to the PRD file via `Edit` (plan mode only — build mode agents commit code directly), under new top-level sections:
 
@@ -242,6 +253,7 @@ Final state: the PRD contains all engineering sections, the synthesis is visible
 ## References
 
 - `refs/principles.md` — core operating principles; read before any other ref (shared)
+- `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents (shared)
 - `refs/plan/protocol-eng-agent.md` — eng-agent plan-mode protocol; pass to agents activated in Step 4 plan mode (plan)

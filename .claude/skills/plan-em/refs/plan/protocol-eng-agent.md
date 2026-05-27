@@ -18,6 +18,18 @@ The agent reads the PRD and writes a structured engineering section covering onl
 
 **Activated by:** plan-em Step 4.
 
+**Devkit reads (plan mode):** Before reading the PRD, read the following files in parallel and apply them throughout the engineering section:
+
+| File | How to apply |
+|------|-------------|
+| `devkit/AHA.md` | Avoid repeating resolved mistakes; surface relevant past learnings in §12 (Findings) |
+| `devkit/GLOSSARY.md` | Use canonical terms throughout; flag any PRD terms that deviate |
+| `CLAUDE.md` | Apply tech stack constraints and conventions to all design decisions |
+| `devkit/ARCHITECTURE.md` | Validate scope against system layers; flag conflicts in §12 (Findings) |
+| `devkit/DESIGN-SYSTEM.md` | Note impacted or reusable components in §5 (Scope mapping) |
+
+If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual file is missing, emit a per-file warning and proceed.
+
 **Input:**
 - PRD path
 - Owned feature IDs and names

@@ -42,15 +42,16 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| AHA.md | Markdown from `refs/template-AHA.md` | `<cwd>/AHA.md` |
-| GLOSSARY.md | Markdown from `refs/template-GLOSSARY.md` | `<cwd>/GLOSSARY.md` |
+| devkit/ | Directory — agent context files | `<cwd>/devkit/` |
+| devkit/AHA.md | Markdown from `refs/template-AHA.md` | `<cwd>/devkit/AHA.md` |
+| devkit/GLOSSARY.md | Markdown from `refs/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
+| devkit/ARCHITECTURE.md | Markdown from `refs/template-ARCHITECTURE.md`, customised with platform | `<cwd>/devkit/ARCHITECTURE.md` |
+| devkit/DESIGN-SYSTEM.md | Markdown from `refs/template-DESIGN-SYSTEM.md`, customised with project name | `<cwd>/devkit/DESIGN-SYSTEM.md` |
+| devkit/OPEN-QUESTIONS.md | Markdown from `refs/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | README.md | Markdown from `refs/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
-| ARCHITECTURE.md | Markdown from `refs/template-ARCHITECTURE.md`, customised with platform | `<cwd>/ARCHITECTURE.md` |
-| DESIGN-SYSTEM.md | Markdown from `refs/template-DESIGN-SYSTEM.md`, customised with project name | `<cwd>/DESIGN-SYSTEM.md` |
 | CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, written and updated by subagents | `<cwd>/CHANGELOG.md` |
-| OPEN-QUESTIONS.md | Markdown from `refs/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/OPEN-QUESTIONS.md` |
 | features/ | Empty directory | `<cwd>/features/` |
 | .skillsrc | YAML for agent-skills-standard (conditional on framework detection) | `<cwd>/.skillsrc` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |

@@ -12,7 +12,7 @@
 
 TARGET="${1:-.}"
 
-TARGETS=(AHA.md GLOSSARY.md README.md .gitignore CLAUDE.md ARCHITECTURE.md DESIGN-SYSTEM.md CHANGELOG.md OPEN-QUESTIONS.md features/)
+TARGETS=(devkit/AHA.md devkit/GLOSSARY.md devkit/ARCHITECTURE.md devkit/DESIGN-SYSTEM.md devkit/OPEN-QUESTIONS.md README.md .gitignore CLAUDE.md CHANGELOG.md features/)
 STACK_FILES=(package.json tsconfig.json Cargo.toml go.mod pyproject.toml Gemfile pom.xml build.gradle Podfile pubspec.yaml)
 
 PRESENT=(); MISSING=(); STACK_DETECTED=()
