@@ -3,8 +3,10 @@ name: review
 description: >
   After eng --build, resolve a diff, fingerprint the codebase, bootstrap an
   eval-set from the PRD, confirm the review surface, then fan out to /cook
-  sub-agents across five ordered review modes — aggregating findings into a
-  single structured JSON. Consumed by preflight or read directly by a human.
+  sub-agents across five ordered review modes — with mechanical gates
+  (lint / format / typecheck / secret scan via local tooling) layered in
+  ahead of the semantic agents — aggregating findings into a single
+  structured JSON. Consumed by preflight or read directly by a human.
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
@@ -27,8 +29,9 @@ eng --build  →  /review  →  [address findings]  →  /review (repeat until p
 - `/review` — diffs against HEAD
 - `/review <branch>` — diffs against a named branch
 - `/review <PR#>` — fetches PR diff via `gh pr diff <n>`
+- `/review --full-secret-scan` — opts Security mode Stage 0 into scanning the full working tree (default is diff-only). Composable with branch and PR args, e.g. `/review feature/x --full-secret-scan` or `/review 42 --full-secret-scan`.
 
-**Hard refusals:** does NOT modify source code; does NOT check documentation (`/docu`'s job); does NOT run dedicated secret scanning; makes exactly ONE `AskUserQuestion` call (Step 5).
+**Hard refusals:** does NOT modify source code; does NOT check documentation (`/docu`'s job); makes exactly ONE `AskUserQuestion` call (Step 5).
 
 ## Inputs / Outputs
 
@@ -57,10 +60,12 @@ Run `rtk git branch --show-current` to determine the current branch. `review` is
 
 Run once at startup; never re-derive mid-run. Detection signals, runner mappings, and the authoritative `/cook` flag inventory all live in `refs/FLAG-LIST.md` — load it once here.
 
-Produce three outputs from this step:
+Produce five outputs from this step:
 
 - **`active_domains[]`** — list of detected technology domains (used by Steps 4–6 for flag assembly). Signals: `refs/FLAG-LIST.md#domain-detection-review-step-2-fingerprint`.
 - **`test_runner`** — structured object used exclusively by Coverage mode. Signals: `refs/FLAG-LIST.md#test-runner-detection-review-step-2-fingerprint`. If no runner is detected, set `test_runner` to `null`; Coverage mode will emit `warn` and skip execution.
+- **`mechanical_runners[]`** — list of detected lint/format/typecheck runners (used by Quality mode Stage 0). Signals: `refs/FLAG-LIST.md#mechanical-runner-detection-review-step-2-fingerprint`. Each entry has `{ name, command, expects_zero_exit, severity_on_fail }`. Empty list if nothing detected — Quality Stage 0 becomes a no-op.
+- **`secret_scanner`** — single object describing the highest-priority detected secret scanner (used by Security mode Stage 0), or `null` if none. Signals and shape: `refs/FLAG-LIST.md#mechanical-runner-detection-review-step-2-fingerprint` (Secret scanners sub-table). When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
 - **`flag_inventory`** — in-memory set of every valid flag token parsed from `refs/FLAG-LIST.md` (concerns + per-domain + sub-refs). Used by Step 4 to validate assembled flags.
 
 ### Step 3/7 — Locate PRD; bootstrap eval-set
@@ -103,7 +108,17 @@ Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue witho
 
 ### Step 6/7 — Run modes in order; fan out /cook per mode
 
-Order: **Quality → Coverage → Functional → Security → Performance**. For each mode: spawn all `/cook --<flag>` sub-agents in parallel; wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). On any `block`: stop pipeline immediately, skip remaining modes, go to Step 7. Mode details: `refs/modes/<mode>.md`.
+Order and per-mode stage layout:
+
+| Order | Mode | Stage 0 (mechanical, runs first) | Semantic stage |
+|-------|------|-----------------------------------|----------------|
+| 1 | Quality | Mechanical gate — lint / format / typecheck via `mechanical_runners[]`; any `block` short-circuits and skips the semantic stage. | `/cook --<flag>` semantic agents with rubric amendment. |
+| 2 | Coverage | — (no Stage 0) | Test-runner protocol against `eval_set`. |
+| 3 | Functional | — (no Stage 0) | Eval-set assertion protocol against the diff. |
+| 4 | Security | Secret scan — runs `secret_scanner` (diff-only by default, full-tree with `--full-secret-scan`); always proceeds to semantic stage regardless of verdict. | `/cook --<flag>` semantic agents for injection / auth / input-validation. |
+| 5 | Performance | — (no Stage 0) | `/cook --<flag>` semantic agents. |
+
+For each mode: run Stage 0 first (if defined), then spawn all `/cook --<flag>` sub-agents in parallel; wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). Aggregate Stage 0 findings with semantic-stage findings into the mode output. On any mode-level `block`: stop pipeline immediately, skip remaining modes, go to Step 7. Mode details: `refs/modes/<mode>.md`.
 
 **Quality-mode only:** Before spawning Quality sub-agents, append the rubric amendment from `refs/modes/quality.md#sub-agent-prompt-amendment` to each agent's prompt. Also pass `uncovered_changes[]` (from Step 4) as an additional input to every Quality sub-agent. No other mode receives the rubric amendment or `uncovered_changes[]`.
 
@@ -115,7 +130,7 @@ Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = wors
 
 ## References
 
-- `refs/FLAG-LIST.md` — domain & test-runner detection signals + authoritative `/cook` flag inventory (single source of truth for Step 2 fingerprint and Step 4 flag validation)
+- `refs/FLAG-LIST.md` — domain, test-runner, mechanical-runner, and secret-scanner detection signals + authoritative `/cook` flag inventory (single source of truth for Step 2 fingerprint and Step 4 flag validation)
 - `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics
 - `refs/modes/quality.md` — Quality mode: flags, orchestrator rubric (extends `/cook`'s flag coverage with orchestrator-owned checks), and sub-agent prompt amendment
 - `refs/modes/coverage.md` — Coverage mode: test-runner protocol

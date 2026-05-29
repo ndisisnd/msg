@@ -25,7 +25,18 @@ Each `/cook --<flag>` sub-agent called by `/review` must conform to:
 }
 ```
 
-`source` identifies the `/cook --<flag>` agent that produced the finding. `/review` reads this object mechanically — it does not parse free-form text.
+`source` identifies the producer of the finding. `/review` reads this object mechanically — it does not parse free-form text. Valid forms:
+
+| Form | Producer | Emitted by |
+|------|----------|------------|
+| `--<flag>` (e.g. `--api-design`, `--react:security`) | A `/cook` semantic sub-agent | Any mode's semantic stage |
+| `lint:<runner>` (e.g. `lint:eslint`, `lint:ruff`) | A lint runner in Quality Stage 0 | Quality mode |
+| `format:<runner>` (e.g. `format:prettier`, `format:black`, `format:dart-format`) | A format runner in Quality Stage 0 | Quality mode |
+| `typecheck:<runner>` (e.g. `typecheck:tsc`, `typecheck:mypy`, `typecheck:dart-analyze`) | A typecheck runner in Quality Stage 0 | Quality mode |
+| `env:<runner>` (e.g. `env:eslint`) | A configured-but-not-executable runner in Quality Stage 0 | Quality mode |
+| `secrets:<scanner>` (e.g. `secrets:gitleaks`, `secrets:trufflehog`) | A secret scanner in Security Stage 0 | Security mode |
+
+After the dedup pass, a finding's `source` may be a comma-separated concatenation of any of the forms above (e.g. `"--api-design,--architecture"` or `"lint:eslint,--react"`).
 
 `category` is **required** on every finding. Recommended enum:
 `"contract"`, `"architecture"`, `"error-handling"`, `"debug"`, `"dead-code"`, `"duplication"`, `"readability"`, `"naming"`, `"complexity"`, `"scope-creep"`, `"security"`, `"performance"`, `"other"`.
@@ -87,6 +98,44 @@ Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` objec
 ### Mandatory evidence rule (Functional)
 
 Every Functional finding with severity `pass` or `block` MUST populate `file` and `line` with the location of the satisfying or violating code. `null` is permitted only on `n/a` entries. Functional mode self-checks and downgrades any `pass` or `block` lacking evidence to `warn` with reason `"no evidence located"`.
+
+---
+
+## Fingerprint object (Step 2 outputs)
+
+Step 2 of `SKILL.md` produces these structures, consumed downstream by Step 4 (surface assembly) and Step 6 (mode execution):
+
+```json
+{
+  "active_domains": ["<domain>"],
+  "test_runner": {
+    "name": "<runner>",
+    "command": "<command with <files> placeholder>",
+    "coverage_output": "<relative path>",
+    "ci_override": true | false
+  } | null,
+  "mechanical_runners": [
+    {
+      "name": "<runner>",
+      "command": "<command with <files> placeholder>",
+      "expects_zero_exit": true,
+      "severity_on_fail": "warn" | "block"
+    }
+  ],
+  "secret_scanner": {
+    "name": "<scanner>",
+    "command": "<diff-mode command with <files> placeholder>",
+    "full_tree_command": "<command for --full-secret-scan>",
+    "expects_zero_exit": true,
+    "severity_on_fail": "block"
+  } | null,
+  "flag_inventory": ["<flag>"]
+}
+```
+
+- `mechanical_runners[]` is the empty list when no lint/format/typecheck runner is detected — Quality mode Stage 0 becomes a no-op.
+- `secret_scanner` is `null` when no scanner is detected — Security mode Stage 0 emits a single `warn` finding and proceeds.
+- Detection signals and per-runner severity assignments live in `refs/FLAG-LIST.md`.
 
 ---
 

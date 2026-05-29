@@ -28,3 +28,4 @@ IDs may repeat across folders and are not strictly sequential — always disambi
 | 12 | [review](done/12-review/plan.md) | New `/review` orchestrator that fingerprints the codebase, bootstraps an eval-set, then fans out to `/cook` across five review modes. | Done |
 | 12 | [review-preflight-rigor](done/12-review-preflight-rigor/plan.md) | Fix three preflight defects in `/review`: eval-set sources, `main`-branch refusal, and flag source. | Done |
 | 13 | [quality-mode-rigor](done/13-quality-mode-rigor/plan.md) | Fix three `/review` Quality-mode defects: misadvertised checks, discarded scope-creep signal, missing flag backing. | Done |
+| 14 | [mechanical-checks](done/14-mechanical-checks/plan.md) | Merge local-machine testing primitives into `/review`: lint/format/typecheck into Quality, dedicated secret scan into Security; no git hooks. | Done |

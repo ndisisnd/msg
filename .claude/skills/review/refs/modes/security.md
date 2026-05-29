@@ -2,7 +2,7 @@
 
 **When it runs:** fourth in pipeline order — after Functional, before Performance.
 
-**What it checks:** injection vulnerabilities, authentication and authorization gaps, insufficient input validation, and hardcoded credentials or API keys in the diff. This is a code-review check — not a dedicated secret scanner (gitleaks/truffleHog).
+**What it checks:** dedicated secret scanning (Stage 0, via gitleaks/trufflehog when detected) plus injection vulnerabilities, authentication and authorization gaps, insufficient input validation, and any remaining hardcoded credentials or API keys (semantic stage, via `/cook` flags).
 
 ## Flags
 
@@ -24,10 +24,29 @@ Domain flags: for each active domain from `active_domains[]` touched by the diff
 
 For Supabase diffs, include both `--supabase:rls` and `--supabase:keys-and-clients` when the diff touches policies/clients respectively; otherwise pick the one that matches. Authoritative flag list: `refs/FLAG-LIST.md`.
 
-## Execution
+## Stage 0 — Secret scan
+
+Runs **before** the `/cook` semantic stage. Operates on `secret_scanner` from Step 2 of `SKILL.md` and the `--full-secret-scan` flag from `SKILL.md` Usage.
+
+| `secret_scanner` value | `--full-secret-scan` | Action |
+|------------------------|----------------------|--------|
+| `null` | any | Emit a single `warn` finding: `"No secret scanner detected — install gitleaks for full coverage."` Then proceed to semantic stage. |
+| set | absent (default) | Run the scanner's diff-mode command (`<files>` substituted with the diff file list). Parse hits. |
+| set | present | Run the scanner's full-tree command (no `<files>` substitution). Parse hits. |
+
+Each scanner hit produces one finding:
+- `severity: "block"`
+- `source: "secrets:<scanner>"` (e.g. `"secrets:gitleaks"`)
+- `file` and `line` populated from scanner output
+- `category: "security"`
+- `message`/`suggestion`: describe the leaked secret kind and recommend rotation + removal from history.
+
+**No short-circuit:** Stage 0 **always** proceeds to the semantic stage regardless of its own verdict. Secret leaks and semantic security issues are independent signals; both surface to the user in one pass.
+
+## Execution (semantic stage)
 
 Spawn one `/cook --<flag>` Agent per flag in parallel. Each agent receives:
 - The resolved diff
 - The subset of changed files that touch its domain
 
-Collect `{ verdict, findings[] }` from each. Aggregate: mode verdict = worst across all agents.
+Collect `{ verdict, findings[] }` from each. Aggregate: mode verdict = worst across all agents AND Stage 0 findings.

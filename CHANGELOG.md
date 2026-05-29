@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add mechanical gates to Quality and Security modes in /review
 - Add plan registry (_INDEX.md) to improve skill for centralized plan tracking
 - Archive completed improve skills (preflight-rigor, quality-mode-rigor) to done/ subdirectory
 - Add Quality-mode rubric, scope-creep wiring via `uncovered_changes[]`, and `(file, line, category)` dedup pass to `/review`

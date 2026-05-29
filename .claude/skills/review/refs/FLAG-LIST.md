@@ -52,6 +52,62 @@ If no signal matches, set `test_runner` to `null`.
 
 ---
 
+## Mechanical runner detection (review Step 2 fingerprint)
+
+Run checks in parallel across the four sub-tables below. Populate `mechanical_runners[]` with one object per detected runner; populate `secret_scanner` with the first secret-scanner match (gitleaks preferred over trufflehog) or `null` if none detected.
+
+**Runner entry shape:**
+```json
+{
+  "name": "<runner name>",
+  "command": "<command with <files> placeholder>",
+  "expects_zero_exit": true,
+  "severity_on_fail": "warn" | "block"
+}
+```
+
+`<files>` is replaced at runtime by Quality mode Stage 0 with the space-separated diff file list (filtered to files the runner can process — e.g. `.ts`/`.tsx` for `eslint`). `secret_scanner` follows the same shape; Security mode Stage 0 replaces `<files>` with the diff list by default, or omits the placeholder for a full-tree scan when `--full-secret-scan` is set.
+
+A runner is **configured** if its config signal is present (e.g. `eslint.config.*` exists) but **not executable** if the command would fail with `command not found` or `cannot find module`. Quality mode Stage 0 treats configured-but-not-executable as a `block` with source prefix `env:`.
+
+### JS/TS runners
+
+| Signal | Runner | Command | Severity on fail |
+|--------|--------|---------|------------------|
+| `eslint.config.*` or `.eslintrc.*` found (maxdepth 3) | eslint | `npx eslint <files>` | `warn` |
+| `.prettierrc*` or `prettier.config.*` found (maxdepth 3), or `prettier` in `devDependencies` | prettier | `npx prettier --check <files>` | `warn` |
+| `tsconfig.json` found (maxdepth 3) | tsc | `npx tsc --noEmit` | `block` |
+
+### Python runners
+
+| Signal | Runner | Command | Severity on fail |
+|--------|--------|---------|------------------|
+| `pyproject.toml` has `[tool.ruff]`, or `ruff.toml` found, or `.ruff.toml` found | ruff | `ruff check <files>` | `warn` |
+| `pyproject.toml` has `[tool.black]`, or `black` in `requirements*.txt` | black | `black --check <files>` | `warn` |
+| `pyproject.toml` has `[tool.mypy]`, or `mypy.ini` found, or `mypy` in `requirements*.txt` | mypy | `mypy <files>` | `block` |
+
+### Dart/Flutter runners
+
+| Signal | Runner | Command | Severity on fail |
+|--------|--------|---------|------------------|
+| `pubspec.yaml` found (maxdepth 2) and `analysis_options.yaml` present | dart analyze | `dart analyze <files>` | `block` |
+| `pubspec.yaml` found (maxdepth 2) | dart format | `dart format --output=none --set-exit-if-changed <files>` | `warn` |
+
+`dart analyze` is treated as a typecheck-equivalent (severity `block`) — Dart's static analyzer subsumes the type-checking that `tsc`/`mypy` cover in other ecosystems.
+
+### Secret scanners
+
+Probe in priority order; the first match populates `secret_scanner`. If no scanner is found, `secret_scanner` is `null` and Security mode Stage 0 emits a `warn` finding rather than blocking.
+
+| Priority | Signal | Scanner | Command (diff) | Command (full tree, `--full-secret-scan`) |
+|----------|--------|---------|----------------|---------------------------------------------|
+| 1 | `gitleaks` on `$PATH` (`command -v gitleaks`) | gitleaks | `gitleaks detect --no-git --source=<files>` | `gitleaks detect` |
+| 2 | `trufflehog` on `$PATH` (`command -v trufflehog`) | trufflehog | `trufflehog filesystem --no-update --json <files>` | `trufflehog filesystem --no-update --json .` |
+
+Secret-scanner severity on any hit is always `block`. Detection layer is runner-agnostic: adding a new ecosystem (e.g. Rust's `cargo clippy`, Go's `golangci-lint`) is a table edit, not a protocol change.
+
+---
+
 ## Global flags (always included, regardless of domain)
 
 | Mode | Global flags |
