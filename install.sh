@@ -118,3 +118,10 @@ else
   echo "  Tip: re-run with --with-cook to also install cook"
 fi
 echo
+echo "  Next steps:"
+echo "    • Run /msg-init in a project to scaffold devkit files"
+echo "    • Run /msg to see the full menu of skills"
+echo
+echo "  Stay up to date: https://github.com/ndisisnd/msg"
+echo "  (check periodically for updates)"
+echo

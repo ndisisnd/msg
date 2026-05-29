@@ -1,5 +1,6 @@
 # Changelog
 
+- Enhance installation script with next steps and GitHub repository update link
 - Add deterministic test tooling detection and verdict aggregation scripts to replace manual priority-table walking in /test skill
 
 - Expand tooling-detection rules for bun, biome, oxlint, pip-audit, osv-scanner, webpack, astro, svelte, size-limit
