@@ -1,5 +1,7 @@
 # Changelog
 
+- Add installation script and instructions to README
+
 - Add coverage and mobile test modes to /test skill; update skill suite (eng, handoff, msg-init, msg, plan-em, plan-pm, plan-tune, review, todo)
 
 - Add `/pre-merge` skill with integration, e2e, build, security, and bundle gates
