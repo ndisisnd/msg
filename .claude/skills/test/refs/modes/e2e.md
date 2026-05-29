@@ -1,0 +1,65 @@
+# test — E2E bucket
+
+**When it runs:** second bucket — after Unit/Integration, before Functional.
+
+**What it checks:** end-to-end tests via the detected e2e runner.
+
+## Execution
+
+Reads `e2e_runner` from the Step 1 fingerprint — does not re-detect.
+
+### Step 1 — Guard
+
+If `e2e_runner` is `null`: emit `pass_with_warnings` with note `"No e2e runner detected — E2E bucket skipped."` and return immediately.
+
+### Step 2 — Scope
+
+Construct the run command from `e2e_runner.command`:
+
+- If `--base <branch>` was supplied and the runner supports spec-path filtering (Playwright: `--grep`, Cypress: `--spec`), attempt to map changed source files to e2e spec files by name convention (e.g. `auth.ts` → `e2e/auth.spec.ts`) and append the filter.
+- If no scoping is possible (no `--base` flag, or no matching spec files found): run the full e2e suite.
+
+### Step 3 — Run
+
+Execute the command. Capture stdout, stderr, and exit code.
+
+- **Exit 0** → verdict `pass` (or `pass_with_warnings` if any tests were skipped).
+- **Non-zero exit, output contains test failure(s)** → verdict `fail`; parse failures into findings.
+- **Non-zero exit, stderr contains a crash trace / startup error** → verdict `pass_with_warnings` with note `"E2E runner failed to start — results unreliable."`. Include the error in `message`.
+
+### Step 4 — Parse failures
+
+For each e2e test failure:
+
+- `file` — spec file path (from runner output)
+- `line` — line number of the failing step (from runner output if available, else `null`)
+- `rule` — test title / `describe + it` path
+- `message` — failure message and first relevant stack line
+- `repro` — command to re-run just this spec (e.g. `npx playwright test e2e/auth.spec.ts`)
+- `evidence` — screenshot or trace path if the runner produced one, else `null`
+
+## Output
+
+```json
+{
+  "verdict": "pass" | "pass_with_warnings" | "fail",
+  "bucket": "e2e",
+  "runner": "<e2e_runner.name>",
+  "command": "<command executed>",
+  "totals": { "passed": 0, "failed": 0, "skipped": 0 },
+  "findings": [
+    {
+      "id": "e2e-<n>",
+      "severity": "fail" | "warn",
+      "file": "<spec file path or null>",
+      "line": <number or null>,
+      "rule": "<test title>",
+      "message": "<failure message>",
+      "repro": "<re-run command or null>",
+      "evidence": "<screenshot or trace path, or null>"
+    }
+  ]
+}
+```
+
+`fail` if any e2e test failed (non-crash). `pass_with_warnings` if runner not found or crashed. `pass` if all tests pass.

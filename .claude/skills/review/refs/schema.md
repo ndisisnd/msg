@@ -58,6 +58,7 @@ After collecting all sub-agent outputs for a mode, `/review` applies a deduplica
   "prd": "<path>" | null,
   "eval_set": [ "<assertion string>" ],
   "eval_set_source": "prd" | "tests" | "schemas" | "diff" | "mixed",
+  "eval_set_path": "<features/prd-n/review/eval_set.json>" | null,
   "surface": {
     "files_changed": [ "<path>" ],
     "prd_rows_covered": [ "<row-id>" ],
@@ -89,11 +90,14 @@ Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` objec
 
   Functional mode reads this and downgrades its verdict to `warn` only when value is `"diff"` (diff-derived assertions are circular by construction; PRD/tests/schemas sources are authoritative and do not trigger a downgrade).
 
+- `eval_set_path` — path to the `eval_set.json` artifact written by Functional mode after classifying assertions. `null` when no PRD is known (no persistent run directory). `/test` consumes this via `--eval-set <path>` to re-run deferred executable assertions without re-bootstrapping from the PRD.
+
 ### Functional mode fields
 
-- `evaluated` — count of applicable assertions (verdict ∈ {`pass`, `warn`, `block`}).
-- `n_a` — count of non-applicable assertions (assertion concerns a surface untouched by the diff or its direct dependencies).
-- Each finding gains an `applicable: bool` field. Non-applicable assertions emit findings with `applicable: false` and verdict `n/a`.
+- `evaluated` — count of applicable assertions with a definitive verdict (`pass`, `warn`, or `block`). Does not include deferred executable or non-applicable assertions.
+- `n_a` — count of assertions emitted as `n/a`. Includes: (a) non-applicable assertions (assertion concerns a surface untouched by the diff) and (b) applicable executable assertions deferred to `/test`.
+- `deferred_note` — present only when every applicable assertion is `n/a` (i.e. `evaluated == 0`). Value: `"all assertions deferred to /test"`. Verdict is `warn` in this case (never `pass`).
+- Each finding gains an `applicable: bool` field. Applicable executable assertions deferred to `/test` emit findings with `applicable: true`, verdict `n/a`, and `message` containing the `/test --eval-set <path>` referral.
 
 ### Mandatory evidence rule (Functional)
 
@@ -108,12 +112,6 @@ Step 2 of `SKILL.md` produces these structures, consumed downstream by Step 4 (s
 ```json
 {
   "active_domains": ["<domain>"],
-  "test_runner": {
-    "name": "<runner>",
-    "command": "<command with <files> placeholder>",
-    "coverage_output": "<relative path>",
-    "ci_override": true | false
-  } | null,
   "mechanical_runners": [
     {
       "name": "<runner>",
@@ -135,6 +133,7 @@ Step 2 of `SKILL.md` produces these structures, consumed downstream by Step 4 (s
 
 - `mechanical_runners[]` is the empty list when no lint/format/typecheck runner is detected — Quality mode Stage 0 becomes a no-op.
 - `secret_scanner` is `null` when no scanner is detected — Security mode Stage 0 emits a single `warn` finding and proceeds.
+- `test_runner` is no longer produced — Coverage mode is static-only; test execution belongs to `/test`.
 - Detection signals and per-runner severity assignments live in `refs/FLAG-LIST.md`.
 
 ---

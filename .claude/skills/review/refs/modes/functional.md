@@ -8,6 +8,8 @@
 
 No `/cook` sub-agents. Functional is eval-set driven and must produce **evidence-backed** verdicts, not reasoning-only confidence.
 
+Executable assertions (class `executable`) are **deferred** to `/test` — Functional mode emits `n/a` for them rather than generating and running ephemeral scripts. Only `intent` and `negative` assertions receive a definitive verdict here.
+
 ### Step 0 — Tautology check
 
 Read `eval_set_source` from the top-level run output (emitted by SKILL.md Step 3).
@@ -33,9 +35,22 @@ If the project has no runnable surface (pure type-level refactor, doc-only chang
 
 Also tag each assertion `applicable: true | false`. An assertion is **applicable** when it concerns code touched by the diff or its direct dependencies (files importing or imported by changed files). Non-applicable assertions get verdict `n/a` and are excluded from the pass/warn/block tally.
 
+**Write eval_set.json** — after classifying all assertions, write the following to `eval_set_path` (derived in SKILL.md Step 3):
+
+```json
+{
+  "eval_set_source": "<value from SKILL.md Step 3>",
+  "assertions": [
+    { "text": "<assertion>", "class": "executable" | "intent" | "negative" }
+  ]
+}
+```
+
+If `eval_set_path` is `null` (no PRD known), skip the write.
+
 ### Step 2 — Read full file context
 
-For every applicable assertion:
+For every applicable `intent` or `negative` assertion (executable assertions are deferred and do not require file reads):
 
 1. Identify the files in the diff that plausibly relate to the assertion.
 2. **Read each such file in full** via `Read` — do not rely on diff hunks alone. Guards, validators, and conditionals frequently sit outside the hunk window.
@@ -47,12 +62,16 @@ Diff-only inspection is forbidden for `pass` and `block` verdicts.
 
 **Executable assertions:**
 
-1. Generate an ephemeral script under `/tmp/review-functional-<runid>/assertion-<n>.<ext>` that exercises the assertion. The script must:
-   - Write nothing outside `/tmp/review-functional-<runid>/`.
-   - Make no network calls unless the assertion concerns a network behavior.
-   - Make no database writes; if state is needed, stand up an in-memory or temp-file fixture.
-2. Run the script. Exit code `0` → `pass`. Non-zero → `block` if the failure attributes to the code under review; `warn` if the failure attributes to the test harness (missing dependency, fixture setup error, etc.).
-3. Locate the satisfying or violating code in the file(s) read in Step 2 and record `file` + `line`.
+Emit `n/a` for every applicable executable assertion. These assertions require a running project environment and are deferred to `/test`. For each, produce a finding with:
+
+- `severity`: omitted (n/a entries have no severity)
+- `applicable`: `true` (the assertion targets code in the diff — it is deferred, not irrelevant)
+- `class`: `executable`
+- `message`: `"executable — run /test --eval-set <eval_set_path> for verification"` (where `<eval_set_path>` is the path derived in SKILL.md Step 3; if `eval_set_path` is `null`, use `"executable — run /test for verification"`)
+- `file`: `null`
+- `line`: `null`
+
+Increment `n_a` for each deferred executable assertion.
 
 **Intent assertions:** reason from the fully-read files. Locate the satisfying or violating code and record `file` + `line`.
 
@@ -62,14 +81,20 @@ Diff-only inspection is forbidden for `pass` and `block` verdicts.
 2. Search the post-change file(s) for *any remaining instance* of the prohibited pattern. Any hit → `warn`. Record `file` + `line`.
 3. No hits → `pass`. Evidence message: `"absence verified"`; list the files searched in the finding's `message`.
 
+### Step 3.5 — All-deferred check
+
+After processing all assertions, if every applicable assertion produced `n/a` (i.e. `evaluated == 0`):
+- Set mode verdict to `warn` (never `pass`).
+- Add `"deferred_note": "all assertions deferred to /test"` to the mode output.
+
 ### Verdict rubric
 
 | Verdict | Rule | Example |
 |---------|------|---------|
 | `pass` | Assertion satisfied AND evidence (`file` + `line`) located | `"empty-email rejection"` — validator at `api/users.ts:42` returns 400 for `email === ""` |
-| `warn` | One of: (a) happy path implemented but error/edge path missing; (b) implementation present but intent unclear from code; (c) executable assertion failed in a way attributable to the test harness, not the code | (a) success branch handles new field but the error branch still returns the old shape |
+| `warn` | One of: (a) happy path implemented but error/edge path missing; (b) implementation present but intent unclear from code | (a) success branch handles new field but the error branch still returns the old shape |
 | `block` | Assertion clearly violated OR required behavior absent | `"reject duplicate signup"` — code path proceeds without uniqueness check |
-| `n/a` | Assertion does not apply to the changed surface | Assertion concerns billing; diff only touches auth |
+| `n/a` | Assertion does not apply to the changed surface, OR assertion is `executable` (deferred to `/test`) | Assertion concerns billing; diff only touches auth — OR — assertion has concrete I/O that needs a running server |
 
 ### Self-check: mandatory evidence
 
@@ -85,9 +110,10 @@ After producing all per-assertion verdicts, sweep the findings list:
 {
   "verdict": "pass" | "warn" | "block",
   "warning": "<optional — present only when eval_set_source == 'diff'>",
-  "downgrade_reason": "<optional — present only when executables were reclassified>",
-  "evaluated": <number of applicable assertions>,
-  "n_a": <number of non-applicable assertions>,
+  "downgrade_reason": "<optional — present only when executables were reclassified to intent>",
+  "deferred_note": "<optional — 'all assertions deferred to /test' when evaluated == 0>",
+  "evaluated": <number of applicable assertions with definitive verdict>,
+  "n_a": <number of n/a assertions — non-applicable + deferred executable>,
   "findings": [
     {
       "source": "functional",
@@ -97,11 +123,11 @@ After producing all per-assertion verdicts, sweep the findings list:
       "file": "<path or null>",
       "line": <number or null>,
       "severity": "block" | "warn" | "info",
-      "message": "<why this assertion fails, is ambiguous, or — for negative pass — 'absence verified' plus files searched>",
+      "message": "<why this assertion fails, is ambiguous, or — for negative pass — 'absence verified' plus files searched; for executable n/a — '/test referral note'>",
       "suggestion": "<what needs to change>"
     }
   ]
 }
 ```
 
-Emit findings for every assertion that is `warn`, `block`, or `n/a`. `pass` assertions produce no finding entry (but are counted in `evaluated`).
+Emit findings for every assertion that is `warn`, `block`, `n/a`, or deferred executable. `pass` assertions produce no finding entry (but are counted in `evaluated`).

@@ -29,4 +29,4 @@ IDs are unique and monotonically increasing. IDs are not strictly sequential —
 | 17 | [review-preflight-rigor](done/17-review-preflight-rigor/plan.md) | Fix three preflight defects in `/review`: eval-set sources, `main`-branch refusal, and flag source. | Done |
 | 13 | [quality-mode-rigor](done/13-quality-mode-rigor/plan.md) | Fix three `/review` Quality-mode defects: misadvertised checks, discarded scope-creep signal, missing flag backing. | Done |
 | 14 | [mechanical-checks](done/14-mechanical-checks/plan.md) | Merge local-machine testing primitives into `/review`: lint/format/typecheck into Quality, dedicated secret scan into Security; no git hooks. | Done |
-| 15 | [review-test-split](15-review-test-split/plan.md) | Strip test execution from `/review` (Coverage + Functional modes) and extract it into a new standalone `/test` skill that pre-merge delegates to. | In-progress |
+| 15 | [review-test-split](done/15-review-test-split/plan.md) | Strip test execution from `/review` (Coverage + Functional modes) and extract it into a new standalone `/test` skill that pre-merge delegates to. | Done |

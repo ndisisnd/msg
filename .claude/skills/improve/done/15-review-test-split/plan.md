@@ -49,11 +49,12 @@ The result: review is unpredictable in speed, requires a running project environ
 ```
 Change 1 (strip Coverage execution)
 Change 2 (remove test_runner from fingerprint)   ← both depend on nothing external
-Change 3 (reclassify executable in Functional)
+Change 3 (reclassify executable in Functional, define all-deferred verdict)
+Change 4 (emit eval_set.json + eval_set_path)    ← depends on change 3 (classes set before emit)
 
-Change 4 (test SKILL.md)                         ← after changes 1-3 clarify what test owns
-Change 5 (test mode refs)                        ← after change 4
-Change 6 (test schema)                           ← parallel to change 5
+Change 5 (test SKILL.md, --eval-set flag)        ← after change 4 (consumes the handoff)
+Change 6 (test mode refs)                        ← after change 5
+Change 7 (test schema)                           ← parallel to change 6
 
-Change 7 (pre-merge delegation)                  ← after changes 4-6; P1
+Change 8 (pre-merge delegation, forwards --eval-set) ← after changes 4-7; P1
 ```

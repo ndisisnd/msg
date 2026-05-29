@@ -2,18 +2,42 @@
 
 **When it runs:** second in pipeline order — after Quality, before Functional.
 
-**What it checks:** whether changed lines are exercised by existing tests. Produces a gap report against `eval_set[]`.
+**What it checks:** whether changed source files have sibling test counterparts and whether eval_set assertions are referenced in nearby test files. Static analysis only — no test execution.
 
 ## Execution
 
-No `/cook` sub-agents. Coverage is test-runner driven.
+No `/cook` sub-agents. No test runner execution. Coverage uses static file-existence detection and text-search only.
 
-Reads `test_runner` from the Step 2 fingerprint — does not re-detect.
+Does NOT read `test_runner` from the Step 2 fingerprint — that field is no longer produced by Step 2.
 
-1. **Guard** — if `test_runner` is `null`: emit `warn` with note `"No test runner detected — coverage skipped."` and return immediately. Do not run tests.
-2. **Run** — execute `test_runner.command` with `<files>` replaced by the space-separated list of changed file paths from the diff. Capture stdout + stderr. If the command exits non-zero and stderr contains a crash trace (not a test failure): emit `warn` with note `"Test runner crashed — coverage unreliable."` and return. Do not treat a crash exit as a coverage gap.
-3. **Parse** — read `test_runner.coverage_output`. If the file is absent after a successful run, emit `warn` with note `"Coverage output not found at <path>."` and return.
-4. **Cross-reference** — compare covered lines against `eval_set[]`: identify assertions with no corresponding test exercising the relevant changed lines.
+### Step 1 — Sibling-test check
+
+For each source file changed in the diff (excluding test files themselves), verify that at least one sibling test file exists:
+
+- Same basename with `.test.<ext>` or `.spec.<ext>` suffix (e.g. `auth.ts` → `auth.test.ts`, `auth.spec.ts`)
+- Matching path under an `__tests__/` directory (e.g. `src/auth.ts` → `src/__tests__/auth.ts` or `__tests__/auth.ts`)
+
+Use `rtk find` to check existence. A changed file with no sibling test file is a **missing-test gap**.
+
+Classify the changed file as *critical* if it contains business logic — not pure type declarations, configuration, or test utilities. Only critical files produce `block`-severity gaps.
+
+### Step 2 — Assertion-reference check
+
+For each assertion in `eval_set[]`, scan the sibling test file(s) located in Step 1 and any test files present in the diff:
+
+- Match if the assertion text (or a significant substring of ≥ 5 consecutive words) appears in a test description string (`it(...)`, `test(...)`, `describe(...)` argument)
+- Match if the assertion's key domain terms (nouns + verbs) appear as a cluster in the test file body
+
+An assertion with no match in any reachable test file is an **assertion gap** (`warn`).
+
+### Step 3 — Classify gaps and emit verdict
+
+| Condition | Verdict |
+|-----------|---------|
+| One or more critical source files have no sibling test file | `block` |
+| All critical files have test files, but some eval_set assertions are unmatched | `warn` |
+| Non-critical files lack test files (no critical gaps, no assertion gaps) | `warn` |
+| All changed files have test coverage and all eval_set assertions are referenced | `pass` |
 
 ## Output
 
@@ -21,9 +45,14 @@ Reads `test_runner` from the Step 2 fingerprint — does not re-detect.
 {
   "verdict": "pass" | "warn" | "block",
   "gaps": [
-    { "assertion": "<eval_set entry>", "file": "<path>", "lines": "<range>", "note": "<why uncovered>" }
+    {
+      "assertion": "<eval_set entry, or null for file-level gaps>",
+      "file": "<changed source file>",
+      "lines": "<changed line range, or null>",
+      "note": "<reason: 'no sibling test file' | 'assertion not referenced in tests' | 'non-critical file has no sibling test'>"
+    }
   ]
 }
 ```
 
-`block` if critical paths in the diff have zero test coverage. `warn` if coverage gaps exist but are non-critical. `pass` if all changed lines are exercised.
+`block` if one or more critical changed files have no sibling test file. `warn` for non-critical missing tests or unmatched assertions. `pass` if all changed files have test coverage and all eval_set assertions are referenced in tests.

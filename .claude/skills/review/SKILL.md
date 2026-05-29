@@ -60,10 +60,9 @@ Run `rtk git branch --show-current` to determine the current branch. `review` is
 
 Run once at startup; never re-derive mid-run. Detection signals, runner mappings, and the authoritative `/cook` flag inventory all live in `refs/FLAG-LIST.md` — load it once here.
 
-Produce five outputs from this step:
+Produce four outputs from this step:
 
 - **`active_domains[]`** — list of detected technology domains (used by Steps 4–6 for flag assembly). Signals: `refs/FLAG-LIST.md#domain-detection-review-step-2-fingerprint`.
-- **`test_runner`** — structured object used exclusively by Coverage mode. Signals and shape: `refs/../shared/refs/tooling-detection.md#test-runner-detection`. If no runner is detected, set `test_runner` to `null`; Coverage mode will emit `warn` and skip execution.
 - **`mechanical_runners[]`** — list of detected lint/format/typecheck runners (used by Quality mode Stage 0). Signals and shape: `refs/../shared/refs/tooling-detection.md#mechanical-runner-detection`. Each entry has `{ name, command, expects_zero_exit, severity_on_fail }`. Empty list if nothing detected — Quality Stage 0 becomes a no-op.
 - **`secret_scanner`** — single object describing the highest-priority detected secret scanner (used by Security mode Stage 0), or `null` if none. Signals and shape: `refs/../shared/refs/tooling-detection.md#security-scanner-detection` (Secret scanners sub-table; `secret_scanner` = first entry with `type: "secret"`). When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
 - **`flag_inventory`** — in-memory set of every valid flag token parsed from `refs/FLAG-LIST.md` (concerns + per-domain + sub-refs). Used by Step 4 to validate assembled flags.
@@ -79,6 +78,12 @@ Discovery runs in this order, merging results into `eval_set[]` and deduplicatin
 5. **Conventional test directories** — scan `tests/`, `e2e/`, `integration/` for files tagged to the PRD slug (filename or content contains `prd-<n>`); extract assertions.
 
 If all five sources yield zero assertions, generate `eval_set[]` from the diff as a fallback. Emit the numbered merged list to stdout. User refines at Step 5 via **Adjust**.
+
+Also derive `eval_set_path` in this step:
+- If PRD is known: `eval_set_path = features/prd-<n>/review/eval_set.json`
+- If PRD is unknown: `eval_set_path = null`
+
+This value is passed to Functional mode (Step 6) and emitted in the top-level output (Step 7). Functional mode writes `eval_set.json` to this path after classifying assertions.
 
 Set `eval_set_source` in the top-level output JSON to one of:
 - `"prd"` — every assertion from PRD sections.
@@ -98,7 +103,7 @@ Cross-reference diff against PRD: produce `files_changed`, `prd_rows_covered`, `
 Show surface summary + full execution plan (each mode → flags + files). Example:
 ```
 Quality    → /cook --api-design --architecture --react  (auth.ts, api/users.ts)
-Coverage   → test runner vs eval-set                   (auth.ts, api/users.ts)
+Coverage   → sibling-test check + assertion refs       (auth.ts, api/users.ts)
 Functional → eval-set assertions vs diff               (3 assertions)
 Security   → /cook --security --auth --typescript      (auth.ts, api/users.ts)
 Performance→ /cook --performance --database            (api/users.ts)
@@ -126,7 +131,7 @@ For each mode: run Stage 0 first (if defined), then spawn all `/cook --<flag>` s
 
 ### Step 7/7 — Aggregate and emit
 
-Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = worst across completed modes (`block` > `warn` > `pass`). Emit JSON to stdout. If PRD known, also write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json`. Omit unrun modes from output.
+Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = worst across completed modes (`block` > `warn` > `pass`). Emit JSON to stdout. If PRD known, also write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json`. Omit unrun modes from output. Include `eval_set_path` in the top-level output (value derived in Step 3; `null` if PRD unknown).
 
 ## References
 
