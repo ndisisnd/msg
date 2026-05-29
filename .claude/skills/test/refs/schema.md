@@ -15,7 +15,8 @@
     "qa":         { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
     "load":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
     "a11y":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
-    "perf":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] }
+    "perf":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
+    "api":        { "verdict": "...", "runners": [], "commands": [], "totals": {}, "findings": [] }
   }
 }
 ```
