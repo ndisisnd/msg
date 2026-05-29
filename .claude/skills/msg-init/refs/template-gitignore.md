@@ -39,6 +39,9 @@ logs/
 dist/
 build/
 out/
+
+# msg skill artifacts
+.pre-merge/
 ```
 
 ## Stack sections

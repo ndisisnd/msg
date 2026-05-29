@@ -2,12 +2,12 @@
 name: msg-init
 description: >
   One-time project bootstrap. Scans the working directory, asks 3–4
-  questions about the project, then creates any missing foundational
-  files: AHA.md, GLOSSARY.md, README.md, .gitignore, CLAUDE.md,
-  ARCHITECTURE.md, DESIGN-SYSTEM.md, CHANGELOG.md, OPEN-QUESTIONS.md,
-  and the features/ directory. Idempotent — skips files that already exist; never
-  overwrites. All other msg skills read these files but never create
-  them.
+  questions about the project, then creates a `devkit/` directory
+  containing AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md,
+  and OPEN-QUESTIONS.md, plus root-level README.md, .gitignore,
+  CLAUDE.md, CHANGELOG.md, and the features/ directory. Idempotent —
+  skips files that already exist; never overwrites. All other msg
+  skills read these files but never create them.
 model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
@@ -29,6 +29,20 @@ allowed_tools:
 
 **Hard refusals:**
 - Working directory is not a git repository: emit a warning and ask the user to confirm via `AskUserQuestion` before proceeding. Do not block — proceed if confirmed.
+
+## What is devkit
+
+`devkit/` is a directory of agent-readable context files that lives at the root of every msg-initialised project. It is the single source of truth that all other msg skills read before doing any work — but only `msg-init` creates it.
+
+| File | Purpose |
+|------|---------|
+| `AHA.md` | Institutional knowledge log — past learnings that future agents must not repeat |
+| `GLOSSARY.md` | Canonical domain terms — ensures consistent naming across all agents |
+| `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
+| `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
+| `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
+
+**Convention**: `devkit/` files are written once by `msg-init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `msg-init`.
 
 ## Inputs
 

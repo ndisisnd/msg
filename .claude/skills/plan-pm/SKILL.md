@@ -6,7 +6,7 @@ description: >
   Default entry point for the product ship workflow. Refuses requests that
   would skip the PRD stage. Automatically detects large epics and offers to
   split them into multiple sequential PRDs, completing all before terminating.
-model: claude-opus-4-6
+model: claude-opus-4-7
 allowed_tools:
   - AskUserQuestion
   - Bash

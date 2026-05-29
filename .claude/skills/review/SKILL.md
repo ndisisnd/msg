@@ -21,7 +21,7 @@ allowed_tools:
 Code review orchestrator. Runs after `eng --build`, before `gh pr create`. Each run is independent — no state carried between runs.
 
 ```
-eng --build  →  /review  →  [address findings]  →  /review (repeat until pass/warn)  →  /docu  →  gh pr create
+eng --build  →  /test  →  /review  →  [address findings]  →  /review (repeat until pass/warn)  →  /test --eval-set  →  /docu  →  /pre-merge  →  gh pr create
 ```
 
 ## Usage

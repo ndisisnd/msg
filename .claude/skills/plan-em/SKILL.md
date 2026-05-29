@@ -4,15 +4,16 @@ description: >
   Engineering Manager skill. Reads an approved PRD, runs pre-flight checks against
   AHA.md, GLOSSARY.md and ARCHITECTURE.md, identifies specialist agents to activate
   (asks for approval), spins them up to write engineering sections directly into the
-  PRD, prompts for eng-tune, then synthesises the full output. Refuses without a
-  referenced PRD .md path.
-model: claude-opus-4-6
+  PRD, prompts for the eng tune (plan-tune --eng), then synthesises the full
+  output. Refuses without a referenced PRD .md path.
+model: claude-opus-4-7
 allowed_tools:
   - Agent
   - AskUserQuestion
   - Bash
   - Edit
   - Read
+  - Skill
   - Write
 ---
 
@@ -221,12 +222,12 @@ Engineers should cut this branch from `main` before starting work.
 
 ---
 
-**Step 5/5 — Prompt for eng-tune and Synthesise**
+**Step 5/5 — Prompt for the eng tune and Synthesise**
 
 After all sections are appended and the PRD is saved, ask the user via `AskUserQuestion`:
 
-- **Run eng-tune** — emit the handoff message: "Run `/eng-tune features/prd-[n]/prd-[n].md` to tune the engineering output." Then stop.
-- **Skip eng-tune** — proceed directly to synthesis.
+- **Run eng tune** — emit the handoff message: "Run `/plan-tune features/prd-[n]/prd-[n].md --eng` to tune the engineering output." Then stop.
+- **Skip eng tune** — proceed directly to synthesis.
 
 **Synthesise:**
 

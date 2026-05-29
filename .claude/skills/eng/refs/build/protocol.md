@@ -39,18 +39,33 @@ Use the PRD's `## Engineering — <Agent Name>` section as the sole specificatio
 
 1. **Create working sub-branch.** The `branch` field is the PR target. Derive a sub-branch name: `{branch}/{row-slug}` where `row-slug` is a lowercase hyphenated slug of the first assigned row (e.g., `feat/prd-4-habit-tracking/streaks-schema`). If the target branch does not exist, create it from `main` first. Check out the sub-branch and do all work there. Do not push until the commit step.
 2. **Read Execution steps.** For each assigned exec-table row, read the Execution steps column. If a cell is blank, surface it as a blocking gap via `AskUserQuestion` — do not proceed on that row until resolved.
-3. **Execute rows in dependency order.** Rows with `blocked by:` annotations must wait for the named dependency. Within unblocked rows, process by feature group: for each feature, write its Tests rows first (creating test files with failing assertions from the Execution steps), then its implementation rows in order: Schema migration → API contract → Authentication → Webhook → Client implementation.
-4. **Write code.** For each implementation row, create or modify the files named in the Execution steps. Apply coding standards loaded in Step 4. Reuse existing components from DESIGN-SYSTEM.md before creating new ones.
-5. **Write tests.** For each Tests concern row, create the test file at the derived path and write syntactically valid assertions from the Execution steps. No `TODO` placeholders. Tests must be runnable once implementation is complete. Do not write tests for rows without a Tests entry in the exec-table — missing Tests rows are a planner gap, not eng's to fill.
-6. **Run tests.** After all rows are written, run the project's test command (from `CLAUDE.md`). Capture pass/fail per test file. If all pass, continue. If any fail, enter Debug mode (see below) before committing.
-7. **Commit.** After all rows pass tests, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`).
-8. **Open PR.** When all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`. Link the PRD path in the PR description. Do not open a PR against `main`.
+3. **Discover testing tools.** Before writing any test file, scan existing test files in the relevant feature area for:
+   - Test runner and framework (e.g., `pytest`, `jest`, `go test`, `flutter_test`)
+   - Assertion libraries and matchers in use
+   - Test file naming convention and directory layout
+   - Factory, fixture, or mock patterns used in existing tests
+   - Shared setup helpers (e.g., `beforeEach`, `setUp`, conftest fixtures)
+
+   Record findings and apply them to every test file written in step 4. If no existing test files exist, check `CLAUDE.md` and `devkit/ARCHITECTURE.md` for the declared test stack.
+
+4. **Execute rows in TDD order.** Rows with `blocked by:` annotations must wait for the named dependency. Within unblocked rows, process by feature group. For each group, complete all four phases before moving to the next group:
+
+   **a. Write tests.** For each Tests concern row in this group, create the test file using the conventions and tooling discovered in step 3. Write syntactically valid, runnable assertions derived from the Execution steps. No `TODO` placeholders. Tests must compile or parse without errors. Do not write tests for rows without a Tests entry in the exec-table — a missing Tests row is a planner gap, not eng's to fill.
+
+   **b. Verify red.** Run only the test files just written. Confirm they fail with assertion failures — not compile errors or import errors. If a test errors instead of fails, fix the setup until it fails cleanly on a real assertion. A test that errors is not a red test; do not proceed to implementation until this is resolved.
+
+   **c. Write implementation.** For each implementation row in this group, in order: Schema migration → API contract → Authentication → Webhook → Client implementation. Create or modify the files named in the Execution steps. Apply coding standards from `/cook`. Reuse existing components from `DESIGN-SYSTEM.md` before creating new ones.
+
+   **d. Verify green.** Re-run the test files for this group. If all pass, continue to the next feature group. If any fail, enter Debug mode (see below). Do not move to the next feature group until this group's tests are green.
+
+5. **Commit.** After all feature groups are green, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`).
+6. **Open PR.** When all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`. Link the PRD path in the PR description. Do not open a PR against `main`.
 
 ---
 
 ## Debug mode
 
-Activates when: tests fail after implementation, or code produces a compile/runtime error.
+Activates when: tests fail at the verify-green phase (step 4d), or code produces a compile/runtime error during implementation (step 4c).
 
 Run the following cycle per failing issue. Apply one change per cycle. Max 3 cycles per issue.
 

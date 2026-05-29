@@ -1,11 +1,25 @@
+# ── OS ────────────────────────────────────────────────────────────────────────
 .DS_Store
 **/.DS_Store
-node_modules
-dist
-.cache
+
+# ── Dependencies ───────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output ───────────────────────────────────────────────────────────────
+dist/
+
+# ── Logs & caches ─────────────────────────────────────────────────────────────
 *.log
+.cache/
+
+# ── Runtime artefacts ─────────────────────────────────────────────────────────
 **/run/
+**/schemas.json
+
+# ── Local config ──────────────────────────────────────────────────────────────
+settings.local.json
+
+# ── Working dirs (plans, features) ────────────────────────────────────────────
 plans/
 features/
-settings.local.json
-**/schemas.json
+eval-msg-workflow*

@@ -34,8 +34,8 @@ All inputs are derived automatically — no user prompting.
 | Diff stat | `rtk git diff --stat HEAD` |
 | Recent commits | `rtk git log -5 --oneline` |
 | Changed file names | `rtk git diff --name-only HEAD` |
-| Module map | CLAUDE.md and/or ARCHITECTURE.md (optional) |
-| Open items | OPEN-QUESTIONS.md (optional) |
+| Module map | CLAUDE.md (root) and/or devkit/ARCHITECTURE.md (optional) |
+| Open items | devkit/OPEN-QUESTIONS.md (optional) |
 | Inline TODOs | grep TODO/FIXME in changed files (optional) |
 
 ## Outputs
@@ -114,10 +114,10 @@ Output path: `handoff/<n>.md`
 
 **Worked On** — synthesise ≤5 bullets from `git log -5 --oneline` and `git diff --stat HEAD`. Each bullet names *what* was done, not *how*. If nothing, emit `- none`.
 
-**Affected** — group the files from `git diff --name-only HEAD` by top-level directory or module. Cross-reference CLAUDE.md / ARCHITECTURE.md module map if present; otherwise use directory names. Format: `- <module>: file1, file2`. If clean, emit `- none`.
+**Affected** — group the files from `git diff --name-only HEAD` by top-level directory or module. Cross-reference CLAUDE.md (root) / devkit/ARCHITECTURE.md module map if present; otherwise use directory names. Format: `- <module>: file1, file2`. If clean, emit `- none`.
 
 **Not Affected Yet** — collect items from:
-1. OPEN-QUESTIONS.md (if it exists): extract unchecked items
+1. devkit/OPEN-QUESTIONS.md (if it exists): extract unchecked items
 2. `grep -rn "TODO\|FIXME"` in changed files (if any): emit as `- TODO: <file>:<line> <text>`
 3. Untracked files from `git status --short` (lines starting with `??`): list them
 
@@ -144,6 +144,6 @@ as a markdown link. No other prose.
 
 ## References
 
-- CLAUDE.md — module map (optional; used in Step 3 Affected)
-- ARCHITECTURE.md — layer/module definitions (optional; used in Step 3 Affected)
-- OPEN-QUESTIONS.md — open items feed (optional; used in Step 3 Not Affected Yet)
+- CLAUDE.md — module map at repo root (optional; used in Step 3 Affected)
+- devkit/ARCHITECTURE.md — layer/module definitions (optional; used in Step 3 Affected)
+- devkit/OPEN-QUESTIONS.md — open items feed (optional; used in Step 3 Not Affected Yet)

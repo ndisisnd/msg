@@ -24,7 +24,7 @@ allowed_tools:
 
 | Name | Format | Source |
 |------|--------|--------|
-| prd_file | Markdown file containing a feature execution table | file path in user message |
+| prd_file | Markdown file containing a `## Execution Table` section (as written by `plan-em`) | file path in user message |
 | open_questions_file | Markdown file containing a numbered or bulleted question list | file path in user message |
 | prose | Free-form text describing work to be done | user message after `/todo` |
 

@@ -21,11 +21,34 @@ allowed_tools:
 | Planning | plan-pm | PM interview — PRD writer |
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
+| Build & Ship | eng | Plan, build, or review engineering work from exec-table rows |
+| Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
+| Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
 | Review | review | Five-mode code review — Quality, Coverage, Functional, Security, Perf |
 | Review | docu | Stale doc checker and fixer |
-| Review | improve | Improvement planner for any skill |
 | Delivery | handoff | Structured mid-flight handoff artifact |
 | Delivery | todo | Parse PRD tables → TODOs.json |
+| Meta | improve | Improvement planner for any skill or workflow |
+
+---
+
+## End-to-end happy path
+
+```
+/msg-init  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
+                                                                         ↓
+                                                             /eng --build
+                                                                         ↓
+                                             /test  →  /review  →  /test --eval-set
+                                                                         ↓
+                                                                     /docu
+                                                                         ↓
+                                                                 /pre-merge
+                                                                         ↓
+                                                         gh pr create  /  /handoff
+                                                                         ↓
+                                                                   /todo (optional)
+```
 
 ---
 
@@ -40,8 +63,10 @@ Call `AskUserQuestion` with one question:
 - **multiSelect**: `false`
 - **Options**:
   - `label`: `Planning`, `description`: `Bootstrap, spec writing, PRD audit, engineering planning`
-  - `label`: `Review`, `description`: `Code review, doc checking, skill improvement`
+  - `label`: `Build & Ship`, `description`: `Implement, test, and run the pre-push gate`
+  - `label`: `Review`, `description`: `Code review and doc checking`
   - `label`: `Delivery`, `description`: `Handoff artifacts, task lists`
+  - `label`: `Meta`, `description`: `Improvement planning, agent design, and skill-level tooling`
 
 **Step 2 — Skill**
 
@@ -77,7 +102,8 @@ Call `AskUserQuestion` with three questions in a single call:
 - **Options**:
   - `label`: `Starting fresh`, `description`: `New project, no files yet`
   - `label`: `Planning`, `description`: `Speccing a feature or writing a PRD`
-  - `label`: `Building or reviewing`, `description`: `Code exists, need review or audit`
+  - `label`: `Building`, `description`: `PRD is ready, need to write or test code`
+  - `label`: `Reviewing`, `description`: `Code exists, need review or audit`
   - `label`: `Wrapping up`, `description`: `Feature is done, need handoff or tasks`
 
 **Q2**
@@ -97,6 +123,7 @@ Call `AskUserQuestion` with three questions in a single call:
 - **Options**:
   - `label`: `A project spec (PRD)`, `description`: `Structured product requirements doc`
   - `label`: `An engineering plan`, `description`: `Tasks, milestones, technical design`
+  - `label`: `Working code or test results`, `description`: `Implementation, test run, or pre-push gate`
   - `label`: `A review or audit report`, `description`: `Findings on code, docs, or a skill`
   - `label`: `A handoff or task list`, `description`: `Handoff artifact or TODOs.json`
 
@@ -110,9 +137,13 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Planning | Nothing yet / rough idea | A project spec | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |
 | Planning | A PRD or spec | An engineering plan | plan-em |
-| Building or reviewing | Code or a diff | A review or audit report | review |
-| Building or reviewing | A PRD or spec | A project spec | plan-tune |
-| Building or reviewing | any | A review or audit report | docu |
+| Building | A PRD or spec | Working code or test results | eng |
+| Building | Code or a diff | Working code or test results | test |
+| Building | Code or a diff | A review or audit report | pre-merge |
+| Reviewing | Code or a diff | A review or audit report | review |
+| Reviewing | A PRD or spec | A project spec | plan-tune |
+| Reviewing | Code or a diff | An engineering plan | improve |
+| Reviewing | any | A review or audit report | docu |
 | Wrapping up | A PRD or spec | A handoff or task list | todo |
 | Wrapping up | any | A handoff or task list | handoff |
 

@@ -1,7 +1,8 @@
 ---
 name: eng
 description: >
-  Platform-agnostic engineering agent with three modes: --plan (propose file changes for human approval), --build (write code from exec-table rows), --review (audit completed build). Invoked by plan-em or directly by the user.
+  Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval), --build (write code from exec-table rows). Invoked by plan-em or directly by the user.
+model: claude-sonnet-4-6
 allowed_tools:
   - Bash
   - Read

@@ -146,7 +146,7 @@ Then ask the user if they would like to fix these issues using `AskUserQuestion`
 
 **Step 4/5 — Apply fixes to the PRD**
 
-Fix issues based on Step 3 input. Patch exact section(s) — both PRD sections and, in an Eng tune, engineering sections within the same file. Do not write any new files, create new folders.
+Fix issues based on Step 3 input. Patch exact section(s) — both PRD sections and, in an Eng tune, engineering sections within the same file. Do not write any new files, create new folders. In a Product tune, `## Engineering —` sections are out-of-scope; do not edit them.
 
 After patching each section, re-read the patched text and verify: (1) it contains no forbidden verbs from Dimension 3, (2) it contains no weasel words or approximation language, (3) it satisfies the Suggested fix from its finding. If the patch introduces a new issue, fix it before continuing.
 
@@ -164,7 +164,7 @@ Present `AskUserQuestion` with three options. Options differ by tune type.
 - **Stop here** — end. The PRD has been revised in place.
 
 **Eng tune options:**
-- **Continue to eng-tune** — recommend the user run `/eng-tune features/prd-[n]/prd-[n].md` to tune the engineering sections.
+- **Proceed to build** — the engineering sections have just been tuned (this run *is* the eng tune). Recommend the user run `/eng --build` (or re-invoke `/plan-em` in build mode) to begin implementation from the tuned plan.
 - **Re-run plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` to regenerate engineering sections using the revised PRD as input. Use this if PRD fixes in Step 4 were significant enough to invalidate existing engineering decisions.
 - **Stop here** — end. The PRD (including engineering sections) has been revised in place.
 

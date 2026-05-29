@@ -2,9 +2,10 @@
 name: test
 description: >
   Execution-focused test skill. Runs unit/integration, e2e, functional,
-  visual (QA), load, accessibility, performance budget, and API/contract
-  test buckets via detected runners. Per-mode flags (--unit, --e2e,
-  --functional, --qa, --load, --a11y, --perf, --api) target individual
+  visual (QA), load, accessibility, performance budget, API/contract,
+  mobile (Flutter/Dart, Android + iOS), and coverage gate buckets via
+  detected runners. Per-mode flags (--unit, --e2e, --functional, --qa,
+  --load, --a11y, --perf, --api, --mobile, --coverage) target individual
   buckets; --fast runs all selected buckets in parallel. Accepts --eval-set
   to consume eval_set.json written by /review. Emits structured JSON
   findings compatible with the pre-merge finding schema.
@@ -43,6 +44,8 @@ eng --build               →  /test                      (full test suite again
 - `--a11y` — run only the accessibility audit bucket
 - `--perf` — run only the performance budget bucket
 - `--api` — run only the API / contract testing bucket
+- `--mobile` — run only the mobile testing bucket (Flutter/Dart; Android + iOS)
+- `--coverage` — run only the coverage gate bucket
 
 When **no** mode flag is supplied, all applicable buckets run (existing default). When one or more mode flags are supplied, only the named buckets run; all others are skipped regardless of runner detection.
 
@@ -77,6 +80,8 @@ Run tooling detection using `refs/../../shared/refs/tooling-detection.md`. Produ
 - **`a11y_runner`** — accessibility audit runner object, or `null` if none detected. Recognised tools: axe-core (via `@axe-core/cli`, `axe-playwright`, `jest-axe`), Lighthouse (accessibility mode), pa11y.
 - **`perf_runner`** — performance budget runner object, or `null` if none detected. Recognised tools: Lighthouse CI (`lhci`), size-limit, bundlesize.
 - **`api_runner`** — API / contract testing runner object, or `null` if none detected. Recognised tools: Pact, Newman/Postman, Dredd, Hurl, Spectral, openapi-validator. Multiple runners may be detected simultaneously (see `refs/modes/api.md`).
+- **`mobile_runner`** — mobile testing runner object, or `null` if none detected. Requires `pubspec.yaml` with `flutter:` key. Recognised tools: `flutter`, `fvm flutter`, Patrol, Maestro. See `refs/modes/mobile.md` for device matrix detection.
+- **`coverage_runner`** — coverage gate runner object, or `null` if none detected. Recognised tools: Flutter (`flutter test --coverage`), Jest, NYC/Istanbul, pytest-cov, Go.
 - **`eval_set`** — resolved assertion list (see Step 2).
 
 Detection runs once; never re-derive mid-run.
@@ -105,6 +110,8 @@ Load              → <load_runner.command>
 Accessibility     → <a11y_runner.command>
 Performance       → <perf_runner.command>
 API / Contract    → <api_runner.commands>
+Mobile            → <mobile_runner.command> [iOS: <n> device(s), Android: <n> device(s)]
+Coverage          → <coverage_runner.command> (thresholds: lines ≥ <n>%, branches ≥ <n>%)
 ```
 
 Options: **Proceed** / **Skip bucket(s)** (user names which to skip; continue without re-asking) / **Cancel** (exit, no findings).
@@ -114,7 +121,7 @@ No further `AskUserQuestion` calls.
 ### Step 4/5 — Run buckets in order (or in parallel with `--fast`)
 
 **Skip a bucket if any of these are true:**
-- A mode flag (`--unit`, `--e2e`, `--functional`, `--qa`, `--load`, `--a11y`, `--perf`, `--api`) was supplied and this bucket's flag was NOT included.
+- A mode flag (`--unit`, `--e2e`, `--functional`, `--qa`, `--load`, `--a11y`, `--perf`, `--api`, `--mobile`, `--coverage`) was supplied and this bucket's flag was NOT included.
 - The required runner / eval_set is absent (see table below).
 - The user skipped it at the Step 3 gate.
 
@@ -128,8 +135,10 @@ No further `AskUserQuestion` calls.
 | 6 | Accessibility | `--a11y` | `refs/modes/a11y.md` | `a11y_runner` is `null` |
 | 7 | Performance | `--perf` | `refs/modes/perf.md` | `perf_runner` is `null` |
 | 8 | API / Contract | `--api` | `refs/modes/api.md` | `api_runner` is `null` |
+| 9 | Mobile | `--mobile` | `refs/modes/mobile.md` | `mobile_runner` is `null` |
+| 10 | Coverage | `--coverage` | `refs/modes/coverage.md` | `coverage_runner` is `null` |
 
-**Sequential (default):** run in order 1→8; proceed to the next bucket even if a prior one fails or errors.
+**Sequential (default):** run in order 1→10; proceed to the next bucket even if a prior one fails or errors.
 
 **Parallel (`--fast`):** start all selected, non-skipped buckets concurrently; collect all findings before aggregating. Do not wait for one to finish before starting the next.
 
@@ -152,4 +161,6 @@ When `--fast` was used, include `"parallel": true` at the top level of the outpu
 - `refs/modes/a11y.md` — accessibility audit runner invocation and WCAG violation reporting
 - `refs/modes/perf.md` — performance budget runner invocation and Web Vitals / bundle-size reporting
 - `refs/modes/api.md` — API / contract testing runner invocation and contract/schema violation reporting
+- `refs/modes/mobile.md` — Flutter/Dart mobile testing, Android + iOS device matrix, Patrol/Maestro
+- `refs/modes/coverage.md` — coverage gate runner invocation, lcov parsing, threshold enforcement
 - `refs/../../shared/refs/tooling-detection.md` — tooling fingerprint protocol

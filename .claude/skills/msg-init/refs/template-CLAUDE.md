@@ -45,7 +45,7 @@ This file is read by Claude Code on every session start. Keep it short, current,
 - `/plan-pm` — Interview-driven PRD generation
 - `/plan-tune` — Adversarial audit of an existing PRD
 - `/plan-em` — Engineering plan generation from an approved PRD
-- `/msg-commit` — Conventional commit message from staged diff
+- `/commit-this` — Conventional commit message from staged diff
 ```
 
 ## Notes

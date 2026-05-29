@@ -16,7 +16,9 @@
     "load":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
     "a11y":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
     "perf":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
-    "api":        { "verdict": "...", "runners": [], "commands": [], "totals": {}, "findings": [] }
+    "api":        { "verdict": "...", "runners": [], "commands": [], "totals": {}, "findings": [] },
+    "mobile":     { "verdict": "...", "runner": "...", "matrix": [], "totals": {}, "findings": [] },
+    "coverage":   { "verdict": "...", "runner": "...", "report_path": "...", "thresholds": {}, "totals": {}, "findings": [] }
   }
 }
 ```
