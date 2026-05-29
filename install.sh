@@ -71,23 +71,18 @@ info "Installing skills to ${SKILLS_DIR}..."
 mkdir -p "${SKILLS_DIR}"
 
 SRC="${TMP_DIR}/msg/.claude/skills"
-skipped=0
 installed=0
 
 for skill_dir in "${SRC}"/*/; do
   skill_name="$(basename "${skill_dir}")"
   dest="${SKILLS_DIR}/${skill_name}"
 
-  if [[ -d "${dest}" ]]; then
-    warn "Skipping ${skill_name} (already exists — remove to reinstall)"
-    ((skipped++)) || true
-  else
-    cp -r "${skill_dir}" "${dest}"
-    ((installed++)) || true
-  fi
+  rm -rf "${dest}"
+  cp -r "${skill_dir}" "${dest}"
+  ((installed++)) || true
 done
 
-success "Installed ${installed} skill(s)$([ "${skipped}" -gt 0 ] && echo ", skipped ${skipped} existing")"
+success "Installed ${installed} skill(s)"
 
 # ── Install scripts ───────────────────────────────────────────────────────────
 SRC_SCRIPTS="${TMP_DIR}/msg/.claude/scripts"
@@ -98,10 +93,8 @@ if [[ -d "${SRC_SCRIPTS}" ]]; then
   script_count=0
   for f in "${SRC_SCRIPTS}"/*; do
     fname="$(basename "${f}")"
-    if [[ ! -f "${SCRIPTS_DIR}/${fname}" ]]; then
-      cp "${f}" "${SCRIPTS_DIR}/${fname}"
-      ((script_count++)) || true
-    fi
+    cp "${f}" "${SCRIPTS_DIR}/${fname}"
+    ((script_count++)) || true
   done
   [[ "${script_count}" -gt 0 ]] && success "Installed ${script_count} script(s)"
 fi

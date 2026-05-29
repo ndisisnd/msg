@@ -1,5 +1,6 @@
 # Changelog
 
+- Force reinstall of skills and scripts instead of skipping existing ones
 - Remove install-standards script and related setup documentation
 - Enhance installation script with next steps and GitHub repository update link
 - Add deterministic test tooling detection and verdict aggregation scripts to replace manual priority-table walking in /test skill
