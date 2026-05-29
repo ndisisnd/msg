@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Reorder improve/_INDEX.md rows to restore monotonic ID sequence
 - Add `/test` skill for execution-focused testing (unit, e2e, functional assertions) with eval_set handoff from `/review`
 - Refactor `/review` to split test execution: Coverage is now static-only (sibling-test + assertion-reference checks); Functional defers executable assertions to `/test`
 - Archive completed 15-review-test-split improvement to done/ subdirectory
