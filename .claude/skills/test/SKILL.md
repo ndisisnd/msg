@@ -71,20 +71,31 @@ Schema and verdict semantics: `refs/schema.md`.
 
 ### Step 1/5 — Detect tooling
 
-Run tooling detection using `refs/../../shared/refs/tooling-detection.md`. Produce:
+Invoke the deterministic detector — do NOT walk priority tables by hand:
 
-- **`test_runner`** — unit/integration runner object, or `null` if none detected.
-- **`e2e_runner`** — e2e runner object, or `null` if none detected.
-- **`qa_runner`** — visual testing runner object, or `null` if none detected. Recognised tools: Playwright (visual snapshot mode), Chromatic, Percy, BackstopJS, Loki.
-- **`load_runner`** — load testing runner object, or `null` if none detected. Recognised tools: k6, Artillery, Locust, autocannon, wrk, hey.
-- **`a11y_runner`** — accessibility audit runner object, or `null` if none detected. Recognised tools: axe-core (via `@axe-core/cli`, `axe-playwright`, `jest-axe`), Lighthouse (accessibility mode), pa11y.
-- **`perf_runner`** — performance budget runner object, or `null` if none detected. Recognised tools: Lighthouse CI (`lhci`), size-limit, bundlesize.
-- **`api_runner`** — API / contract testing runner object, or `null` if none detected. Recognised tools: Pact, Newman/Postman, Dredd, Hurl, Spectral, openapi-validator. Multiple runners may be detected simultaneously (see `refs/modes/api.md`).
-- **`mobile_runner`** — mobile testing runner object, or `null` if none detected. Requires `pubspec.yaml` with `flutter:` key. Recognised tools: `flutter`, `fvm flutter`, Patrol, Maestro. See `refs/modes/mobile.md` for device matrix detection.
-- **`coverage_runner`** — coverage gate runner object, or `null` if none detected. Recognised tools: Flutter (`flutter test --coverage`), Jest, NYC/Istanbul, pytest-cov, Go.
+```bash
+.claude/scripts/test-tooling-detect.sh
+```
+
+The script emits a single JSON object to stdout with these keys, each either an object or `null`:
+
+- **`package_manager`** — pnpm / yarn / npm / pub / poetry / pip.
+- **`test_runner`** — unit/integration runner. Recognised: Vitest, Jest, Mocha, pytest, Dart/Flutter.
+- **`e2e_runner`** — Playwright, Cypress, Flutter integration test.
+- **`qa_runner`** — visual testing. Recognised: Playwright (visual snapshot mode), Chromatic, Percy, BackstopJS, Loki.
+- **`load_runner`** — k6, Artillery, Locust, autocannon, wrk, hey.
+- **`a11y_runner`** — axe-core (via `@axe-core/cli`, `axe-playwright`, `jest-axe`), Lighthouse (accessibility mode), pa11y.
+- **`perf_runner`** — `{runtime, bundle}` sub-runners. Recognised: Lighthouse CI (`lhci`), Playwright + web-vitals, size-limit, bundlesize.
+- **`api_runner`** — array of runners (Pact, Newman, Dredd, Hurl, Spectral, openapi-validator); multiple co-existing runners is normal (see `refs/modes/api.md`).
+- **`mobile_runner`** — `flutter` or `fvm flutter` plus `patrol` / `maestro` / test-dir flags (see `refs/modes/mobile.md` for device matrix detection).
+- **`coverage_runner`** — Flutter, Jest, NYC/Istanbul, pytest-cov, Go.
+
+Then derive in this same step:
+
 - **`eval_set`** — resolved assertion list (see Step 2).
+- **CI workflow override** — after reading the fingerprint, scan `.github/workflows/*.yml` (and `.gitlab-ci.yml`) for `npm run test` / `npm run test:*` / `npm run e2e` / `npm run test:e2e`. If found, replace the matched runner's `command` and set `ci_override: true`. The script intentionally leaves this to you because CI script extraction is intent-matching, not file-existence.
 
-Detection runs once; never re-derive mid-run.
+Detection runs once; never re-derive mid-run. Treat the script's output as authoritative for file/$PATH/package.json signals — adding LLM second-guesses on top of it is what this script exists to prevent.
 
 ### Step 2/5 — Resolve eval_set
 
@@ -146,12 +157,32 @@ No further `AskUserQuestion` calls.
 
 ### Step 5/5 — Aggregate and emit
 
-Merge bucket outputs into output schema (`refs/schema.md`). Overall verdict = worst across completed buckets (`fail` > `pass_with_warnings` > `pass`). Emit JSON to stdout. If PRD known, also write `features/prd-<n>/test/test-<YYYYMMDD-HHmmss>.json`. Omit skipped buckets from output.
+Do NOT compute the overall verdict or hand-merge the bucket JSON. Throughout Step 4, each bucket's final JSON is written to `/tmp/test-<runid>/<bucket>.json` (recognised buckets: `unit`, `e2e`, `functional`, `qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`). Skipped buckets are simply not written.
 
-When `--fast` was used, include `"parallel": true` at the top level of the output JSON.
+Then invoke the aggregator:
+
+```bash
+.claude/scripts/test-aggregate-verdict.sh \
+  --run-dir /tmp/test-<runid> \
+  [--prd <path>] \
+  [--eval-set <path>] \
+  [--parallel]                # only when --fast was used
+```
+
+The script:
+- validates each bucket file has a recognised `verdict` (`pass` | `pass_with_warnings` | `fail`) — refuses with exit 1 if any is missing or malformed
+- computes the overall verdict as `fail > pass_with_warnings > pass` across present buckets
+- merges every bucket payload under `.buckets` keyed by bucket name (skipped buckets omitted)
+- emits the final JSON to stdout per `refs/schema.md`
+
+Pipe stdout to `features/prd-<n>/test/test-<YYYYMMDD-HHmmss>.json` when a PRD is known (use `date +%Y%m%d-%H%M%S` for the timestamp — don't construct it by hand). Always print to stdout regardless.
+
+If the script exits 1, the offending bucket wrote invalid JSON — fix that bucket's emission and re-run; do NOT fall back to hand-aggregation.
 
 ## References
 
+- `.claude/scripts/test-tooling-detect.sh` — Step 1 fingerprint detector
+- `.claude/scripts/test-aggregate-verdict.sh` — Step 5 verdict aggregator + JSON merger
 - `refs/schema.md` — output JSON schema and verdict semantics
 - `refs/modes/unit.md` — unit/integration runner invocation and output parsing
 - `refs/modes/e2e.md` — e2e runner invocation and output parsing

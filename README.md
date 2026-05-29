@@ -9,19 +9,17 @@ The counterpart that relies on `/cook`, it's a heavily opinionated coding agent 
 
 </div>
 
-## Install
+## 💻 Install
 
-**msg + cook (recommended)**
+### **msg + cook (recommended)**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook
 ```
 
-**msg only**
+### **msg only**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 ```
-
-Skills are installed to `~/.claude/skills/`. Existing skills are never overwritten.
 

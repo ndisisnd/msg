@@ -7,6 +7,8 @@ description: Shared tooling fingerprint protocol. Produces package manager, test
 
 Shared fingerprint protocol. Run all checks in parallel. Populate outputs once per skill invocation; never re-derive mid-run.
 
+> **Deterministic detector available:** `.claude/scripts/test-tooling-detect.sh` covers `package_manager`, `test_runner`, `e2e_runner`, plus the test-skill-specific runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`). It does NOT cover `build_tool`, `mechanical_runners`, `security_scanners`, or `bundle_analyzer` — those still come from this ref's tables. `/test` invokes the script in Step 1; `/review` and `/pre-merge` may invoke it for the runner subset they need and derive the remaining outputs from this protocol.
+
 ---
 
 ## Output shapes
