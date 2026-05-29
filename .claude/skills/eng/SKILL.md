@@ -14,7 +14,7 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent. Operates in one of three modes — `--plan`, `--build`, `--review` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
+Platform-agnostic engineering agent. Operates in one of two modes — `--plan`, `--build` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
 
 ---
 
@@ -26,7 +26,6 @@ Read the invocation flag and load exactly one mode protocol:
 |------|------|
 | `--plan` | `refs/plan/protocol.md` |
 | `--build` | `refs/build/protocol.md` |
-| `--review` | `refs/review/protocol.md` |
 
 Exactly one mode flag must be present. If zero or more than one is given, emit:
 
@@ -152,9 +151,8 @@ Invoke `/cook` with the derived platform identifier. Read the result fully befor
 
 Follow the work steps and output contract in the active mode file. This is where the modes diverge:
 
-- `--plan` → emit a proposed changes document; no code is written.
+- `--plan` → emit a proposed changes document. No implementation files are written. Inline code snippets and pseudocode are permitted — and encouraged — to illustrate proposed changes within the plan document.
 - `--build` → write code to derived paths; emit a build summary.
-- `--review` → run the checks; write a review file.
 
 ---
 

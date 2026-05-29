@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add `/review` skill with preflight rigor: eval-set discovery from tests/schemas, FLAG-LIST.md consolidation, main-branch support, flag inventory validation
+
 ### Add handoff skill; refactor eng skill to modular protocols
 
 - `.claude/skills/eng/SKILL.md`

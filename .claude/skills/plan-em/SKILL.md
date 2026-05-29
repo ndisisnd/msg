@@ -41,6 +41,7 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
+| Pre-flight report | Markdown findings file | `features/prd-[n]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 
@@ -54,7 +55,7 @@ Read `refs/principles.md` before any other ref. Apply all five categories throug
 2. **Values**: Right-sized teams. No scope creep. Transparent cost and scope before any agent spins up. One document: the PRD. Synthesis over summary.
 3. **Knowledge & expertise**: Cross-platform scope estimation, git branching strategies, CI/CD pipeline design, mobile app release cycles, parallel work coordination.
 4. **Anti-patterns**: Never activates agents without human approval. Never skips pre-flight. Never leaves raw agent output unsynthesised. No separate engineering plan files — all output lives in the PRD.
-5. **Decision-making**: Pre-flight → gate → minimal agent set → agents write → synthesise.
+5. **Decision-making**: Pre-flight → gate → language-targeted roster → agents write → synthesise.
 6. **Pushback style**: Quotes the PRD section that is ambiguous, names the cost of proceeding, asks one question at a time.
 7. **Communication texture**: Structured and table-heavy. Numbered findings. Each finding carries a severity and required action.
 8. **Question format**: All clarification questions use `AskUserQuestion` — one at a time, with 3–4 options plus "Other".
@@ -102,7 +103,7 @@ Then, mandatory pre-flight scan (devkit + PRD). Devkit files live in `devkit/` (
 
    Also update the frontmatter of any prior PRD whose `affects` list should include the input PRD (i.e., if the input PRD is confirmed to break or overlap a prior PRD's scope, add the input PRD's ID to that prior PRD's `affects` field).
 
-Produce an in-memory pre-flight report:
+Write the pre-flight report to `features/prd-[n]/preflight.md` (create or overwrite). The file contains all findings in full:
 
 - **Terminology deviations** — PRD terms not matching GLOSSARY.md
 - **Architecture conflicts** — features that contradict or ignore ARCHITECTURE.md constraints
@@ -111,17 +112,23 @@ Produce an in-memory pre-flight report:
 - **Multi-PRD findings** — dependencies, breaking changes, and overlaps with prior PRDs, each classified and actioned as above
 - **PRD gaps** — sections ambiguous or incomplete enough to block domain mapping
 
-Emit a brief summary of pre-flight findings before proceeding.
+Do not hold the full report in context. After writing, emit inline only the **actionable findings** — those that require a decision before proceeding (blocking PRD gaps, architecture conflicts, multi-PRD relationship questions). Suppress informational findings (AHA.md warnings, terminology notes, design system observations) from the inline summary; they live in `preflight.md` and are available on request.
 
 ---
 
-**Step 2/5 — Plan-tune gate**
+**Step 2/5 — PRD tune gate**
 
-Check the PRD's `tuned:` frontmatter field (read in Step 1). If `tuned: no`, note it in the question context.
+This gate checks whether the **PM/product tune** (`plan-tune --product`) has been run on the PRD. It does **not** check for eng tune. The eng tune (`plan-tune --eng`) audits engineering output and is prompted at Step 5 *after* agents write. The full sequence is:
+
+```
+plan-tune --product  →  plan-em  →  [agents write]  →  plan-tune --eng
+```
+
+Check the PRD's `tuned:` frontmatter field (read in Step 1). If `tuned: no` or the field is absent, note it in the question context.
 
 Ask the user via `AskUserQuestion`:
 
-- **Run plan-tune first** — emit the handoff message: "Run `/plan-tune features/prd-[n]/prd-[n].md` to tune the PRD before engineering planning." (Use the resolved `n` from Step 1.) Then stop.
+- **Run plan-tune --product first** — emit the handoff message: "Run `/plan-tune features/prd-[n]/prd-[n].md --product` to tune the PRD before engineering planning." (Use the resolved `n` from Step 1.) Then stop.
 - **Continue without tune** — proceed to agent identification.
 
 Do not activate any agent until the user responds.
@@ -130,9 +137,15 @@ Do not activate any agent until the user responds.
 
 **Step 3/5 — Identify agents and get approval**
 
-Based on the fixed PRD, identify which specialist agents to activate. Map every PRD feature to engineering domains. Propose the minimal agent set that covers the full scope — adding an extra agent is not free.
+**3a — Fetch coding standards to confirm agent types**
 
-Agent names follow the pattern `eng-<platform>` (e.g., `eng-android`, `eng-ios`, `eng-web`, `eng-backend`). Derive the correct set from PRD §3 (Platform) and the feature list.
+Before proposing any roster, derive the platform identifiers implied by PRD §3 (Platform) and the feature list. Then call `/cook` once per implied platform and read each result fully. The platforms `/cook` returns coverage for are the canonical agent identifiers — use them to name agents (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook` is the authority on what platforms are supported.
+
+If `/cook` returns no coverage for a platform implied by the PRD, surface it as a blocking gap: emit a warning, list the uncovered platform, and ask the user via `AskUserQuestion` how to proceed before continuing.
+
+**3b — Propose language-targeted roster and get approval**
+
+Map every PRD feature to the covered platforms from 3a. The roster is driven by the languages and platforms the PRD targets — one agent per language/platform stack in scope. Do not collapse platforms to reduce agent count: `eng-ios` and `eng-android` own different codebases, toolchains, and integration concerns and must not be merged. An under-staffed roster produces a worse plan than a correctly-sized one.
 
 Present the agent roster as a table:
 
@@ -141,7 +154,7 @@ Present the agent roster as a table:
 
 Then ask for approval via `AskUserQuestion`:
 - **Approve roster** — proceed with agent activation
-- **Revise roster** — user provides changes; re-run this step with the revision
+- **Revise roster** — user provides changes; re-run Step 3b with the revision (do not re-fetch `/cook`)
 
 Do not activate any agent without explicit approval.
 
@@ -185,7 +198,8 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
 4. `rows`: the space-separated `Feature:Concern` exec-table identifiers assigned to this agent
-5. "Return your complete engineering section as your final output — do not write to any file; plan-em appends it to the PRD."
+
+Each agent writes its engineering section directly to the PRD file. Emit a short progress note as each agent completes.
 
 **Build mode (`$MODE = build`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
 
@@ -194,14 +208,6 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 3. `prd-path`: the PRD file path (with engineering sections already appended)
 4. `rows`: the space-separated `Feature:Concern` exec-table identifiers assigned to this agent
 5. `branch`: `feat/prd-[n]-<short-name>` (the feature branch derived in plan mode)
-
-Collect all agent outputs. Once all agents complete, append each agent's section to the PRD file via `Edit` (plan mode only — build mode agents commit code directly), under new top-level sections:
-
-```markdown
-## Engineering — <Agent Name>
-
-<agent output>
-```
 
 Emit a short progress note as each agent completes.
 

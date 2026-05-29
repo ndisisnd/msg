@@ -6,7 +6,7 @@ type: reference
 
 # Engineering Execution Plan — Plan Mode
 
-This is the output format for an eng agent running in **plan mode**. The agent returns a structured markdown section covering only its assigned features. plan-em appends it to the PRD under `## Engineering — <Agent Name>`. No standalone file is created.
+This is the output format for an eng agent running in **plan mode**. The agent writes a structured markdown section directly to the PRD file, appended under `## Engineering — <Agent Name>`. No standalone file is created.
 
 Populate every section. This is an execution document, not a status update. It must answer "what are we building, what did we consider and reject, who builds what, and what blocks shipping?" without further conversation.
 
@@ -237,3 +237,4 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 | Findings | If PRD gaps exist, every finding has severity and action. |
 | Timeline | §13 has an engineer-day estimate for this agent. |
 | Open questions | Any OPEN design decision in §4 appears in §14. |
+| Exact identifiers | Every function name, table name, column name, migration filename, and API endpoint is verified against the codebase scan — no guessed or approximate names. Any name that cannot be confirmed is a gap in §12, not a placeholder. |

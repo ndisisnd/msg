@@ -15,7 +15,7 @@ No fields beyond the shared three (`--plan`, `prd-path`, `rows`).
 /eng --plan prd-path=features/prd-4/prd-4.md rows="Streaks:Schema-migration Streaks:API-contract"
 ```
 
-No code is written in this mode. Eng derives all file paths from the codebase scan and exec-table; it does **not** accept file paths as input.
+No implementation files are written in this mode. Inline code snippets and pseudocode are permitted — and encouraged — to illustrate proposed changes within the plan document itself. Eng derives all file paths from the codebase scan and exec-table; it does **not** accept file paths as input.
 
 ---
 
@@ -31,12 +31,25 @@ The 3–4 line summary covers:
 
 ## Output contract (Step 5)
 
-Produce a structured engineering section following `refs/plan/template-eng-plan.md`. **No code is written.** Descriptions only.
+Produce a structured engineering section following `refs/plan/template-eng-plan.md`. No implementation files are written. Inline code snippets and pseudocode are permitted to illustrate proposed changes within the plan document.
 
 Cover only the features implied by the assigned rows. Every section of the template is required — write `None.` only when a subsection genuinely does not apply.
 
 Also fill in the **Execution steps** column for every row in the PRD's Execution Table where the Agent column matches this invocation, following `refs/build/protocol-exec.md` for format, granularity, and dependency notation. A row with a blank Execution steps cell is a hard failure.
 
-**Return contract:** Return the complete engineering section as markdown output. Do not write to the PRD or any other file — the orchestrator (plan-em) appends it to the PRD under `## Engineering — <Agent Name>`. If invoked directly by a user (no orchestrator), emit it inline.
+**Exact identifier requirement (hard):** Every proposed change must name the precise artifact to be modified or created, verified against the codebase scan:
+
+| Artifact | Required precision |
+|----------|--------------------|
+| Functions / methods | Exact name as it appears in source (e.g. `createStreak`, not "the streak creation function") |
+| DB tables | Exact table name (e.g. `streaks`, not "a streaks table") |
+| DB columns | Exact column names and types (e.g. `user_id UUID NOT NULL`) |
+| Migration file | Exact filename following repo convention (e.g. `0043_add_streaks.sql`) |
+| API endpoints | Exact HTTP method + path matching existing route conventions (e.g. `POST /api/v1/streaks`) |
+| API / RPC operation names | Exact operation name as defined in OpenAPI spec or router |
+
+Getting any identifier wrong is a hard failure — build agents execute against them directly and wrong names cause expensive rework. If the exact name cannot be confirmed from the codebase scan, mark it as a named gap in §12 (Findings), not a guess.
+
+**Return contract:** Write the complete engineering section directly to the PRD file at `prd-path`, appended under `## Engineering`. Do not create a separate output file. Emit a one-line confirmation after writing (e.g. `Written to features/prd-4/prd-4.md → ## Engineering`).
 
 Ambiguity that cannot be resolved from the PRD, exec-table, or codebase scan is surfaced as a named gap in §12 (Findings) — never resolved by assumption.

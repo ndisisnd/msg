@@ -24,29 +24,29 @@
 ## Check 1 — Test execution
 
 10. Eng runs the test suite scoped to files derived from the assigned rows. For each failing test, records: `test_file`, `test_name`, exact `error` message, `exec_table_row`, and the `exec_step` the test traces to.
-11. Passing tests are recorded as counts only. Eng does not truncate or summarise error messages — they are recorded verbatim.
+11. Passing tests are recorded as counts only. Error messages are recorded verbatim (not truncated or summarised) for the first 10 failures; beyond 10, remaining failures are recorded as a count only.
 
 ## Check 2 — Assertion audit
 
-12. For every Execution step in the assigned rows that contains a verifiable assertion, eng checks that a real, passing test covers it. Gaps are classified: `critical` (no test at all), `major` (partial coverage), `minor` (no edge case coverage). Each gap records: `exec_table_row`, `exec_step`, `gap` description, `severity`.
+12. For every Execution step in the assigned rows that contains a verifiable assertion, eng checks that a real, passing test covers it. Gaps are classified per the central severity scale: `critical` (no test at all), `major` (partial coverage), `minor` (no edge case coverage). Each gap records: `exec_table_row`, `exec_step`, `gap` description, `severity`, `why_fix`, and `gain`.
 13. An exec-table step with blank Execution steps content is flagged as a `critical` assertion gap — it is a finding, not a hard failure that stops the run.
 
 ## Check 3 — Adversarial gap scan
 
-14. Eng proactively identifies cases not covered by any test: null/empty inputs, boundary values, concurrent access, error propagation, missing auth guards, unvalidated fields, missing rollback paths. Each gap records `gap`, `severity`, and the relevant file and concern.
+14. Eng proactively identifies cases not covered by any test: null/empty inputs, boundary values, concurrent access, error propagation, missing auth guards, unvalidated fields, missing rollback paths. Each gap is recorded in `coverage_gaps` with `file`, `concern`, `gap`, `severity`, `why_fix`, and `gain`. A `critical` coverage gap fails the verdict (see #20).
 15. Adversarial posture: eng assumes the code has bugs and works to prove it wrong. It does not stop at the first gap — it completes all four checks before writing output.
 
 ## Check 4 — Code quality scan
 
 16. Eng reads each implementation file and flags: naming inconsistencies vs pulled coding standards, structural issues (duplication, excessive cyclomatic complexity, unclear intent), and concrete refactor suggestions.
-17. Each suggestion records: `file`, `line_range`, `type` (refactor | naming | duplication | complexity | style), `severity`, `description`, and `suggested_change`. Suggestions are advisory and do not affect the verdict.
+17. Each suggestion records: `file`, `line_range`, `type` (refactor | naming | duplication | complexity | style), `severity`, `description`, `suggested_change`, `why_fix`, and `gain`. Suggestions are advisory and do not affect the verdict.
 
 ## JSON output and verdict
 
 18. After all four checks, eng writes the review output to `features/prd-[n]/reviews/review-<YYYYMMDD-HHmmss>.json` following `refs/review/template-review-output.json`.
-19. The JSON includes: `run_id`, `prd_path`, `rows[]`, `timestamp`, `verdict`, `blocker`, `test_results` (with `failures[]`), `assertion_gaps[]`, `suggestions[]`, and `summary` (with `verdict`, counts per severity, and `blocker`).
-20. Verdict is `fail` if any test fails or any assertion gap is `critical`. Verdict is `pass` if all tests pass and no assertion gap is `critical` — suggestions are non-blocking.
-21. After writing the file, eng emits a short inline summary: verdict, test failure count, assertion gap count, suggestion count, and the path to the JSON file.
+19. The JSON includes: `run_id`, `prd_path`, `rows[]`, `timestamp`, `verdict`, `blocker`, `test_results` (with `failures[]`), `assertion_gaps[]`, `coverage_gaps[]` (Check 3 findings), `suggestions[]`, and `summary` (with `verdict`, counts per severity, and `blocker`). Every `assertion_gaps`, `coverage_gaps`, and `suggestions` record carries a `why_fix` field (the reason to fix) and a `gain` field (what fixing it buys).
+20. Verdict is `fail` if any test fails, **or** any assertion gap is `critical`, **or** any coverage gap (Check 3) is `critical`. Verdict is `pass` only if all tests pass and no assertion gap or coverage gap is `critical` — Check 4 suggestions are always non-blocking.
+21. After writing the file, eng emits a **single human-readable findings list ranked worst-first** (test failures, then assertion gaps, then coverage gaps), each line showing severity, location, the issue, `why_fix`, and `gain` — following `refs/review/template-review-summary.md` — then the verdict and the path to the JSON file. Counts alone are not sufficient.
 
 ## User interview
 
@@ -54,3 +54,11 @@
 23. Each interview question names the specific row or PRD section it concerns and offers 3–4 concrete options. Eng does not ask open-ended questions.
 24. Eng asks at most 3 questions per invocation. If more than 3 ambiguities exist, eng surfaces them as a numbered list and asks which to prioritise first.
 25. After the interview, eng incorporates the answers and continues the protocol from where it paused — it does not restart.
+
+## Codebase scan (review-specific)
+
+26. Review mode overrides the shared Step 2 scan: for every assigned row, eng reads both the implementation file(s) under audit and their corresponding test file(s), regardless of concern type (not only when the concern type is "Tests"). All four checks operate on this single read — eng does not re-read files mid-check.
+
+## Severity scale
+
+27. The `critical`/`major`/`minor` scale is defined once and used by all three judgment-based checks (assertion audit, coverage gap scan, quality scan): `critical` = breaks the contract or a safety guarantee; `major` = partial coverage or a non-safety-critical defect; `minor` = missing edge-case coverage or a style/quality nit. Only `critical` assertion gaps and `critical` coverage gaps fail the verdict; quality suggestions never do. Test failures rank above all findings and always fail the verdict.
