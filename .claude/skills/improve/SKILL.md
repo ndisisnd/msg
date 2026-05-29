@@ -61,7 +61,9 @@ Call `AskUserQuestion` for each follow-up question, one at a time, up to 5. Alwa
 
 **Step 3 — Derive n and slug**
 
-Run: `rtk bash -c 'ls .claude/skills/improve/ 2>/dev/null | grep -E "^[0-9]+" | sort -n | tail -1'` → increment by 1 for `n` (default 1 if empty). For the improvement path, slugify the description to ≤3 lowercase hyphenated words for `feature-type`. For the lightweight agent-creation path, use `create-<agent-name>` as the slug. Store the resolved path as `$OUT` (e.g. `.claude/skills/improve/3-refactor-step-flow/`). All subsequent steps use `$OUT`.
+`_INDEX.md` is the single source of truth for plan numbering — plans live in `./`, `done/`, `backlog/`, and `archive/`, so a plain `ls` of the improve root undercounts. Read `.claude/skills/improve/_INDEX.md`, take the **highest integer** in the `ID` column (treat `7.1`/`7.2`/`7.3` as `7`), and increment by 1 for `n`. Default to `1` if the index has no rows. If `_INDEX.md` is missing, stop and tell the user to recreate it before continuing — do not fall back to `ls`.
+
+For the improvement path, slugify the description to ≤3 lowercase hyphenated words for `feature-type`. For the lightweight agent-creation path, use `create-<agent-name>` as the slug. New plans are created at the improve root (in-progress status); `done/`, `backlog/`, and `archive/` are moved into later by hand. Store the resolved path as `$OUT` (e.g. `.claude/skills/improve/14-refactor-step-flow/`). All subsequent steps use `$OUT`.
 
 **Step 4 — Read and write plan**
 
@@ -71,10 +73,14 @@ Read `.claude/skills/improve/refs/template.md`. Create `$OUT` and write `$OUT/pl
 
 For every discrete change in the plan, write one or more testable assertions to `$OUT/acceptance.md`. Each assertion is one line, numbered sequentially. Every change must map to at least one criterion — no exceptions.
 
-**Step 6 — Review and terminate**
+**Step 6 — Register in _INDEX.md**
+
+Append a new row to the table in `.claude/skills/improve/_INDEX.md` for the plan just written. Columns: `ID` (the `n` from Step 3), `Name` (markdown link to `$OUT/plan.md` using the slug as link text), `Description` (one sentence — pull from the plan's Problem section), `Status` (`In-progress` for newly created plans).
+
+**Step 7 — Review and terminate**
 
 Emit `$OUT` as a markdown link.
 
 Call `AskUserQuestion` with a `questions` array: `header: "Next step"`, `question: "What would you like to do next?"`, `multiSelect: false`, `options`:
-- **Revise** — ask what to change, then read and edit `$OUT/plan.md` and `$OUT/acceptance.md` in place. Re-emit Step 6.
+- **Revise** — ask what to change, then read and edit `$OUT/plan.md` and `$OUT/acceptance.md` in place. Update the corresponding `_INDEX.md` row if the description changed. Re-emit Step 7.
 - **Done** — emit exactly: "Plan and acceptance criteria emitted. Please double-check the plan or run another agent to do an adversarial review."
