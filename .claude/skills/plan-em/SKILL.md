@@ -82,7 +82,7 @@ Then, mandatory pre-flight scan (devkit + PRD). Devkit files live in `devkit/` (
 6. `devkit/OPEN-QUESTIONS.md` — scan for unresolved decisions that overlap this PRD's domain or feature set. Note each relevant question; include it in the pre-flight report under a new **Open questions** section. If a question directly blocks a PRD feature, flag it as a blocking gap in the pre-flight report.
 7. The PRD file in full.
 
-**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual devkit file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
+**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and **stop**. Do not proceed to Step 2. If `devkit/` exists but an individual devkit file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 8. Multi-PRD cross-reference: `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory. For each prior PRD:
    - **Fast scan via frontmatter first**: read the `module`, `affects`, and `depends_on` fields in the YAML frontmatter. If the input PRD's `module` matches another PRD's `module`, or the input PRD appears in another PRD's `affects` list, or the input PRD's `depends_on` names a prior PRD — flag it immediately.
    - **Full read only when flagged**: for any PRD flagged by frontmatter, read its features section in full and classify the relationship as one of:

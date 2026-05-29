@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+- Add review-test-split skill, pre-merge skill, shared tooling-detection refs, and reorganize improve registry numbering
 - Add mechanical gates to Quality and Security modes in /review
 - Add plan registry (_INDEX.md) to improve skill for centralized plan tracking
 - Archive completed improve skills (preflight-rigor, quality-mode-rigor) to done/ subdirectory

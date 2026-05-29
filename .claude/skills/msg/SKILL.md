@@ -16,11 +16,15 @@ allowed_tools:
 
 | Skill | Description |
 |-------|-------------|
-| msg | Root menu for msg skills |
 | msg-init | One-time project bootstrap |
-| plan-em | Engineering plan generator |
 | plan-pm | PM interview — PRD writer |
 | plan-tune | PRD auditor — product/eng |
+| plan-em | Engineering plan generator |
+| review | Five-mode code review — Quality, Coverage, Functional, Security, Perf |
+| docu | Stale doc checker and fixer |
+| handoff | Structured mid-flight handoff artifact |
+| todo | Parse PRD tables → TODOs.json |
+| improve | Improvement planner for any skill |
 
 ## Protocol
 

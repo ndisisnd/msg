@@ -7,7 +7,7 @@ Tracks every plan under `.claude/skills/improve/`. Status is derived from the fo
 - **Backlog** — `backlog/`
 - **Archived** — `archive/`
 
-IDs may repeat across folders and are not strictly sequential — always disambiguate by the full slug.
+IDs are unique and monotonically increasing. IDs are not strictly sequential — gaps appear where plans were archived or merged before being assigned a number.
 
 | ID | Name | Description | Status |
 |----|------|-------------|--------|
@@ -24,8 +24,9 @@ IDs may repeat across folders and are not strictly sequential — always disambi
 | 9 | [agent-creation-option](done/9-agent-creation-option/plan.md) | Add "Create a new agent" intent to `/improve` Step 1, branching to `/agent-plan` or an inline create path. | Done |
 | 10 | [preflight](10-preflight/plan.md) | New `preflight` skill — pre-PR quality gate run after `eng --build` and before `gh pr create`, fully agentized. | In-progress |
 | 11 | [docu](done/11-docu/plan.md) | New `docu` skill that scans a diff and offers targeted inline fixes for stale references in README/ARCHITECTURE/PRD/AHA. | Done |
-| 11 | [functional-mode-rigor](11-functional-mode-rigor/plan.md) | Tighten `review` Functional mode: define pass/warn/block rubric, require evidence, handle N/A and negative assertions, kill self-derived tautologies. | In-progress |
 | 12 | [review](done/12-review/plan.md) | New `/review` orchestrator that fingerprints the codebase, bootstraps an eval-set, then fans out to `/cook` across five review modes. | Done |
-| 12 | [review-preflight-rigor](done/12-review-preflight-rigor/plan.md) | Fix three preflight defects in `/review`: eval-set sources, `main`-branch refusal, and flag source. | Done |
+| 16 | [functional-mode-rigor](done/16-functional-mode-rigor/plan.md) | Tighten `review` Functional mode: define pass/warn/block rubric, require evidence, handle N/A and negative assertions, kill self-derived tautologies. | Done |
+| 17 | [review-preflight-rigor](done/17-review-preflight-rigor/plan.md) | Fix three preflight defects in `/review`: eval-set sources, `main`-branch refusal, and flag source. | Done |
 | 13 | [quality-mode-rigor](done/13-quality-mode-rigor/plan.md) | Fix three `/review` Quality-mode defects: misadvertised checks, discarded scope-creep signal, missing flag backing. | Done |
 | 14 | [mechanical-checks](done/14-mechanical-checks/plan.md) | Merge local-machine testing primitives into `/review`: lint/format/typecheck into Quality, dedicated secret scan into Security; no git hooks. | Done |
+| 15 | [review-test-split](15-review-test-split/plan.md) | Strip test execution from `/review` (Coverage + Functional modes) and extract it into a new standalone `/test` skill that pre-merge delegates to. | In-progress |

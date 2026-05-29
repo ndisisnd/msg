@@ -63,9 +63,9 @@ Run once at startup; never re-derive mid-run. Detection signals, runner mappings
 Produce five outputs from this step:
 
 - **`active_domains[]`** — list of detected technology domains (used by Steps 4–6 for flag assembly). Signals: `refs/FLAG-LIST.md#domain-detection-review-step-2-fingerprint`.
-- **`test_runner`** — structured object used exclusively by Coverage mode. Signals: `refs/FLAG-LIST.md#test-runner-detection-review-step-2-fingerprint`. If no runner is detected, set `test_runner` to `null`; Coverage mode will emit `warn` and skip execution.
-- **`mechanical_runners[]`** — list of detected lint/format/typecheck runners (used by Quality mode Stage 0). Signals: `refs/FLAG-LIST.md#mechanical-runner-detection-review-step-2-fingerprint`. Each entry has `{ name, command, expects_zero_exit, severity_on_fail }`. Empty list if nothing detected — Quality Stage 0 becomes a no-op.
-- **`secret_scanner`** — single object describing the highest-priority detected secret scanner (used by Security mode Stage 0), or `null` if none. Signals and shape: `refs/FLAG-LIST.md#mechanical-runner-detection-review-step-2-fingerprint` (Secret scanners sub-table). When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
+- **`test_runner`** — structured object used exclusively by Coverage mode. Signals and shape: `refs/../shared/refs/tooling-detection.md#test-runner-detection`. If no runner is detected, set `test_runner` to `null`; Coverage mode will emit `warn` and skip execution.
+- **`mechanical_runners[]`** — list of detected lint/format/typecheck runners (used by Quality mode Stage 0). Signals and shape: `refs/../shared/refs/tooling-detection.md#mechanical-runner-detection`. Each entry has `{ name, command, expects_zero_exit, severity_on_fail }`. Empty list if nothing detected — Quality Stage 0 becomes a no-op.
+- **`secret_scanner`** — single object describing the highest-priority detected secret scanner (used by Security mode Stage 0), or `null` if none. Signals and shape: `refs/../shared/refs/tooling-detection.md#security-scanner-detection` (Secret scanners sub-table; `secret_scanner` = first entry with `type: "secret"`). When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
 - **`flag_inventory`** — in-memory set of every valid flag token parsed from `refs/FLAG-LIST.md` (concerns + per-domain + sub-refs). Used by Step 4 to validate assembled flags.
 
 ### Step 3/7 — Locate PRD; bootstrap eval-set

@@ -2,6 +2,8 @@
 
 Complete list of every valid `/cook` flag plus the detection signals `/review` uses to fingerprint a codebase. Generated from `vocab/tag-vocabulary.json` and `standards/*/refs/` at runtime — this file is a snapshot; the vocab and disk are the source of truth.
 
+**Test runner, mechanical runner, and security scanner detection tables** (used by review Step 2 fingerprint) live in `../shared/refs/tooling-detection.md`. That file is the single source of truth for `test_runner`, `mechanical_runners[]`, and `security_scanners[]` / `secret_scanner`.
+
 ---
 
 ## Domain detection (review Step 2 fingerprint)
@@ -21,90 +23,6 @@ Run checks in parallel. Populate `active_domains[]` from signals found:
 | `@supabase/supabase-js` or `supabase` in `package.json` deps | Supabase |
 
 Domains not detected produce no domain flags. `active_domains[]` is set once and never re-derived mid-run.
-
----
-
-## Test runner detection (review Step 2 fingerprint)
-
-Run checks in the order listed; use the **first match**. Populate `test_runner` with the structured object below.
-
-| Priority | Signal | Runner | Scoped command | Coverage output path |
-|----------|--------|--------|---------------|----------------------|
-| 1 | `vitest` in `devDependencies` or `vitest.config.*` found (maxdepth 3) | Vitest | `npx vitest run --coverage <files>` | `coverage/coverage-summary.json` |
-| 2 | `jest` in `devDependencies` or `jest.config.*` found (maxdepth 3) | Jest | `npx jest --coverage --testPathPattern=<files>` | `coverage/coverage-summary.json` |
-| 3 | `mocha` in `devDependencies` or `.mocharc.*` found (maxdepth 3) | Mocha | `npx nyc npx mocha <files>` | `.nyc_output/coverage-summary.json` |
-| 4 | `pytest` in `requirements*.txt` or `pyproject.toml` has `[tool.pytest]` | pytest | `pytest --cov=<files> --cov-report=json` | `coverage.json` |
-| 5 | `pubspec.yaml` found (maxdepth 2) | Dart/Flutter | `flutter test <file>` | stdout parse |
-
-**CI workflow override** — after the table match, check `.github/workflows/*.yml` (and `.gitlab-ci.yml` if present) for lines containing `npm run test` or `npm run test:*`. If found, extract the script name (e.g. `test:unit`) and substitute it as the command: `npm run test:unit -- --coverage`. CI commands take precedence over the table command for the matched runner.
-
-**`test_runner` object shape:**
-```json
-{
-  "name": "<runner name>",
-  "command": "<full scoped command — <files> replaced at runtime with space-separated changed file paths>",
-  "coverage_output": "<relative path to coverage JSON>",
-  "ci_override": true | false
-}
-```
-
-If no signal matches, set `test_runner` to `null`.
-
----
-
-## Mechanical runner detection (review Step 2 fingerprint)
-
-Run checks in parallel across the four sub-tables below. Populate `mechanical_runners[]` with one object per detected runner; populate `secret_scanner` with the first secret-scanner match (gitleaks preferred over trufflehog) or `null` if none detected.
-
-**Runner entry shape:**
-```json
-{
-  "name": "<runner name>",
-  "command": "<command with <files> placeholder>",
-  "expects_zero_exit": true,
-  "severity_on_fail": "warn" | "block"
-}
-```
-
-`<files>` is replaced at runtime by Quality mode Stage 0 with the space-separated diff file list (filtered to files the runner can process — e.g. `.ts`/`.tsx` for `eslint`). `secret_scanner` follows the same shape; Security mode Stage 0 replaces `<files>` with the diff list by default, or omits the placeholder for a full-tree scan when `--full-secret-scan` is set.
-
-A runner is **configured** if its config signal is present (e.g. `eslint.config.*` exists) but **not executable** if the command would fail with `command not found` or `cannot find module`. Quality mode Stage 0 treats configured-but-not-executable as a `block` with source prefix `env:`.
-
-### JS/TS runners
-
-| Signal | Runner | Command | Severity on fail |
-|--------|--------|---------|------------------|
-| `eslint.config.*` or `.eslintrc.*` found (maxdepth 3) | eslint | `npx eslint <files>` | `warn` |
-| `.prettierrc*` or `prettier.config.*` found (maxdepth 3), or `prettier` in `devDependencies` | prettier | `npx prettier --check <files>` | `warn` |
-| `tsconfig.json` found (maxdepth 3) | tsc | `npx tsc --noEmit` | `block` |
-
-### Python runners
-
-| Signal | Runner | Command | Severity on fail |
-|--------|--------|---------|------------------|
-| `pyproject.toml` has `[tool.ruff]`, or `ruff.toml` found, or `.ruff.toml` found | ruff | `ruff check <files>` | `warn` |
-| `pyproject.toml` has `[tool.black]`, or `black` in `requirements*.txt` | black | `black --check <files>` | `warn` |
-| `pyproject.toml` has `[tool.mypy]`, or `mypy.ini` found, or `mypy` in `requirements*.txt` | mypy | `mypy <files>` | `block` |
-
-### Dart/Flutter runners
-
-| Signal | Runner | Command | Severity on fail |
-|--------|--------|---------|------------------|
-| `pubspec.yaml` found (maxdepth 2) and `analysis_options.yaml` present | dart analyze | `dart analyze <files>` | `block` |
-| `pubspec.yaml` found (maxdepth 2) | dart format | `dart format --output=none --set-exit-if-changed <files>` | `warn` |
-
-`dart analyze` is treated as a typecheck-equivalent (severity `block`) — Dart's static analyzer subsumes the type-checking that `tsc`/`mypy` cover in other ecosystems.
-
-### Secret scanners
-
-Probe in priority order; the first match populates `secret_scanner`. If no scanner is found, `secret_scanner` is `null` and Security mode Stage 0 emits a `warn` finding rather than blocking.
-
-| Priority | Signal | Scanner | Command (diff) | Command (full tree, `--full-secret-scan`) |
-|----------|--------|---------|----------------|---------------------------------------------|
-| 1 | `gitleaks` on `$PATH` (`command -v gitleaks`) | gitleaks | `gitleaks detect --no-git --source=<files>` | `gitleaks detect` |
-| 2 | `trufflehog` on `$PATH` (`command -v trufflehog`) | trufflehog | `trufflehog filesystem --no-update --json <files>` | `trufflehog filesystem --no-update --json .` |
-
-Secret-scanner severity on any hit is always `block`. Detection layer is runner-agnostic: adding a new ecosystem (e.g. Rust's `cargo clippy`, Go's `golangci-lint`) is a table edit, not a protocol change.
 
 ---
 
