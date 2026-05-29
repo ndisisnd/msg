@@ -67,7 +67,6 @@ allowed_tools:
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, written and updated by subagents | `<cwd>/CHANGELOG.md` |
 | features/ | Empty directory | `<cwd>/features/` |
-| .skillsrc | YAML for agent-skills-standard (conditional on framework detection) | `<cwd>/.skillsrc` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
 
 ## Progress emission
@@ -118,18 +117,6 @@ CONVENTIONS="<Q4 answer>" \
 
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
 
-**Coding standards install**
-
-After `init.sh` exits 0, run:
-
-```
-LANGUAGE="<Q2b answer>" \
-PLATFORM="<Q2 answer>" \
-<skill_dir>/install-standards.sh "<cwd>"
-```
-
-The script: checks npm is available (installs via nvm / Homebrew / apt if not), derives the framework key from LANGUAGE + PLATFORM, writes `.skillsrc`, and runs `agent-skills-standard sync --yes`. It exits 0 with a skip message if the language has no mapping or `.skillsrc` already exists.
-
 **Step 4/5 — Verify**
 
 `init.sh` exits non-zero and marks failures in the manifest if any write fails. If the script exits non-zero, surface its stderr and stop. Do not retry — the user re-runs or fixes manually.
@@ -146,7 +133,6 @@ Do not invoke another skill. The next slash command is the user's choice.
 
 - `init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`
 - `init.sh` — deterministic template writer; called at Step 3 with interview answers as env vars
-- `install-standards.sh` — checks/installs npm, maps LANGUAGE → ags_framework, writes `.skillsrc`, runs `agent-skills-standard sync --yes`; called at Step 3 after `init.sh`
 - `refs/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/template-README.md` — template for README.md (project placeholder)
