@@ -30,7 +30,7 @@ Read the invocation flag and load exactly one mode protocol:
 Exactly one mode flag must be present. If zero or more than one is given, emit:
 
 ```
-Hard failure: exactly one mode flag required (--plan | --build | --review). Got: <list>.
+Hard failure: exactly one mode flag required (--plan | --build). Got: <list>.
 ```
 
 Stop. Otherwise read the active mode file **fully** before any other step. It defines the mode-specific input rules, the summary content, the work steps, and the output contract. The numbered steps below are the shared spine — they run for every mode and point to the active mode file where the path diverges.
@@ -43,7 +43,7 @@ All modes require three fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
-| mode flag | `--plan`, `--build`, or `--review` |
+| mode flag | `--plan` or  `--build` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
 | `rows` | Space-separated `Feature:Concern` identifiers assigned to this invocation |
 

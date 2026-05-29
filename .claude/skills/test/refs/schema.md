@@ -5,21 +5,27 @@
 ```json
 {
   "verdict": "pass" | "pass_with_warnings" | "fail" | "refused",
+  "parallel": true | false,
   "prd": "<path>" | null,
   "eval_set_path": "<path to eval_set.json consumed>" | null,
   "buckets": {
     "unit":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
     "e2e":        { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
-    "functional": { "verdict": "...", "evaluated": 0,  "findings": [] }
+    "functional": { "verdict": "...", "evaluated": 0,  "findings": [] },
+    "qa":         { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
+    "load":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
+    "a11y":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] },
+    "perf":       { "verdict": "...", "runner": "...", "totals": {}, "findings": [] }
   }
 }
 ```
 
-Skipped buckets (runner not detected, eval_set empty, or user-skipped) are **omitted** from the `buckets` object.
+Skipped buckets (runner not detected, eval_set empty, mode-flag-excluded, or user-skipped) are **omitted** from the `buckets` object.
 
 ### Top-level fields
 
 - `verdict` — overall verdict across all completed buckets.
+- `parallel` — `true` if `--fast` was used, `false` otherwise.
 - `prd` — path to the PRD used for eval_set bootstrap, or `null` if not applicable.
 - `eval_set_path` — path to the `eval_set.json` consumed (from `--eval-set` flag or `null`).
 
@@ -43,7 +49,7 @@ Every finding produced by any bucket conforms to:
 }
 ```
 
-`evidence` is bucket-specific: populated by E2E (screenshots/traces) and Functional (script output files); omitted or `null` for Unit.
+`evidence` is bucket-specific: populated by E2E (screenshots/traces), Functional (script output files), QA (diff images, baseline vs actual screenshots), and A11y (page screenshot at time of audit); omitted or `null` for Unit, Load, and Perf (Perf uses `repro` to link to the Lighthouse HTML report instead).
 
 ---
 
