@@ -105,6 +105,10 @@ Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue witho
 
 Order: **Quality → Coverage → Functional → Security → Performance**. For each mode: spawn all `/cook --<flag>` sub-agents in parallel; wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). On any `block`: stop pipeline immediately, skip remaining modes, go to Step 7. Mode details: `refs/modes/<mode>.md`.
 
+**Quality-mode only:** Before spawning Quality sub-agents, append the rubric amendment from `refs/modes/quality.md#sub-agent-prompt-amendment` to each agent's prompt. Also pass `uncovered_changes[]` (from Step 4) as an additional input to every Quality sub-agent. No other mode receives the rubric amendment or `uncovered_changes[]`.
+
+**Post-collection dedup (all modes):** After collecting all sub-agent outputs for a mode, apply a deduplication pass: collapse findings sharing `(file, line, category)` into a single entry, keeping the one with the highest severity (`block` > `warn` > `info`). Concatenate distinct `source` values from collapsed findings into a comma-separated string on the surviving finding (e.g. `"--api-design,--architecture"`).
+
 ### Step 7/7 — Aggregate and emit
 
 Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = worst across completed modes (`block` > `warn` > `pass`). Emit JSON to stdout. If PRD known, also write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json`. Omit unrun modes from output.
@@ -113,7 +117,7 @@ Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = wors
 
 - `refs/FLAG-LIST.md` — domain & test-runner detection signals + authoritative `/cook` flag inventory (single source of truth for Step 2 fingerprint and Step 4 flag validation)
 - `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics
-- `refs/modes/quality.md` — Quality mode: flags and what it checks
+- `refs/modes/quality.md` — Quality mode: flags, orchestrator rubric (extends `/cook`'s flag coverage with orchestrator-owned checks), and sub-agent prompt amendment
 - `refs/modes/coverage.md` — Coverage mode: test-runner protocol
 - `refs/modes/functional.md` — Functional mode: eval-set assertion protocol
 - `refs/modes/security.md` — Security mode: flags and what it checks

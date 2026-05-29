@@ -10,10 +10,47 @@ Global (always): `--api-design`, `--architecture`, `--error-handling`, `--debug`
 
 Domain flags: all active domains from `active_domains[]` that are touched by the diff (see `refs/FLAG-LIST.md`). Use sub-ref flags when only part of a domain is in scope.
 
+## Orchestrator rubric
+
+Quality mode extends `/cook`'s flag coverage with five additional concerns that have no corresponding `/cook` flag:
+
+| Concern | Category tag |
+|---------|-------------|
+| Dead code | `"dead-code"` |
+| Duplicated logic / DRY violations | `"duplication"` |
+| Unclear naming | `"naming"` |
+| Excessive cyclomatic complexity | `"complexity"` |
+| Readability / maintainability regressions | `"readability"` |
+
+These checks are **Quality-mode only** — no other mode receives the rubric amendment below.
+
+## Sub-agent prompt amendment
+
+When Step 6 of `SKILL.md` spawns each Quality-mode `/cook --<flag>` sub-agent, the orchestrator appends the following clause verbatim to the agent's prompt:
+
+> In addition to your flag's standard checks, also flag any:
+> (a) dead code — unreachable, unused, or commented-out code blocks;
+> (b) duplicated logic / DRY violations — repeated logic that could be extracted;
+> (c) unclear naming — identifiers that obscure intent;
+> (d) excessive cyclomatic complexity — functions with deeply nested or branching control flow;
+> (e) readability / maintainability regressions — changes that make the code harder to reason about.
+>
+> Tag each such finding with a `category` field matching one of: `"dead-code"`, `"duplication"`, `"naming"`, `"complexity"`, `"readability"`.
+>
+> Additionally, for every entry in `uncovered_changes[]` provided as input, emit a `warn`-severity finding with:
+> - `category: "scope-creep"`
+> - `suggestion`: recommend either removing the change or extending the PRD to cover it.
+>
+> Every finding you emit **must** include a `category` field.
+
 ## Execution
 
-Spawn one `/cook --<flag>` Agent per flag in parallel. Each agent receives:
+**Inputs per sub-agent:**
 - The resolved diff
 - The subset of changed files that touch its domain
+- The rubric amendment above (Quality-mode only)
+- `uncovered_changes[]` — files or descriptions from Step 4 that fall outside the PRD's scope
+
+Spawn one `/cook --<flag>` Agent per flag in parallel, each receiving the inputs above.
 
 Collect `{ verdict, findings[] }` from each. Aggregate: mode verdict = worst across all agents.

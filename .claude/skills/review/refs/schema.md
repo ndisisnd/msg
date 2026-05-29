@@ -17,6 +17,7 @@ Each `/cook --<flag>` sub-agent called by `/review` must conform to:
       "line": <number>,
       "rule": "<rule-id>",
       "severity": "block" | "warn" | "info",
+      "category": "<category>",
       "message": "<description>",
       "suggestion": "<actionable fix>"
     }
@@ -25,6 +26,16 @@ Each `/cook --<flag>` sub-agent called by `/review` must conform to:
 ```
 
 `source` identifies the `/cook --<flag>` agent that produced the finding. `/review` reads this object mechanically — it does not parse free-form text.
+
+`category` is **required** on every finding. Recommended enum:
+`"contract"`, `"architecture"`, `"error-handling"`, `"debug"`, `"dead-code"`, `"duplication"`, `"readability"`, `"naming"`, `"complexity"`, `"scope-creep"`, `"security"`, `"performance"`, `"other"`.
+
+### Orchestrator dedup pass
+
+After collecting all sub-agent outputs for a mode, `/review` applies a deduplication pass before aggregating verdicts. Findings sharing `(file, line, category)` are collapsed into a single entry:
+- **Severity:** keep the highest (`block` > `warn` > `info`).
+- **Source:** concatenate distinct `source` values into a comma-separated string on the surviving finding (e.g. `"--api-design,--architecture"`).
+- All other fields are taken from the highest-severity entry.
 
 ---
 
