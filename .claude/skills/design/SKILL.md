@@ -63,7 +63,7 @@ Emit `Step X/8 — <title>` at the start of each step, unconditionally.
 ## Step-by-step protocol
 
 **Step 1/8 — Interpret invocation**
-Read the invocation. If it carries `--reset`, delete `refs/ux-style-cache.md` and stop — report that the style preference is cleared and will be re-asked next run. Otherwise parse `--creativity` (accept `:`, `=`, or space; default `medium`; unknown value → `medium` with a noted fallback). Produce the parsed run config: creativity level, reset flag.
+Read the invocation. If it carries `--reset`, delete `refs/ux-style-cache.md` and stop — report that the style preference is cleared and will be re-asked next run. Otherwise parse `--creativity` (accept `:`, `=`, or space; default `medium`; unknown value → `medium` with a noted fallback). Then preflight the Figma MCP: verify the server is connected before any user-facing work. If it is not connected, stop now with "Figma MCP not connected — connect it, then re-run `/design`". Do not start the interview without it. Produce the parsed run config: creativity level, reset flag, MCP-ready confirmation.
 
 **Step 2/8 — Ingest context layer**
 Read the PRD from the user message. Read session memory if a prior run exists and surface only the most recent relevant prior decisions. Load `refs/creativity-levels.md` and resolve the creativity level into concrete design parameters and the precedence order. Do not eager-load `refs/ux-laws.md` — keep it indexed and load a law's detail only once selected. Produce the loaded context set.
