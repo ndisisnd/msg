@@ -1,5 +1,6 @@
 # Changelog
 
+- Add ux-design skill with UX design planning, creativity tiers, and UX laws reference
 - Force reinstall of skills and scripts instead of skipping existing ones
 - Remove install-standards script and related setup documentation
 - Enhance installation script with next steps and GitHub repository update link
