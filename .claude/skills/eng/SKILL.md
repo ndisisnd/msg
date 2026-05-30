@@ -40,18 +40,19 @@ Stop. Otherwise read the active mode file **fully** before any other step. It de
 
 ## Step 1 — Input validation
 
-All modes require three fields. Hard-refuse if any is missing:
+All modes require four fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
 | mode flag | `--plan` or  `--build` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
-| `rows` | Space-separated `Feature:Concern` identifiers assigned to this invocation |
+| `rows` | Semicolon-separated exec-table Feature identifiers assigned to this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
+| `agent` | This invocation's agent identity (e.g. `backend-eng`) — the name in the exec-table **Agent** column for the assigned rows. Used to name the `## Engineering — <agent>` heading and to confirm each `rows` identifier is owned by this agent. |
 
 If any field is missing, emit:
 
 ```
-Hard failure: missing required field(s): <list>. Provide the mode flag, prd-path, and rows to continue.
+Hard failure: missing required field(s): <list>. Provide the mode flag, prd-path, rows, and agent to continue.
 ```
 
 Stop. Do not proceed. The active mode file may add mode-specific input rules — apply those too.
@@ -64,7 +65,7 @@ Eng derives all file paths from the codebase scan and exec-table. It does **not*
 
 Before producing any output, read the PRD, all devkit files, and all relevant codebase files in parallel — a single consolidated scan.
 
-**PRD + exec-table:** Read the full PRD at `prd-path`. Locate the Execution Table. Filter rows where the Feature:Concern pair matches the assigned `rows` list.
+**PRD + exec-table:** Read the full PRD at `prd-path`. Locate the Execution Table. Select rows whose **Feature** column text exactly matches one of the assigned `rows` identifiers. A `rows` identifier that matches no Feature cell is a hard failure — emit it and stop. For each selected row, confirm its **Agent** column equals the `agent` field; if a matched row is owned by a different agent, that is a hard failure — emit it and stop.
 
 **Devkit files** (read in parallel with PRD):
 
@@ -134,17 +135,14 @@ If more than 3 ambiguities exist, surface them as a numbered list and ask which 
 
 ## Step 4 — Pre-run (2 of 2): Pull coding standards via /cook
 
-Map the concern type of each assigned row to a platform identifier:
+`/cook` is keyword-driven — it matches a short task summary, not a single platform word. Build that summary from two sources:
 
-| Concern type | Platform |
-|-------------|---------|
-| iOS UI / Flutter / Client implementation (mobile) | `flutter` |
-| API contract / Schema migration / Webhook | `backend` |
-| Client implementation (web) | `web` |
+1. **Stack** — the concrete technology from `CLAUDE.md` and PRD §3 (e.g. `Flutter/Dart` for mobile, `React/Next.js web`, `Node backend`, `Supabase/Postgres`). Use the real stack, not a generic bucket.
+2. **Concerns** — the concern keywords from the assigned rows: `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, plus `tests` where a Tests row is owned.
 
-If rows span multiple platforms, derive a platform per row and pull standards for each.
+Invoke `/cook` once with a summary combining both (e.g. `Flutter/Dart mobile — component, tests` or `React/Next.js web — api endpoint, component, tests`). If rows span multiple stacks, send one summary per stack. Read each result fully before producing any output. Eng has no hardcoded standards — `/cook` is the sole source of coding standards and must always be called.
 
-Invoke `/cook` with the derived platform identifier. Read the result fully before producing any output. Eng has no hardcoded standards — `/cook` is the sole source of coding standards and must always be called.
+If `/cook` returns no coverage for a stack, do not substitute a different stack's standards. Surface the uncovered stack as a named gap (plan: §12 Findings; build: a warning in the build summary) and proceed using only `CLAUDE.md` and `devkit/ARCHITECTURE.md` conventions for that stack.
 
 ---
 
@@ -170,7 +168,6 @@ Throughout Steps 2–5, enforce strict scope:
 ## References
 
 - `refs/plan/protocol.md` — `--plan` mode: summary content, engineering section output contract, return-as-output rule.
-- `refs/plan/template-eng-plan.md` — plan-mode output format; §1–14 required sections, quality gates.
+- `refs/plan/template-eng-plan.md` — plan-mode output format; §1–13 required sections, quality gates.
 - `refs/build/protocol.md` — `--build` mode: branch, work steps, commit and PR contract.
 - `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.
-- `refs/review/protocol.md` — `--review` mode: protocol TBD (improvement plan 7.3-eng-review).

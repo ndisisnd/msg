@@ -60,11 +60,10 @@ Read each engineering section's integration contracts (§7 of the eng plan templ
 
 ### 5f — Eng plan completeness (quality gate audit)
 
-Check each engineering section against the quality gates in `refs/template-eng-plan.md` (Summary, Alternatives considered, Design decisions, PRD coverage, Phases, Integration contracts, Developer experience, Migration, Risks, Timeline, Open questions).
+Check each engineering section against the quality gates in `refs/template-eng-plan.md` (Summary, Alternatives considered, Design decisions, PRD coverage, Phases, Integration contracts, Developer experience, Migration, Risks, Open questions).
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
 | Summary present | §1 absent or does not name the target platform and shipping shape | Major |
 | Alternatives considered | §3 absent or writes `None.` without a sentence explaining why one approach is obviously correct | Minor |
 | At least three risks | §11 has fewer than three rows | Minor |
-| Timeline estimate | §13 absent or has no engineer-day estimate | Minor |

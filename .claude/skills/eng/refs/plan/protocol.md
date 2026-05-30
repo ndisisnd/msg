@@ -12,7 +12,7 @@ No fields beyond the shared three (`--plan`, `prd-path`, `rows`).
 
 **Example invocation:**
 ```
-/eng --plan prd-path=features/prd-4/prd-4.md rows="Streaks:Schema-migration Streaks:API-contract"
+/eng --plan prd-path=features/prd-4/prd-4.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract"
 ```
 
 No implementation files are written in this mode. Inline code snippets and pseudocode are permitted — and encouraged — to illustrate proposed changes within the plan document itself. Eng derives all file paths from the codebase scan and exec-table; it does **not** accept file paths as input.
@@ -50,6 +50,6 @@ Also fill in the **Execution steps** column for every row in the PRD's Execution
 
 Getting any identifier wrong is a hard failure — build agents execute against them directly and wrong names cause expensive rework. If the exact name cannot be confirmed from the codebase scan, mark it as a named gap in §12 (Findings), not a guess.
 
-**Return contract:** Write the complete engineering section directly to the PRD file at `prd-path`, appended under `## Engineering`. Do not create a separate output file. Emit a one-line confirmation after writing (e.g. `Written to features/prd-4/prd-4.md → ## Engineering`).
+**Return contract:** Write the complete engineering section directly to the PRD file at `prd-path`, appended under `## Engineering — <Agent Name>` (the agent identity for this invocation — the literal `— <Agent Name>` suffix is required; `plan-em` detects build mode by this heading). Do not create a separate output file. Emit a one-line confirmation after writing (e.g. `Written to features/prd-4/prd-4.md → ## Engineering — backend-eng`).
 
 Ambiguity that cannot be resolved from the PRD, exec-table, or codebase scan is surfaced as a named gap in §12 (Findings) — never resolved by assumption.

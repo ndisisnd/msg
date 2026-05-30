@@ -53,7 +53,7 @@ Document every meaningful approach that was evaluated and rejected. This is the 
 
 ### 4. Design decisions
 
-One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §15.
+One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §13.
 
 **Format per decision:**
 
@@ -204,16 +204,7 @@ Numbered findings. Each carries a severity and a required action. If `plan-em` r
 
 ---
 
-### 13. Cost and timeline
-
-Bullet list. State engineering days for this agent and a target ship date. Round up; reviewers prefer honest over-estimates.
-
-- **This agent:** N engineer-days
-- **Target ship date:** YYYY-MM-DD
-
----
-
-### 14. Open questions for human gate
+### 13. Open questions for human gate
 
 Numbered. Each question must be answerable with a single decision. Mark any design decisions from §4 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
 
@@ -235,6 +226,5 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 | Migration | §9 explicitly states whether breaking changes exist and names the rollback plan. |
 | Risks | At least three risks named, each with a mitigation. |
 | Findings | If PRD gaps exist, every finding has severity and action. |
-| Timeline | §13 has an engineer-day estimate for this agent. |
-| Open questions | Any OPEN design decision in §4 appears in §14. |
+| Open questions | Any OPEN design decision in §4 appears in §13. |
 | Exact identifiers | Every function name, table name, column name, migration filename, and API endpoint is verified against the codebase scan — no guessed or approximate names. Any name that cannot be confirmed is a gap in §12, not a placeholder. |

@@ -1,5 +1,6 @@
 # Changelog
 
+- Apply eval fixes to eng skill: row matching, agent field, branch locking, test gates
 - Remove handoff tracking files and add to .gitignore
 - Integrate design skill into msg routing, menu, and handoff; add Figma MCP preflight validation and post-merge evaluation plan
 - Add ux-design skill with UX design planning, creativity tiers, and UX laws reference

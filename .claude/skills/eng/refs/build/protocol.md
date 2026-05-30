@@ -16,7 +16,7 @@ Beyond the shared three (`--build`, `prd-path`, `rows`), build mode requires one
 
 **Example invocation:**
 ```
-/eng --build prd-path=features/prd-4/prd-4.md rows="Streaks:Schema-migration Streaks:API-contract" branch=feat/prd-4-habit-tracking
+/eng --build prd-path=features/prd-4/prd-4.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
 **Hard-refuse if `branch` is missing — check this before reading any file.** Emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight.
@@ -37,7 +37,7 @@ The 3–4 line summary covers:
 
 Use the PRD's `## Engineering — <Agent Name>` section as the sole specification. Do not re-interpret the PRD features section directly.
 
-1. **Create working sub-branch.** The `branch` field is the PR target. Derive a sub-branch name: `{branch}/{row-slug}` where `row-slug` is a lowercase hyphenated slug of the first assigned row (e.g., `feat/prd-4-habit-tracking/streaks-schema`). If the target branch does not exist, create it from `main` first. Check out the sub-branch and do all work there. Do not push until the commit step.
+1. **Create working sub-branch.** The `branch` field is the PR target and is created once by `plan-em` before any build agent starts — do **not** create it yourself (parallel build agents racing to create the same branch from `main` corrupts the tree). If `branch` does not exist, this is a hard failure: emit `Hard failure: target branch '<branch>' does not exist — plan-em must create it before build agents run` and stop. Derive a sub-branch name: `{branch}/{row-slug}` where `row-slug` is a lowercase hyphenated slug of the first assigned row (e.g., `feat/prd-4-habit-tracking/streaks-schema`). Cut the sub-branch from `branch`, check it out, and do all work there. Do not push until the commit step.
 2. **Read Execution steps.** For each assigned exec-table row, read the Execution steps column. If a cell is blank, surface it as a blocking gap via `AskUserQuestion` — do not proceed on that row until resolved.
 3. **Discover testing tools.** Before writing any test file, scan existing test files in the relevant feature area for:
    - Test runner and framework (e.g., `pytest`, `jest`, `go test`, `flutter_test`)
@@ -50,7 +50,7 @@ Use the PRD's `## Engineering — <Agent Name>` section as the sole specificatio
 
 4. **Execute rows in TDD order.** Rows with `blocked by:` annotations must wait for the named dependency. Within unblocked rows, process by feature group. For each group, complete all four phases before moving to the next group:
 
-   **a. Write tests.** For each Tests concern row in this group, create the test file using the conventions and tooling discovered in step 3. Write syntactically valid, runnable assertions derived from the Execution steps. No `TODO` placeholders. Tests must compile or parse without errors. Do not write tests for rows without a Tests entry in the exec-table — a missing Tests row is a planner gap, not eng's to fill.
+   **a. Write tests.** For each Tests concern row in this group, create the test file using the conventions and tooling discovered in step 3. Write syntactically valid, runnable assertions derived from the Execution steps. No `TODO` placeholders. Tests must compile or parse without errors. Do not write tests for rows without a Tests entry in the exec-table — a missing Tests row is a planner gap, not eng's to fill. **If a feature group owns implementation rows but no Tests row, do not silently ship it untested:** emit a visible warning (`⚠ No Tests row for group '<feature>' — shipping implementation without coverage`), record it in the build summary's Blocked/Notes and in `devkit/AHA.md`, then proceed.
 
    **b. Verify red.** Run only the test files just written. Confirm they fail with assertion failures — not compile errors or import errors. If a test errors instead of fails, fix the setup until it fails cleanly on a real assertion. A test that errors is not a red test; do not proceed to implementation until this is resolved.
 
@@ -58,8 +58,10 @@ Use the PRD's `## Engineering — <Agent Name>` section as the sole specificatio
 
    **d. Verify green.** Re-run the test files for this group. If all pass, continue to the next feature group. If any fail, enter Debug mode (see below). Do not move to the next feature group until this group's tests are green.
 
-5. **Commit.** After all feature groups are green, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`).
-6. **Open PR.** When all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`. Link the PRD path in the PR description. Do not open a PR against `main`.
+5. **Full-suite gate.** After all feature groups are green, run the project's **full** test suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). The per-group runs only covered the files this agent wrote; this catches breakage in sibling code. Any new failure introduced by this agent's changes goes to Debug mode (max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed (out of scope). If the project has no test or lint command, state that in the build summary and continue.
+6. **Confirm before commit.** Emit a one-line change summary (files touched, tests added, full-suite result) and ask via `AskUserQuestion` whether to commit and open the PR. Proceed only on an explicit "Yes". This is the single human gate between writing code and publishing it.
+7. **Commit.** On approval, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`).
+8. **Open PR.** When all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`. Link the PRD path in the PR description. Do not open a PR against `main`.
 
 ---
 
@@ -70,7 +72,7 @@ Activates when: tests fail at the verify-green phase (step 4d), or code produces
 Run the following cycle per failing issue. Apply one change per cycle. Max 3 cycles per issue.
 
 1. **Identify** — record the exact failing assertion or error message.
-2. **Isolate** — read only the failing test file and its implementation counterpart. Nothing else.
+2. **Isolate** — read the failing test file, its implementation counterpart, and any shared helper, fixture, or module they directly import that the failure points at. Follow the failure, not the whole codebase — do not browse unrelated files.
 3. **Hypothesize** — write one specific root-cause sentence.
 4. **Fix** — make one targeted change within the failing row's scope only. No refactors outside it.
 5. **Verify** — re-run the test or build step.
@@ -93,7 +95,7 @@ Mark the affected row's Tests column as `❌ Escalated` in the build summary.
 
 ## AHA.md
 
-Throughout the build, append to `AHA.md` in the project root when any of the following occur:
+Throughout the build, append to `devkit/AHA.md` (the same file pre-flight reads, so learnings resurface in future plan runs) when any of the following occur:
 
 - Codebase scan reveals a pattern not in the pulled coding standards.
 - An execution step cannot be implemented as written.
@@ -110,7 +112,7 @@ Throughout the build, append to `AHA.md` in the project root when any of the fol
 **Resolution**: <what was done, or "unresolved — see debug escalation">
 ```
 
-AHA.md is append-only. Never overwrite existing entries. Reference any AHA entries written during the run in the build summary.
+`devkit/AHA.md` is append-only. Never overwrite existing entries. Reference any AHA entries written during the run in the build summary.
 
 ---
 
@@ -129,8 +131,10 @@ Emit a build summary after all rows are complete:
 **PR:** <link>
 **Branch:** <working sub-branch name>
 **Target:** <feature branch (branch field value)>
+**Full-suite gate:** <pass / fail summary, or "no test/lint command">
+**Warnings:** <e.g. groups shipped without a Tests row, uncovered stacks from /cook, or "None">
 **Blocked rows:** <list any rows not completed and why>
-**AHA entries:** <list any entries written to AHA.md, or "None">
+**AHA entries:** <list any entries written to devkit/AHA.md, or "None">
 ```
 
 **Constraints:**

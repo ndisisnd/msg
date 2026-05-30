@@ -198,17 +198,19 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
-4. `rows`: the space-separated `Feature:Concern` exec-table identifiers assigned to this agent
+4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
+5. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
 
 Each agent writes its engineering section directly to the PRD file. Emit a short progress note as each agent completes.
 
-**Build mode (`$MODE = build`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
+**Build mode (`$MODE = build`):** First, create the feature branch **once**: if `feat/prd-[n]-<short-name>` does not exist, cut it from `main` and push it. Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
 
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--build`
 3. `prd-path`: the PRD file path (with engineering sections already appended)
-4. `rows`: the space-separated `Feature:Concern` exec-table identifiers assigned to this agent
-5. `branch`: `feat/prd-[n]-<short-name>` (the feature branch derived in plan mode)
+4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
+5. `branch`: `feat/prd-[n]-<short-name>` (the feature branch derived in plan mode, created above)
+6. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
 
 Emit a short progress note as each agent completes.
 
