@@ -1,5 +1,6 @@
 # Changelog
 
+- Remove handoff tracking files and add to .gitignore
 - Integrate design skill into msg routing, menu, and handoff; add Figma MCP preflight validation and post-merge evaluation plan
 - Add ux-design skill with UX design planning, creativity tiers, and UX laws reference
 - Force reinstall of skills and scripts instead of skipping existing ones

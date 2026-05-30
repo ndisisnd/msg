@@ -23,3 +23,4 @@ settings.local.json
 plans/
 features/
 eval-msg-workflow*
+handoff/
