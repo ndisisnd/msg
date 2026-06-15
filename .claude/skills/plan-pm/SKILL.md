@@ -110,7 +110,13 @@ Run the structured interview defined in `refs/protocol-interview.md`. Platform i
 
 **Part 1 — Pre-flight run**
 
-Run `bash .claude/scripts/scan-n.prd prd` to get the next PRD number. Store the output as `n`. Store the platform detected in Step 3's interview protocol as `platform`.
+Run the next-PRD-number resolver to get the next PRD number — it ships with this skill in the global scripts dir, so resolve it there when the current project has no vendored copy:
+
+```bash
+S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd"; bash "$S" prd
+```
+
+Store the output as `n`. Store the platform detected in Step 3's interview protocol as `platform`.
 
 **Part 2 — Initialize template**
 

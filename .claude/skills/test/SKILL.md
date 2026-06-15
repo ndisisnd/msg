@@ -74,7 +74,7 @@ Schema and verdict semantics: `refs/schema.md`.
 Invoke the deterministic detector — do NOT walk priority tables by hand:
 
 ```bash
-.claude/scripts/test-tooling-detect.sh
+S=.claude/scripts/test-tooling-detect.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/test-tooling-detect.sh"; "$S"
 ```
 
 The script emits a single JSON object to stdout with these keys, each either an object or `null`:
@@ -162,7 +162,8 @@ Do NOT compute the overall verdict or hand-merge the bucket JSON. Throughout Ste
 Then invoke the aggregator:
 
 ```bash
-.claude/scripts/test-aggregate-verdict.sh \
+S=.claude/scripts/test-aggregate-verdict.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/test-aggregate-verdict.sh"
+"$S" \
   --run-dir /tmp/test-<runid> \
   [--prd <path>] \
   [--eval-set <path>] \

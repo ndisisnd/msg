@@ -94,7 +94,11 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 **Run pre-flight:**
 
-Run `.claude/scripts/plan-tune-preflight.sh` via Bash, passing any path hint supplied at invocation as the first argument (omit the argument if no path was given).
+Run the pre-flight script via Bash, passing any path hint supplied at invocation as the first argument (omit the argument if no path was given). The script ships with this skill in the global scripts dir, so resolve it there when the current project has no vendored copy — never assume the CWD contains it:
+
+```bash
+S=.claude/scripts/plan-tune-preflight.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-preflight.sh"; "$S" "<path-hint>"   # drop the "<path-hint>" argument if none was given
+```
 
 Parse the `KEY=VALUE` output lines. Handle by `ERROR` value:
 
