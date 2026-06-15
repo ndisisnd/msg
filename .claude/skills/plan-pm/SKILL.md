@@ -2,7 +2,7 @@
 name: plan-pm
 description: >
   Principal PM skill. Interviews the user via AskUserQuestion (5 questions),
-  then produces a structured PRD saved to features/prd-[n]/prd-[n].md.
+  then produces a structured PRD saved to features/prd-[n]-[feature-slug]/prd-[n]-[feature-slug].md.
   Default entry point for the product ship workflow. Refuses requests that
   would skip the PRD stage. Automatically detects large epics and offers to
   split them into multiple sequential PRDs, completing all before terminating.
@@ -118,16 +118,18 @@ S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd
 
 Store the output as `n`. Store the platform detected in Step 3's interview protocol as `platform`.
 
+Derive `feature_slug`: a kebab-case, max-6-word label for the feature from Q1. Use only lowercase letters and hyphens. Example: `cosmetic-ui-fixes`, `user-auth-flow`.
+
 **Part 2 — Initialize template**
 
-Create `features/` if absent. Create `features/prd-[n]/`.
+Create `features/` if absent. Create `features/prd-[n]-[feature_slug]/`.
 
-Write `features/prd-[n]/prd-[n].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
-- `name`: `prd-[n]`
+Write `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
+- `name`: `prd-[n]-[feature_slug]`
 - `feature`: short feature name from Q1
 - `module`: primary module or domain inferred from Q1 answers (e.g., `auth`, `payments`, `notifications`, `onboarding`). Use one lowercase word or hyphenated phrase. If ambiguous, use the broadest domain name that covers the feature.
-- `affects`: list of prior PRD IDs classified as **Affects** in Step 2 (e.g., `[prd-1, prd-3]`). Empty list `[]` if none.
-- `depends_on`: list of prior PRD IDs classified as **Dependency** in Step 2 (e.g., `[prd-2]`). Empty list `[]` if none.
+- `affects`: list of prior PRD IDs classified as **Affects** in Step 2 (e.g., `[prd-1-user-auth, prd-3-payment-flow]`). Empty list `[]` if none.
+- `depends_on`: list of prior PRD IDs classified as **Dependency** in Step 2 (e.g., `[prd-2-onboarding-flow]`). Empty list `[]` if none.
 - `platform`: `platform` stored in Part 1
 - `status`: `product`
 - `tuned`: `no`
@@ -139,7 +141,7 @@ All section bodies remain as placeholders. This initialized file is the artifact
 
 Read `refs/principles.md` first. Apply every principle throughout.
 
-Populate each section in `features/prd-[n]/prd-[n].md` from the interview answers:
+Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from the interview answers:
 
 | Section | Source |
 |---------|--------|
@@ -222,7 +224,7 @@ Followed by a summary table:
 
 | PRD | Feature | File |
 |-----|---------|------|
-| PRD-[n] | \<feature name\> | `features/prd-[n]/prd-[n].md` |
+| PRD-[n] | \<feature name\> | `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` |
 
 Then emit:
 

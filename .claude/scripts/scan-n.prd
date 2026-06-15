@@ -17,7 +17,8 @@ case "$mode" in
       [[ -d "$dir" ]] || continue
       n="${dir#features/prd-}"
       n="${n%/}"
-      [[ "$n" =~ ^[0-9]+$ ]] || continue
+      [[ "$n" =~ ^([0-9]+) ]] || continue
+      n="${BASH_REMATCH[1]}"
       (( n > max )) && max=$n
     done
     echo $(( max + 1 ))

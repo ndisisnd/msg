@@ -11,16 +11,24 @@ dist/
 # ── Logs & caches ─────────────────────────────────────────────────────────────
 *.log
 .cache/
+al-*.jsonl
+**/ux-style-cache.md
 
 # ── Runtime artefacts ─────────────────────────────────────────────────────────
 **/run/
 **/schemas.json
+.claude/scheduled_tasks.lock
 
 # ── Local config ──────────────────────────────────────────────────────────────
 settings.local.json
 
-# ── Working dirs (plans, features) ────────────────────────────────────────────
+# ── Working dirs (plans, features, evals) ─────────────────────────────────────
 plans/
 features/
+evals/
 eval-msg-workflow*
 handoff/
+.claude/skills/improve/done/
+.claude/skills/improve/archive/
+.claude/skills/improve/backlog/
+.claude/skills/**/*-plan.md

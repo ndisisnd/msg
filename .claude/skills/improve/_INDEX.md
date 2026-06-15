@@ -30,3 +30,4 @@ IDs are unique and monotonically increasing. IDs are not strictly sequential —
 | 16 | [functional-mode-rigor](done/16-functional-mode-rigor/plan.md) | Tighten `review` Functional mode: define pass/warn/block rubric, require evidence, handle N/A and negative assertions, kill self-derived tautologies. | Done |
 | 17 | [review-preflight-rigor](done/17-review-preflight-rigor/plan.md) | Fix three preflight defects in `/review`: eval-set sources, `main`-branch refusal, and flag source. | Done |
 | 18 | [complexity-detection](18-complexity-detection/plan.md) | Add complexity tier inference to `agent-plan` so output shape (refs, persona, diagram, sub-skills, nesting) is calibrated to skill complexity. | In-progress |
+| 19 | [plan-loop-modes](19-plan-loop-modes/plan.md) | Add --loop orchestration to plan-pm and eng --build, and post-completion AskUserQuestion prompts to plan-pm and plan-em in non-loop mode. | In-progress |

@@ -12,11 +12,11 @@ Populate every section. Do not delete a section — if a section does not apply,
 
 ```markdown
 ---
-name: prd-[n]
+name: prd-[n]-[feature_slug]
 feature: <short feature name>
 module: <primary module or domain this PRD touches, e.g. auth | payments | notifications>
-affects: []   # prd-[n] IDs whose scope this PRD overlaps or may break
-depends_on: []  # prd-[n] IDs that must ship before this one
+affects: []   # prd-[n]-[feature_slug] IDs whose scope this PRD overlaps or may break
+depends_on: []  # prd-[n]-[feature_slug] IDs that must ship before this one
 platform: <detected platform, e.g. mobile | web | backend>
 status: product
 tuned: no
@@ -33,7 +33,7 @@ created: YYYY-MM-DD
 Bulleted list of features or behaviors explicitly excluded. Each item has a one-line reason.
 
 **Worked example:**
-- Social sharing of streaks — covered in PRD-4 (separate workstream).
+- Social sharing of streaks — covered in PRD-4-social-sharing (separate workstream).
 - Backfill of historical habits — out of scope; users start from sign-up date.
 
 ### 2. Target platform
@@ -110,7 +110,7 @@ Format, rules, and examples: see `refs/template-error.md`.
 Bulleted list. Each item is a single unresolved question that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved AHA.md entries, any ambiguity surfaced during the interview.
 
 **Worked example:**
-- PRD-2 also handles streak resets — confirm which PRD owns the reset logic before building.
+- PRD-2-streak-tracking also handles streak resets — confirm which PRD owns the reset logic before building.
 - Target OS minimum not confirmed; assumed iOS 16.0+ pending design sign-off.
 
 ### 7. Glossary

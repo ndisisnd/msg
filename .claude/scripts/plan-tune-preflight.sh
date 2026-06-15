@@ -4,7 +4,7 @@
 # Outputs KEY=VALUE lines to stdout. Exit 0 = success; exit 1 = error.
 #
 # Success outputs:
-#   RESOLVED_PATH=features/prd-N/prd-N.md
+#   RESOLVED_PATH=features/prd-N-[slug]/prd-N-[slug].md
 #   PRD_N=N
 #   TUNE_SUGGESTION=product|eng
 #
@@ -25,15 +25,15 @@ resolved="${hint%/}"
 
 # Derive file path from directory or extensionless path
 if [[ -d "$resolved" ]] || [[ "$resolved" != *.md ]]; then
-  n=$(basename "$resolved" | grep -oE '[0-9]+$' || true)
-  if [[ -n "$n" ]]; then
-    resolved="${resolved}/prd-${n}.md"
+  base=$(basename "$resolved")
+  if [[ "$base" =~ ^prd-[0-9]+ ]]; then
+    resolved="${resolved}/${base}.md"
   fi
 fi
 
-# Validate pattern: features/prd-N/prd-N.md with matching N
-if [[ ! "$resolved" =~ features/prd-([0-9]+)/prd-([0-9]+)\.md$ ]] || \
-   [[ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[2]}" ]]; then
+# Validate pattern: features/prd-N[-slug]/prd-N[-slug].md with matching N
+if [[ ! "$resolved" =~ features/prd-([0-9]+)(-[^/]*)?/prd-([0-9]+)(-[^/]*)?\.md$ ]] || \
+   [[ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[3]}" ]]; then
   echo "ERROR=invalid_pattern"
   echo "RESOLVED_PATH=$resolved"
   exit 1
