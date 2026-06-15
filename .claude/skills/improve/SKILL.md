@@ -6,6 +6,7 @@ description: >
   criteria to improve/[n]-[feature-type]/. Invoke with /improve <description>.
 model: claude-sonnet-4-6
 allowed_tools:
+  - Agent
   - AskUserQuestion
   - Bash
   - Read
@@ -18,6 +19,63 @@ allowed_tools:
 ## Usage
 
 **Invoke**: `/improve <description of what to improve>`. When invoked without a description, prompts the user to select one of three intents: improve an existing skill or workflow, create a new agent (full design flow via `/agent-plan` if available, or lightweight inline plan), or describe something that feels broken.
+
+**`--review` flag**: `/improve --review <plan>` — runs an adversarial Opus review against an existing plan instead of creating a new one. See **--review mode** below.
+
+## --review mode
+
+When invoked as `/improve --review <plan>` (or `/improve --review` with no plan), skip Steps 1–7 entirely and run the adversarial review protocol below using Opus.
+
+**Step R1 — Resolve plan path**
+
+`<plan>` may be:
+- A plan number (`19`) — find the matching row in `_INDEX.md` and extract the link path.
+- A plan slug (`19-plan-loop-modes`) — match against `_INDEX.md` by slug.
+- A full path (`.claude/skills/improve/19-plan-loop-modes/`) — use directly.
+- Omitted — call `AskUserQuestion`: header `"Plan"`, question `"Which plan should I review?"`, options built from the `In-progress` rows in `_INDEX.md` (up to 4); add `"Other (enter path)"` if there are more.
+
+Read `plan.md` and `acceptance.md` from the resolved path. If either file is missing, emit an error and stop.
+
+**Step R2 — Adversarial review via Opus**
+
+Read `.claude/skills/improve/refs/review-protocol.md`.
+
+Spawn an `Agent` with `model: "opus"` and this prompt:
+
+```
+<protocol>
+[full text of review-protocol.md]
+</protocol>
+
+<plan>
+[full text of plan.md]
+</plan>
+
+<acceptance>
+[full text of acceptance.md]
+</acceptance>
+
+Review the plan and acceptance criteria above following the protocol. Output your findings exactly as the protocol specifies.
+```
+
+**Step R3 — Emit findings inline**
+
+Display the Opus agent's output exactly as returned. Do not paraphrase or trim it.
+
+**Step R4 — Human gate**
+
+Call `AskUserQuestion` with header `"Next step"`, question `"What would you like to do with these findings?"`, `multiSelect: false`, options:
+- `{ label: "Revise plan", description: "Edit plan.md to address findings, then re-run the review" }`
+- `{ label: "Revise acceptance", description: "Edit acceptance.md to address findings, then re-run the review" }`
+- `{ label: "Revise both", description: "Edit both files, then re-run the review" }`
+- `{ label: "Done", description: "No changes needed — finish here" }`
+
+If the user selects **Revise plan**: ask what to change, read `plan.md`, apply edits in place, then return to Step R2.
+If the user selects **Revise acceptance**: ask what to change, read `acceptance.md`, apply edits in place, then return to Step R2.
+If the user selects **Revise both**: ask what to change for each file, apply edits to both, then return to Step R2.
+If the user selects **Done**: emit `"Review complete."` and stop.
+
+---
 
 ## Protocol
 
@@ -83,4 +141,4 @@ Emit `$OUT` as a markdown link.
 
 Call `AskUserQuestion` with a `questions` array: `header: "Next step"`, `question: "What would you like to do next?"`, `multiSelect: false`, `options`:
 - **Revise** — ask what to change, then read and edit `$OUT/plan.md` and `$OUT/acceptance.md` in place. Update the corresponding `_INDEX.md` row if the description changed. Re-emit Step 7.
-- **Done** — emit exactly: "Plan and acceptance criteria emitted. Please double-check the plan or run another agent to do an adversarial review."
+- **Done** — emit exactly: "Plan and acceptance criteria emitted. Run `/improve --review <n>` to run an adversarial Opus review against this plan."

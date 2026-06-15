@@ -224,12 +224,7 @@ Engineers should cut this branch from `main` before starting work.
 
 ---
 
-**Step 5/5 — Prompt for the eng tune and Synthesise**
-
-After all sections are appended and the PRD is saved, ask the user via `AskUserQuestion`:
-
-- **Run eng tune** — emit the handoff message: "Run `/plan-tune features/prd-[n]/prd-[n].md --eng` to tune the engineering output." Then stop.
-- **Skip eng tune** — proceed directly to synthesis.
+**Step 5/5 — Synthesise and next steps**
 
 **Synthesise:**
 
@@ -250,6 +245,22 @@ If Critical findings exist, present them via `AskUserQuestion` and resolve befor
    ```
 
    Example: `feat/prd-3-habit-tracking`. This is the branch engineers should cut from `main` before starting work.
+
+**`--from-loop` suppression:** If plan-em was invoked with `--from-loop`, terminate after synthesis. The loop orchestrator controls what happens next.
+
+**Standard mode (no `--from-loop`):** After synthesis, ask via `AskUserQuestion` (single-select):
+
+> What would you like to do next?
+
+Options:
+- **Run plan-tune (eng mode)** — run `plan-tune --eng` on this PRD
+- **Run eng --build** — begin the build phase using this PRD
+- **Skip** — terminate plan-em with no further action
+
+Based on the user's selection:
+- **Run plan-tune (eng mode)** → invoke `Skill("plan-tune", "<prd-path> --eng")` where `<prd-path>` is the resolved PRD path from Step 1. Do not terminate until plan-tune completes.
+- **Run eng --build** → invoke `Skill("plan-em", "<prd-path>")`. Since engineering sections are now present in the PRD, plan-em will automatically detect `$MODE = build` in Step 4 and activate build agents.
+- **Skip** → terminate plan-em immediately with no further action.
 
 Final state: the PRD contains all engineering sections, the synthesis is visible to the user, no Critical findings are unresolved, and the suggested branch is emitted.
 

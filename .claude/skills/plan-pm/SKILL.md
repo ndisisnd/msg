@@ -11,6 +11,7 @@ allowed_tools:
   - AskUserQuestion
   - Bash
   - Read
+  - Skill
   - Write
 ---
 
@@ -71,6 +72,11 @@ After confirming the brief, assess whether the idea is a large epic warranting m
 - Scope spans multiple system layers that would each require a separate eng sprint
 
 If epic detected:
+
+**`--loop` rejection:** If `--loop` is active, immediately emit:
+> "Loop mode is not supported in multi-PRD mode — run `plan-pm` without `--loop`."
+Terminate. Produce no PRD.
+
 1. Derive a breakdown of 2–5 sub-features, each mappable to a standalone PRD.
 2. Emit a breakdown table inline:
 
@@ -201,16 +207,21 @@ After all questions have been presented (answered or skipped), proceed to the ne
 
 **Next-step prompt — single-PRD mode only**
 
+If `--loop` is active, skip this prompt entirely. The loop orchestrator (see `## Loop mode`) controls flow for the rest of the cycle.
+
 Ask via `AskUserQuestion` (single-select):
 
 > What would you like to do next?
 
 Options:
-- Tune the plan — run `/plan-tune` on this PRD
-- Plan the eng execution — run `/plan-em` on this PRD
+- Tune the plan — run `plan-tune --product` on this PRD
+- Plan the eng execution — run `plan-em` on this PRD
 - Terminate the session
 
-Do not invoke another skill. The user's selection ends this run.
+Based on the user's selection:
+- **Tune the plan** → invoke `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product")`. Do not terminate until plan-tune completes.
+- **Plan the eng execution** → invoke `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md")`. Do not terminate until plan-em completes.
+- **Terminate the session** → terminate immediately with no further action.
 
 ## Multi-PRD final summary
 
@@ -234,6 +245,36 @@ Run `/plan-tune` or `/plan-em` on any PRD to continue.
 
 Terminate. Do not ask a follow-up question.
 
+
+## Loop mode
+
+**Invoke:** `/plan-pm --loop`
+
+When `--loop` is present, Step 6's open questions loop and next-step prompt are skipped. After completing Step 5, the loop orchestrator below takes control.
+
+**Multi-PRD rejection:** If a large epic is detected at Step 1 (Epic detection) while `--loop` is active, immediately emit:
+> "Loop mode is not supported in multi-PRD mode — run `plan-pm` without `--loop`."
+Terminate. Produce no PRD.
+
+**Loop cycle:** Run this sequence once per cycle:
+
+1. Steps 1–5 (standard plan-pm execution) — produces `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`
+2. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`
+3. `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --from-loop")` — only run if step 2 emits `[LOOP: PASS]`
+4. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --eng --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`
+
+**Termination — after plan-tune `--eng` output:**
+- `[LOOP: PASS]` → emit a completion summary (PRD path, cycle count, zero remaining critical/major issues) and terminate.
+- `[LOOP: FAIL]` → apply targeted re-run logic (see below) and start the next cycle.
+- Neither marker found → ask via `AskUserQuestion`: "Are all critical and major issues resolved?" — "Yes" exits the loop regardless of any FAIL signal; "No, continue" applies targeted re-run logic and starts the next cycle.
+
+**Targeted re-run logic** (inline rationale: the plan-tune mode flag identifies which artefact is stale — `--product` FAIL means the PM output is the source of remaining issues; `--eng` FAIL means the EM output is the source):
+- `[LOOP: FAIL]` from plan-tune `--product` → PM artefact is stale. Re-run Steps 1–5 (plan-pm) + `plan-tune --product --from-loop`. Skip plan-em and plan-tune `--eng` for this cycle.
+- `[LOOP: FAIL]` from plan-tune `--eng` → EM artefact is stale. Re-run `plan-em --from-loop` + `plan-tune --eng --from-loop` only. Do not re-run plan-pm.
+
+**`--from-loop` propagation:** Always pass `--from-loop` to plan-tune and plan-em sub-skill invocations so their Human gates are suppressed.
+
+**Minor-issue policy:** Minor findings never prevent loop exit. `[LOOP: PASS]` is the correct signal when only minor issues remain.
 
 ## References
 
