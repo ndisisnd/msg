@@ -35,7 +35,6 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | `/plan-pm` | Principal PM — interviews via 5 questions, then writes a structured PRD to `features/prd-[n]/`. Splits large epics. `--loop` runs the full pm→tune→em→tune pipeline automatically until all critical/major issues clear. |
 | `/plan-tune` | Staff PM auditor — numbered, severity-tagged PRD audit (`--product`/`--eng`); applies all fixes inline. `--from-loop` suppresses the Human gate and emits `[LOOP: PASS/FAIL]` for loop orchestrators. |
 | `/plan-em` | Engineering Manager — spins up specialist agents to write engineering sections into the PRD, then synthesises the output. |
-| `/design` | UX agent — interviews, then generates 1–3 Figma screens from a PRD, UX laws, and a design system. `--creativity` tunes tone. |
 
 ### 🔨 Build
 

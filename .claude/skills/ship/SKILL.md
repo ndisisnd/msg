@@ -29,6 +29,21 @@ Autonomous build-and-ship loop orchestrator. One command takes an eng-tuned PRD 
 
 `ship` is the engineering counterpart to `/plan`. Where `plan` produces an eng-tuned PRD, `ship` executes it.
 
+Like `plan`, `ship` **owns no build, review, or gate protocol of its own** — it drives the four pipeline stages itself, in order, threading the feature branch and PRD path forward. The difference is the mechanism: `plan` invokes its stages in-session via the `Skill` tool (sequential, interactive); `ship` invokes its stages as **subagents via the `Agent` tool** (so build agents run in parallel and each stage's own approval gate is auto-resolved by the autonomy contract — see § Permission policy). Each subagent runs a sub-skill's full, unmodified protocol.
+
+## Pipeline stages
+
+`ship` drives these four stages itself. Resolve / parse / guardrail are supporting work around them, not stages.
+
+| # | Stage | Driven by | Detailed step | Sub-skill protocol |
+|---|-------|-----------|---------------|--------------------|
+| 1 | **Build** | parallel `Agent`s (one per agent group) | Step 3 | `eng --build` |
+| 2 | **Review** | one `Agent` | Step 5 (loop head) | `/review` |
+| 3 | **Fix** | scoped `Agent`s (loops with Review until no open issues) | Step 5 (loop body) | `eng --build` (findings-scoped) |
+| 4 | **Pre-merge** | one `Agent` | Step 6 | `/pre-merge` |
+
+Stages 2–3 form the review→fix loop (`ship`'s one iterative stage — it is *not* one-shot). `ship` controls all four; no sub-skill chains to the next on its own. The genuinely interactive pauses `ship` itself makes are the two guardrails and the round/verdict gates in § Permission policy — everything else is auto-resolved inside the subagents.
+
 ## Usage
 
 **Invoke**: `/ship <PRD path | prose>` plus optional flags.
@@ -100,7 +115,7 @@ Read the `## Execution Table`. For every data row capture `{ feature_id, feature
 
 Pre-flag **database-concern rows**: any row whose concern is `Schema migration` / mentions `schema`, `migration`, `seed`, `model`, or `entity`. These are expected database touches — they will trip the Step 4 guardrail by design.
 
-### Step 3 — Build phase (spin up subagents)
+### Step 3 — Stage 1: Build (spin up subagents)
 
 **Create the feature branch once** (concurrent creation from `main` corrupts the tree):
 ```bash
@@ -138,7 +153,7 @@ Decide:
   - **Stop** → terminate with a summary of what was built and left on the branch. Do not review or pre-merge.
 - **Neither** → continue to Step 5 silently (autonomous).
 
-### Step 5 — Review loop
+### Step 5 — Stages 2–3: Review → Fix loop
 
 Initialise `round = 0`. Loop:
 
@@ -152,7 +167,7 @@ Initialise `round = 0`. Loop:
 6. **Re-apply the Step 4 guardrail** to the fix diff. If it trips, PAUSE as in Step 4 before looping back to (2).
 7. Loop back to (2).
 
-### Step 6 — Pre-merge (immediately after issues are done)
+### Step 6 — Stage 4: Pre-merge (immediately after issues are done)
 
 Spawn **one `Agent`** running pre-merge. Prompt: the autonomy paragraph + "Run `Skill(\"pre-merge\", \"--base <base> --prd <prd_path>\")` from branch `feat/prd-[n]-<slug>`. Return the emitted findings JSON, its `verdict`, and the blocker/high counts."
 

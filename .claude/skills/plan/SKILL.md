@@ -1,13 +1,12 @@
 ---
 name: plan
 description: >
-  Autonomous planning loop. Spins up the full PRD pipeline — plan-pm →
-  plan-tune --product → plan-em → plan-tune --eng — and loops until the
-  engineering tune passes, holding the session continuously and terminating
-  only at the very end. Runs hands-off: inter-stage approval gates are
-  suppressed; the only interactive pauses are the requirements interview and
-  any breaking-change reconciliation. Invoke with /plan. Pass a product idea,
-  brief, or nothing.
+  One-shot planning orchestrator. Runs the full PRD pipeline once —
+  plan-pm → plan-tune --product → plan-em → plan-tune --eng — invoking each
+  stage in sequence and stopping at the end. No iteration, no loop. The only
+  interactive pauses are the ones each sub-skill owns: the requirements
+  interview, roster approval, breaking-change reconciliation, and each stage's
+  end-of-run gate. Invoke with /plan. Pass a product idea, brief, or nothing.
 model: claude-opus-4-7
 allowed_tools:
   - Skill
@@ -18,83 +17,81 @@ allowed_tools:
 
 # plan
 
-Autonomous planning loop orchestrator. One command drives the entire product-planning pipeline to a finished, eng-tuned PRD without stopping at each stage boundary.
+One-shot planning orchestrator. One command drives the product-planning pipeline through a finished, eng-tuned PRD in a single linear pass — no loop, no convergence cycle.
 
 ```
-/plan  →  plan-pm  →  plan-tune --product  →  plan-em  →  plan-tune --eng  →  (PASS) terminate
-                ↑__________________ loop until [LOOP: PASS] __________________|
+/plan  →  plan-pm  →  plan-tune --product  →  plan-em  →  plan-tune --eng  →  done
 ```
+
+`plan` is the planning counterpart to `/ship`. It owns no audit or authoring protocol of its own — it invokes each of the four sub-skills once, in order, via the `Skill` tool, threading the resolved PRD path forward. Each sub-skill runs its own full, unmodified protocol.
 
 ## Usage
 
 **Invoke**: `/plan`. Pass an optional product idea or brief as input.
 
 - Slash command: `/plan`
-- Natural language: "plan this out end to end", "run the full planning loop", "spin up the planning pipeline", "autonomously plan this feature"
-
-This skill is the **autonomous loop entry point** for planning. It owns no protocol of its own — it drives `plan-pm --loop`, which already encodes the four-stage cycle, the targeted re-run logic, and the `[LOOP: PASS]`/`[LOOP: FAIL]` termination contract. `plan` adds the autonomy framing, the permission policy, and a single clean entry/exit.
+- Natural language: "plan this out end to end", "run the full planning pipeline", "take this idea through to an eng-tuned PRD"
 
 **Hard refusals:**
-- **Multi-PRD epics:** The autonomous loop does not support multi-PRD mode. If the brief is a large epic spanning multiple standalone features, `plan-pm --loop` will reject it. In that case, emit: "This is a multi-PRD epic — run `/plan-pm` (without the loop) to break it into sequential PRDs, then `/ship` each one." Terminate.
 - **Skipping the PRD:** `plan` always produces a PRD. It cannot jump straight to engineering build — that is `/ship`.
 
-## Autonomy contract
+## What `plan` does and does not do
 
-State this contract to the user before starting, then proceed:
+`plan` is a **sequential driver**, not a loop. It runs each stage exactly once and then stops — it does not re-run a stage on findings, and it does not converge on a "zero issues" signal. If a tune surfaces issues you want resolved before building, re-run that stage yourself, or run `/ship` (which has its own review→fix loop) when you build.
 
-> Running the planning loop autonomously. I will not stop for approval between plan-pm, plan-tune, and plan-em — each runs hands-off. I will only pause to (a) ask you the requirements interview questions, and (b) reconcile any **breaking change** a feature would introduce against an already-planned PRD. I terminate only when the engineering tune reports zero critical/major issues.
+It does **not** suppress the sub-skills' interactive gates. There is no `--from-loop` contract anymore. Every pause below is owned by a sub-skill and reaches you normally.
 
-## Permission policy
+## Stage sequence
 
-`plan` runs the pipeline **without inter-stage approval gates**. This is enforced by the `--loop` / `--from-loop` contract that the sub-skills already honor:
+Run these four invocations in order. After each returns, read its output, derive the values the next stage needs, and proceed.
 
-| Pause type | Suppressed? | Why |
-|------------|-------------|-----|
-| plan-tune "fix which severities?" gate | **Yes** — auto-selects Critical + Major | `--from-loop` |
-| plan-tune / plan-em "what next?" gate | **Yes** — loop orchestrator controls flow | `--from-loop` |
-| plan-pm requirements interview | **No** — runs normally | Requirement gathering, not a permission gate |
-| plan-em **breaking-change** reconciliation | **No** — always fires | Breaking changes materially affect already-planned work; never auto-approve |
-| plan-em roster approval | **No** — fires once | Specialist-agent activation is a material decision |
+1. **plan-pm** — `Skill("plan-pm", "<brief>")`. Runs the requirements interview and writes `features/prd-[n]-[slug]/prd-[n]-[slug].md`. **Capture the resolved PRD path** from plan-pm's output; every later stage takes it as input.
+2. **plan-tune --product** — `Skill("plan-tune", "<prd-path> --product")`. Adversarial product audit (completeness, consistency, agent-readability, scope integrity); fixes applied to the PRD in place.
+3. **plan-em** — `Skill("plan-em", "<prd-path>")`. Pre-flight, roster approval, writes `## Engineering —` sections + the execution table, and **bootstraps the development `eval_set`** via `/test --prd`.
+4. **plan-tune --eng** — `Skill("plan-tune", "<prd-path> --eng")`. Eng-plan audit (the four product dimensions + eng plan integrity); fixes applied in place.
 
-**Database files** are not written during planning (planning produces markdown PRDs only), so the database-touch guardrail is a no-op here — it lives in `/ship`, where code is written. The breaking-change pause is the one guardrail that applies to planning.
+After stage 4 returns, emit the completion summary (below) and terminate.
 
-## The loop
+## Stage-gate handling (important)
 
-Invoke the cycle by delegating to `plan-pm`'s loop mode, which holds the session for the full pipeline:
+Because `plan` drives the sequence itself and there is no suppression contract, each sub-skill still runs its **own end-of-run prompt**:
 
-```
-Skill("plan-pm", "<brief> --loop")
-```
+| Stage | Its end-of-run prompt | Choose |
+|-------|-----------------------|--------|
+| plan-pm | "What would you like to do next?" (Tune / Plan eng / Terminate) | **Terminate the session** |
+| plan-tune --product | "Continue to plan-em / Re-run plan-pm / Stop here" | **Stop here** |
+| plan-em | "Run plan-tune (eng mode) / Run eng --build / Skip" | **Skip** |
+| plan-tune --eng | "Proceed to build / Re-run plan-em / Stop here" | **Stop here** |
 
-`plan-pm --loop` runs, per cycle:
+**Always pick the terminal option** at each gate — `plan` invokes the next stage itself. Picking the "continue/invoke" option would make `plan` run that next stage a second time. (This double-drive is the cost of removing loop mode; the gate is the only place it shows up.)
 
-1. **plan-pm** (Steps 1–5) — interview + write `features/prd-[n]-[slug]/prd-[n]-[slug].md`
-2. **plan-tune** `--product --from-loop` — audit the product PRD; emits `[LOOP: PASS]` / `[LOOP: FAIL]`
-3. **plan-em** `--from-loop` — write engineering sections + exec table, then bootstrap the development `eval_set` via `/test --prd` (only if step 2 PASSed)
-4. **plan-tune** `--eng --from-loop` — audit the full PRD incl. engineering; emits `[LOOP: PASS]` / `[LOOP: FAIL]`
+The genuinely interactive pauses you should answer normally are the ones intrinsic to the work, not the chaining gates:
+- **plan-pm requirements interview** — answer the questions.
+- **plan-em roster approval** — approve or revise the specialist agents.
+- **plan-em breaking-change reconciliation** — fires if a feature collides with an already-planned PRD; never auto-approve.
+- **plan-tune fix-severity selection** — pick which severities to fix.
 
-**Targeted re-runs** (handled inside `plan-pm --loop`):
-- `[LOOP: FAIL]` from the **product** tune → re-run plan-pm Steps 1–5 + product tune; skip em + eng tune this cycle.
-- `[LOOP: FAIL]` from the **eng** tune → re-run plan-em + eng tune only; do not re-run plan-pm.
+## Multi-PRD epics
 
-The loop continues until the **eng** tune emits `[LOOP: PASS]` (zero critical and major findings remain — minor-only counts as PASS).
+`plan` is single-PRD. If plan-pm detects a large epic and enters **multi-PRD mode**, let plan-pm complete all its PRDs, then **stop** — do not run the tune/em stages here. Emit: "plan-pm produced N PRDs. Run `/plan` (or `/plan-em` / `/ship`) on each one individually." `plan` only carries a single PRD through all four stages.
 
 ## Termination
 
-`plan` terminates only when the loop exits. On exit, emit a single completion summary:
+On completion, emit a single summary:
 
 ```
-Planning loop complete — <cycles> cycle(s).
+Planning complete — single pass (no loop).
 PRD: features/prd-[n]-[slug]/prd-[n]-[slug].md
-Status: eng-tuned, zero critical/major issues remaining.
+Stages run: plan-pm → plan-tune --product → plan-em → plan-tune --eng.
+Status: eng-tuned. Unresolved tune findings (if any) are listed above and in the PRD.
 Suggested next step: /ship features/prd-[n]-[slug]/prd-[n]-[slug].md
 ```
 
-If the loop exited via the fallback `AskUserQuestion` (no `[LOOP: PASS]` marker found) with unresolved issues, list those issues in the summary — never exit silently.
+If a tune left critical or major findings unresolved (you chose not to fix them), list them in the summary — never exit silently.
 
 ## References
 
-- `.claude/skills/plan-pm/SKILL.md` — `## Loop mode`: the cycle, targeted re-run logic, `--from-loop` propagation, multi-PRD rejection. `plan` delegates here.
-- `.claude/skills/plan-tune/SKILL.md` — `## Loop mode (--from-loop)`: emits `[LOOP: PASS]` / `[LOOP: FAIL]` as its final line.
-- `.claude/skills/plan-em/SKILL.md` — breaking-change reconciliation gate (not suppressed) and `--from-loop` synthesis termination.
-- `/ship` — the engineering counterpart: builds, reviews, and gates an eng-tuned PRD autonomously.
+- `.claude/skills/plan-pm/SKILL.md` — Stage 1: requirements interview + PRD authoring. `plan` invokes it first.
+- `.claude/skills/plan-tune/SKILL.md` — Stages 2 & 4: adversarial product / eng audit. Recommend-only at its Step 5 gate — it never invokes the next skill, which is why `plan` drives sequencing itself.
+- `.claude/skills/plan-em/SKILL.md` — Stage 3: engineering sections, execution table, and eval_set bootstrap.
+- `/ship` — the engineering counterpart that builds, reviews, and gates the eng-tuned PRD `plan` produces.

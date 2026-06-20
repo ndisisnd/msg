@@ -23,7 +23,6 @@ allowed_tools:
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
 | Build & Ship | ship | Autonomous build-and-ship loop — eng build → review loop → pre-merge |
-| Design | design | UX screens from a PRD — interview, Figma generation, --creativity tone control |
 | Build & Ship | eng | Plan, build, or review engineering work from exec-table rows |
 | Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
 | Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
@@ -39,8 +38,6 @@ allowed_tools:
 
 ```
 /msg-init  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
-                                                                         ↓
-                                                       /design  (optional — needs Figma MCP)
                                                                          ↓
                                                              /eng --build
                                                                          ↓
@@ -73,7 +70,6 @@ Call `AskUserQuestion` with one question:
 - **multiSelect**: `false`
 - **Options**:
   - `label`: `Planning`, `description`: `Bootstrap, spec writing, PRD audit, engineering planning`
-  - `label`: `Design`, `description`: `UX screens from a PRD — interview and Figma generation`
   - `label`: `Build & Ship`, `description`: `Implement, test, and run the pre-push gate`
   - `label`: `Review`, `description`: `Code review and doc checking`
   - `label`: `Delivery`, `description`: `Handoff artifacts, task lists`
@@ -134,7 +130,6 @@ Call `AskUserQuestion` with three questions in a single call:
 - **Options**:
   - `label`: `A project spec (PRD)`, `description`: `Structured product requirements doc`
   - `label`: `An engineering plan`, `description`: `Tasks, milestones, technical design`
-  - `label`: `UX screens or mockups`, `description`: `Figma screens generated from a PRD`
   - `label`: `Working code or test results`, `description`: `Implementation, test run, or pre-push gate`
   - `label`: `A review or audit report`, `description`: `Findings on code, docs, or a skill`
   - `label`: `A handoff or task list`, `description`: `Handoff artifact or TODOs.json`
@@ -149,8 +144,6 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Planning | Nothing yet / rough idea | A project spec | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |
 | Planning | A PRD or spec | An engineering plan | plan-em |
-| Planning | A PRD or spec | UX screens or mockups | design |
-| Building | A PRD or spec | UX screens or mockups | design |
 | Building | A PRD or spec | Working code or test results | eng |
 | Building | Code or a diff | Working code or test results | test |
 | Building | Code or a diff | A review or audit report | pre-merge |
