@@ -28,7 +28,7 @@ Read the invocation flag and load exactly one mode protocol:
 | `--plan` | `refs/plan/protocol.md` |
 | `--build` | `refs/build/protocol.md` |
 
-Exactly one mode flag (`--plan` or `--build`) must be present. `--loop` is a secondary flag valid only alongside `--build` (see `## Loop mode`). If zero mode flags or more than one mode flag is given, emit:
+Exactly one mode flag (`--plan` or `--build`) must be present. If zero mode flags or more than one mode flag is given, emit:
 
 ```
 Hard failure: exactly one mode flag required (--plan | --build). Got: <list>.
@@ -153,21 +153,6 @@ Follow the work steps and output contract in the active mode file. This is where
 - `--plan` → emit a proposed changes document. No implementation files are written. Inline code snippets and pseudocode are permitted — and encouraged — to illustrate proposed changes within the plan document.
 - `--build` → write code to derived paths; emit a build summary.
 
-**After Step 5 — Loop orchestration (`--build --loop` only):**
-
-If `--loop` was not passed, skip this block entirely.
-
-If `--loop` is active (only valid with `--build`):
-
-1. Derive `prd-n` from the PRD path (e.g., `features/prd-3-foo/prd-3-foo.md` → `n=3`).
-2. Invoke `Skill("plan-tune", "features/prd-[n]-<slug>/prd-[n]-<slug>.md --eng --from-loop")`. Scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`.
-3. Append plan-tune's findings for this cycle to `features/prd-[n]/.loop-findings.md` (create if absent; subsequent cycles append, not overwrite).
-4. **Termination:**
-   - `[LOOP: PASS]` → emit a completion summary (cycle count, PRD path, zero remaining critical/major issues). Terminate.
-   - `[LOOP: FAIL]` or neither marker found → ask via `AskUserQuestion`: "Are all critical and major issues resolved?" — "Yes" exits the loop and emits a summary of any remaining open issues; "No, continue" re-runs the build cycle (re-enter Step 2 with the same PRD path, rows, agent, and the `.loop-findings.md` path passed as additional pre-flight context).
-5. **Minor-issue policy:** `[LOOP: PASS]` is the correct signal when only minor issues remain. Minor findings never prevent loop exit.
-6. **No silent exit:** Always emit a summary on termination, including any open issues that remain.
-
 ---
 
 ## Step 6 — Scope enforcement (continuous)
@@ -179,26 +164,6 @@ Throughout Steps 2–5, enforce strict scope:
 - If a row is ambiguous and cannot be resolved from the PRD, exec-table, or codebase scan → surface it as a named gap (plan / review) or block and ask (build). Never resolve ambiguity by assumption.
 
 ---
-
-## Loop mode
-
-**Invoke:** `eng --build --loop`
-
-`--loop` is a secondary flag valid only with `--build`. It adds a review-and-iterate cycle after the standard build completes.
-
-**Cycle steps:**
-1. Normal `--build` execution (Steps 1–5 + Step 5 loop block).
-2. `Skill("plan-tune", "<prd-path> --eng --from-loop")` — plan-tune audits the PRD (including engineering sections) and emits `[LOOP: PASS]` or `[LOOP: FAIL]`.
-3. Findings appended to `features/prd-[n]/.loop-findings.md`; each subsequent build invocation receives this file as additional pre-flight context alongside the original PRD path.
-4. Loop exits on `[LOOP: PASS]` or on user "yes" in the fallback `AskUserQuestion`.
-
-**Termination contract:** plan-tune emits `[LOOP: PASS]` (zero critical/major remain) or `[LOOP: FAIL]` (one or more remain) as its final output line when invoked with `--from-loop`. Absence of either marker triggers the fallback prompt — no silent exit.
-
-**Minor-issue policy:** `[LOOP: PASS]` when only minor issues remain. Minor findings never prevent loop exit.
-
-**No silent exit:** On termination the loop always emits a summary; if issues remain they are listed.
-
-**Note:** "review" in this loop is `plan-tune --eng`, not `/review` (which is scoped to code/diff review, not PRD/plan review).
 
 ## References
 

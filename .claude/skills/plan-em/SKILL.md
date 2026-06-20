@@ -246,9 +246,7 @@ If Critical findings exist, present them via `AskUserQuestion` and resolve befor
 
    Example: `feat/prd-3-habit-tracking`. This is the branch engineers should cut from `main` before starting work.
 
-**`--from-loop` suppression:** If plan-em was invoked with `--from-loop`, terminate after synthesis. The loop orchestrator controls what happens next.
-
-**Standard mode (no `--from-loop`):** After synthesis, ask via `AskUserQuestion` (single-select):
+After synthesis, ask via `AskUserQuestion` (single-select):
 
 > What would you like to do next?
 

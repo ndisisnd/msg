@@ -37,12 +37,6 @@ allowed_tools:
 | `--eng` | Eng tune | Dimensions 1–5: all product dimensions + eng plan integrity |
 | _(none)_ | Ask the user | Auto-suggested after reading the PRD |
 
-**Control flow flags:**
-
-| Flag | Effect |
-|------|--------|
-| `--from-loop` | Suppresses Step 5 (Human gate). Emits `[LOOP: PASS]` or `[LOOP: FAIL]` as the final output line instead. See `## Loop mode (--from-loop)`. |
-
 **Path rules:**
 - If a file path is provided and valid, use it directly.
 - If a directory path is provided (e.g. `features/prd-1/`), derive the file as `features/prd-[n]/prd-[n].md`.
@@ -149,9 +143,7 @@ The PRD is already in context from Step 1. Confirm the document is held as `<prd
 
 For each issue surfaced across all applicable dimensions, draft one finding using the format defined in `refs/tune.md`.
 
-**`--from-loop` auto-selection:** If invoked with `--from-loop`, skip the AskUserQuestion below. Automatically select Critical + Major for fixing in Step 4. Minor findings are noted but not fixed in loop mode (they count as informational and do not block `[LOOP: PASS]`). Proceed directly to Step 4.
-
-**Standard mode (no `--from-loop`):** Ask the user if they would like to fix these issues using `AskUserQuestion` (multiSelect): Critical / Major / Minor / Skip.
+Ask the user if they would like to fix these issues using `AskUserQuestion` (multiSelect): Critical / Major / Minor / Skip.
 
 - If Skip → terminate session and emit `Fixes skipped. Issues can be found in this terminal`.
 - If any other choices selected, proceed to Step 4.
@@ -168,11 +160,7 @@ Once complete, emit `Plan tuned successfully! Issues selected have been fixed.`
 
 **Step 5/5 — Human gate**
 
-**`--from-loop` suppression:** If invoked with `--from-loop`, skip this step entirely. Instead, count the findings that remain unresolved after Step 4 fixes:
-- Zero critical AND zero major findings remaining (minor-only or none) → emit `[LOOP: PASS]` as the final output line.
-- One or more critical or major findings remaining → emit `[LOOP: FAIL]` as the final output line.
-
-**Standard mode (no `--from-loop`):** Present `AskUserQuestion` with three options. Options differ by tune type.
+Present `AskUserQuestion` with three options. Options differ by tune type.
 
 **Product tune options:**
 - **Continue to plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` next.
@@ -185,19 +173,6 @@ Once complete, emit `Plan tuned successfully! Issues selected have been fixed.`
 - **Stop here** — end. The PRD (including engineering sections) has been revised in place.
 
 Output the recommendation as the final message. Do not invoke another skill.
-
-## Loop mode (--from-loop)
-
-When invoked with `--from-loop` (e.g., by the `plan-pm --loop` or `eng --build --loop` orchestrators):
-
-- Steps 1–4 run unchanged: path resolution, PRD read, audit, and fixes.
-- Step 5 (Human gate) is skipped entirely.
-- After Step 4 completes, emit exactly one of the following as the **final output line**:
-  - `[LOOP: PASS]` — zero critical and zero major findings remain after fixes. Minor-only findings count as PASS.
-  - `[LOOP: FAIL]` — one or more critical or major findings remain after fixes.
-- Standard plan-tune (no `--from-loop`) is unchanged; Step 5 Human gate still fires.
-
-Loop orchestrators scan the tail of this invocation's output for `[LOOP: PASS]` or `[LOOP: FAIL]` before deciding the next step.
 
 ## References
 

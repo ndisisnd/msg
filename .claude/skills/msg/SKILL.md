@@ -18,9 +18,11 @@ allowed_tools:
 | Category | Skill | Description |
 |----------|-------|-------------|
 | Planning | msg-init | One-time project bootstrap |
+| Planning | plan | Autonomous planning loop — pm → tune → em → tune until eng-tuned |
 | Planning | plan-pm | PM interview — PRD writer |
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
+| Build & Ship | ship | Autonomous build-and-ship loop — eng build → review loop → pre-merge |
 | Design | design | UX screens from a PRD — interview, Figma generation, --creativity tone control |
 | Build & Ship | eng | Plan, build, or review engineering work from exec-table rows |
 | Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
@@ -52,6 +54,11 @@ allowed_tools:
                                                                          ↓
                                                                    /todo (optional)
 ```
+
+**Autonomous loop shortcuts** collapse the stages above into one hands-off command each:
+
+- `/plan <idea>` — runs `plan-pm → plan-tune → plan-em → plan-tune` to a finished eng-tuned PRD. Pauses only for the interview and breaking-change reconciliation.
+- `/ship <PRD path | prose>` — runs `eng --build → review loop → pre-merge` on an eng-tuned PRD. Pauses only for database-file touches or breaking changes.
 
 ---
 

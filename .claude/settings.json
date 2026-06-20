@@ -11,7 +11,16 @@
       "Bash(rtk git rev-parse *)",
       "Bash(rtk git status)",
       "Bash(rtk git status *)",
-      "Bash(rtk git log *)"
+      "Bash(rtk git log *)",
+      "Edit(/.claude/skills/plan-pm/**)",
+      "Edit(/.claude/skills/ship/**)",
+      "Edit(/.claude/skills/msg/**)",
+      "Edit(/.claude/skills/plan-em/**)",
+      "Edit(/.claude/skills/eng/**)",
+      "Edit(/.claude/skills/plan-tune/**)",
+      "Bash(bash .claude/scripts/ship-find-prd.sh)",
+      "Bash(bash .claude/scripts/ship-find-prd.sh auth login)",
+      "Bash(bash .claude/scripts/ship-db-touch.sh HEAD)"
     ]
   },
   "hooks": {
@@ -21,7 +30,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .claude/scripts/changelog-gate.py",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/.claude/scripts/changelog-gate.py\"",
             "statusMessage": "Checking CHANGELOG.md…"
           }
         ]

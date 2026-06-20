@@ -73,10 +73,6 @@ After confirming the brief, assess whether the idea is a large epic warranting m
 
 If epic detected:
 
-**`--loop` rejection:** If `--loop` is active, immediately emit:
-> "Loop mode is not supported in multi-PRD mode — run `plan-pm` without `--loop`."
-Terminate. Produce no PRD.
-
 1. Derive a breakdown of 2–5 sub-features, each mappable to a standalone PRD.
 2. Emit a breakdown table inline:
 
@@ -217,8 +213,6 @@ After all questions have been presented (answered or skipped), proceed to the ne
 
 **Next-step prompt — single-PRD mode only**
 
-If `--loop` is active, skip this prompt entirely. The loop orchestrator (see `## Loop mode`) controls flow for the rest of the cycle.
-
 Ask via `AskUserQuestion` (single-select):
 
 > What would you like to do next?
@@ -255,37 +249,6 @@ Run `/plan-tune` or `/plan-em` on any PRD to continue.
 
 Terminate. Do not ask a follow-up question.
 
-
-## Loop mode
-
-**Invoke:** `/plan-pm --loop`
-
-When `--loop` is present, Step 6's open questions loop and next-step prompt are skipped. After completing Step 5, the loop orchestrator below takes control.
-
-**Multi-PRD rejection:** If a large epic is detected at Step 1 (Epic detection) while `--loop` is active, immediately emit:
-> "Loop mode is not supported in multi-PRD mode — run `plan-pm` without `--loop`."
-Terminate. Produce no PRD.
-
-**Loop cycle:** Run this sequence once per cycle:
-
-1. Steps 1–5 (standard plan-pm execution) — produces `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`
-2. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`. On `[LOOP: PASS]`, update `product-tuned: yes` in the PRD frontmatter via `Bash`.
-3. `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --from-loop")` — only run if step 2 emits `[LOOP: PASS]`. On completion, update `status: eng` in the PRD frontmatter via `Bash`.
-4. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --eng --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`. On `[LOOP: PASS]`, update `eng-tuned: yes` in the PRD frontmatter via `Bash`.
-
-**Termination — after plan-tune `--eng` output:**
-- `[LOOP: PASS]` → emit a completion summary (PRD path, cycle count, zero remaining critical/major issues) and terminate.
-- `[LOOP: FAIL]` → apply targeted re-run logic (see below) and start the next cycle.
-- Neither marker found → ask via `AskUserQuestion`: "Are all critical and major issues resolved?" — "Yes" exits the loop regardless of any FAIL signal; "No, continue" applies targeted re-run logic and starts the next cycle.
-
-**Targeted re-run logic** (inline rationale: the plan-tune mode flag identifies which artefact is stale — `--product` FAIL means the PM output is the source of remaining issues; `--eng` FAIL means the EM output is the source):
-- `[LOOP: FAIL]` from plan-tune `--product` → PM artefact is stale. Re-run Steps 1–5 (plan-pm) + `plan-tune --product --from-loop`. Skip plan-em and plan-tune `--eng` for this cycle.
-- `[LOOP: FAIL]` from plan-tune `--eng` → EM artefact is stale. Re-run `plan-em --from-loop` + `plan-tune --eng --from-loop` only. Do not re-run plan-pm.
-
-**`--from-loop` propagation:** Always pass `--from-loop` to plan-tune and plan-em sub-skill invocations so their Human gates are suppressed.
-
-**Minor-issue policy:** Minor findings never prevent loop exit. `[LOOP: PASS]` is the correct signal when only minor issues remain.
-
 ## PRD status lifecycle
 
 Each PRD carries four status fields in its YAML frontmatter. The owning skill is responsible for updating the field via `Bash` (`sed -i` or equivalent) immediately after completing the relevant work.
@@ -293,8 +256,8 @@ Each PRD carries four status fields in its YAML frontmatter. The owning skill is
 | Field | Initial | Updated by | Updated to | Trigger |
 |-------|---------|-----------|-----------|---------|
 | `status` | `product` | `plan-em` | `eng` | eng sections written to PRD |
-| `product-tuned` | `no` | `plan-tune --product` (via plan-pm loop or next-step) | `yes` | plan-tune emits `[LOOP: PASS]` or user accepts tuned output |
-| `eng-tuned` | `no` | `plan-tune --eng` (via plan-pm loop or next-step) | `yes` | plan-tune emits `[LOOP: PASS]` |
+| `product-tuned` | `no` | `plan-tune --product` (via next-step prompt) | `yes` | user accepts tuned output |
+| `eng-tuned` | `no` | `plan-tune --eng` (via next-step prompt) | `yes` | plan-tune completes |
 | `reviewed` | `no` | `review` skill | `yes` | code review of PRD's changes is complete |
 
 **Hook note:** The `status` and `reviewed` updates can alternatively be implemented as a `PostToolUse` hook on the `Write` tool — when a skill writes to a PRD file, the hook inspects context and patches the relevant frontmatter field. Either pattern is acceptable; what matters is the field is always accurate after each skill run.
