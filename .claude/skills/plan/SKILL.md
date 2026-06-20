@@ -70,7 +70,7 @@ Skill("plan-pm", "<brief> --loop")
 
 1. **plan-pm** (Steps 1–5) — interview + write `features/prd-[n]-[slug]/prd-[n]-[slug].md`
 2. **plan-tune** `--product --from-loop` — audit the product PRD; emits `[LOOP: PASS]` / `[LOOP: FAIL]`
-3. **plan-em** `--from-loop` — write engineering sections + exec table (only if step 2 PASSed)
+3. **plan-em** `--from-loop` — write engineering sections + exec table, then bootstrap the development `eval_set` via `/test --prd` (only if step 2 PASSed)
 4. **plan-tune** `--eng --from-loop` — audit the full PRD incl. engineering; emits `[LOOP: PASS]` / `[LOOP: FAIL]`
 
 **Targeted re-runs** (handled inside `plan-pm --loop`):

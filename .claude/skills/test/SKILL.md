@@ -6,9 +6,11 @@ description: >
   mobile (Flutter/Dart, Android + iOS), and coverage gate buckets via
   detected runners. Per-mode flags (--unit, --e2e, --functional, --qa,
   --load, --a11y, --perf, --api, --mobile, --coverage) target individual
-  buckets; --fast runs all selected buckets in parallel. Accepts --eval-set
-  to consume eval_set.json written by /review. Emits structured JSON
-  findings compatible with the pre-merge finding schema.
+  buckets; --fast runs all selected buckets in parallel. --init profiles
+  the codebase to recommend which test buckets, tools, and packages it
+  needs, then writes a test.json cache the execution path reads. Accepts
+  --eval-set to consume eval_set.json written by /review. Emits structured
+  JSON findings compatible with the pre-merge finding schema.
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
@@ -29,6 +31,7 @@ eng --build               →  /test                      (full test suite again
 
 ## Usage
 
+- `/test --init` — **setup mode** (does not run tests). Profile the codebase, recommend which test buckets, third-party tools, and packages it needs, optionally install them, and write `.claude/test/test.json`. See **Init mode** below and `refs/modes/init.md`.
 - `/test` — detect and run all applicable test buckets against the current working tree
 - `/test --base <branch>` — scope diff to changed files since `<branch>` (passed to test runners as file filters)
 - `/test --prd <path>` — read PRD to bootstrap an eval_set for the functional bucket (if no `--eval-set` supplied)
@@ -55,7 +58,9 @@ When **no** mode flag is supplied, all applicable buckets run (existing default)
 
 Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_set.json --unit --e2e --fast`
 
-**Hard refusals:** does NOT modify source code; does NOT write outside `features/` and `/tmp/`; makes exactly ONE `AskUserQuestion` call (Step 3 gate).
+**Hard refusals (execution path):** does NOT modify source code; does NOT write outside `features/` and `/tmp/`; makes exactly ONE `AskUserQuestion` call (Step 3 gate).
+
+**Init mode (`--init`) carve-out:** may install dev dependencies and write `.claude/test/test.json` after the user approves at its gate. It still does NOT write application or test source code (config scaffolds and example smoke tests are out of scope — it only recommends and records). When `--init` is present, run the **Init mode** protocol below and skip the execution protocol (Steps 1–5) entirely.
 
 ## Inputs / Outputs
 
@@ -66,6 +71,90 @@ Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_s
 | Out | Findings JSON | stdout always; `features/prd-[n]/test/test-<YYYYMMDD-HHmmss>.json` when PRD known |
 
 Schema and verdict semantics: `refs/schema.md`.
+
+## Init protocol (`--init` only)
+
+Runs instead of the execution protocol. Sets up the testing suite the codebase needs and
+writes `.claude/test/test.json`. Full decision tables and the `test.json` schema live in
+`refs/modes/init.md` — load it before Step I-2.
+
+### Step I-0 — Check for an existing cache ← gate before any work
+
+Check whether `.claude/test/test.json` already exists:
+
+```bash
+[ -f .claude/test/test.json ] && echo EXISTS || echo ABSENT
+```
+
+- **ABSENT** → no cache yet. Proceed straight to Step I-1 to init it (no question asked).
+- **EXISTS** → a cache is already present. Make ONE `AskUserQuestion` call before doing
+  anything else, offering:
+  - **Analyse + update** — read the existing `test.json`, re-run the profile + detect scripts,
+    and reconcile: add buckets/tools/packages now needed but missing from the cache, and remove
+    entries no longer warranted by the current profile. Preserve unaffected fields. Show the
+    diff of added/removed properties before writing.
+  - **Replace (fresh run)** — discard the existing cache and run the full init from scratch
+    (Steps I-1 → I-5), overwriting `test.json` wholesale.
+  - **Cancel** — exit, change nothing.
+
+  This is an extra `AskUserQuestion` permitted only in `--init` mode (it precedes, and is
+  separate from, the Step I-3 gate). On **Analyse + update**, still run Step I-1's scripts to
+  get current truth, compute the reconciliation against the loaded cache rather than a blank
+  slate, then present and write at Steps I-3/I-4. On **Replace**, ignore the loaded cache entirely.
+
+### Step I-1 — Profile + detect
+
+Run both deterministic scripts and keep their JSON:
+
+```bash
+P=.claude/scripts/test-init-profile.sh;  [ -f "$P" ] || P="$HOME/.claude/scripts/test-init-profile.sh";  "$P"
+D=.claude/scripts/test-tooling-detect.sh; [ -f "$D" ] || D="$HOME/.claude/scripts/test-tooling-detect.sh"; "$D"
+```
+
+The profiler answers *what kind of project this is* (shape, languages, frameworks); the
+detector answers *what runners are already installed*. Treat both as authoritative — do not
+second-guess their file/dep signals. Also note whether `features/prd-*` exists (enables the
+`functional` bucket).
+
+### Step I-2 — Compute needed buckets + gaps
+
+Using the **Shape → needed buckets** table in `refs/modes/init.md`, mark every bucket the
+profile makes needed, each with a one-line `rationale`. Then set each bucket's `status`:
+`configured` (detector found a runner), `partial` (runner present but key packages/config
+missing), or `missing` (needed, no runner). For each `missing`/`partial` bucket pick ONE
+recommended tool + packages via the **Bucket → recommended tool** table, preferring a tool
+already installed and respecting CLI-vs-npm placement.
+
+### Step I-3 — Present plan and gate ← plan-approval AskUserQuestion call
+
+Show needed buckets grouped by status, the recommended tool per gap, and the exact install
+command. Then ask once:
+
+```
+Test setup plan for <project.type>  (<languages>)
+  configured : unit (Vitest), coverage
+  missing    : e2e → Playwright (@playwright/test)
+               a11y → axe (@axe-core/cli, axe-playwright)
+  Install:  npm i -D @playwright/test @axe-core/cli
+```
+
+Options: **Install + write cache** (run the install command, then write `test.json`) /
+**Write cache only** (record recommendations, install nothing) / **Cancel** (exit, write nothing).
+
+### Step I-4 — Apply
+
+- If **Install + write cache**: run the `install_command` via the detected package manager.
+  If it fails, record the affected packages under `recommended_to_install` anyway and note the
+  failure — never leave the cache unwritten because an install broke.
+- Write `.claude/test/test.json` per the schema in `refs/modes/init.md` (create the
+  `.claude/test/` directory if absent). Stamp `generated_at` with `date -u +%Y-%m-%dT%H:%M:%SZ`.
+
+### Step I-5 — Summarize
+
+Print a short human summary: project type, buckets now `configured` vs still `missing`, what
+was installed, and the next command to run (`/test` to execute, or per-bucket flags). END.
+
+---
 
 ## Protocol
 
@@ -96,6 +185,8 @@ Then derive in this same step:
 - **CI workflow override** — after reading the fingerprint, scan `.github/workflows/*.yml` (and `.gitlab-ci.yml`) for `npm run test` / `npm run test:*` / `npm run e2e` / `npm run test:e2e`. If found, replace the matched runner's `command` and set `ci_override: true`. The script intentionally leaves this to you because CI script extraction is intent-matching, not file-existence.
 
 Detection runs once; never re-derive mid-run. Treat the script's output as authoritative for file/$PATH/package.json signals — adding LLM second-guesses on top of it is what this script exists to prevent.
+
+**Read the init cache (if present):** read `.claude/test/test.json` if it exists. It does NOT override detection commands — detection stays authoritative for *how* to run. Use only its `needed_buckets` to flag gaps: for any entry with `needed: true` whose runner came back `null` from detection, annotate that bucket in the Step 3 plan with `⚠ needed but not configured — run /test --init`. Absent cache → no annotations; proceed normally.
 
 ### Step 2/5 — Resolve eval_set
 
@@ -182,8 +273,10 @@ If the script exits 1, the offending bucket wrote invalid JSON — fix that buck
 
 ## References
 
-- `.claude/scripts/test-tooling-detect.sh` — Step 1 fingerprint detector
+- `.claude/scripts/test-tooling-detect.sh` — Step 1 fingerprint detector (installed runners)
+- `.claude/scripts/test-init-profile.sh` — Init Step I-1 codebase shape profiler
 - `.claude/scripts/test-aggregate-verdict.sh` — Step 5 verdict aggregator + JSON merger
+- `refs/modes/init.md` — `--init` decision tables (shape→buckets, bucket→tools) and `test.json` schema
 - `refs/schema.md` — output JSON schema and verdict semantics
 - `refs/modes/unit.md` — unit/integration runner invocation and output parsing
 - `refs/modes/e2e.md` — e2e runner invocation and output parsing

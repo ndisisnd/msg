@@ -44,6 +44,7 @@ allowed_tools:
 |------|--------|-------------|
 | Pre-flight report | Markdown findings file | `features/prd-[n]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
+| Development eval_set | Functional assertion set (JSON) | `features/prd-[n]/` (bootstrapped via `/test --prd` in plan mode) |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 
 `[n]` is derived from the parent directory name of the input PRD (e.g., `features/prd-3/prd-3.md` → `n=3`).
@@ -203,6 +204,8 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 
 Each agent writes its engineering section directly to the PRD file. Emit a short progress note as each agent completes.
 
+**Bootstrap the development eval_set (plan mode only):** After all plan-mode agents have written their engineering sections — so the PRD now carries the full feature list, engineering sections, and execution table — invoke `/test --prd <prd-path>` **once** (via the `Skill` tool, with the resolved PRD path from Step 1). This reads the PRD and bootstraps an `eval_set` of functional assertions for the feature, written under `features/prd-[n]/`. Running it here, once, means the eval_set exists before the build phase begins; downstream `eng --build` agents and `/review` consume it via `/test --eval-set <path>` rather than each re-deriving it. Emit a one-line note with the assertion count (e.g. `Eval-set: 12 executable assertions bootstrapped.`). If `/test` reports zero executable assertions, note it and continue — this is a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
+
 **Build mode (`$MODE = build`):** First, create the feature branch **once**: if `feat/prd-[n]-<short-name>` does not exist, cut it from `main` and push it. Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
 
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
@@ -269,3 +272,4 @@ Final state: the PRD contains all engineering sections, the synthesis is visible
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents (shared)
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
+- `.claude/skills/test/SKILL.md` — `/test --prd` bootstraps the development eval_set in Step 4 plan mode; build agents and `/review` later consume it via `--eval-set`
