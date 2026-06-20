@@ -19,7 +19,9 @@ affects: []   # prd-[n]-[feature_slug] IDs whose scope this PRD overlaps or may 
 depends_on: []  # prd-[n]-[feature_slug] IDs that must ship before this one
 platform: <detected platform, e.g. mobile | web | backend>
 status: product
-tuned: no
+product-tuned: no
+eng-tuned: no
+reviewed: no
 created: YYYY-MM-DD
 ---
 
@@ -91,6 +93,16 @@ Feature: Set daily goal
                [Home screen — habit
                 row appears instantly]
 ```
+
+**Components (from design system):**
+- `TextInput` — name entry field with inline validation
+- `Button` — primary CTA to save habit
+- `HabitRow` — row that appears on Home screen after save
+
+**Files touched:**
+- `src/screens/NewHabitScreen.tsx` — new screen; entry point for flow
+- `src/components/HabitRow.tsx` — updated to show new habit immediately
+- `src/store/habitsSlice.ts` — add habit to store on save
 
 ### 4. Key user interactions
 

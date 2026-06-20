@@ -138,7 +138,9 @@ Write `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from `refs/tem
 - `depends_on`: list of prior PRD IDs classified as **Dependency** in Step 2 (e.g., `[prd-2-onboarding-flow]`). Empty list `[]` if none.
 - `platform`: `platform` stored in Part 1
 - `status`: `product`
-- `tuned`: `no`
+- `product-tuned`: `no`
+- `eng-tuned`: `no`
+- `reviewed`: `no`
 - `created`: today's date in `YYYY-MM-DD`
 
 All section bodies remain as placeholders. This initialized file is the artifact of this step.
@@ -153,13 +155,21 @@ Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 |---------|--------|
 | §1 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
 | §2 Target platform | Platform from pre-flight |
-| §3 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature |
+| §3 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature; then **Components** (design system) and **Files touched** per feature |
 | §4 Key user interactions | Q5 answers |
 | §5 Error cases | Q4 answers; format from `refs/template-error.md` |
 | §6 Open questions | Overlap from Step 2 + relevant AHA.md entries |
 | §7 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
 
 Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout.
+
+**§3 per-feature supplement — components and files:**
+
+After each ASCII flow diagram in §3, emit two subsections:
+
+1. **Components (from design system):** — Scan `devkit/DESIGN-SYSTEM.md` for components the feature would reuse or impact. List each as `- \`ComponentName\` — <one-line usage note>`. Omit this subsection entirely if no design system exists or no existing components apply; do not write a blank heading.
+
+2. **Files touched:** — Based on `devkit/ARCHITECTURE.md` and the feature scope, list the source files the feature will require new or modified code in. List each as `- \`path/to/file\` — <one-line reason>`. If a file does not yet exist, prefix with `(new)`. Use approximate paths where exact paths are unknown; plan-em will confirm specifics. Always include at least the screen/view file and any relevant store/service/model files inferred from architecture.
 
 The populated file is the artifact of this step.
 
@@ -219,8 +229,8 @@ Options:
 - Terminate the session
 
 Based on the user's selection:
-- **Tune the plan** → invoke `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product")`. Do not terminate until plan-tune completes.
-- **Plan the eng execution** → invoke `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md")`. Do not terminate until plan-em completes.
+- **Tune the plan** → invoke `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product")`. Do not terminate until plan-tune completes. On completion, update `product-tuned: yes` in the PRD frontmatter via `Bash`.
+- **Plan the eng execution** → invoke `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md")`. Do not terminate until plan-em completes. On completion, update `status: eng` in the PRD frontmatter via `Bash`.
 - **Terminate the session** → terminate immediately with no further action.
 
 ## Multi-PRD final summary
@@ -259,9 +269,9 @@ Terminate. Produce no PRD.
 **Loop cycle:** Run this sequence once per cycle:
 
 1. Steps 1–5 (standard plan-pm execution) — produces `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`
-2. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`
-3. `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --from-loop")` — only run if step 2 emits `[LOOP: PASS]`
-4. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --eng --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`
+2. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`. On `[LOOP: PASS]`, update `product-tuned: yes` in the PRD frontmatter via `Bash`.
+3. `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --from-loop")` — only run if step 2 emits `[LOOP: PASS]`. On completion, update `status: eng` in the PRD frontmatter via `Bash`.
+4. `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --eng --from-loop")` — scan the tail of its output for `[LOOP: PASS]` or `[LOOP: FAIL]`. On `[LOOP: PASS]`, update `eng-tuned: yes` in the PRD frontmatter via `Bash`.
 
 **Termination — after plan-tune `--eng` output:**
 - `[LOOP: PASS]` → emit a completion summary (PRD path, cycle count, zero remaining critical/major issues) and terminate.
@@ -275,6 +285,19 @@ Terminate. Produce no PRD.
 **`--from-loop` propagation:** Always pass `--from-loop` to plan-tune and plan-em sub-skill invocations so their Human gates are suppressed.
 
 **Minor-issue policy:** Minor findings never prevent loop exit. `[LOOP: PASS]` is the correct signal when only minor issues remain.
+
+## PRD status lifecycle
+
+Each PRD carries four status fields in its YAML frontmatter. The owning skill is responsible for updating the field via `Bash` (`sed -i` or equivalent) immediately after completing the relevant work.
+
+| Field | Initial | Updated by | Updated to | Trigger |
+|-------|---------|-----------|-----------|---------|
+| `status` | `product` | `plan-em` | `eng` | eng sections written to PRD |
+| `product-tuned` | `no` | `plan-tune --product` (via plan-pm loop or next-step) | `yes` | plan-tune emits `[LOOP: PASS]` or user accepts tuned output |
+| `eng-tuned` | `no` | `plan-tune --eng` (via plan-pm loop or next-step) | `yes` | plan-tune emits `[LOOP: PASS]` |
+| `reviewed` | `no` | `review` skill | `yes` | code review of PRD's changes is complete |
+
+**Hook note:** The `status` and `reviewed` updates can alternatively be implemented as a `PostToolUse` hook on the `Write` tool — when a skill writes to a PRD file, the hook inspects context and patches the relevant frontmatter field. Either pattern is acceptable; what matters is the field is always accurate after each skill run.
 
 ## References
 
