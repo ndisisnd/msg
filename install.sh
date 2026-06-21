@@ -96,8 +96,15 @@ if [[ -d "${SRC_SCRIPTS}" ]]; then
     cp "${f}" "${SCRIPTS_DIR}/${fname}"
     ((script_count++)) || true
   done
+  # Several skills invoke these scripts directly (e.g. /ship's Test stage runs
+  # test-tooling-detect.sh and test-aggregate-verdict.sh as "$S", not "bash $S"),
+  # so the execute bit must survive both fresh and repeat installs.
+  chmod +x "${SCRIPTS_DIR}"/*.sh "${SCRIPTS_DIR}/scan-n.prd" 2>/dev/null || true
   [[ "${script_count}" -gt 0 ]] && success "Installed ${script_count} script(s)"
 fi
+
+# ── Ensure skill-bundled scripts stay executable ──────────────────────────────
+find "${SKILLS_DIR}" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
