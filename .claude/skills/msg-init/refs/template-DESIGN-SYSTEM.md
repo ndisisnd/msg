@@ -23,19 +23,19 @@ Component registry for {{project_name}}. Read by `plan-pm` when assessing UI imp
 
 ## Design tokens
 
-[USER: list colour, spacing, typography tokens and where they live — e.g. src/tokens/colors.ts]
+{{ds_tokens}}
 
 ## Component library
 
-[USER: note any external component library in use — e.g. shadcn/ui, MUI, Tailwind UI, native iOS UIKit — and the version pinned]
+{{ds_library}}
 
 ## Conventions
 
-[USER: naming conventions, folder structure rules, theming approach, and any constraints on adding new components]
+{{ds_conventions}}
 ```
 
 ## Notes
 
-- Every `[USER: …]` marker is a deliberate gap. Fill these in as the design system takes shape.
+- Design tokens, component library, and conventions are pre-populated from the Step 4 design system interview. The Components table `[USER: …]` rows remain for the user to fill in as components are built.
 - `plan-pm` reads the Components table to identify which components a proposed feature impacts or can reuse, and surfaces this in §3 (User flows) and §4 (Key user interactions).
 - `plan-em` reads the Components table and Design tokens section to scope frontend engineering work and flag data-ingestion changes that components would require.

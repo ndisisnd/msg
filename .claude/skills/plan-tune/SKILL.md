@@ -65,7 +65,8 @@ allowed_tools:
 | Name | Format | Destination |
 |------|--------|-------------|
 | Selected tune type | `Tune type: Product` or `Tune type: Eng` emitted inline | Emitted at end of Step 1 |
-| Audit findings | Severity-tagged numbered findings (markdown) | Printed inline only — no file written |
+| Full audit findings | Severity-tagged numbered findings (markdown) | Appended to `features/prd-[n]/prd-[n].md` as `## Audit — YYYY-MM-DD` section |
+| Summary table | One row per finding; columns: Severity, What's the fix, How to fix, Why it matters | Emitted inline to the user |
 | Revised PRD | Updated `.md` file with all findings applied | `features/prd-[n]/prd-[n].md` (edited in place) |
 | Human gate prompt | `AskUserQuestion` with three options | Shown inline at end of run |
 
@@ -141,11 +142,36 @@ The PRD is already in context from Step 1. Confirm the document is held as `<prd
 
 **Eng tune:** Apply Dimensions 1–4 as above, then apply Dimension 5 — Eng Plan Integrity from `refs/tune-eng.md`. Dimension 5 audits each `## Engineering — <Agent Name>` section for feature coverage, PRD↔eng consistency, integration contract completeness, migration paths, and open question ownership.
 
-For each issue surfaced across all applicable dimensions, draft one finding using the format defined in `refs/tune.md`.
+For each issue surfaced across all applicable dimensions, draft one finding using the format defined in `refs/tune-product.md`.
+
+**Write audit to document:** Append the full findings report to the PRD file as a new section:
+
+```markdown
+## Audit — YYYY-MM-DD
+
+Auditor: [product-plan-tune | eng-plan-tune]
+
+Summary:
+  Critical: N
+  Major: N
+  Minor: N
+
+[Full numbered findings in finding format from refs/tune-product.md]
+```
+
+Use the Edit tool to append this section to the end of the PRD file. Do not modify any existing PRD content in this step.
+
+**Emit summary table to user:** After writing the audit section, output a Markdown table with one row per finding. Each cell must be terse — under 2 lines and 100 characters. Order rows by severity (Critical first), then PRD section order within each severity.
+
+```markdown
+| # | Severity | What's the fix | How to fix | Why it matters |
+|---|----------|----------------|------------|----------------|
+| 1 | Critical | <≤100 char description> | <≤100 char action> | <≤100 char consequence> |
+```
 
 Ask the user if they would like to fix these issues using `AskUserQuestion` (multiSelect): Critical / Major / Minor / Skip.
 
-- If Skip → terminate session and emit `Fixes skipped. Issues can be found in this terminal`.
+- If Skip → terminate session and emit `Fixes skipped. Full audit recorded in the PRD.`.
 - If any other choices selected, proceed to Step 4.
 
 **Step 4/5 — Apply fixes to the PRD**

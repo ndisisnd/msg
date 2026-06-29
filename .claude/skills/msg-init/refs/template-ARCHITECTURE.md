@@ -21,7 +21,7 @@ High-level system design and platform decisions for {{project_name}}. Read by `p
 
 ## System overview
 
-[USER: fill in a one-paragraph description of the system's major components and how they communicate]
+{{arch_overview}}
 
 ## Component map
 
@@ -33,18 +33,18 @@ High-level system design and platform decisions for {{project_name}}. Read by `p
 
 | Service | Purpose | Auth model |
 |---------|---------|------------|
-| [USER: service] | [USER: purpose] | [USER: auth model] |
+| {{arch_external}} | [USER: purpose] | [USER: auth model] |
 
 ## Data stores
 
-[USER: list databases, caches, queues, blob stores, and what each holds]
+{{arch_data_stores}}
 
 ## Cross-cutting concerns
 
-- **Authentication**: [USER: model]
+- **Authentication**: {{arch_auth}}
 - **Authorisation**: [USER: model]
 - **Observability**: [USER: logging, metrics, tracing approach]
-- **Deployment**: [USER: CI/CD pipeline and environments]
+- **Deployment**: {{arch_deployment}}
 
 ## Decisions log
 
@@ -58,6 +58,6 @@ Record significant architectural decisions inline with the date and reasoning. A
 
 ## Notes
 
-- Every `[USER: …]` marker is a deliberate gap. The user fills these in as the system takes shape.
+- System overview, external dependencies, data stores, authentication, and deployment are pre-populated from the Step 3 architecture interview. The Component map table and authorisation/observability remain as `[USER: …]` gaps for the user to fill in as the system takes shape.
 - `plan-pm` reads the Primary platform line to default platform questions during PRD interviews.
 - `plan-em` reads the Component map and Data stores sections to map PRD features to engineering domains.

@@ -3,13 +3,21 @@
 #
 # Usage: init.sh <target_dir>
 #
-# Required env vars (set by the skill after the Step 2 interview):
+# Required env vars (set by the skill after the interview steps):
 #   PROJECT_NAME         Q1 name
 #   PROJECT_DESCRIPTION  Q1 one-line description
 #   PLATFORM             Q2 answer ("Web (frontend)", "Backend API", "CLI", "Mobile (iOS/Android)")
 #   LANGUAGE             Q2b answer (e.g. "TypeScript", "Swift (iOS)", "Kotlin (Android)")
 #   TEAM_TYPE            Q3 answer
 #   CONVENTIONS          Q4 answer
+#   ARCH_OVERVIEW        A1 — system components and how they interact
+#   ARCH_EXTERNAL        A2 — external services and APIs
+#   ARCH_DATA_STORES     A3 — databases, caches, queues
+#   ARCH_AUTH            A4 — authentication approach
+#   ARCH_DEPLOYMENT      A5 — deployment pipeline
+#   DS_LIBRARY           D2 — component library
+#   DS_TOKENS            D3 — design token locations
+#   DS_CONVENTIONS       D4 — component naming / folder conventions
 #
 # Writes only files absent from <target_dir>. Exits non-zero if any write fails.
 # Prints a manifest to stdout.
@@ -27,6 +35,14 @@ PLATFORM="${PLATFORM:-Not specified — fill in later.}"
 LANGUAGE="${LANGUAGE:-Not specified — fill in later.}"
 TEAM_TYPE="${TEAM_TYPE:-Solo}"
 CONVENTIONS="${CONVENTIONS:-None recorded yet. Add house conventions as they emerge.}"
+ARCH_OVERVIEW="${ARCH_OVERVIEW:-[USER: describe the major components of the system and how they interact]}"
+ARCH_EXTERNAL="${ARCH_EXTERNAL:-[USER: list external services, APIs, and their dependencies]}"
+ARCH_DATA_STORES="${ARCH_DATA_STORES:-[USER: list databases, caches, queues, blob stores, and what each holds]}"
+ARCH_AUTH="${ARCH_AUTH:-[USER: authentication model]}"
+ARCH_DEPLOYMENT="${ARCH_DEPLOYMENT:-[USER: CI/CD pipeline and environments]}"
+DS_LIBRARY="${DS_LIBRARY:-[USER: note any external component library in use and the version pinned]}"
+DS_TOKENS="${DS_TOKENS:-[USER: list colour, spacing, typography tokens and where they live]}"
+DS_CONVENTIONS="${DS_CONVENTIONS:-[USER: naming conventions, folder structure rules, theming approach, and any constraints on adding new components]}"
 
 CREATED=(); SKIPPED=(); FAILED=()
 
@@ -39,7 +55,15 @@ apply_subs() {
     -e "s|{{platform}}|${PLATFORM}|g" \
     -e "s|{{language}}|${LANGUAGE}|g" \
     -e "s|{{team_type}}|${TEAM_TYPE}|g" \
-    -e "s|{{conventions}}|${CONVENTIONS}|g"
+    -e "s|{{conventions}}|${CONVENTIONS}|g" \
+    -e "s|{{arch_overview}}|${ARCH_OVERVIEW}|g" \
+    -e "s|{{arch_external}}|${ARCH_EXTERNAL}|g" \
+    -e "s|{{arch_data_stores}}|${ARCH_DATA_STORES}|g" \
+    -e "s|{{arch_auth}}|${ARCH_AUTH}|g" \
+    -e "s|{{arch_deployment}}|${ARCH_DEPLOYMENT}|g" \
+    -e "s|{{ds_library}}|${DS_LIBRARY}|g" \
+    -e "s|{{ds_tokens}}|${DS_TOKENS}|g" \
+    -e "s|{{ds_conventions}}|${DS_CONVENTIONS}|g"
 }
 
 # Extract content inside the ```...``` block that follows "## Template body"
