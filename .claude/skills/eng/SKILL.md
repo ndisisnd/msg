@@ -73,7 +73,7 @@ Before producing any output, read the PRD, all devkit files, and all relevant co
 |------|-------------|
 | `devkit/AHA.md` | Surface past learnings relevant to the assigned rows |
 | `devkit/GLOSSARY.md` | Use canonical terms; flag PRD deviations |
-| `CLAUDE.md` | Apply tech stack constraints to all file path and approach decisions |
+| `CLAUDE.md` (project root) | Apply tech stack constraints to all file path and approach decisions |
 | `devkit/ARCHITECTURE.md` | Validate scope against system layers; flag conflicts as gaps |
 | `devkit/DESIGN-SYSTEM.md` | Note reusable components in proposed changes |
 

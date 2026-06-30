@@ -8,7 +8,7 @@ This file defines the build-mode specifics only. The shared protocol — input v
 
 ## Input contract (build-specific)
 
-Beyond the shared three (`--build`, `prd-path`, `rows`), build mode requires one additional field, plus one optional commit-mode field:
+Beyond the shared four (`--build`, `prd-path`, `rows`, `agent`), build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|

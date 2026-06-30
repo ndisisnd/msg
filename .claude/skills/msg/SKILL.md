@@ -23,7 +23,7 @@ allowed_tools:
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
 | Build & Ship | ship | Autonomous build-and-ship loop — eng build → review loop → pre-merge |
-| Build & Ship | eng | Plan, build, or review engineering work from exec-table rows |
+| Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
 | Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
 | Review | review | Five-mode code review — Quality, Coverage, Functional, Security, Perf |

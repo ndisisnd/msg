@@ -14,7 +14,7 @@ Populate every section. This is an execution document, not a status update. It m
 
 ### 1. Summary
 
-Two to three sentences. State what is being built, the single target platform (from PRD §3), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own engineering plan.
+Two to three sentences. State what is being built, the agent's owned stack (from PRD §3), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own engineering plan.
 
 **Worked example:**
 > Ship a habit-tracking core flow on iOS only. Backend introduces one new service (`streak-service`) and extends the existing user profile schema. Android and web are out of scope for this plan.
@@ -81,7 +81,7 @@ One subsection per non-obvious implementation choice. Each decision must name th
 
 ### 5. Scope mapping
 
-Table form. Map every feature ID from the PRD to one or more engineering domains. Domains must stay within the single platform stated in PRD §3.
+Table form. Map every feature ID from the PRD to one or more engineering domains. Domains must stay within the agent's owned stack.
 
 | PRD feature ID | Feature | Domains | Lead agent |
 |----------------|---------|---------|-----------|

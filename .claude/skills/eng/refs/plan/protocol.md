@@ -8,7 +8,7 @@ This file defines the plan-mode specifics only. The shared protocol — input va
 
 ## Input contract (plan-specific)
 
-No fields beyond the shared three (`--plan`, `prd-path`, `rows`).
+No fields beyond the shared four (`--plan`, `prd-path`, `rows`, `agent`).
 
 **Example invocation:**
 ```
