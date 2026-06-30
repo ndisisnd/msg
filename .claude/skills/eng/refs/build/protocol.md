@@ -8,15 +8,25 @@ This file defines the build-mode specifics only. The shared protocol — input v
 
 ## Input contract (build-specific)
 
-Beyond the shared three (`--build`, `prd-path`, `rows`), build mode requires one additional field:
+Beyond the shared three (`--build`, `prd-path`, `rows`), build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|
-| `branch` | Target feature branch. Eng creates a working sub-branch from this; the PR targets it. |
+| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. |
+| `commit_mode` | *(optional)* `direct` or `sub-branch`. Default `direct`. See **Branch contract** below. |
 
-**Example invocation:**
+### Branch contract (what `branch` means)
+
+`branch` is the **feature branch the orchestrator created and will review** — it is the destination for this build's commits, **not** merely a PR target. There are two commit modes:
+
+- **`direct` (default — used by `ship`):** Commit your work **directly onto `branch`**. Do **not** cut a sub-branch and do **not** open a PR. The orchestrator reviews/tests `branch` itself, so your commits must be on it. When several build agents run in parallel against one `branch`, each agent owns a **disjoint set of files** (the exec-table groups rows by agent), so committing to the shared branch is safe as long as you touch only the files your assigned rows specify (Step 6 scope enforcement guarantees this).
+- **`sub-branch` (direct human invocation):** Cut a working sub-branch `{branch}/{row-slug}` from `branch`, do all work there, commit, and open a PR from the sub-branch into `branch`. Use this only when a human runs `eng --build` standalone and wants a reviewable PR per agent.
+
+If `commit_mode` is absent, default to `direct`.
+
+**Example invocation (ship/default — direct):**
 ```
-/eng --build prd-path=features/prd-4/prd-4.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
+/eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
 **Hard-refuse if `branch` is missing — check this before reading any file.** Emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight.
@@ -37,7 +47,10 @@ The 3–4 line summary covers:
 
 Use the PRD's `## Engineering — <Agent Name>` section as the sole specification. Do not re-interpret the PRD features section directly.
 
-1. **Create working sub-branch.** The `branch` field is the PR target and is created once by `plan-em` before any build agent starts — do **not** create it yourself (parallel build agents racing to create the same branch from `main` corrupts the tree). If `branch` does not exist, this is a hard failure: emit `Hard failure: target branch '<branch>' does not exist — plan-em must create it before build agents run` and stop. Derive a sub-branch name: `{branch}/{row-slug}` where `row-slug` is a lowercase hyphenated slug of the first assigned row (e.g., `feat/prd-4-habit-tracking/streaks-schema`). Cut the sub-branch from `branch`, check it out, and do all work there. Do not push until the commit step.
+1. **Check out the work branch (per `commit_mode`).** `branch` already exists — it is created once by the orchestrator (`plan-em`/`ship`) before any build agent starts; do **not** create it yourself (parallel build agents racing to create the same branch from `main` corrupts the tree). If `branch` does not exist, this is a hard failure: emit `Hard failure: target branch '<branch>' does not exist — the orchestrator must create it before build agents run` and stop. Then:
+   - **`commit_mode: direct` (default):** check out `branch` itself and do all work on it. Your commits land directly on the feature branch the orchestrator reviews. Touch only the files your assigned rows specify (Step 6) so parallel agents on the same branch stay file-disjoint.
+   - **`commit_mode: sub-branch`:** derive a sub-branch name `{branch}/{row-slug}` (where `row-slug` is a lowercase hyphenated slug of the first assigned row, e.g. `feat/prd-4-habit-tracking/streaks-schema`), cut it from `branch`, check it out, and do all work there.
+   Do not push until the commit step.
 2. **Read Execution steps.** For each assigned exec-table row, read the Execution steps column. If a cell is blank, surface it as a blocking gap via `AskUserQuestion` — do not proceed on that row until resolved.
 3. **Discover testing tools.** Before writing any test file, scan existing test files in the relevant feature area for:
    - Test runner and framework (e.g., `pytest`, `jest`, `go test`, `flutter_test`)
@@ -60,8 +73,8 @@ Use the PRD's `## Engineering — <Agent Name>` section as the sole specificatio
 
 5. **Full-suite gate.** After all feature groups are green, run the project's **full** test suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). The per-group runs only covered the files this agent wrote; this catches breakage in sibling code. Any new failure introduced by this agent's changes goes to Debug mode (max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed (out of scope). If the project has no test or lint command, state that in the build summary and continue.
 6. **Confirm before commit.** Emit a one-line change summary (files touched, tests added, full-suite result) and ask via `AskUserQuestion` whether to commit and open the PR. Proceed only on an explicit "Yes". This is the single human gate between writing code and publishing it.
-7. **Commit.** On approval, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`).
-8. **Open PR.** When all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`. Link the PRD path in the PR description. Do not open a PR against `main`.
+7. **Commit (to the work branch).** On approval, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`). In `direct` mode this commit lands on `branch`; in `sub-branch` mode it lands on the sub-branch. Either way, the feature branch ends with your commits on it (directly in `direct` mode, or via the PR you open in `sub-branch` mode).
+8. **Open PR (`sub-branch` mode only).** In `sub-branch` mode, when all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`; link the PRD path in the PR description; never open a PR against `main`. **In `direct` mode, skip this step** — there is no sub-branch and no PR; the orchestrator reviews `branch` directly.
 
 ---
 
@@ -128,8 +141,8 @@ Emit a build summary after all rows are complete:
 | F2: Track streak — Schema migration | `migrations/0043_add_streaks.sql` | `models/streak.py` | ✅ 2/2 pass | ✅ Done |
 | F2: Track streak — API contract | — | `routes/streaks.py`, `openapi.yaml` | ✅ 3/3 pass | ✅ Done |
 
-**PR:** <link>
-**Branch:** <working sub-branch name>
+**PR:** <link, or "none — direct commit mode">
+**Branch:** <branch the commits landed on — the feature branch in `direct` mode, or the sub-branch name in `sub-branch` mode>
 **Target:** <feature branch (branch field value)>
 **Full-suite gate:** <pass / fail summary, or "no test/lint command">
 **Warnings:** <e.g. groups shipped without a Tests row, uncovered stacks from /cook, or "None">
@@ -140,5 +153,5 @@ Emit a build summary after all rows are complete:
 **Constraints:**
 - Use the PRD's `## Engineering — <Agent Name>` section as the sole specification.
 - Do not modify the PRD file.
-- Do not open a PR against `main` — always target the feature branch.
-- Do not modify files outside the scope of the assigned exec-table rows.
+- Your commits must land on the feature branch (`branch`): directly in `direct` mode, or via a PR into it in `sub-branch` mode. Never commit to or open a PR against `main`.
+- Do not modify files outside the scope of the assigned exec-table rows — this also keeps parallel `direct`-mode agents file-disjoint on the shared branch.

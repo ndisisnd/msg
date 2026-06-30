@@ -10,7 +10,9 @@ description: >
   the codebase to recommend which test buckets, tools, and packages it
   needs, then writes a test.json cache the execution path reads. Accepts
   --eval-set to consume eval_set.json written by /review. Emits structured
-  JSON findings compatible with the pre-merge finding schema.
+  JSON findings conforming to the shared canonical finding schema
+  (.claude/skills/shared/refs/finding-schema.md), the same shape /review
+  and /pre-merge emit.
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
@@ -70,7 +72,7 @@ Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_s
 | In | eval_set | `--eval-set <path>` (JSON) or bootstrapped from `--prd <path>` |
 | Out | Findings JSON | stdout always; `features/prd-[n]/test/test-<YYYYMMDD-HHmmss>.json` when PRD known |
 
-Schema and verdict semantics: `refs/schema.md`.
+Schema and verdict semantics: `refs/schema.md` (conforms to the shared canonical finding object in `../shared/refs/finding-schema.md`).
 
 ## Init protocol (`--init` only)
 
@@ -277,7 +279,8 @@ If the script exits 1, the offending bucket wrote invalid JSON — fix that buck
 - `.claude/scripts/test-init-profile.sh` — Init Step I-1 codebase shape profiler
 - `.claude/scripts/test-aggregate-verdict.sh` — Step 5 verdict aggregator + JSON merger
 - `refs/modes/init.md` — `--init` decision tables (shape→buckets, bucket→tools) and `test.json` schema
-- `refs/schema.md` — output JSON schema and verdict semantics
+- `refs/schema.md` — output JSON schema and verdict semantics (conforms to the shared canonical finding object)
+- `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
 - `refs/modes/unit.md` — unit/integration runner invocation and output parsing
 - `refs/modes/e2e.md` — e2e runner invocation and output parsing
 - `refs/modes/functional.md` — executable assertion verification via ephemeral scripts

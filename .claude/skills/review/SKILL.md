@@ -136,7 +136,8 @@ Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = wors
 ## References
 
 - `refs/FLAG-LIST.md` — domain, test-runner, mechanical-runner, and secret-scanner detection signals + authoritative `/cook` flag inventory (single source of truth for Step 2 fingerprint and Step 4 flag validation)
-- `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics
+- `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics (findings conform to the shared canonical finding object)
+- `../shared/refs/finding-schema.md` — canonical finding object shared with /test and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
 - `refs/modes/quality.md` — Quality mode: flags, orchestrator rubric (extends `/cook`'s flag coverage with orchestrator-owned checks), and sub-agent prompt amendment
 - `refs/modes/coverage.md` — Coverage mode: test-runner protocol
 - `refs/modes/functional.md` — Functional mode: eval-set assertion protocol

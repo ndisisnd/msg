@@ -21,7 +21,7 @@ allowed_tools:
 
 ## Usage
 
-**Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside `features/prd-[n]/`.
+**Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside `features/prd-[n]-[slug]/`.
 
 - Slash command: `/plan-em`
 - Natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents"
@@ -42,12 +42,12 @@ allowed_tools:
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| Pre-flight report | Markdown findings file | `features/prd-[n]/preflight.md` |
+| Pre-flight report | Markdown findings file | `features/prd-[n]-[slug]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
-| Development eval_set | Functional assertion set (JSON) | `features/prd-[n]/` (bootstrapped via `/test --prd` in plan mode) |
+| Development eval_set | Functional assertion set (JSON) | `features/prd-[n]-[slug]/` (bootstrapped via `/test --prd` in plan mode) |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 
-`[n]` is derived from the parent directory name of the input PRD (e.g., `features/prd-3/prd-3.md` → `n=3`).
+`[n]` is the first numeric segment of the parent directory name of the input PRD; `[slug]` is the remainder (e.g., `features/prd-3-habit-tracking/prd-3-habit-tracking.md` → `n=3`, `slug=habit-tracking`). Resolve the actual matched directory once at Step 1 and write every artifact relative to it — do not reconstruct a bare `features/prd-[n]/` path.
 
 ## Persona
 
@@ -72,7 +72,7 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 **Step 1/5 — Validate and pre-flight**
 
-First, validate: verify the PRD path exists and matches `features/prd-*/prd-*.md`. Derive `n` from the parent directory name. If validation fails, refuse and emit the rule. Produce no output on failure.
+First, validate: verify the PRD path exists and matches `features/prd-*/prd-*.md`. Resolve and store the actual matched directory as `$PRD_DIR` — write every artifact below relative to `$PRD_DIR`, never to a reconstructed `features/prd-[n]/`. Derive `n` as the first numeric segment of the parent directory name (`prd-3-habit-tracking` → `n=3`). If validation fails, refuse and emit the rule. Produce no output on failure.
 
 Then, mandatory pre-flight scan (devkit + PRD). Devkit files live in `devkit/` (created by `msg-init`); `CLAUDE.md` is at project root. Read all of the following in order:
 
@@ -105,7 +105,7 @@ Then, mandatory pre-flight scan (devkit + PRD). Devkit files live in `devkit/` (
 
    Also update the frontmatter of any prior PRD whose `affects` list should include the input PRD (i.e., if the input PRD is confirmed to break or overlap a prior PRD's scope, add the input PRD's ID to that prior PRD's `affects` field).
 
-Write the pre-flight report to `features/prd-[n]/preflight.md` (create or overwrite). The file contains all findings in full:
+Write the pre-flight report to `$PRD_DIR/preflight.md` (create or overwrite). The file contains all findings in full:
 
 - **Terminology deviations** — PRD terms not matching GLOSSARY.md
 - **Architecture conflicts** — features that contradict or ignore ARCHITECTURE.md constraints
@@ -126,11 +126,11 @@ This gate checks whether the **PM/product tune** (`plan-tune --product`) has bee
 plan-tune --product  →  plan-em  →  [agents write]  →  plan-tune --eng
 ```
 
-Check the PRD's `tuned:` frontmatter field (read in Step 1). If `tuned: no` or the field is absent, note it in the question context.
+Check the PRD's `product-tuned:` frontmatter field (read in Step 1). If `product-tuned: no` or the field is absent, note it in the question context. (If `product-tuned: yes`, the product tune has already run — you may skip the gate and proceed straight to agent identification.)
 
 Ask the user via `AskUserQuestion`:
 
-- **Run plan-tune --product first** — emit the handoff message: "Run `/plan-tune features/prd-[n]/prd-[n].md --product` to tune the PRD before engineering planning." (Use the resolved `n` from Step 1.) Then stop.
+- **Run plan-tune --product first** — emit the handoff message: "Run `/plan-tune $PRD_DIR/prd-[n]-[slug].md --product` to tune the PRD before engineering planning." (Use the resolved `$PRD_DIR` and `n` from Step 1.) Then stop.
 - **Continue without tune** — proceed to agent identification.
 
 Do not activate any agent until the user responds.
@@ -141,7 +141,7 @@ Do not activate any agent until the user responds.
 
 **3a — Fetch coding standards to confirm agent types**
 
-Before proposing any roster, derive the platform identifiers implied by PRD §3 (Platform) and the feature list. Then call `/cook` once per implied platform and read each result fully. The platforms `/cook` returns coverage for are the canonical agent identifiers — use them to name agents (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook` is the authority on what platforms are supported.
+Before proposing any roster, derive the platform identifiers implied by PRD §2 (Target platform) and the §3 Features & acceptance criteria table. Then call `/cook` once per implied platform and read each result fully. The platforms `/cook` returns coverage for are the canonical agent identifiers — use them to name agents (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook` is the authority on what platforms are supported.
 
 If `/cook` returns no coverage for a platform implied by the PRD, surface it as a blocking gap: emit a warning, list the uncovered platform, and ask the user via `AskUserQuestion` how to proceed before continuing.
 
@@ -162,7 +162,7 @@ Do not activate any agent without explicit approval.
 
 **Execution table skeleton**
 
-Once the roster is approved, build the execution table skeleton using `refs/template-exec-table.md` as the guide. For each PRD feature, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair. Pre-populate the Feature and Agent columns; leave Execution steps blank. Append the skeleton to the PRD as:
+Once the roster is approved, build the execution table skeleton using `refs/template-exec-table.md` as the guide. Enumerate features from the PRD's §3 Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the keys for every exec-table row. For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair, with the Feature cell as the exact `<F-ID>: <name> — <concern>` text. Pre-populate the Feature and Agent columns; leave Execution steps blank. Append the skeleton to the PRD as:
 
 ```markdown
 ## Execution Table
@@ -178,7 +178,7 @@ Before proceeding to Step 4, identify learnings from Steps 1–3 worth capturing
 - An architecture conflict was found that should inform future PRD templates
 - Overlap with a prior PRD required a resolution decision
 
-For each qualifying learning, append one entry to `AHA.md`:
+For each qualifying learning, append one entry to `devkit/AHA.md`:
 
 ```
 ### [YYYY-MM-DD] <Summary title>
@@ -204,7 +204,7 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 
 Each agent writes its engineering section directly to the PRD file. Emit a short progress note as each agent completes.
 
-**Bootstrap the development eval_set (plan mode only):** After all plan-mode agents have written their engineering sections — so the PRD now carries the full feature list, engineering sections, and execution table — invoke `/test --prd <prd-path>` **once** (via the `Skill` tool, with the resolved PRD path from Step 1). This reads the PRD and bootstraps an `eval_set` of functional assertions for the feature, written under `features/prd-[n]/`. Running it here, once, means the eval_set exists before the build phase begins; downstream `eng --build` agents and `/review` consume it via `/test --eval-set <path>` rather than each re-deriving it. Emit a one-line note with the assertion count (e.g. `Eval-set: 12 executable assertions bootstrapped.`). If `/test` reports zero executable assertions, note it and continue — this is a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
+**Bootstrap the development eval_set (plan mode only):** After all plan-mode agents have written their engineering sections — so the PRD now carries the full feature list, engineering sections, and execution table — invoke `/test --prd <prd-path>` **once** (via the `Skill` tool, with the resolved PRD path from Step 1). This reads the PRD and bootstraps an `eval_set` of functional assertions for the feature, written under `$PRD_DIR/`. Running it here, once, means the eval_set exists before the build phase begins; downstream `eng --build` agents and `/review` consume it via `/test --eval-set <path>` rather than each re-deriving it. Emit a one-line note with the assertion count (e.g. `Eval-set: 12 executable assertions bootstrapped.`). If `/test` reports zero executable assertions, note it and continue — this is a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
 
 **Build mode (`$MODE = build`):** First, create the feature branch **once**: if `feat/prd-[n]-<short-name>` does not exist, cut it from `main` and push it. Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
 

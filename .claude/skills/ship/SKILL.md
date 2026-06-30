@@ -120,6 +120,8 @@ Pre-flag **database-concern rows**: any row whose concern is `Schema migration` 
 
 ### Step 3 — Stage 1: Build (spin up subagents)
 
+**Branch contract.** `ship` creates ONE feature branch `feat/prd-<n>-<slug>` and every build/fix agent commits **directly onto it** (eng `commit_mode: direct`) — no per-agent sub-branches, no PRs. This is the branch `/review`, `/test`, and `/pre-merge` all diff against `<base>`, so the agents' commits must be on it for those stages to see anything. Parallel agents stay safe because each agent group owns a disjoint set of files (Step 2 grouped rows by Agent).
+
 **Create the feature branch once** (concurrent creation from `main` corrupts the tree):
 ```bash
 git rev-parse --verify --quiet "feat/prd-<n>-<slug>" >/dev/null || git switch -c "feat/prd-<n>-<slug>" main
@@ -132,12 +134,23 @@ Then spawn **one `Agent` per agent group, all in a single message** (parallel). 
 3. Mode flag: `--build`
 4. `prd-path`: `prd_path`
 5. `rows`: this agent's `feature_cell` values, semicolon-separated
-6. `branch`: `feat/prd-[n]-<slug>`
-7. `agent`: the **Agent** column value for these rows
-8. "Skip the full-suite gate (eng `--build` protocol Step 5 — the raw `npm test` / `pytest` / `flutter test` run). The ship workflow runs `/test` as a dedicated stage after review, so do not run the full suite yourself. Still complete your per-feature TDD red/green checks while building."
-9. "Return: a one-paragraph build summary, the list of files you created/modified, and an explicit `BREAKING: <desc>` line for any change that alters a contract, schema, or public API that already-shipped code depends on (or `BREAKING: none`)."
+6. `branch`: `feat/prd-[n]-<slug>` — **the feature branch ship created; this is where your commits must land.**
+7. `commit_mode`: `direct`
+8. `agent`: the **Agent** column value for these rows
+9. **Branch contract (critical):** "Run in `commit_mode: direct` — commit your work **directly onto `branch` (`feat/prd-[n]-<slug>`)**. Do NOT cut a per-agent sub-branch and do NOT open a PR (skip eng build-protocol Step 8). ship reviews and tests this exact branch, so commits left on a sub-branch would be invisible. You and the other parallel build agents each own a disjoint set of files (one agent group per `agent`), so committing to the shared feature branch is safe — touch only the files your assigned rows specify."
+10. "Skip the full-suite gate (eng `--build` protocol Step 5 — the raw `npm test` / `pytest` / `flutter test` run). The ship workflow runs `/test` as a dedicated stage after review, so do not run the full suite yourself. Still complete your per-feature TDD red/green checks while building."
+11. "Return: a one-paragraph build summary, the list of files you created/modified, and an explicit `BREAKING: <desc>` line for any change that alters a contract, schema, or public API that already-shipped code depends on (or `BREAKING: none`)."
 
 Collect every subagent's summary, touched-file list, and breaking-change report.
+
+**Post-build non-empty-diff gate.** Before doing anything else, verify the build agents actually committed to the feature branch — otherwise review/test/pre-merge would diff an empty branch:
+```bash
+git diff --quiet "<base>...feat/prd-<n>-<slug>" && echo EMPTY || echo NONEMPTY
+```
+If this prints `EMPTY` (no commits / no diff vs base), **hard-fail and stop** — do not proceed to the guardrail or review:
+> Build produced no commits on `feat/prd-<n>-<slug>` (empty diff vs `<base>`). The build agents did not land code on the feature branch — check the eng build-mode branch contract (they must run `commit_mode: direct` and commit to `branch`, not a sub-branch). Aborting before review/test, which would otherwise review nothing.
+
+Only continue to Step 4 once the diff is non-empty.
 
 ### Step 4 — Guardrail (after build, before review)
 
@@ -168,7 +181,7 @@ Initialise `round = 0`. Each round runs **Review** then **Test**, pools the open
 5. **Exit conditions:**
    - Zero pooled open issues (review verdict `pass` **and** test verdict `pass`/`pass_with_warnings`) → exit loop → Step 6.
    - `round == max_rounds` with issues remaining → `AskUserQuestion`: **Run more rounds** (reset cap, continue) / **Stop and report** (terminate with the open issues listed).
-6. **Fix (Stage 4).** Spawn `Agent` subagents (grouped by owning agent/file) running `eng --build` scoped to ONLY the pooled findings — pass both findings JSON paths and instruct: "Fix exactly these review and test findings on branch `feat/prd-[n]-<slug>`. Do not expand scope. Return touched files and any `BREAKING:` report." Build agents skip the full-suite gate as in Step 3 (the loop re-runs `/test` next round).
+6. **Fix (Stage 4).** Spawn `Agent` subagents (grouped by owning agent/file) running `eng --build` (with `commit_mode: direct`) scoped to ONLY the pooled findings — pass both findings JSON paths and instruct: "Fix exactly these review and test findings, committing **directly onto branch `feat/prd-[n]-<slug>`** (`commit_mode: direct`; no sub-branch, no PR) so the next round's `/review`/`/test` diff against `<base>` sees your fixes. Do not expand scope. Return touched files and any `BREAKING:` report." Build agents skip the full-suite gate as in Step 3 (the loop re-runs `/test` next round).
 7. **Re-apply the Step 4 guardrail** to the fix diff. If it trips, PAUSE as in Step 4 before looping back to (2).
 8. Loop back to (2).
 
@@ -195,7 +208,7 @@ Never push, merge, or open a PR — that is the user's call.
 
 ## References
 
-- `.claude/skills/eng/SKILL.md` — `--build` mode: branch, work steps, commit/PR contract. Spawned per agent group in Steps 3 & 5.
+- `.claude/skills/eng/SKILL.md` — `--build` mode: work steps and the **branch contract**. ship spawns build agents with `commit_mode: direct`, so they commit straight to the feature branch ship reviews (no per-agent sub-branch, no PR). Spawned per agent group in Steps 3 & 5.
 - `.claude/skills/review/SKILL.md` — five-mode code review; writes `features/prd-[n]/review/review-*.json` and `eval_set.json`; defers `executable` assertions to `/test`. Spawned in Step 5.
 - `.claude/skills/test/SKILL.md` — execution-focused test skill; consumes `eval_set.json` via `--eval-set` and runs the workflow's full-suite verification. Spawned in Step 5 (replaces raw runner commands). 
 - `.claude/skills/pre-merge/SKILL.md` — pre-push gate; emits the final verdict JSON. Spawned in Step 6.

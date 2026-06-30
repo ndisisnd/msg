@@ -30,7 +30,7 @@ allowed_tools:
 
 ## Persona
 
-1. Interview before writing. Every spec item has an acceptance criterion. Open questions go in §8 (Open questions), never buried in prose.
+1. Interview before writing. Every spec item has an acceptance criterion. Open questions go in §7 (Open questions), never buried in prose.
 2. Never write a requirement an engineer could interpret two ways. Quote ambiguous text verbatim and ask for the precise definition.
 3. Output is numbered, dense, and engineer-readable. Tables for feature specs. No hedging or weasel words.
 4. All interview questions use `AskUserQuestion` — one at a time, with options plus "Other".
@@ -47,12 +47,12 @@ Before emitting any step, stat-check and read the following files in parallel vi
 
 | File | How to apply |
 |------|-------------|
-| `devkit/AHA.md` | Surface relevant entries in §6 (Open questions) |
-| `devkit/GLOSSARY.md` | Cross-reference when populating §7 (Glossary) in Step 5 |
+| `devkit/AHA.md` | Surface relevant entries in §7 (Open questions) |
+| `devkit/GLOSSARY.md` | Cross-reference when populating §8 (Glossary) in Step 5 |
 | `CLAUDE.md` | Extract tech stack constraints, conventions, and architecture notes; use to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup |
-| `devkit/ARCHITECTURE.md` | Load system layers and existing integration points; validate feasibility of proposed features against existing constraints and note any conflicts in §6 (Open questions) |
-| `devkit/DESIGN-SYSTEM.md` | Load the component registry; when populating §3 (User flows) and §4 (Key user interactions), identify which components the proposed feature would impact or reuse and note them inline |
-| `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that may block or constrain proposed features; surface relevant entries in §6 (Open questions) |
+| `devkit/ARCHITECTURE.md` | Load system layers and existing integration points; validate feasibility of proposed features against existing constraints and note any conflicts in §7 (Open questions) |
+| `devkit/DESIGN-SYSTEM.md` | Load the component registry; when populating §4 (User flows) and §5 (Key user interactions), identify which components the proposed feature would impact or reuse and note them inline |
+| `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that may block or constrain proposed features; surface relevant entries in §7 (Open questions) |
 
 **Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
@@ -151,17 +151,18 @@ Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 |---------|--------|
 | §1 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
 | §2 Target platform | Platform from pre-flight |
-| §3 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature; then **Components** (design system) and **Files touched** per feature |
-| §4 Key user interactions | Q5 answers |
-| §5 Error cases | Q4 answers; format from `refs/template-error.md` |
-| §6 Open questions | Overlap from Step 2 + relevant AHA.md entries |
-| §7 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
+| §3 Features & acceptance criteria | Confirmed Q1 feature list with its F-IDs from `refs/template-feature-table.md`; one acceptance criterion per feature derived from its Q5 interaction + Q4 error cases; Dependencies column from Q3 |
+| §4 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature; then **Components** (design system) and **Files touched** per feature |
+| §5 Key user interactions | Q5 answers |
+| §6 Error cases | Q4 answers; format from `refs/template-error.md` |
+| §7 Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries |
+| §8 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
 
-Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout.
+Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout. Carry every F-ID assigned during the interview (`refs/template-feature-table.md`) into §3 unchanged; downstream `plan-em` keys its execution table on these IDs.
 
-**§3 per-feature supplement — components and files:**
+**§4 per-feature supplement — components and files:**
 
-After each ASCII flow diagram in §3, emit two subsections:
+After each ASCII flow diagram in §4, emit two subsections:
 
 1. **Components (from design system):** — Scan `devkit/DESIGN-SYSTEM.md` for components the feature would reuse or impact. List each as `- \`ComponentName\` — <one-line usage note>`. Omit this subsection entirely if no design system exists or no existing components apply; do not write a blank heading.
 
@@ -179,7 +180,7 @@ Before emitting the completion summary, identify learnings from this run worth c
 - Intake required clarification because target user or scope was missing
 - An interview answer revealed an assumption that significantly narrowed scope
 
-For each qualifying learning, append one entry to `AHA.md` using the format:
+For each qualifying learning, append one entry to `devkit/AHA.md` using the format:
 
 ```
 ### [YYYY-MM-DD] <Summary title>
@@ -187,7 +188,7 @@ For each qualifying learning, append one entry to `AHA.md` using the format:
 **Note**: <Concrete action or warning for future runs>
 ```
 
-Entries go under `## Entries`, most recent first. If `AHA.md` does not exist, create it by copying the header from `.claude/skills/msg-init/refs/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
+Entries go under `## Entries`, most recent first. If `devkit/AHA.md` does not exist, create it by copying the header from `.claude/skills/msg-init/refs/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
 
 Emit a completion summary in this format:
 

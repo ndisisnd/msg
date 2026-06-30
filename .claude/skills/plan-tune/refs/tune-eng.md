@@ -8,7 +8,7 @@ type: reference
 
 ## Dimension 5 — Eng Plan Integrity (Eng tune only)
 
-Apply only when running an Eng tune (PRD contains `## Engineering — <Agent Name>` sections). Read each engineering section against the PRD requirements and against the quality gates in `refs/template-eng-plan.md`. One finding per issue.
+Apply only when running an Eng tune (PRD contains `## Engineering — <Agent Name>` sections). Read each engineering section against the PRD requirements and against the quality gates in `.claude/skills/eng/refs/plan/template-eng-plan.md`. One finding per issue. The §-numbers below (§5 scope mapping, §7 integration contracts, §9 migration, §13 open questions) are anchored to that template — if eng renumbers it, update these references.
 
 ### 5a — Feature coverage
 
@@ -60,7 +60,7 @@ Read each engineering section's integration contracts (§7 of the eng plan templ
 
 ### 5f — Eng plan completeness (quality gate audit)
 
-Check each engineering section against the quality gates in `refs/template-eng-plan.md` (Summary, Alternatives considered, Design decisions, PRD coverage, Phases, Integration contracts, Developer experience, Migration, Risks, Open questions).
+Check each engineering section against the quality gates in `.claude/skills/eng/refs/plan/template-eng-plan.md` (Summary, Alternatives considered, Design decisions, PRD coverage, Phases, Integration contracts, Developer experience, Migration, Risks, Open questions).
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|

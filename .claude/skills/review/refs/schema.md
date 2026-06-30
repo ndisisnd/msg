@@ -1,5 +1,12 @@
 # review — Schema reference
 
+Findings conform to the **canonical finding object** in
+`../../shared/refs/finding-schema.md` — the single source of truth shared with
+`/test` and `/pre-merge`. Read that file for the full field reference, severity
+enum, category enum, dedup/regression keys, and verdict normalization. This file
+records `/review`'s specifics: the sub-skill contract, the `source` taxonomy, the
+dedup pass, and the output JSON envelope.
+
 ## Sub-skill interface contract
 
 Each `/cook --<flag>` sub-agent called by `/review` must conform to:
@@ -12,18 +19,33 @@ Each `/cook --<flag>` sub-agent called by `/review` must conform to:
   "verdict": "pass" | "warn" | "block",
   "findings": [
     {
+      "id": "<flag>-<nnn>",
       "source": "<flag>",
+      "severity": "blocker" | "high" | "medium" | "low",
+      "category": "<category>",
+      "rule": "<rule-id>",
+      "message": "<description>",
       "file": "<path>",
       "line": <number>,
-      "rule": "<rule-id>",
-      "severity": "block" | "warn" | "info",
-      "category": "<category>",
-      "message": "<description>",
-      "suggestion": "<actionable fix>"
+      "evidence": {
+        "tool": "<flag or runner>",
+        "file": "<path or null>",
+        "line": <number or null>,
+        "snippet": "<exact offending code or tool output>"
+      },
+      "suggestion": "<actionable fix>",
+      "regression_of": null
     }
   ]
 }
 ```
+
+Per-finding `severity` uses the canonical four-level scale
+(`blocker`/`high`/`medium`/`low`); the mode/run-level `verdict` keeps `/review`'s
+`pass`/`warn`/`block` triad (mapped to the shared scale via the
+verdict-normalization table in the shared schema). Map a sub-agent's judgement:
+a must-fix violation → `blocker` or `high`; a should-fix → `medium`; an
+informational nit → `low`. `rule` is **required** — it is the dedup/regression key.
 
 `source` identifies the producer of the finding. `/review` reads this object mechanically — it does not parse free-form text. Valid forms:
 
@@ -43,8 +65,8 @@ After the dedup pass, a finding's `source` may be a comma-separated concatenatio
 
 ### Orchestrator dedup pass
 
-After collecting all sub-agent outputs for a mode, `/review` applies a deduplication pass before aggregating verdicts. Findings sharing `(file, line, category)` are collapsed into a single entry:
-- **Severity:** keep the highest (`block` > `warn` > `info`).
+After collecting all sub-agent outputs for a mode, `/review` applies a deduplication pass before aggregating verdicts. Findings sharing `(category, file, line, rule)` (the canonical dedup key) are collapsed into a single entry:
+- **Severity:** keep the highest (`blocker` > `high` > `medium` > `low`).
 - **Source:** concatenate distinct `source` values into a comma-separated string on the surviving finding (e.g. `"--api-design,--architecture"`).
 - All other fields are taken from the highest-severity entry.
 
@@ -94,14 +116,14 @@ Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` objec
 
 ### Functional mode fields
 
-- `evaluated` — count of applicable assertions with a definitive verdict (`pass`, `warn`, or `block`). Does not include deferred executable or non-applicable assertions.
+- `evaluated` — count of applicable assertions with a definitive per-assertion verdict (`pass`, `warn`, or `block` — Functional's own assertion-result vocabulary, distinct from a finding's canonical `severity`). Does not include deferred executable or non-applicable assertions.
 - `n_a` — count of assertions emitted as `n/a`. Includes: (a) non-applicable assertions (assertion concerns a surface untouched by the diff) and (b) applicable executable assertions deferred to `/test`.
 - `deferred_note` — present only when every applicable assertion is `n/a` (i.e. `evaluated == 0`). Value: `"all assertions deferred to /test"`. Verdict is `warn` in this case (never `pass`).
 - Each finding gains an `applicable: bool` field. Applicable executable assertions deferred to `/test` emit findings with `applicable: true`, verdict `n/a`, and `message` containing the `/test --eval-set <path>` referral.
 
 ### Mandatory evidence rule (Functional)
 
-Every Functional finding with severity `pass` or `block` MUST populate `file` and `line` with the location of the satisfying or violating code. `null` is permitted only on `n/a` entries. Functional mode self-checks and downgrades any `pass` or `block` lacking evidence to `warn` with reason `"no evidence located"`.
+Every Functional finding with a per-assertion verdict of `pass` or `block` MUST populate `file` and `line` with the location of the satisfying or violating code. `null` is permitted only on `n/a` entries. Functional mode self-checks and downgrades any `pass` or `block` lacking evidence to `warn` with reason `"no evidence located"`. (This per-assertion verdict is Functional's evaluation result, separate from the finding's canonical `severity` field defined in the shared schema.)
 
 ---
 

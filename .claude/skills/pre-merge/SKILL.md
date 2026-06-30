@@ -153,12 +153,12 @@ Pass each subagent: the resolved `files_changed` list, the bucket name, the comm
 ### Step 6 — Aggregate + triage findings
 
 1. **Collect** all subagent return values (filter nulls from any that errored)
-2. **Dedup** by `(category, file, line, rule)` — keep highest severity on collision
+2. **Dedup** by `(category, file, line, rule)` — keep highest severity on collision. `rule` is a required finding field (see `refs/finding-schema.md`), so this key is always populated.
 3. **Triage** each finding using `refs/severity-rubric.md`:
    - In-diff files: weight higher
    - Dev-only deps (in `devDependencies`, test-only imports): weight lower
    - Unreachable code paths: downgrade one level
-4. **Mark regressions**: if `--prior-issues` was loaded, set `regression_of: <prior_id>` when a finding matches a prior `(category, file, rule)` triple
+4. **Mark regressions**: if `--prior-issues` was loaded, set `regression_of: <prior_id>` when a finding matches a prior `(category, file, rule)` triple. The `rule` field is always present (required by `refs/finding-schema.md`), so the regression key is stable.
 
 ### Step 7 — Emit JSON
 
@@ -195,10 +195,15 @@ Each subagent spawned by Step 5 must return:
   "findings": [
     {
       "id": "<bucket>-<nnn>",
+      "source": "<bucket>",
       "severity": "blocker" | "high" | "medium" | "low",
       "category": "<bucket>",
-      "title": "<short description>",
+      "rule": "<tool rule-id / failing test / route>",
+      "message": "<short description>",
+      "file": "<path or null>",
+      "line": 0,
       "evidence": { "file": "...", "line": 0, "tool": "...", "snippet": "..." },
+      "suggestion": "<actionable fix or null>",
       "repro": "<rtk command to reproduce>",
       "regression_of": null | "<prior_id>"
     }
@@ -213,7 +218,8 @@ Pre-merge reads this object. It does not parse free-form text output from subage
 ## References
 
 - `refs/output-schema.md` — JSON schema for the final emission; field names, types, severity enum, refusal shape
-- `refs/finding-schema.md` — per-finding subagent return shape
+- `refs/finding-schema.md` — per-finding subagent return shape (conforms to the shared canonical schema)
+- `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /test (severity enum, dedup/regression keys, verdict normalization)
 - `refs/severity-rubric.md` — how to grade findings using diff context, reachability, dev-only weighting
 - `refs/bucket-runners.md` — one section per bucket (integration, e2e, build, security, bundle) with detected-tool → command mapping
 - `refs/refusal-patterns.md` — the three refusal shapes and when each fires

@@ -36,23 +36,51 @@ Skipped buckets (runner not detected, eval_set empty, mode-flag-excluded, or use
 
 ## Finding shape
 
-Every finding produced by any bucket conforms to:
+Every finding produced by any bucket conforms to the **canonical finding object**
+in `../../shared/refs/finding-schema.md` — the single source of truth shared with
+`/review` and `/pre-merge`. Read that file for the full field reference, severity
+enum, category enum, dedup/regression keys, and verdict normalization.
 
 ```json
 {
   "id": "<bucket>-<n>",
-  "severity": "fail" | "warn",
-  "file": "<path or null>",
-  "line": <number or null>,
+  "source": "<bucket>",
+  "severity": "blocker" | "high" | "medium" | "low",
+  "category": "<bucket>",
   "rule": "<test name, assertion text, or rule-id>",
   "message": "<description of what failed or was observed>",
+  "file": "<path or null>",
+  "line": <number or null>,
+  "evidence": {
+    "tool": "<runner name>",
+    "file": "<path or null>",
+    "line": <number or null>,
+    "snippet": "<exact runner output line>"
+  },
   "suggestion": "<actionable fix or null>",
   "repro": "<command or script path to reproduce the failure, or null>",
-  "evidence": "<path to screenshot, trace, or coverage artifact, or null>"
+  "regression_of": null
 }
 ```
 
-`evidence` is bucket-specific: populated by E2E (screenshots/traces), Functional (script output files), QA (diff images, baseline vs actual screenshots), and A11y (page screenshot at time of audit); omitted or `null` for Unit, Load, and Perf (Perf uses `repro` to link to the Lighthouse HTML report instead).
+### Test specifics
+
+- **`category`** is the bucket name (`unit`, `e2e`, `functional`, `qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`).
+- **`source`** is also the bucket name (`/test` has no semantic sub-agents).
+- **`severity`** uses the canonical four-level scale. Map test outcomes: a hard
+  test/assertion failure or non-zero runner exit → `blocker`; a reachable,
+  diff-adjacent failure → `high`; a warning-class observation with unclear
+  reachability → `medium`; informational / environment-only noise → `low`.
+- **`rule`** is **required** — the failing test name, verbatim assertion text, or
+  tool rule-id. It is the dedup/regression key downstream.
+- **`evidence`** is the nested canonical object. `evidence.tool` is the runner;
+  `evidence.snippet` carries the failure output. Buckets that produce artifacts
+  (E2E screenshots/traces, Functional script output, QA diff images, A11y page
+  screenshots) put the artifact path in `evidence.file`. Unit, Load, and Perf may
+  leave `evidence.file` null (Perf uses `repro` to link the Lighthouse HTML report).
+- **`regression_of`** is `null` from buckets; the consuming gate sets it during aggregation.
+
+`pass`-type results are NOT findings — they belong in `totals`/`evaluated`, never `findings[]`.
 
 ---
 
@@ -66,6 +94,10 @@ Every finding produced by any bucket conforms to:
 | `refused` | User cancelled at the gate (Step 3) | No findings emitted |
 
 Overall verdict = worst across completed buckets (`fail` > `pass_with_warnings` > `pass`).
+
+These run-level verdicts map onto the shared three-state scale (`block`/`warn`/`pass`)
+via the verdict-normalization table in `../../shared/refs/finding-schema.md`, so
+`ship`/`preflight` can aggregate across `/review`, `/test`, and `/pre-merge`.
 
 ---
 

@@ -171,7 +171,7 @@ Bullet list. State the branching model, integration points, and CI gates.
 
 - **Base branch:** `main`.
 - **Feature branch:** `feat/prd-[n]-<short-name>`.
-- **Per-agent sub-branches:** `feat/prd-[n]-<short-name>/<agent-id>`. Each agent merges to the feature branch via PR.
+- **Commit mode:** under `ship` (default `direct`), build agents commit straight to the feature branch (agents own disjoint file sets, so parallel commits are safe). Under standalone `eng --build` with `commit_mode: sub-branch`, each agent works a per-agent sub-branch `feat/prd-[n]-<short-name>/<agent-id>` and merges to the feature branch via PR.
 - **CI gates:** unit tests, integration tests, build green on the target platform (e.g., iOS 16+), backend schema migration reversible.
 - **Release strategy:** target platform release through its store or deploy channel; backend behind a feature flag (`prd_[n]_enabled`).
 

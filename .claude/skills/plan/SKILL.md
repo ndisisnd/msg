@@ -52,6 +52,18 @@ Run these four invocations in order. After each returns, read its output, derive
 
 After stage 4 returns, emit the completion summary (below) and terminate.
 
+## Frontmatter status writeback
+
+Because `plan` picks the **terminal** option at every stage gate (see below), it bypasses the sub-skill branches that would otherwise stamp some status fields. Two of the four fields are now self-stamped by their owning stage regardless of the gate choice — `plan-tune --product` writes `product-tuned: <date>` and `plan-tune --eng` writes `eng-tuned: <date>` inside their own Step 4, before their terminal gate — so `plan` must NOT write those itself.
+
+The one field still wired only to a non-terminal branch is `status: eng` (plan-pm writes it only when its gate invokes plan-em, which `plan` suppresses). So after **stage 3 (plan-em)** returns, `plan` patches the PRD frontmatter itself:
+
+```bash
+sed -i '' 's/^status: .*/status: eng/' "<prd-path>"
+```
+
+This keeps the completion summary's `Status: eng-tuned` claim true at the frontmatter level and lets a downstream `/ship` or plan-em re-entry read accurate state.
+
 ## Stage-gate handling (important)
 
 Because `plan` drives the sequence itself and there is no suppression contract, each sub-skill still runs its **own end-of-run prompt**:

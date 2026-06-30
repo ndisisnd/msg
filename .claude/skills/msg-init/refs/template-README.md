@@ -17,7 +17,7 @@ The skill writes a README.md from this body, substituting `{{project_name}}` and
 
 ## Status
 
-Project bootstrapped with `msg-init`. PRDs live under `features/prd-[n]/`. See `ARCHITECTURE.md` for the high-level structure and `CLAUDE.md` for working conventions.
+Project bootstrapped with `msg-init`. PRDs live under `features/prd-[n]-[feature-slug]/`. See `devkit/ARCHITECTURE.md` for the high-level structure and `CLAUDE.md` for working conventions.
 
 ## Getting started
 
@@ -25,9 +25,9 @@ Project bootstrapped with `msg-init`. PRDs live under `features/prd-[n]/`. See `
 
 ## Documentation
 
-- `ARCHITECTURE.md` — system design and platform decisions
-- `GLOSSARY.md` — canonical domain term definitions
-- `AHA.md` — institutional knowledge log
+- `devkit/ARCHITECTURE.md` — system design and platform decisions
+- `devkit/GLOSSARY.md` — canonical domain term definitions
+- `devkit/AHA.md` — institutional knowledge log
 - `features/` — product requirement documents and engineering plans
 ```
 

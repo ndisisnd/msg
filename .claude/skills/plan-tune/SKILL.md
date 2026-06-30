@@ -39,7 +39,7 @@ allowed_tools:
 
 **Path rules:**
 - If a file path is provided and valid, use it directly.
-- If a directory path is provided (e.g. `features/prd-1/`), derive the file as `features/prd-[n]/prd-[n].md`.
+- If a directory path is provided (e.g. `features/prd-1-user-auth/`), derive the file as `<dir>/prd-[n]-[slug].md` (the `.md` inside it sharing the directory's basename).
 - If no path is provided, ask the user (see Step 1).
 - Path must match `features/prd-*/prd-*.md` after resolution. If it does not, ask again — do not refuse silently.
 
@@ -65,9 +65,10 @@ allowed_tools:
 | Name | Format | Destination |
 |------|--------|-------------|
 | Selected tune type | `Tune type: Product` or `Tune type: Eng` emitted inline | Emitted at end of Step 1 |
-| Full audit findings | Severity-tagged numbered findings (markdown) | Appended to `features/prd-[n]/prd-[n].md` as `## Audit — YYYY-MM-DD` section |
-| Summary table | One row per finding; columns: Severity, What's the fix, How to fix, Why it matters | Emitted inline to the user |
-| Revised PRD | Updated `.md` file with all findings applied | `features/prd-[n]/prd-[n].md` (edited in place) |
+| Full audit findings | Severity-tagged numbered findings (markdown) | Appended to `RESOLVED_PATH` as `## Audit — YYYY-MM-DD` section |
+| Summary table | One row per finding; columns: Severity, What is wrong, Suggested fix, Why it matters | Emitted inline to the user |
+| Revised PRD | Updated `.md` file with all findings applied | `RESOLVED_PATH` (edited in place) |
+| Frontmatter stamp | `product-tuned` / `eng-tuned` set after a successful run | `RESOLVED_PATH` frontmatter |
 | Human gate prompt | `AskUserQuestion` with three options | Shown inline at end of run |
 
 `[n]` is derived from the parent directory name of the input PRD (e.g., `features/prd-3/prd-3.md` → `n=3`).
@@ -164,8 +165,8 @@ Use the Edit tool to append this section to the end of the PRD file. Do not modi
 **Emit summary table to user:** After writing the audit section, output a Markdown table with one row per finding. Each cell must be terse — under 2 lines and 100 characters. Order rows by severity (Critical first), then PRD section order within each severity.
 
 ```markdown
-| # | Severity | What's the fix | How to fix | Why it matters |
-|---|----------|----------------|------------|----------------|
+| # | Severity | What is wrong | Suggested fix | Why it matters |
+|---|----------|---------------|---------------|----------------|
 | 1 | Critical | <≤100 char description> | <≤100 char action> | <≤100 char consequence> |
 ```
 
@@ -182,6 +183,12 @@ After patching each section, re-read the patched text and verify: (1) it contain
 
 In an Eng tune, Dimension 5 fixes may target engineering section text (e.g., adding a missing API contract row, resolving an uncovered PRD feature, clarifying an OPEN design decision with a stated resolution path). Apply these the same way — patch in place, verify.
 
+**Frontmatter writeback (always run, even when no fixes were applied):** Stamp the tune onto the PRD frontmatter via `Edit` so downstream skills (`plan-em`'s Step 2 gate, `/ship`, `/plan` sequencing) can trust it:
+- Product tune → set `product-tuned: <today's date YYYY-MM-DD>` (replacing `product-tuned: no`).
+- Eng tune → set `eng-tuned: <today's date YYYY-MM-DD>` (replacing `eng-tuned: no`).
+
+These are the canonical field names written by `plan-pm`'s `template-prd.md` and read by `plan-em`. Do not introduce a `tuned:` field.
+
 Once complete, emit `Plan tuned successfully! Issues selected have been fixed.`
 
 **Step 5/5 — Human gate**
@@ -189,13 +196,13 @@ Once complete, emit `Plan tuned successfully! Issues selected have been fixed.`
 Present `AskUserQuestion` with three options. Options differ by tune type.
 
 **Product tune options:**
-- **Continue to plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` next.
+- **Continue to plan-em** — recommend the user run `/plan-em <RESOLVED_PATH>` next.
 - **Re-run plan-pm** — recommend the user run `/plan-pm` to rebuild the PRD from scratch with the audit findings as context.
 - **Stop here** — end. The PRD has been revised in place.
 
 **Eng tune options:**
 - **Proceed to build** — the engineering sections have just been tuned (this run *is* the eng tune). Recommend the user run `/eng --build` (or re-invoke `/plan-em` in build mode) to begin implementation from the tuned plan.
-- **Re-run plan-em** — recommend the user run `/plan-em features/prd-[n]/prd-[n].md` to regenerate engineering sections using the revised PRD as input. Use this if PRD fixes in Step 4 were significant enough to invalidate existing engineering decisions.
+- **Re-run plan-em** — recommend the user run `/plan-em <RESOLVED_PATH>` to regenerate engineering sections using the revised PRD as input. Use this if PRD fixes in Step 4 were significant enough to invalidate existing engineering decisions.
 - **Stop here** — end. The PRD (including engineering sections) has been revised in place.
 
 Output the recommendation as the final message. Do not invoke another skill.

@@ -116,18 +116,28 @@ After producing all per-assertion verdicts, sweep the findings list:
   "n_a": <number of n/a assertions — non-applicable + deferred executable>,
   "findings": [
     {
+      "id": "functional-<n>",
       "source": "functional",
-      "assertion": "<eval_set entry>",
+      "category": "functional",
+      "rule": "<eval_set entry — the assertion text>",
+      "verdict": "pass" | "warn" | "block" | "n/a",
       "class": "executable" | "intent" | "negative",
       "applicable": true | false,
+      "severity": "blocker" | "high" | "medium" | "low",
+      "message": "<why this assertion fails, is ambiguous, or — for negative pass — 'absence verified' plus files searched; for executable n/a — '/test referral note'>",
       "file": "<path or null>",
       "line": <number or null>,
-      "severity": "block" | "warn" | "info",
-      "message": "<why this assertion fails, is ambiguous, or — for negative pass — 'absence verified' plus files searched; for executable n/a — '/test referral note'>",
-      "suggestion": "<what needs to change>"
+      "evidence": {
+        "tool": "functional",
+        "file": "<path or null>",
+        "line": <number or null>,
+        "snippet": "<offending or satisfying code line>"
+      },
+      "suggestion": "<what needs to change>",
+      "regression_of": null
     }
   ]
 }
 ```
 
-Emit findings for every assertion that is `warn`, `block`, `n/a`, or deferred executable. `pass` assertions produce no finding entry (but are counted in `evaluated`).
+Findings conform to the canonical finding object (`../../shared/refs/finding-schema.md`): the assertion text is the required `rule` field, `category` is `functional`, and `evidence` is the nested object. `verdict` is Functional's per-assertion result; the canonical `severity` is derived from it (`block` → `high`, `warn`/`n/a` → `medium`, never `pass` in a finding). Emit findings for every assertion that is `warn`, `block`, `n/a`, or deferred executable. `pass` assertions produce no finding entry (but are counted in `evaluated`).

@@ -1,9 +1,9 @@
 ---
 name: docu
 description: >
-  After a code change, check README, ARCHITECTURE.md, PRD, and AHA.md for
-  stale references and offer to apply targeted inline fixes. Works on local
-  diffs (HEAD) or a named branch or PR number.
+  After a code change, check README, devkit/ARCHITECTURE.md, the PRD, and
+  devkit/AHA.md for stale references and offer to apply targeted inline fixes.
+  Works on local diffs (HEAD) or a named branch or PR number.
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
@@ -67,20 +67,21 @@ and exit immediately.
 
 **Step 2/5 — Discover doc files**
 
-Search for documentation files up to 2 directory levels deep from repo root. Find files matching these patterns (in priority order):
+Search for documentation files up to 3 directory levels deep from repo root. The msg framework stores its docs under `devkit/` and PRDs at `features/prd-[n]-[feature-slug]/prd-[n]-[feature-slug].md`, so target those canonical paths first, then fall back to bare-root docs for non-msg repos. Find files matching these patterns (in priority order):
 
-1. `README.md` (root and subdirs)
-2. `docs/**/*.md`
-3. `ARCHITECTURE.md`
-4. Files matching `PRD*.md`
-5. `AHA.md`
+1. `README.md` (root)
+2. `devkit/ARCHITECTURE.md`, `devkit/AHA.md`, `devkit/GLOSSARY.md`, `devkit/DESIGN-SYSTEM.md`, `devkit/OPEN-QUESTIONS.md`
+3. `features/prd-*/prd-*.md` (lowercase, slugged PRD dirs)
+4. `docs/**/*.md`
+5. Bare-root `ARCHITECTURE.md` / `AHA.md` (fallback for non-msg repos)
 
 Run:
 
 ```bash
-rtk find . -maxdepth 3 -name "*.md" \
-  \( -name "README.md" -o -name "ARCHITECTURE.md" -o -name "AHA.md" \
-     -o -name "PRD*.md" -o -path "*/docs/*.md" \) \
+rtk find . -maxdepth 3 -type f \
+  \( -name "README.md" -o -path "*/devkit/*.md" -o -name "ARCHITECTURE.md" \
+     -o -name "AHA.md" -o -path "*/features/prd-*/prd-*.md" \
+     -o -path "*/docs/*.md" \) \
   ! -path "*/node_modules/*" ! -path "*/dist/*" ! -name "*.lock" \
   2>/dev/null | head -20
 ```
@@ -105,6 +106,7 @@ For each discovered doc file:
    - **Field / method / module names** — renamed or removed identifiers
    - **Config keys** — environment variable names, config property names
    - **Module paths** — import paths, file paths referenced in docs
+   - **Domain terms** (`devkit/GLOSSARY.md`) and **component / token names** (`devkit/DESIGN-SYSTEM.md`) — renamed vocabulary or UI primitives
 4. For each stale reference, collect a finding:
    ```
    { file, line_number, stale_text, suggested_text, reason }
@@ -170,6 +172,7 @@ If Stop all was selected, note how many findings were not reached:
 
 ## References
 
-- ARCHITECTURE.md — may be a doc target and a source of module names
-- AHA.md — may contain version strings or endpoint references
+- `devkit/ARCHITECTURE.md` — may be a doc target and a source of module names
+- `devkit/AHA.md` — may contain version strings or endpoint references
+- `features/prd-*/prd-*.md` — slugged PRD docs, a primary drift target
 - `gh pr diff` — GitHub CLI, required for `/docu <PR#>` invocation

@@ -1,9 +1,15 @@
 ---
 name: finding-schema
-description: Per-finding shape returned by each bucket subagent in pre-merge. Defines id, severity, category, evidence, repro, and regression_of fields.
+description: Pre-merge finding shape. Conforms to the canonical finding object in ../../shared/refs/finding-schema.md, with pre-merge bucket-specific evidence extensions.
 ---
 
 # Finding Schema
+
+Pre-merge findings use the **canonical finding object** defined in
+`../../shared/refs/finding-schema.md` — the single source of truth shared with
+`/review` and `/test`. Read that file for the full field reference, severity
+enum, category enum, dedup/regression keys, and verdict normalization. This file
+records only pre-merge's specifics.
 
 Each bucket subagent spawned by pre-merge Step 5 returns:
 
@@ -13,16 +19,20 @@ Each bucket subagent spawned by pre-merge Step 5 returns:
   "findings": [
     {
       "id": "<bucket>-<nnn>",
+      "source": "<bucket>",
       "severity": "blocker" | "high" | "medium" | "low",
       "category": "integration" | "e2e" | "build" | "security" | "bundle",
-      "title": "<short description, max 80 chars>",
+      "rule": "<tool rule-id, failing test name, or bundle route>",
+      "message": "<short description, max 80 chars>",
+      "file": "<relative path, or null>",
+      "line": <integer, or null>,
       "evidence": {
         "tool": "<tool name>",
         "file": "<relative path, or null — omit for non-file-scoped findings>",
         "line": 0,
-        "snippet": "<exact quoted tool output — redact any secret values>",
-        "...": "<bucket-specific extra fields allowed — see per-bucket notes below>"
+        "snippet": "<exact quoted tool output — redact any secret values>"
       },
+      "suggestion": "<actionable fix, or null>",
       "repro": "<rtk command to reproduce this finding exactly>",
       "regression_of": null | "<prior issue id string>"
     }
@@ -30,38 +40,34 @@ Each bucket subagent spawned by pre-merge Step 5 returns:
 }
 ```
 
-## Field reference
+## Pre-merge specifics
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `id` | string | yes | Format: `<prefix>-<zero-padded 3-digit index>`. Prefixes: `int` (integration), `e2e`, `build`, `sec` (security), `bundle`. Example: `sec-001` |
-| `severity` | enum | yes | `blocker` / `high` / `medium` / `low` — see `refs/severity-rubric.md` |
-| `category` | enum | yes | Matches the bucket name: `integration`, `e2e`, `build`, `security`, `bundle` |
-| `title` | string | yes | One sentence. Tool name + location + what went wrong. Max 80 chars. |
-| `evidence.tool` | string | yes | Tool that produced this finding (e.g. `gitleaks`, `playwright`, `vitest`) |
-| `evidence.file` | string\|null | no | Relative path from repo root. Omit for non-file-scoped findings (bundle routes, e2e specs) |
-| `evidence.line` | integer | no | 0 or omit if not line-scoped |
-| `evidence.snippet` | string | no | Exact output line from the tool. **Redact secret values** — show rule name and masked value only |
-| `evidence.spec` | string | no | e2e only — spec file path (e.g. `tests/e2e/checkout.spec.ts`) |
-| `evidence.route` | string | no | bundle only — Next.js/Vite route (e.g. `/dashboard`) |
-| `evidence.baseline_kb` | integer | no | bundle only — prior size in KB |
-| `evidence.current_kb` | integer | no | bundle only — current size in KB |
-| `evidence.culprit` | string | no | bundle only — detected cause module |
-| `repro` | string | yes | Single `rtk` command that reproduces the finding. Must be copy-paste runnable. |
-| `regression_of` | string\|null | yes | Set by the aggregation step (Step 6) when this finding matches a prior-issues entry. Not set by subagents. |
+- **`id` prefixes:** `int` (integration), `e2e`, `build`, `sec` (security), `bundle`. Example: `sec-001`.
+- **`category`** is always the bucket name: `integration`, `e2e`, `build`, `security`, `bundle`.
+- **`rule`** is **required** (per the canonical schema) and is the dedup + regression key.
+  Populate it from the tool: the `gitleaks` rule id, the semgrep check id, the
+  failing test/spec name, or the `bundlesize` route. Never leave it null — Step 6
+  dedups on `(category, file, line, rule)` and marks regressions on `(category, file, rule)`.
+- **`source`** is the bucket name (same as `category` for pre-merge, which has no semantic sub-agents).
+- **`regression_of`** is set by the aggregation step (Step 6) when this finding matches a prior-issues entry. Subagents always emit `null`.
+
+### Bucket-specific evidence extensions
+
+Buckets MAY add these keys inside `evidence` (sanctioned by the canonical schema):
+
+| Field | Bucket | Notes |
+|---|---|---|
+| `evidence.spec` | e2e | spec file path (e.g. `tests/e2e/checkout.spec.ts`) |
+| `evidence.route` | bundle | Next.js/Vite route (e.g. `/dashboard`) |
+| `evidence.baseline_kb` | bundle | prior size in KB |
+| `evidence.current_kb` | bundle | current size in KB |
+| `evidence.culprit` | bundle | detected cause module |
 
 ## Severity assignment
 
-Subagents assign severity before returning. The aggregation step may downgrade but never upgrade:
-
-| Level | When to assign |
-|---|---|
-| `blocker` | Exploit-ready now, or build/test suite fails hard (non-zero exit) |
-| `high` | Reachable regression, test failure in diff-adjacent code, confirmed perf cliff |
-| `medium` | Warning-class finding; reachability unclear; medium CVE in a dependency |
-| `low` | Informational, dev-only scope, low-CVSS with no direct path |
-
-See `refs/severity-rubric.md` for the full rubric including downgrade conditions.
+Use the canonical four-level scale (`blocker`/`high`/`medium`/`low`) — see the
+shared schema and `refs/severity-rubric.md`. The aggregation step may downgrade
+but never upgrade.
 
 ## Subagent return contract
 
@@ -78,15 +84,20 @@ See `refs/severity-rubric.md` for the full rubric including downgrade conditions
   "findings": [
     {
       "id": "sec-001",
+      "source": "security",
       "severity": "blocker",
       "category": "security",
-      "title": "Hardcoded credential in src/lib/stripe.ts:42",
+      "rule": "stripe-access-token",
+      "message": "Hardcoded credential in src/lib/stripe.ts:42",
+      "file": "src/lib/stripe.ts",
+      "line": 42,
       "evidence": {
+        "tool": "gitleaks",
         "file": "src/lib/stripe.ts",
         "line": 42,
-        "tool": "gitleaks",
         "snippet": "gitleaks rule `stripe-access-token` matched — value redacted"
       },
+      "suggestion": "Move the key to an env var and rotate the leaked credential.",
       "repro": "rtk gitleaks detect --source . --no-banner --redact",
       "regression_of": null
     }
@@ -102,15 +113,24 @@ See `refs/severity-rubric.md` for the full rubric including downgrade conditions
   "findings": [
     {
       "id": "bundle-001",
+      "source": "bundle",
       "severity": "high",
       "category": "bundle",
-      "title": "/dashboard route +84 KB gzip vs baseline (+18.2%)",
+      "rule": "/dashboard",
+      "message": "/dashboard route +84 KB gzip vs baseline (+18.2%)",
+      "file": null,
+      "line": null,
       "evidence": {
+        "tool": "@next/bundle-analyzer",
         "file": null,
         "line": 0,
-        "tool": "@next/bundle-analyzer",
+        "route": "/dashboard",
+        "baseline_kb": 461,
+        "current_kb": 545,
+        "culprit": "moment-with-locales",
         "snippet": "Route /dashboard: 545 KB (baseline: 461 KB, delta: +84 KB, culprit: moment-with-locales)"
       },
+      "suggestion": "Replace moment-with-locales with date-fns or dynamic import.",
       "repro": "rtk pnpm build && rtk pnpm bundle-analyzer compare baseline",
       "regression_of": null
     }

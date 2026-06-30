@@ -169,5 +169,5 @@ Throughout Steps 2–5, enforce strict scope:
 
 - `refs/plan/protocol.md` — `--plan` mode: summary content, engineering section output contract, return-as-output rule.
 - `refs/plan/template-eng-plan.md` — plan-mode output format; §1–13 required sections, quality gates.
-- `refs/build/protocol.md` — `--build` mode: branch, work steps, commit and PR contract.
+- `refs/build/protocol.md` — `--build` mode: the **branch contract** (`branch` is the feature branch your commits must land on; `commit_mode` `direct` (default, used by `ship`) commits straight to it, `sub-branch` cuts a PR), work steps, commit and PR contract.
 - `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.

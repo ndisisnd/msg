@@ -18,17 +18,21 @@ Apply every item below to the target PRD. Read the document twice — once for c
 
 ## Dimension 1 — Completeness
 
-Every item is a "missing → fail" check.
+The target PRD follows `plan-pm`'s `template-prd.md` schema, which has exactly 8 sections: §1 Out-of-scope, §2 Target platform, §3 Features & acceptance criteria, §4 User flows, §5 Key user interactions, §6 Error cases, §7 Open questions, §8 Glossary.
+
+**Gate every check on "section present."** Only fire a finding when the section exists and a row/field inside it is missing or malformed. If a whole section is absent, that is a single Major "missing section" finding — do not cascade it into per-row Criticals across the other dimensions.
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
-| Target user defined | No named in-scope user segment | Critical |
-| Out-of-scope user named | No explicit out-of-scope user segment | Major |
-| Out-of-scope features list | Section absent or fewer than 3 items | Major |
-| Platform priorities table | Missing or any platform without a priority + reason | Major |
-| Feature acceptance criteria | Any feature row without an acceptance criterion | Critical |
-| Glossary | Any domain term used in §1–§7 with no glossary entry | Minor |
-| Open questions ownership | Any open question without a named owner and deadline | Major |
+| §1 Out-of-scope present | Section absent, or present with zero items | Major |
+| §2 Target platform present | Section absent, or Platform field left as the unfilled placeholder | Major |
+| §3 Features & acceptance criteria present | Section/table absent | Critical |
+| §3 Feature IDs | §3 present but any feature row missing an F-ID | Major |
+| §3 Feature acceptance criteria | §3 present but any feature row with an empty or placeholder Acceptance criterion cell | Critical |
+| §4 User flows present | Section absent, or a confirmed feature has no flow diagram | Major |
+| §6 Error cases present | Section absent | Major |
+| §7 Open questions present | Section absent (an empty list is acceptable — not every PRD has open questions) | Minor |
+| §8 Glossary | §8 present but any domain term used in §1–§7 has no glossary entry | Minor |
 
 ## Dimension 2 — Consistency
 
@@ -36,12 +40,12 @@ Read every section against every other section. Check for contradictions.
 
 | Check | What to look for | Severity if fails |
 |-------|-----------------|-------------------|
-| Feature ↔ Out-of-scope | A feature row claims behavior that is also listed as out-of-scope | Critical |
-| Platform ↔ Feature | A feature lists a platform that the platform priorities table excludes | Major |
-| Metric ↔ Feature | A success metric requires data from a feature that does not exist | Major |
-| Glossary ↔ Usage | A term defined in glossary is used inconsistently in feature rows | Minor |
-| Acceptance criterion ↔ Acceptance criterion | Two feature rows define overlapping behavior with conflicting criteria | Critical |
-| Target user ↔ Feature | A feature serves a user segment named as out-of-scope | Major |
+| §3 Feature ↔ §1 Out-of-scope | A §3 feature row claims behavior that is also listed in §1 out-of-scope | Critical |
+| §3 Feature ↔ §2 Platform | A §3 feature targets a platform that §2 excludes | Major |
+| §3 Dependencies ↔ §3 IDs | A §3 Dependencies cell names an F-ID that does not exist in the table | Major |
+| §8 Glossary ↔ Usage | A term defined in §8 is used inconsistently across §3–§6 | Minor |
+| Acceptance criterion ↔ Acceptance criterion | Two §3 feature rows define overlapping behavior with conflicting acceptance criteria | Critical |
+| §3 Feature ↔ §4 Flow | A §3 feature has no corresponding §4 user flow, or a §4 flow covers a feature absent from §3 | Major |
 
 ## Dimension 3 — Agent-readability
 
@@ -81,14 +85,14 @@ Read every requirement as if an AI coding agent will execute it without asking t
 
 Look for invitations to scope creep and missing technical contracts.
 
+A product-tune PRD has no engineering sections, so do not demand engineering-level contracts (API shape, schema migration, rollback plans) here — those are Dimension 5 (eng tune) concerns. At the product level, check only that the PRD does not invite scope creep or leave a happy path without an error path.
+
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
-| Owner platform per feature | Any feature without a named owner platform when behavior differs across platforms | Major |
-| API contract details | Any client-server feature without endpoint shape or payload contract | Major |
-| Backwards compatibility | Schema or behavior change without a stated migration path | Critical |
-| Auth model | Any user-data feature without a stated auth requirement | Critical |
-| Error states | Any happy-path requirement with no error-state spec | Major |
-| Rollback plan | Any new persisted entity without a rollback or feature-flag plan | Major |
+| Owner platform per feature | A §3 feature whose behavior differs across platforms but names no owning platform, when §2 lists more than one platform | Major |
+| Error states | A §3 feature / §5 interaction with a happy path but no matching §6 error case | Major |
+| Out-of-scope creep | A §3 feature row that restates or contradicts a §1 out-of-scope item | Major |
+| Persisted-data implication | A §3 feature that implies new persisted user data but whose acceptance criterion does not state the observable persisted result | Minor |
 
 ## Worked example — finding format
 
@@ -113,7 +117,7 @@ Suggested fix:
 Finding 3 — Critical — Streak timezone reference is undefined
 
 What is wrong:
-  PRD-1 §5 F2 acceptance criterion: "Streak +1 when log occurs in
+  PRD-1 §3 F2 acceptance criterion: "Streak +1 when log occurs in
   [00:00, 23:59] local". The word "local" is ambiguous — device timezone,
   server timezone, and user-profile timezone are three different values.
 
@@ -138,7 +142,7 @@ Top of report:
 ```markdown
 # Tune audit — prd-[n]
 
-Audited: features/prd-[n]/prd-[n].md
+Audited: features/prd-[n]-[slug]/prd-[n]-[slug].md
 Auditor: product-plan-tune
 Date: YYYY-MM-DD
 

@@ -42,18 +42,24 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 
 ## issues[] entry shape
 
-Each item in `issues[]` is a finding per `refs/finding-schema.md`:
+Each item in `issues[]` is a finding per `refs/finding-schema.md`, which conforms
+to the shared canonical finding object in `../../shared/refs/finding-schema.md`:
 
 ```json
 {
   "id": "<prefix>-<nnn>",
+  "source": "<bucket>",
   "severity": "blocker" | "high" | "medium" | "low",
   "category": "integration" | "e2e" | "build" | "security" | "bundle",
-  "title": "<short human-readable description>",
+  "rule": "<tool rule-id / failing test / route — dedup + regression key>",
+  "message": "<short human-readable description>",
+  "file": "<path or null>",
+  "line": <integer or null>,
   "evidence": {
     "tool": "<tool name>",
     "<bucket-specific fields>": "..."
   },
+  "suggestion": "<actionable fix or null>",
   "repro": "<rtk command to reproduce this finding>",
   "regression_of": null | "<prior issue id>"
 }

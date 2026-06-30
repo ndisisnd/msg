@@ -51,7 +51,23 @@ Bulleted list of features or behaviors explicitly excluded. Each item has a one-
 | Platform | iOS |
 | Min OS version | iOS 16.0+ |
 
-### 3. User flows
+### 3. Features & acceptance criteria
+
+Every feature confirmed in the interview (Q1) gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion — no `supports`, `handles`, or other vague verbs (see `refs/principles.md`). Derive each acceptance criterion from the feature's Q5 key interaction and its Q4 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from Q3); use `—` if none.
+
+This table is the canonical feature list for the pipeline: `plan-em` keys its execution table on these F-IDs, and `plan-tune --product` audits the acceptance-criterion column.
+
+| ID | Feature | Acceptance criterion | Dependencies |
+|----|---------|----------------------|--------------|
+
+**Worked example:**
+
+| ID | Feature | Acceptance criterion | Dependencies |
+|----|---------|----------------------|--------------|
+| F1 | Set daily goal | When the user saves a habit with a non-empty name and a frequency, the habit row appears on the Home screen within 200ms; an empty name shows the inline error "Name required". | — |
+| F2 | Track streak | A habit's streak increments by 1 the first time it is marked complete on a given user-profile-timezone day, and resets to 0 after one missed day. | F1 |
+
+### 4. User flows
 
 At least one ASCII flow diagram per feature. Each flow must show the happy path from entry point to completion. Use boxes (`[ ]`), arrows (`-->`), and decision diamonds (`< >`). Label every step with the screen name or action.
 
@@ -104,7 +120,7 @@ Feature: Set daily goal
 - `src/components/HabitRow.tsx` — updated to show new habit immediately
 - `src/store/habitsSlice.ts` — add habit to store on save
 
-### 4. Key user interactions
+### 5. Key user interactions
 
 Bulleted list of the core actions a user can take within this feature. Each item is a single sentence starting with "User can …". Derived from Q5 of the interview.
 
@@ -113,19 +129,19 @@ Bulleted list of the core actions a user can take within this feature. Each item
 - User can delete an existing habit from the habit list.
 - User can edit a habit's name or frequency after creation.
 
-### 5. Error cases
+### 6. Error cases
 
 Format, rules, and examples: see `refs/template-error.md`.
 
-### 6. Open questions
+### 7. Open questions
 
-Bulleted list. Each item is a single unresolved question that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved AHA.md entries, any ambiguity surfaced during the interview.
+Bulleted list. Each item is a single unresolved question that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity surfaced during the interview.
 
 **Worked example:**
 - PRD-2-streak-tracking also handles streak resets — confirm which PRD owns the reset logic before building.
 - Target OS minimum not confirmed; assumed iOS 16.0+ pending design sign-off.
 
-### 7. Glossary
+### 8. Glossary
 
 Table of domain terms used in this PRD. Cross-reference `GLOSSARY.md`; include any term defined there that appears in this document. Add new terms not yet in `GLOSSARY.md`.
 

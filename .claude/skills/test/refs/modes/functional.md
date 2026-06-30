@@ -36,30 +36,41 @@ For each assertion:
 
 For every `pass` or `fail` result, locate the satisfying or violating code in the file(s) read in Step 1 and record `file` + `line`.
 
-**Mandatory evidence rule:** every `pass` and `fail` finding MUST populate `file` and `line`. After all assertions are processed, sweep findings:
-- Any `pass` with `file: null` or `line: null` → downgrade to `warn` with reason `"no evidence located"`.
-- Any `fail` with `file: null` or `line: null` → downgrade to `warn` with reason `"no evidence located"`.
+**Mandatory evidence rule:** every failing assertion MUST populate `file` and `line`. A passing assertion is NOT a finding — it is counted in `evaluated`/`passed`, never emitted in `findings[]`. After all assertions are processed, sweep findings:
+- Any failure with `file: null` or `line: null` → downgrade from `high` to `medium` with reason `"no evidence located"`.
 
 ## Output
+
+Findings conform to the canonical finding object (`../../shared/refs/finding-schema.md`): `severity` is `blocker`/`high`/`medium`/`low`, the assertion text goes in the required `rule` field, and `evidence` is the nested object.
 
 ```json
 {
   "verdict": "pass" | "pass_with_warnings" | "fail",
   "bucket": "functional",
   "evaluated": <number of assertions attempted>,
+  "passed": <number of assertions that passed with evidence>,
   "findings": [
     {
       "id": "functional-<n>",
-      "severity": "fail" | "warn" | "pass",
-      "assertion": "<assertion text>",
+      "source": "functional",
+      "severity": "high" | "medium",
+      "category": "functional",
+      "rule": "<assertion text>",
+      "message": "<script output summary or evidence description>",
       "file": "<path or null>",
       "line": <number or null>,
-      "message": "<script output summary or evidence description>",
+      "evidence": {
+        "tool": "functional-harness",
+        "file": "<path or null>",
+        "line": <number or null>,
+        "snippet": "<script output line>"
+      },
+      "suggestion": "<what needs to change to make the assertion pass>",
       "repro": "<script path under /tmp that reproduced the failure, or null>",
-      "suggestion": "<what needs to change to make the assertion pass>"
+      "regression_of": null
     }
   ]
 }
 ```
 
-`fail` if any assertion fails and the failure attributes to the code under review. `pass_with_warnings` if any harness errors occur. `pass` if all assertions pass with evidence.
+A failing assertion that attributes to the code under review is `high` (reachable, diff-adjacent); an evidence-less or harness-degraded failure is `medium`. `fail` (run verdict) if any assertion fails and the failure attributes to the code under review. `pass_with_warnings` if any harness errors occur. `pass` if all assertions pass with evidence.
