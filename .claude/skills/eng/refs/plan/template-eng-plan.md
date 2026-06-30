@@ -85,9 +85,9 @@ Table form. Map every feature ID from the PRD to one or more engineering domains
 
 | PRD feature ID | Feature | Domains | Lead agent |
 |----------------|---------|---------|-----------|
-| F1 | Set daily goal | iOS, backend | mobile-eng |
-| F2 | Track streak | backend, iOS | backend-eng |
-| F3 | Daily reminder | iOS | mobile-eng |
+| F1 | Set daily goal | iOS, backend | eng-ios |
+| F2 | Track streak | backend, iOS | eng-backend |
+| F3 | Daily reminder | iOS | eng-ios |
 
 ---
 
@@ -111,7 +111,7 @@ Cover all cross-service and cross-layer contracts introduced or changed by this 
 
 | Method | Path / Operation | Request | Response | Owner | Status |
 |--------|-----------------|---------|----------|-------|--------|
-| POST | `/api/v1/streaks` | `{ userId, date }` | `{ streakId, count }` | backend-eng | NEW |
+| POST | `/api/v1/streaks` | `{ userId, date }` | `{ streakId, count }` | eng-backend | NEW |
 
 **Schema changes:** List every database schema change. State whether each change is additive-only or requires a migration script. Mark `ADDITIVE` or `MIGRATION REQUIRED`.
 

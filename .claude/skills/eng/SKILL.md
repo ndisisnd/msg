@@ -47,7 +47,7 @@ All modes require four fields. Hard-refuse if any is missing:
 | mode flag | `--plan` or  `--build` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
 | `rows` | Semicolon-separated exec-table Feature identifiers assigned to this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
-| `agent` | This invocation's agent identity (e.g. `backend-eng`) — the name in the exec-table **Agent** column for the assigned rows. Used to name the `## Engineering — <agent>` heading and to confirm each `rows` identifier is owned by this agent. |
+| `agent` | This invocation's agent identity (e.g. `eng-backend`) — the name in the exec-table **Agent** column for the assigned rows. Used to name the `## Engineering — <agent>` heading and to confirm each `rows` identifier is owned by this agent. |
 
 If any field is missing, emit:
 
@@ -171,3 +171,4 @@ Throughout Steps 2–5, enforce strict scope:
 - `refs/plan/template-eng-plan.md` — plan-mode output format; §1–13 required sections, quality gates.
 - `refs/build/protocol.md` — `--build` mode: the **branch contract** (`branch` is the feature branch your commits must land on; `commit_mode` `direct` (default, used by `ship`) commits straight to it, `sub-branch` cuts a PR), work steps, commit and PR contract.
 - `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.
+- **Contract:** the `## Engineering — <Agent>` heading written by `--plan` is how `plan-em` detects that the engineering section is ready and how `--build` locates its spec. Do not rename this heading.
