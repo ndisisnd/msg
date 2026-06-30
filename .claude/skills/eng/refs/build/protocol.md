@@ -47,6 +47,11 @@ The 3–4 line summary covers:
 
 Use the PRD's `## Engineering — <Agent Name>` section as the sole specification. Do not re-interpret the PRD features section directly.
 
+0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
+   - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
+   - The `## Engineering — <Agent Name>` section must reference each assigned row (by row label or feature ID).
+   If any row is missing from the exec-table, has a blank Execution steps cell, or is absent from the §Engineering section, surface it as a blocking gap via `AskUserQuestion` — do not proceed until resolved. Do not guess or infer intent; `plan-tune --eng` may have edited the table after the section was written.
+
 1. **Check out the work branch (per `commit_mode`).** `branch` already exists — it is created once by the orchestrator (`plan-em`/`ship`) before any build agent starts; do **not** create it yourself (parallel build agents racing to create the same branch from `main` corrupts the tree). If `branch` does not exist, this is a hard failure: emit `Hard failure: target branch '<branch>' does not exist — the orchestrator must create it before build agents run` and stop. Then:
    - **`commit_mode: direct` (default):** check out `branch` itself and do all work on it. Your commits land directly on the feature branch the orchestrator reviews. Touch only the files your assigned rows specify (Step 6) so parallel agents on the same branch stay file-disjoint.
    - **`commit_mode: sub-branch`:** derive a sub-branch name `{branch}/{row-slug}` (where `row-slug` is a lowercase hyphenated slug of the first assigned row, e.g. `feat/prd-4-habit-tracking/streaks-schema`), cut it from `branch`, check it out, and do all work there.
@@ -91,7 +96,7 @@ Run the following cycle per failing issue. Apply one change per cycle. Max 3 cyc
 3. **Hypothesize** — write one specific root-cause sentence.
 4. **Fix** — make one targeted change within the failing row's scope only. No refactors outside it.
 5. **Verify** — re-run the test or build step.
-6. **Log** — append an AHA entry regardless of outcome (see AHA.md below).
+6. **Log** — append an AHA entry regardless of outcome (see AHA.md below). If this is the 3rd failed cycle (escalation), tag the entry with `severity: escalated` (see AHA.md format).
 
 After 3 failed cycles, stop. Emit a structured escalation:
 
@@ -125,6 +130,7 @@ Throughout the build, append to `devkit/AHA.md` (the same file pre-flight reads,
 
 **Issue/Learning**: <what happened>
 **Resolution**: <what was done, or "unresolved — see debug escalation">
+**Severity**: <omit unless this entry was written at debug escalation — then set to `escalated`>
 ```
 
 `devkit/AHA.md` is append-only. Never overwrite existing entries. Reference any AHA entries written during the run in the build summary.
