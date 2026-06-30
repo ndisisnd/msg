@@ -27,9 +27,7 @@ allowed_tools:
 | Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
 | Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
 | Review | review | Five-mode code review — Quality, Coverage, Functional, Security, Perf |
-| Review | docu | Stale doc checker and fixer |
 | Delivery | handoff | Structured mid-flight handoff artifact |
-| Delivery | todo | Parse PRD tables → TODOs.json |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 | Meta | improve | Improvement planner for any skill or workflow |
 
@@ -46,13 +44,9 @@ allowed_tools:
                                                                          ↓
                                              /test  →  /review  →  /test --eval-set
                                                                          ↓
-                                                                     /docu
-                                                                         ↓
                                                                  /pre-merge
                                                                          ↓
                                                          gh pr create  /  /handoff
-                                                                         ↓
-                                                                   /todo (optional)
 ```
 
 **Autonomous loop shortcuts** collapse the stages above into one hands-off command each:
@@ -153,8 +147,6 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Reviewing | Code or a diff | A review or audit report | review |
 | Reviewing | A PRD or spec | A project spec | plan-tune |
 | Reviewing | Code or a diff | An engineering plan | improve |
-| Reviewing | any | A review or audit report | docu |
-| Wrapping up | A PRD or spec | A handoff or task list | todo |
 | Wrapping up | Code or a diff | A handoff or task list | kermit |
 | Wrapping up | any | A handoff or task list | handoff |
 

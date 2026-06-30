@@ -21,7 +21,7 @@ allowed_tools:
 Code review orchestrator. Runs after `eng --build`, before `gh pr create`. Each run is independent — no state carried between runs.
 
 ```
-eng --build  →  /test  →  /review  →  [address findings]  →  /review (repeat until pass/warn)  →  /test --eval-set  →  /docu  →  /pre-merge  →  gh pr create
+eng --build  →  /test  →  /review  →  [address findings]  →  /review (repeat until pass/warn)  →  /test --eval-set  →  /pre-merge  →  gh pr create
 ```
 
 ## Usage
@@ -31,7 +31,7 @@ eng --build  →  /test  →  /review  →  [address findings]  →  /review (re
 - `/review <PR#>` — fetches PR diff via `gh pr diff <n>`
 - `/review --full-secret-scan` — opts Security mode Stage 0 into scanning the full working tree (default is diff-only). Composable with branch and PR args, e.g. `/review feature/x --full-secret-scan` or `/review 42 --full-secret-scan`.
 
-**Hard refusals:** does NOT modify source code; does NOT check documentation (`/docu`'s job); makes exactly ONE `AskUserQuestion` call (Step 5).
+**Hard refusals:** does NOT modify source code; does NOT check documentation; makes exactly ONE `AskUserQuestion` call (Step 5).
 
 ## Inputs / Outputs
 

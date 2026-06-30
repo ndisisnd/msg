@@ -44,7 +44,6 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval, `--build` writes code from exec-table rows. `--build --loop` adds a plan-tune review cycle after each build pass. |
 | `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
 | `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
-| `/docu` | After a code change, checks README, ARCHITECTURE.md, PRD, and AHA.md for stale references and offers inline fixes. |
 
 ### 🚢 Ship
 
@@ -53,5 +52,4 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | `/ship` | Autonomous build-and-ship loop — resolves a PRD, spins up `eng --build` agents in parallel, then loops /review → /test → fix until both are clean, then runs /pre-merge. Never pushes or merges. The engineering counterpart to `/plan`. |
 | `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |
 | `/handoff` | Produces a numbered, agent-readable handoff artifact at `handoff/<n>.md`. Zero input required. |
-| `/todo` | Parses PRD tables, open-questions files, or prose into `TODOs.json`. Gates on approval before every write. |
 | `/improve` | Lightweight improvement planner — writes a plan + acceptance criteria to `improve/[n]-[feature-type]/`. `--review <n>` runs an adversarial Opus review against an existing plan: checks assertion realism, plan quality, and feasibility; findings ranked critical → major → minor. |

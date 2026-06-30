@@ -72,10 +72,8 @@ Execution:  /ship → eng --build (parallel) ──┐
 | `eng` | — | Yes (`--plan` / `--build` / `--build --loop`) |
 | `review` | — | Yes |
 | `test` | — | Yes |
-| `docu` | — | Yes |
 | `pre-merge` | — | Yes |
 | `handoff` | — | Yes |
-| `todo` | — | Yes |
 | `improve` | — | Yes |
 | `msg-init` | — | Yes |
 | `msg` | — | Yes (interactive skill browser) |
