@@ -3,13 +3,18 @@
   "title": "TODOs.json task",
   "description": "Schema for a single task object in TODOs.json. The file root is an array of these objects.",
   "type": "object",
-  "required": ["id", "status", "agents", "description"],
+  "required": ["id", "status", "agents", "description", "source"],
   "additionalProperties": false,
   "properties": {
     "id": {
       "type": "string",
       "pattern": "^todo-[0-9]+$",
       "description": "Sequential identifier in the form todo-N. Assigned by append-tasks.sh based on the highest existing id."
+    },
+    "source": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable origin identity for the task, used to de-duplicate on re-run. Format: <origin>:<stable-key>, where origin is the source file basename (or 'prose') and stable-key is a slug of the source item (PRD row descriptor, open-question text, or prose work item). Two tasks with the same source are the same task; append-tasks.sh drops a re-derived task whose source already exists."
     },
     "status": {
       "type": "string",
@@ -31,19 +36,22 @@
       "id": "todo-1",
       "status": "todo",
       "agents": null,
-      "description": "Implement per-user rate limiting middleware with per-endpoint configuration"
+      "description": "Implement per-user rate limiting middleware with per-endpoint configuration",
+      "source": "prd-3-rate-limiting.md:per-user-rate-limiting"
     },
     {
       "id": "todo-2",
       "status": "in-progress",
       "agents": "agent-build",
-      "description": "Generate SKILL.md from todo-plan.md"
+      "description": "Generate SKILL.md from todo-plan.md",
+      "source": "open-questions.md:how-do-we-generate-skill-md"
     },
     {
       "id": "todo-3",
       "status": "done",
       "agents": null,
-      "description": "Write migration documentation for v2 API breaking changes"
+      "description": "Write migration documentation for v2 API breaking changes",
+      "source": "prose:write-migration-docs-v2-api"
     }
   ]
 }

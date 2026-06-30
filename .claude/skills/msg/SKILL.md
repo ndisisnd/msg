@@ -30,7 +30,10 @@ allowed_tools:
 | Review | docu | Stale doc checker and fixer |
 | Delivery | handoff | Structured mid-flight handoff artifact |
 | Delivery | todo | Parse PRD tables → TODOs.json |
+| Delivery | kermit | Conventional-commit formatter and changelog manager |
 | Meta | improve | Improvement planner for any skill or workflow |
+
+> **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow, including autonomous loops (`plan`, `ship`) and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
 
 ---
 
@@ -72,7 +75,7 @@ Call `AskUserQuestion` with one question:
   - `label`: `Planning`, `description`: `Bootstrap, spec writing, PRD audit, engineering planning`
   - `label`: `Build & Ship`, `description`: `Implement, test, and run the pre-push gate`
   - `label`: `Review`, `description`: `Code review and doc checking`
-  - `label`: `Delivery`, `description`: `Handoff artifacts, task lists`
+  - `label`: `Delivery`, `description`: `Handoff artifacts, task lists, commits`
   - `label`: `Meta`, `description`: `Improvement planning, agent design, and skill-level tooling`
 
 **Step 2 — Skill**
@@ -152,6 +155,7 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Reviewing | Code or a diff | An engineering plan | improve |
 | Reviewing | any | A review or audit report | docu |
 | Wrapping up | A PRD or spec | A handoff or task list | todo |
+| Wrapping up | Code or a diff | A handoff or task list | kermit |
 | Wrapping up | any | A handoff or task list | handoff |
 
 **Step 3 — Emit**

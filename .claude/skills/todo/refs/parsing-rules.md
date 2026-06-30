@@ -73,6 +73,18 @@ Derived tasks:
 2. "Expose rate limit threshold as environment variable (default 100 req/min)"
 3. "Write tests for rate limit enforcement at the per-user threshold"
 
+## Source identity (de-duplication key)
+
+Every derived task carries a `source` string of the form `<origin>:<stable-key>`. `append-tasks.sh` drops any incoming task whose `source` already exists in `TODOs.json`, so re-running `/todo` on the same input never doubles tasks. Derive it deterministically from the source item — never from the task description (which may be reworded) — so the same item always yields the same `source`.
+
+| Input type | origin | stable-key |
+|------------|--------|------------|
+| `prd` | PRD file basename (e.g. `prd-3-rate-limiting.md`) | slug of the row's primary descriptor column, plus phase/concern if present (e.g. `per-user-rate-limiting:backend`) |
+| `open-questions` | file basename (e.g. `open-questions.md`) | slug of the question text |
+| `prose` | `prose` | slug of the work item |
+
+Slug rule: lowercase, spaces and punctuation → single hyphens, trim leading/trailing hyphens, cap at ~60 chars. Two tasks with the same `source` are the same task.
+
 ## Task description rules
 
 Every derived task must:
