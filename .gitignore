@@ -28,6 +28,9 @@ features/
 evals/
 eval-msg-workflow*
 handoff/
+update/
+update-plan.md
+update-plan-done.md
 .claude/skills/improve/done/
 .claude/skills/improve/archive/
 .claude/skills/improve/backlog/
