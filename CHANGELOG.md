@@ -558,3 +558,5 @@
 - `.claude/skills/msg-commit/SKILL.md`
 
 - Document OPEN-QUESTIONS.md logging protocol in eng build/protocol.md for unresolved ambiguities during build; clarify CHANGELOG.md is now maintained by the kermit commit-gate hook (not written by subagents) in msg-init SKILL.md and its template; add /plan resume mode (start mid-pipeline from an existing PRD path via frontmatter status), a between-stage guard verifying prior-stage artifacts exist, explicit failure handling on sub-skill refusal, and an end-of-run prompt to chain into /ship on a clean eng-tune.
+
+- Sync `kermit`'s `last_logged_commit` pointer in `.claude/kermit/pref.json` to the latest changelog-synced commit.
