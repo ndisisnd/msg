@@ -9,6 +9,8 @@ Five buckets. Each section defines: which detected tools activate the bucket, th
 
 Subagents use `rtk` for all commands. File list placeholder `<files>` is replaced at runtime with the space-separated `files_changed` list filtered to files the tool can process.
 
+**Package manager note:** Commands below use `npx` as a universal package manager prefix. When constructing the `repro` field for findings, subagents should substitute the detected package manager (from `detected.package_manager.run_prefix`) to ensure copy-paste-runnable commands. Example: if the project uses pnpm, emit `rtk pnpm vitest ...` rather than `rtk npx vitest ...`.
+
 ---
 
 ## integration
@@ -172,7 +174,7 @@ Container findings: map trivy `CRITICAL` → `high`, `HIGH` → `high`, `MEDIUM`
 
 ## Bucket omission log
 
-When a bucket is omitted (no tooling detected), add an entry to `skipped_buckets[]`:
+When a bucket is omitted (no tooling detected), add an entry to `skipped[]`:
 
 ```json
 {
@@ -181,4 +183,4 @@ When a bucket is omitted (no tooling detected), add an entry to `skipped_buckets
 }
 ```
 
-Do not attempt to run the bucket. Log the omission in the check matrix (Step 3) as a grayed row.
+Do not attempt to run the bucket. Log the omission in the check matrix (Step 3) as a grayed row. See `refs/output-schema.md` for the `skipped[]` field definition.

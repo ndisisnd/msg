@@ -95,7 +95,6 @@ detected = {
 ```
 
 In parallel, also:
-- Load every `--prd` file (read markdown, extract acceptance criteria sections into `prd_criteria[]`)
 - If `--prior-issues` set: load and validate against `refs/output-schema.md`; if schema mismatch, emit `verdict: "refused"`, `reason: "schema_mismatch"` and terminate
 
 ### Step 3 — Build check matrix
@@ -110,16 +109,14 @@ Show the check matrix as a table:
 
 ```
 Bucket       Command                                     Scope            Est.
-integration  pnpm vitest run --coverage <files>          <n> files        ~12s
-e2e          pnpm playwright test                        full suite       ~45s
-build        pnpm next build                             full tree        ~30s
-security     gitleaks detect + pnpm audit + semgrep      diff + full      ~8s
-bundle       ANALYZE=true pnpm next build                full tree        ~35s
+integration  npx vitest run --coverage <files>           <n> files        ~12s
+e2e          npx playwright test                         full suite       ~45s
+build        npx next build                              full tree        ~30s
+security     gitleaks detect + npm audit + semgrep       diff + full      ~8s
+bundle       ANALYZE=true npx next build                 full tree        ~35s
 ```
 
 Then emit: `Diff scope: <n> files, +<a>/-<r> lines, <c> commits ahead of <base>.`
-
-If `prd_criteria[]` is non-empty, emit: `PRD acceptance criteria loaded: <n> items.`
 
 ### Step 4 — Human gate ← sole AskUserQuestion call
 
@@ -148,7 +145,7 @@ Spawn one subagent per matrix row using `Agent` calls in a single message (paral
 
 **Subagents never modify code.** Any attempt to apply a fix is a refusal (`out_of_scope_modify`).
 
-Pass each subagent: the resolved `files_changed` list, the bucket name, the command, and `prd_criteria[]` if available.
+Pass each subagent: the resolved `files_changed` list, the bucket name, and the command.
 
 ### Step 6 — Aggregate + triage findings
 
@@ -225,4 +222,3 @@ Pre-merge reads this object. It does not parse free-form text output from subage
 - `refs/refusal-patterns.md` — the three refusal shapes and when each fires
 - `../shared/refs/tooling-detection.md` — shared fingerprint protocol; file-pattern → tool mapping for all runner types
 - `scripts/resolve-diff.sh` — wrapper around `rtk git diff` that emits a structured summary (files, lines, hunks)
-- `scripts/detect-tooling.sh` — thin wrapper that runs tooling detection and prints the `detected` object as JSON

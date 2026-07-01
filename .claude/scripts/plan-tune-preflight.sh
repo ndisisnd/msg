@@ -26,14 +26,15 @@ resolved="${hint%/}"
 # Derive file path from directory or extensionless path
 if [[ -d "$resolved" ]] || [[ "$resolved" != *.md ]]; then
   base=$(basename "$resolved")
-  if [[ "$base" =~ ^prd-[0-9]+ ]]; then
+  if [[ "$base" =~ ^prd-[0-9]+(\.[0-9]+)? ]]; then
     resolved="${resolved}/${base}.md"
   fi
 fi
 
 # Validate pattern: features/prd-N[-slug]/prd-N[-slug].md with matching N
-if [[ ! "$resolved" =~ features/prd-([0-9]+)(-[^/]*)?/prd-([0-9]+)(-[^/]*)?\.md$ ]] || \
-   [[ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[3]}" ]]; then
+# N may be an integer (e.g. 3) or a decimal (e.g. 2.1) for sub-numbered PRDs.
+if [[ ! "$resolved" =~ features/prd-([0-9]+(\.[0-9]+)?)(-[^/]*)?/prd-([0-9]+(\.[0-9]+)?)(-[^/]*)?\.md$ ]] || \
+   [[ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[4]}" ]]; then
   echo "ERROR=invalid_pattern"
   echo "RESOLVED_PATH=$resolved"
   exit 1

@@ -61,7 +61,7 @@ informational nit → `low`. `rule` is **required** — it is the dedup/regressi
 After the dedup pass, a finding's `source` may be a comma-separated concatenation of any of the forms above (e.g. `"--api-design,--architecture"` or `"lint:eslint,--react"`).
 
 `category` is **required** on every finding. Recommended enum:
-`"contract"`, `"architecture"`, `"error-handling"`, `"debug"`, `"dead-code"`, `"duplication"`, `"readability"`, `"naming"`, `"complexity"`, `"scope-creep"`, `"security"`, `"performance"`, `"other"`.
+`"contract"`, `"architecture"`, `"error-handling"`, `"debug"`, `"dead-code"`, `"duplication"`, `"readability"`, `"naming"`, `"complexity"`, `"scope-creep"`, `"security"`, `"performance"`, `"a11y"`, `"other"`. Migration mode findings use `"architecture"` (no dedicated category — the schema-safety concern is a form of structural risk); A11y/i18n mode findings use `"a11y"`.
 
 ### Orchestrator dedup pass
 
@@ -94,12 +94,14 @@ After collecting all sub-agent outputs for a mode, `/review` applies a deduplica
     "coverage":    { "verdict": "...", "gaps": [] },
     "functional":  { "verdict": "...", "evaluated": 0, "n_a": 0, "findings": [] },
     "security":    { "verdict": "...", "findings": [] },
-    "performance": { "verdict": "...", "findings": [] }
+    "performance": { "verdict": "...", "findings": [] },
+    "migration":   { "verdict": "...", "findings": [] },
+    "a11y_i18n":   { "verdict": "...", "findings": [] }
   }
 }
 ```
 
-Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` object — not included as empty objects.
+Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` object — not included as empty objects. `migration` and `a11y_i18n` are additionally omitted whenever their trigger condition doesn't match (`refs/modes/migration.md` / `refs/modes/a11y-i18n.md`) — this is the normal case, not an error; most diffs touch neither a migration file nor UI code.
 
 ### Top-level fields
 

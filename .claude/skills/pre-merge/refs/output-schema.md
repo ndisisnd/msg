@@ -25,8 +25,7 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "issues": [],
   "skipped": [],
   "prd_paths": [],
-  "prior_issues_loaded": false,
-  "eval_set_path": null
+  "prior_issues_loaded": false
 }
 ```
 
@@ -132,4 +131,3 @@ When `verdict` is `"skipped"`:
 | `skipped` | array | Buckets omitted and why |
 | `prd_paths` | string[] | Paths of loaded PRD files, empty if none |
 | `prior_issues_loaded` | boolean | Whether `--prior-issues` file was loaded |
-| `eval_set_path` | string \| null | Path where eval_set was written, or null |

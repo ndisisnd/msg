@@ -209,7 +209,7 @@ Never push, merge, or open a PR — that is the user's call.
 ## References
 
 - `.claude/skills/eng/SKILL.md` — `--build` mode: work steps and the **branch contract**. ship spawns build agents with `commit_mode: direct`, so they commit straight to the feature branch ship reviews (no per-agent sub-branch, no PR). Spawned per agent group in Steps 3 & 5.
-- `.claude/skills/review/SKILL.md` — five-mode code review; writes `features/prd-[n]/review/review-*.json` and `eval_set.json`; defers `executable` assertions to `/test`. Spawned in Step 5.
+- `.claude/skills/review/SKILL.md` — code review across five always-on modes plus conditional Migration/A11y-i18n modes; writes `features/prd-[n]/review/review-*.json` and `eval_set.json`; defers `executable` assertions to `/test`. Spawned in Step 5.
 - `.claude/skills/test/SKILL.md` — execution-focused test skill; consumes `eval_set.json` via `--eval-set` and runs the workflow's full-suite verification. Spawned in Step 5 (replaces raw runner commands). 
 - `.claude/skills/pre-merge/SKILL.md` — pre-push gate; emits the final verdict JSON. Spawned in Step 6.
 - `scripts/ship-find-prd.sh` — ranks existing PRDs against a prose query (Step 1).

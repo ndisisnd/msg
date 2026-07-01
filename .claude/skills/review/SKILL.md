@@ -3,10 +3,12 @@ name: review
 description: >
   After eng --build, resolve a diff, fingerprint the codebase, bootstrap an
   eval-set from the PRD, confirm the review surface, then fan out to /cook
-  sub-agents across five ordered review modes — with mechanical gates
-  (lint / format / typecheck / secret scan via local tooling) layered in
-  ahead of the semantic agents — aggregating findings into a single
-  structured JSON. Consumed by preflight or read directly by a human.
+  sub-agents across five always-on review modes plus two conditional modes
+  (Migration, A11y/i18n) that only run when the diff matches their trigger —
+  with mechanical gates (lint / format / typecheck / secret scan via local
+  tooling) layered in ahead of the semantic agents — aggregating findings
+  into a single structured JSON. Consumed by preflight or read directly by
+  a human.
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
@@ -18,7 +20,7 @@ allowed_tools:
 
 # review
 
-Code review orchestrator. Runs after `eng --build`, before `gh pr create`. Each run is independent — no state carried between runs.
+Code review orchestrator. Runs after `eng --build`, before `gh pr create`. Findings are never carried between runs — each run's `findings[]` reflect only the current diff. When a PRD is known, the fingerprint/eval-set/surface (not findings) may be reused from a cache if the diff hasn't changed since the last run — see `refs/cache.md`.
 
 ```
 eng --build  →  /test  →  /review  →  [address findings]  →  /review (repeat until pass/warn)  →  /test --eval-set  →  /pre-merge  →  gh pr create
@@ -30,6 +32,7 @@ eng --build  →  /test  →  /review  →  [address findings]  →  /review (re
 - `/review <branch>` — diffs against a named branch
 - `/review <PR#>` — fetches PR diff via `gh pr diff <n>`
 - `/review --full-secret-scan` — opts Security mode Stage 0 into scanning the full working tree (default is diff-only). Composable with branch and PR args, e.g. `/review feature/x --full-secret-scan` or `/review 42 --full-secret-scan`.
+- `/review --min-severity <blocker|high|medium|low>` — drop findings below this severity from the emitted output (default: no floor, all severities emitted). Applied in Step 7 after dedup, so dedup's highest-severity-wins logic always runs on the full set first. Verdict computation and the written run-directory JSON are unaffected — only the emitted `findings[]` arrays are filtered. Intended for callers (e.g. `ship`'s iterate loop) that only act on high-signal findings and want a smaller payload to parse each pass.
 
 **Hard refusals:** does NOT modify source code; does NOT check documentation; makes exactly ONE `AskUserQuestion` call (Step 5).
 
@@ -57,6 +60,8 @@ Schema, sub-skill contract, verdict semantics: `refs/schema.md`.
 Run `rtk git branch --show-current` to determine the current branch. `review` is workflow-agnostic — runs on any branch including `main`. Bare `/review` on `main` falls back to `git diff HEAD~1 HEAD` so trunk-based and solo workflows still get a review surface. Named-branch and PR invocations work unchanged from any branch. If the resulting diff is empty: exit `Nothing to review — diff is empty.`
 
 ### Step 2/7 — Fingerprint codebase
+
+**Cache check (first, before anything else in this step):** locate the PRD (cheap glob over `features/prd-*/prd-*.md` by recency — the full eval-set bootstrap in Step 3 is separate and more expensive). If a PRD is found, check `features/prd-<n>/review/.surface-cache.json` against the current diff's hash. On a cache hit, skip the rest of Step 2 and all of Steps 3-4 — load the cached fingerprint/eval-set/surface and go straight to Step 5. Full protocol: `refs/cache.md`. No PRD found, or cache miss (no file, or diff changed) → proceed below exactly as documented.
 
 Run once at startup; never re-derive mid-run. Detection signals, runner mappings, and the authoritative `/cook` flag inventory all live in `refs/FLAG-LIST.md` — load it once here.
 
@@ -102,6 +107,8 @@ Cross-reference diff against PRD: produce `files_changed`, `uncovered_changes[]`
 
 **Undetected-domain check:** match `files_changed` against the extension list in `refs/FLAG-LIST.md#extensions-with-no-domain-specific-coverage`. If any match, set `surface.undetected_domain_note` to `"<N> changed files in <ext list> have no domain-specific review — /cook has no matching standards shelf"` (omit the field entirely when no matches). This only flags a known no-coverage list — it does not fire for domain-less files that were never expected to match (config, docs, styles, etc).
 
+**Cache write:** if a PRD is known, write `features/prd-<n>/review/.surface-cache.json` with this run's `diff_hash`, fingerprint (Step 2), classified `eval_set` (Step 3), and this surface. Full protocol: `refs/cache.md`. Skip if no PRD is known.
+
 Surface schema: `refs/schema.md`.
 
 ### Step 5/7 — Confirm surface ← sole AskUserQuestion call
@@ -116,7 +123,13 @@ Performance→ /cook --performance --database            (api/users.ts)
 ```
 If `surface.undetected_domain_note` is set, print it directly above the execution plan so the user sees the coverage gap before approving — it is not a mode, so it never appears as a row.
 
-Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue without re-asking) / **Cancel** (exit, no findings). No further `AskUserQuestion` calls.
+Migration and A11y/i18n rows are added to the plan only when their trigger condition (`refs/modes/migration.md` / `refs/modes/a11y-i18n.md`) matches — omit the row entirely otherwise, e.g.:
+```
+Migration  → /cook --supabase:migrations                (supabase/migrations/003_add_index.sql)
+A11y/i18n  → static scan (no /cook flags)                (components/Nav.tsx)
+```
+
+Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue without re-asking) / **Cancel** (exit, no findings). No further `AskUserQuestion` calls. Adjustments are not written back to the cache (`refs/cache.md`) — the cache always reflects the auto-derived Steps 2-4 output, never a manual override.
 
 ### Step 6/7 — Run modes in order; fan out /cook per mode
 
@@ -129,8 +142,12 @@ Order and per-mode stage layout:
 | 3 | Functional | — (no Stage 0) | Eval-set assertion protocol against the diff. |
 | 4 | Security | Secret scan — runs `secret_scanner` (diff-only by default, full-tree with `--full-secret-scan`); always proceeds to semantic stage regardless of verdict. | `/cook --<flag>` semantic agents for injection / auth / input-validation. |
 | 5 | Performance | — (no Stage 0) | `/cook --<flag>` semantic agents. |
+| 6 | Migration *(conditional — skipped unless diff touches a migration file)* | Static migration-safety scan (irreversible ops, missing defaults, non-concurrent indexes, missing down-migration); always proceeds to semantic stage regardless of verdict. | `/cook --<flag>` semantic agents, only if a Supabase/Database flag was assembled. |
+| 7 | A11y/i18n *(conditional — skipped unless a UI domain is active and diff touches a UI file)* | — (no Stage 0) | Static-only: missing accessibility attributes, hardcoded strings bypassing existing i18n. No `/cook` sub-agents — no matching concern shelf exists yet. |
 
-For each mode: run Stage 0 first (if defined), then spawn all `/cook --<flag>` sub-agents in parallel; wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). Aggregate Stage 0 findings with semantic-stage findings into the mode output. On any mode-level `block`: stop pipeline immediately, skip remaining modes, go to Step 7. Mode details: `refs/modes/<mode>.md`.
+Modes 6-7 are conditional: their trigger check runs first, and if it doesn't match, the mode is skipped entirely (no Stage 0, no sub-agents, omitted from output) rather than emitted as an empty result. Modes 1-5 always run.
+
+For each mode: run Stage 0 first (if defined), then spawn all `/cook --<flag>` sub-agents in parallel (skip this if the mode is static-only or no flags were assembled); wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). Aggregate Stage 0 findings with semantic-stage findings into the mode output. On any mode-level `block`: stop pipeline immediately, skip remaining modes, go to Step 7. Mode details: `refs/modes/<mode>.md`.
 
 **Quality-mode only:** Before spawning Quality sub-agents, append the rubric amendment from `refs/modes/quality.md#sub-agent-prompt-amendment` to each agent's prompt. Also pass `uncovered_changes[]` (from Step 4) as an additional input to every Quality sub-agent. No other mode receives the rubric amendment or `uncovered_changes[]`.
 
@@ -138,7 +155,15 @@ For each mode: run Stage 0 first (if defined), then spawn all `/cook --<flag>` s
 
 ### Step 7/7 — Aggregate and emit
 
-Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = worst across completed modes (`block` > `warn` > `pass`). Emit JSON to stdout. If PRD known, also write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json`. Omit unrun modes from output. Include `eval_set_path` in the top-level output (value derived in Step 3; `null` if PRD unknown).
+Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = worst across completed modes (`block` > `warn` > `pass`), computed from the full, unfiltered finding set.
+
+If PRD known, write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json` **before** applying `--min-severity` — the run-directory artifact always keeps every finding regardless of the flag.
+
+**Findings-count summary line:** emit before the JSON, always (this is the human-reading path — `stdout` is read directly by a person per the top-level Inputs/Outputs table): `Findings: <blocker> blocker, <high> high, <medium> medium, <low> low across <N> modes.` Counts are across the full, unfiltered finding set — the summary always reflects everything found, even when `--min-severity` trims what follows it.
+
+**Apply `--min-severity` (if passed):** filter every mode's `findings[]` to drop entries below the given floor (`blocker > high > medium > low`), then emit the filtered JSON to stdout. Coverage's `gaps[]` and Functional's `n/a` entries are not findings and are never filtered.
+
+Omit unrun modes from output. Include `eval_set_path` in the top-level output (value derived in Step 3; `null` if PRD unknown).
 
 ## References
 
@@ -150,3 +175,6 @@ Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = wors
 - `refs/modes/functional.md` — Functional mode: eval-set assertion protocol
 - `refs/modes/security.md` — Security mode: flags and what it checks
 - `refs/modes/performance.md` — Performance mode: flags and what it checks
+- `refs/modes/migration.md` — Migration mode: trigger condition, static safety scan, flags (conditional — runs 6th)
+- `refs/modes/a11y-i18n.md` — A11y/i18n mode: trigger condition, static-only checks (conditional — runs 7th, no `/cook` flags)
+- `refs/cache.md` — surface/fingerprint cache: read/write paths, invalidation, interaction with Adjust
