@@ -71,7 +71,6 @@ coverage/
 pubspec.lock
 
 # Build artifacts
-.dart_tool/
 *.dill
 
 # iOS

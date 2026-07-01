@@ -86,13 +86,13 @@ Run `init-setup.sh` via Bash:
 <skill_dir>/init-setup.sh "<cwd>"
 ```
 
-Parse the five `key=value` lines it prints and hold `PRESENT`, `MISSING`, and `STACK_DEFAULT` in conversation context.
+Parse the five `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, and `STACK_DEFAULT` in conversation context.
 
 If `ALL_COMPLETE=true`, emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step.
 
 **Step 2/7 — Project basics interview**
 
-Run 4–5 `AskUserQuestion` prompts, one at a time. Skip Q2 when exactly one stack hint is present (platform is unambiguous).
+Run 4–5 `AskUserQuestion` prompts, one at a time. Skip Q2 when `STACK_HINTS` has exactly one entry — in that case set `PLATFORM = STACK_DEFAULT` directly, no question asked. Otherwise, if `STACK_DEFAULT` is not "Not specified", pre-select it as Q2's default option (user can still pick another).
 
 | Q | Question | Format |
 |---|----------|--------|
