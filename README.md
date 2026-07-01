@@ -32,7 +32,6 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | Skill | Description |
 |-------|-------------|
 | `/msg-init` | One-time project bootstrap — 7-step, three-phase interview (project basics, architecture, design system), then scaffolds `devkit/` (AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md) and root files. Idempotent. |
-| `/plan` | One-shot planning orchestrator — runs the full PRD pipeline once: plan-pm → plan-tune --product → plan-em → plan-tune --eng. No loop. The planning counterpart to `/ship`. |
 | `/plan-pm` | Principal PM — interviews via 5 questions, then writes a structured PRD to `features/prd-[n]/`. Splits large epics. |
 | `/plan-tune` | Staff PM auditor — numbered, severity-tagged PRD audit (`--product`/`--eng`); applies all fixes inline. |
 | `/plan-em` | Engineering Manager — spins up specialist agents to write engineering sections into the PRD, then synthesises the output. |
@@ -44,12 +43,6 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval, `--build` writes code from exec-table rows. `--build --loop` adds a plan-tune review cycle after each build pass. |
 | `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
 | `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
-
-### 🚢 Ship
-
-| Skill | Description |
-|-------|-------------|
-| `/ship` | Autonomous build-and-ship loop — resolves a PRD, spins up `eng --build` agents in parallel, then loops /review → /test → fix until both are clean, then runs /pre-merge. Never pushes or merges. The engineering counterpart to `/plan`. |
 | `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |
 | `/handoff` | Produces a numbered, agent-readable handoff artifact at `handoff/<n>.md`. Zero input required. |
 | `/improve` | Lightweight improvement planner — writes a plan + acceptance criteria to `improve/[n]-[feature-type]/`. `--review <n>` runs an adversarial Opus review against an existing plan: checks assertion realism, plan quality, and feasibility; findings ranked critical → major → minor. |

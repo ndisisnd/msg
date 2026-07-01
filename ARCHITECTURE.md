@@ -17,8 +17,8 @@ Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook
 Each skill is a directory containing a `SKILL.md` — a structured prompt consumed by Claude Code's skill system when the user invokes `/name`. Skills are self-contained: they declare their `allowed_tools`, `model`, and protocol inline.
 
 Skills compose in two ways:
-- **In-session chaining** via the `Skill` tool (e.g. `/plan` calls plan-pm, plan-tune, plan-em in sequence)
-- **Subagent delegation** via the `Agent` tool (e.g. `/ship` fans out `eng --build` agents in parallel)
+- **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-tune` or `plan-em` directly)
+- **Subagent delegation** via the `Agent` tool (e.g. `/review` fans out `/cook` sub-agents in parallel)
 
 The `shared/` skill holds common prompt fragments imported by multiple skills.
 
@@ -28,8 +28,6 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 
 | Script | Purpose |
 |--------|---------|
-| `ship-find-prd.sh` | Ranks existing PRDs against a prose query (used by `/ship` Step 1) |
-| `ship-db-touch.sh` | Reports database files touched in a branch diff (used by `/ship` guardrail) |
 | `test-tooling-detect.sh` | Discovers test runners and configs for the project |
 | `test-aggregate-verdict.sh` | Merges per-bucket test results into a single verdict |
 | `test-init-profile.sh` | Writes the test profile for a project |
@@ -52,32 +50,28 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 ## Skill pipelines
 
 ```
-Planning:   /plan → plan-pm → plan-tune --product → plan-em → plan-tune --eng
-Execution:  /ship → eng --build (parallel) ──┐
-                                              ├─ review → test → fix (loop) → pre-merge
-                                              └──────────────────────────────────────────
+Planning:   plan-pm → plan-tune --product → plan-em → plan-tune --eng
+Execution:  eng --build → review → test → fix (loop) → pre-merge
 ```
 
-`/plan` and `/ship` are the two orchestrators. Everything else can be invoked standalone.
+Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically.
 
 ## Skill inventory
 
-| Skill | Orchestrator | Standalone |
-|-------|-------------|------------|
-| `plan` | Chains plan-pm → plan-tune → plan-em → plan-tune | — |
-| `ship` | Fans out eng → review → test → fix → pre-merge | — |
-| `plan-pm` | — | Yes |
-| `plan-tune` | — | Yes (`--product` / `--eng`) |
-| `plan-em` | — | Yes |
-| `eng` | — | Yes (`--plan` / `--build` / `--build --loop`) |
-| `review` | — | Yes |
-| `test` | — | Yes |
-| `pre-merge` | — | Yes |
-| `handoff` | — | Yes |
-| `improve` | — | Yes |
-| `msg-init` | — | Yes |
-| `msg` | — | Yes (interactive skill browser) |
-| `shared` | — | Internal only |
+| Skill | Standalone |
+|-------|------------|
+| `plan-pm` | Yes |
+| `plan-tune` | Yes (`--product` / `--eng`) |
+| `plan-em` | Yes |
+| `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
+| `review` | Yes |
+| `test` | Yes |
+| `pre-merge` | Yes |
+| `handoff` | Yes |
+| `improve` | Yes |
+| `msg-init` | Yes |
+| `msg` | Yes (interactive skill browser) |
+| `shared` | Internal only |
 
 ## Cook integration
 

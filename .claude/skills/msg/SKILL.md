@@ -18,11 +18,9 @@ allowed_tools:
 | Category | Skill | Description |
 |----------|-------|-------------|
 | Planning | msg-init | One-time project bootstrap |
-| Planning | plan | Autonomous planning loop — pm → tune → em → tune until eng-tuned |
 | Planning | plan-pm | PM interview — PRD writer |
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
-| Build & Ship | ship | Autonomous build-and-ship loop — eng build → review loop → pre-merge |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
 | Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
@@ -31,7 +29,7 @@ allowed_tools:
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 | Meta | improve | Improvement planner for any skill or workflow |
 
-> **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow, including autonomous loops (`plan`, `ship`) and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
+> **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
 
 ---
 
@@ -48,11 +46,6 @@ allowed_tools:
                                                                          ↓
                                                          gh pr create  /  /handoff
 ```
-
-**Autonomous loop shortcuts** collapse the stages above into one hands-off command each:
-
-- `/plan <idea>` — runs `plan-pm → plan-tune → plan-em → plan-tune` to a finished eng-tuned PRD. Pauses only for the interview and breaking-change reconciliation.
-- `/ship <PRD path | prose>` — runs `eng --build → review loop → pre-merge` on an eng-tuned PRD. Pauses only for database-file touches or breaking changes.
 
 ---
 
@@ -74,23 +67,12 @@ Call `AskUserQuestion` with one question:
 
 **Step 2 — Skill**
 
-`AskUserQuestion` allows 2-4 options per question. If the selected category has 4 or fewer rows, call it directly:
+`AskUserQuestion` allows 2-4 options per question. Every category has 4 or fewer rows, so call it directly:
 
 - **Question**: `Which skill?`
 - **Header**: `Skill`
 - **multiSelect**: `false`
 - **Options**: all rows in the selected category, in table order (`label` = Skill, `description` = Description)
-
-If the category has more than 4 rows, first split autonomous loops from staged skills with a disambiguating question, then only ask Step 2 proper if more than one staged skill remains:
-
-- **Question**: `Hands-off or step-by-step?`
-- **Header**: `Mode`
-- **multiSelect**: `false`
-- **Options**: `Hands-off (one command)` (rows whose description says "Autonomous …"), `Step-by-step (choose a stage)` (the remaining rows)
-
-If "Hands-off" resolves to exactly one skill, skip Step 2 entirely and emit it directly. Otherwise run Step 2 with the filtered row set.
-
-*Example — Planning has 5 rows:* `Hands-off` → `plan` (emit directly, no further question). `Step-by-step` → ask Step 2 with `msg-init`, `plan-pm`, `plan-tune`, `plan-em` (4 options, fits the cap).
 
 **Step 3 — Emit**
 
@@ -150,10 +132,10 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 |-------|----------|--------|-------|
 | Starting fresh | any | any | msg-init |
 | Planning | Nothing yet / rough idea | A project spec | plan-pm |
-| Planning | Nothing yet / rough idea | An engineering plan | plan |
+| Planning | Nothing yet / rough idea | An engineering plan | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |
 | Planning | A PRD or spec | An engineering plan | plan-em |
-| Building | Nothing yet / rough idea | Working code or test results | ship |
+| Building | Nothing yet / rough idea | Working code or test results | plan-pm |
 | Building | A PRD or spec | Working code or test results | eng |
 | Building | Code or a diff | Working code or test results | test |
 | Building | Code or a diff | A review or audit report | pre-merge |
