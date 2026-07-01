@@ -9,6 +9,7 @@ MSG is a Claude Code skill harness — a collection of slash-command skills for 
 Shallow-clones this repo into a temp directory, then copies:
 - `skills/` → `~/.claude/skills/` (each skill as its own subdirectory)
 - `scripts/` → `~/.claude/scripts/` (all `.sh` files made executable)
+- `improve/` is intentionally excluded — a repo-local meta skill (see `install.sh`'s `LOCAL_ONLY_SKILLS`), not part of the installed surface.
 
 Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook) dependency, which provides the `/cook` skill MSG skills call for domain-specific coding standards.
 
@@ -67,8 +68,6 @@ Every skill is invoked directly and standalone; a skill's end-of-run gate recomm
 | `review` | Yes |
 | `test` | Yes |
 | `pre-merge` | Yes |
-| `handoff` | Yes |
-| `improve` | Yes |
 | `msg-init` | Yes |
 | `msg` | Yes (interactive skill browser) |
 | `shared` | Internal only |

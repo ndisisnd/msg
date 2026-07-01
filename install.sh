@@ -73,10 +73,20 @@ mkdir -p "${SKILLS_DIR}"
 SRC="${TMP_DIR}/msg/.claude/skills"
 installed=0
 
+# Skills that live in the repo for local/meta use only and must never be
+# copied into a user's ~/.claude/skills on install (kept functional in-repo).
+LOCAL_ONLY_SKILLS=("improve")
+
 for skill_dir in "${SRC}"/*/; do
   skill_name="$(basename "${skill_dir}")"
-  dest="${SKILLS_DIR}/${skill_name}"
 
+  skip=false
+  for local_only in "${LOCAL_ONLY_SKILLS[@]}"; do
+    [[ "${skill_name}" == "${local_only}" ]] && { skip=true; break; }
+  done
+  [[ "${skip}" == true ]] && continue
+
+  dest="${SKILLS_DIR}/${skill_name}"
   rm -rf "${dest}"
   cp -r "${skill_dir}" "${dest}"
   ((installed++)) || true

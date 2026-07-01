@@ -44,5 +44,3 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
 | `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
 | `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |
-| `/handoff` | Produces a numbered, agent-readable handoff artifact at `handoff/<n>.md`. Zero input required. |
-| `/improve` | Lightweight improvement planner — writes a plan + acceptance criteria to `improve/[n]-[feature-type]/`. `--review <n>` runs an adversarial Opus review against an existing plan: checks assertion realism, plan quality, and feasibility; findings ranked critical → major → minor. |

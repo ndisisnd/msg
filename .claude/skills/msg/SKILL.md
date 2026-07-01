@@ -25,9 +25,7 @@ allowed_tools:
 | Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
 | Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
 | Review | review | Five-mode code review — Quality, Coverage, Functional, Security, Perf |
-| Delivery | handoff | Structured mid-flight handoff artifact |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
-| Meta | improve | Improvement planner for any skill or workflow |
 
 > **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
 
@@ -44,7 +42,7 @@ allowed_tools:
                                                                          ↓
                                                                  /pre-merge
                                                                          ↓
-                                                         gh pr create  /  /handoff
+                                                                 gh pr create
 ```
 
 ---
@@ -62,8 +60,7 @@ Call `AskUserQuestion` with one question:
   - `label`: `Planning`, `description`: `Bootstrap, spec writing, PRD audit, engineering planning`
   - `label`: `Build & Ship`, `description`: `Implement, test, and run the pre-push gate`
   - `label`: `Review`, `description`: `Code review and doc checking`
-  - `label`: `Delivery`, `description`: `Handoff artifacts, task lists, commits`
-  - `label`: `Meta`, `description`: `Improvement planning and skill-level tooling`
+  - `label`: `Delivery`, `description`: `Task lists, commits`
 
 **Step 2 — Skill**
 
@@ -101,7 +98,7 @@ Call `AskUserQuestion` with three questions in a single call:
   - `label`: `Planning`, `description`: `Speccing a feature or writing a PRD`
   - `label`: `Building`, `description`: `PRD is ready, need to write or test code`
   - `label`: `Reviewing`, `description`: `Code exists, need review or audit`
-  - `label`: `Wrapping up`, `description`: `Feature is done, need handoff or tasks`
+  - `label`: `Wrapping up`, `description`: `Feature is done, need to commit or track tasks`
 
 **Q2**
 - **Question**: `What do you have to work with?`
@@ -122,7 +119,7 @@ Call `AskUserQuestion` with three questions in a single call:
   - `label`: `An engineering plan`, `description`: `Tasks, milestones, technical design`
   - `label`: `Working code or test results`, `description`: `Implementation, test run, or pre-push gate`
   - `label`: `A review or audit report`, `description`: `Findings on code, docs, or a skill`
-  - `label`: `A handoff or task list`, `description`: `Handoff artifact or TODOs.json`
+  - `label`: `A commit or task list`, `description`: `Conventional commit or TODOs.json`
 
 **Step 2 — Route**
 
@@ -142,8 +139,7 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Reviewing | Code or a diff | A review or audit report | review |
 | Reviewing | A PRD or spec | A project spec | plan-tune |
 | Reviewing | Code or a diff | An engineering plan | eng |
-| Wrapping up | Code or a diff | A handoff or task list | kermit |
-| Wrapping up | any | A handoff or task list | handoff |
+| Wrapping up | Code or a diff | A commit or task list | kermit |
 
 **Step 3 — Emit**
 
