@@ -137,6 +137,32 @@ Throughout the build, append to `devkit/AHA.md` (the same file pre-flight reads,
 
 ---
 
+## OPEN-QUESTIONS.md
+
+Throughout the build, append to `devkit/OPEN-QUESTIONS.md` (read by `plan-pm` and `plan-em` pre-flight, and by `handoff`) when eng cannot resolve an ambiguity itself and must proceed on an assumption. This is distinct from `devkit/AHA.md`: AHA logs what eng *learned or decided*; OPEN-QUESTIONS logs what eng *could not decide* and is flagging for a human or a future planning run.
+
+Append when any of the following occur:
+- An execution step's intent is genuinely ambiguous (not just under-specified enough to infer from the PRD/CLAUDE.md/ARCHITECTURE.md) and eng proceeds on a stated assumption.
+- A product or design decision surfaces mid-build that the PRD didn't anticipate and that would affect scope beyond the current row.
+- A debug escalation (3 failed cycles, see Debug mode above) leaves a row unresolved — log here in addition to AHA, since it blocks a decision rather than just recording a learning.
+
+**Format** (matches `devkit/OPEN-QUESTIONS.md`'s own template):
+
+```
+### [YYYY-MM-DD] Short question title
+
+**Question**: Full question text.
+**Severity**: critical | high | medium | low
+**Status**: open
+**Context**: Where this came up and why it matters.
+**Options**: A / B / C (optional).
+**Raised by**: eng-<agent name>
+```
+
+Append under the `## Open Questions` heading only — never write to `## Resolved` (that section is curated by humans or `plan-em`/`plan-tune`, not by build agents). `devkit/OPEN-QUESTIONS.md` is append-only, same as AHA.md. Reference any entries written during the run in the build summary.
+
+---
+
 ## Output contract (Step 5)
 
 Emit a build summary after all rows are complete:
@@ -156,6 +182,7 @@ Emit a build summary after all rows are complete:
 **Warnings:** <e.g. groups shipped without a Tests row, uncovered stacks from /cook, or "None">
 **Blocked rows:** <list any rows not completed and why>
 **AHA entries:** <list any entries written to devkit/AHA.md, or "None">
+**Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
 ```
 
 **Constraints:**

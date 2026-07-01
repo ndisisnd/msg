@@ -68,7 +68,7 @@ allowed_tools:
 | README.md | Markdown from `refs/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
-| CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, written and updated by subagents | `<cwd>/CHANGELOG.md` |
+| CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | features/ | Empty directory | `<cwd>/features/` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 7 |
 
@@ -178,5 +178,5 @@ Do not invoke another skill. The next slash command is the user's choice.
 - `refs/template-CLAUDE.md` — template for CLAUDE.md (Claude Code project instructions)
 - `refs/template-ARCHITECTURE.md` — template for ARCHITECTURE.md (architecture stub, populated from Step 3 interview)
 - `refs/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry, populated from Step 4 interview)
-- `refs/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, written by subagents)
+- `refs/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)
 - `refs/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)

@@ -6,7 +6,10 @@ description: >
   stage in sequence and stopping at the end. No iteration, no loop. The only
   interactive pauses are the ones each sub-skill owns: the requirements
   interview, roster approval, breaking-change reconciliation, and each stage's
-  end-of-run gate. Invoke with /plan. Pass a product idea, brief, or nothing.
+  end-of-run gate — plus, on a clean finish (zero unresolved Critical/Major
+  findings), one final approval prompt offering to chain into /ship. Invoke
+  with /plan. Pass a product idea, brief, an existing PRD path to resume
+  mid-pipeline, or nothing.
 model: claude-opus-4-7
 allowed_tools:
   - Skill
@@ -27,30 +30,59 @@ One-shot planning orchestrator. One command drives the product-planning pipeline
 
 ## Usage
 
-**Invoke**: `/plan`. Pass an optional product idea or brief as input.
+**Invoke**: `/plan`. Pass an optional product idea or brief as input — or an existing PRD path to resume mid-pipeline (see Resume mode).
 
 - Slash command: `/plan`
-- Natural language: "plan this out end to end", "run the full planning pipeline", "take this idea through to an eng-tuned PRD"
+- Natural language: "plan this out end to end", "run the full planning pipeline", "take this idea through to an eng-tuned PRD", "finish planning this PRD"
 
 **Hard refusals:**
 - **Skipping the PRD:** `plan` always produces a PRD. It cannot jump straight to engineering build — that is `/ship`.
 
 ## What `plan` does and does not do
 
-`plan` is a **sequential driver**, not a loop. It runs each stage exactly once and then stops — it does not re-run a stage on findings, and it does not converge on a "zero issues" signal. If a tune surfaces issues you want resolved before building, re-run that stage yourself, or run `/ship` (which has its own review→fix loop) when you build.
-
-It does **not** suppress the sub-skills' interactive gates. There is no `--from-loop` contract anymore. Every pause below is owned by a sub-skill and reaches you normally.
+It does not re-run a stage on findings or converge on a "zero issues" signal — if a tune leaves findings you want resolved, re-run that stage yourself, or run `/ship` (which has its own review→fix loop) when you build. It also does not suppress the sub-skills' interactive gates; every pause below is owned by a sub-skill and reaches you normally.
 
 ## Stage sequence
 
-Run these four invocations in order. After each returns, read its output, derive the values the next stage needs, and proceed.
+Run these four invocations in order. After each returns: read its output, run the Between-stage guard below, emit `Stage N/4 — <name> complete`, derive the values the next stage needs, and proceed.
 
 1. **plan-pm** — `Skill("plan-pm", "<brief>")`. Runs the requirements interview and writes `features/prd-[n]-[slug]/prd-[n]-[slug].md`. **Capture the resolved PRD path** from plan-pm's output; every later stage takes it as input.
 2. **plan-tune --product** — `Skill("plan-tune", "<prd-path> --product")`. Adversarial product audit (completeness, consistency, agent-readability, scope integrity); fixes applied to the PRD in place.
-3. **plan-em** — `Skill("plan-em", "<prd-path>")`. Pre-flight, roster approval, writes `## Engineering —` sections + the execution table, and **bootstraps the development `eval_set`** via `/test --prd`.
+3. **plan-em** — `Skill("plan-em", "<prd-path>")`. Pre-flight, roster approval, writes `## Engineering —` sections + the execution table, and **bootstraps the development `eval_set`** via `/test --prd`. **Capture the eval_set assertion count** from its output for the final summary.
 4. **plan-tune --eng** — `Skill("plan-tune", "<prd-path> --eng")`. Eng-plan audit (the four product dimensions + eng plan integrity); fixes applied in place.
 
 After stage 4 returns, emit the completion summary (below) and terminate.
+
+## Resume mode
+
+If the input to `/plan` resolves to an existing PRD path rather than a new product idea or brief, do not start at stage 1. Read the PRD's frontmatter and start at the first stage it hasn't passed:
+
+- `product-tuned: no` → start at stage 2 (plan-tune --product)
+- `product-tuned: yes`, `status: product` → start at stage 3 (plan-em)
+- `status: eng`, `eng-tuned: no` → start at stage 4 (plan-tune --eng)
+- `eng-tuned: yes` → nothing left to run; report the PRD is already fully tuned and suggest `/ship <prd-path>`
+
+Run the remaining stages exactly as described above, including the Between-stage guard, breadcrumbs, and frontmatter writeback.
+
+## Between-stage guard
+
+Before invoking each next stage, confirm the prior stage actually met its contract:
+
+- Before stage 2 or stage 4: the PRD file must still exist at the captured path.
+- Before stage 4: the PRD must carry `## Engineering —` sections (written by stage 3).
+- After stage 3 returns: verify those `## Engineering —` sections are actually present — plan-em can return without writing them if it failed partway.
+
+If the expected artifact from the prior stage is missing, STOP. Do not invoke the next stage. Follow Failure handling below.
+
+## Failure handling
+
+If a stage refuses or aborts instead of completing — e.g. plan-em refuses when `devkit/` is missing (plan-em/SKILL.md:87), or plan-tune refuses on an unresolvable PRD path — do not advance to the next stage. Emit a partial-completion summary naming:
+
+- the last stage that completed successfully
+- the stage that failed, and the refusal message it gave
+- the suggested manual recovery command (e.g. "resolve `devkit/`, then run `/plan-em <prd-path>` followed by `/plan-tune <prd-path> --eng`")
+
+Never advance past a refusal silently.
 
 ## Frontmatter status writeback
 
@@ -66,16 +98,7 @@ This keeps the completion summary's `Status: eng-tuned` claim true at the frontm
 
 ## Stage-gate handling (important)
 
-Because `plan` drives the sequence itself and there is no suppression contract, each sub-skill still runs its **own end-of-run prompt**:
-
-| Stage | Its end-of-run prompt | Choose |
-|-------|-----------------------|--------|
-| plan-pm | "What would you like to do next?" (Tune / Plan eng / Terminate) | **Terminate the session** |
-| plan-tune --product | "Continue to plan-em / Re-run plan-pm / Stop here" | **Stop here** |
-| plan-em | "Run plan-tune (eng mode) / Run eng --build / Skip" | **Skip** |
-| plan-tune --eng | "Proceed to build / Re-run plan-em / Stop here" | **Stop here** |
-
-**Always pick the terminal option** at each gate — `plan` invokes the next stage itself. Picking the "continue/invoke" option would make `plan` run that next stage a second time. (This double-drive is the cost of removing loop mode; the gate is the only place it shows up.)
+Because `plan` drives the sequence itself, each sub-skill still runs its **own end-of-run prompt** after finishing. Every one of those prompts offers a "continue to next stage" option alongside a terminal option (worded as Stop / Skip / Terminate depending on the skill). **Always pick the terminal option** — `plan` invokes the next stage itself, so picking "continue" would run that stage a second time.
 
 The genuinely interactive pauses you should answer normally are the ones intrinsic to the work, not the chaining gates:
 - **plan-pm requirements interview** — answer the questions.
@@ -96,10 +119,22 @@ Planning complete — single pass (no loop).
 PRD: features/prd-[n]-[slug]/prd-[n]-[slug].md
 Stages run: plan-pm → plan-tune --product → plan-em → plan-tune --eng.
 Status: eng-tuned. Unresolved tune findings (if any) are listed above and in the PRD.
+Eval-set: N assertions bootstrapped by plan-em.
 Suggested next step: /ship features/prd-[n]-[slug]/prd-[n]-[slug].md
 ```
 
-If a tune left critical or major findings unresolved (you chose not to fix them), list them in the summary — never exit silently.
+If a tune left critical or major findings unresolved (you chose not to fix them), list them in the summary — never exit silently. If the pipeline was entered via Resume mode, list only the stages actually executed under "Stages run."
+
+## End-of-run handoff to `/ship`
+
+After the Termination summary, if the pipeline reached stage 4 (plan-tune --eng) and it left **zero unresolved Critical/Major findings**, ask before chaining into `/ship` — never invoke it unasked:
+
+> `AskUserQuestion`: "PRD is eng-tuned with no unresolved Critical/Major findings. Run `/ship <prd-path>` now?" — **Yes, run /ship** / **No, stop here**.
+
+- **Yes** → `Skill("ship", "<prd-path>")`.
+- **No** → terminate as normal.
+
+Skip this prompt entirely (just terminate per Termination above) if: any unresolved Critical/Major findings remain, Failure handling triggered, or Resume mode's `eng-tuned: yes` branch fired (nothing was run this pass).
 
 ## References
 
