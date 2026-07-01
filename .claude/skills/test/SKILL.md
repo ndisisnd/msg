@@ -9,10 +9,12 @@ description: >
   buckets; --fast runs all selected buckets in parallel. --init profiles
   the codebase to recommend which test buckets, tools, and packages it
   needs, then writes a test.json cache the execution path reads. Accepts
-  --eval-set to consume eval_set.json written by /review. Emits structured
-  JSON findings conforming to the shared canonical finding schema
-  (.claude/skills/shared/refs/finding-schema.md), the same shape /review
-  and /pre-merge emit.
+  --eval-set to consume eval_set.json written by /review. --flaky <N>
+  retries failing unit/e2e tests before counting them as real failures;
+  --changed-only (with --base) skips buckets whose surface the diff
+  doesn't touch. Emits structured JSON findings conforming to the shared
+  canonical finding schema (.claude/skills/shared/refs/finding-schema.md),
+  the same shape /review and /pre-merge emit.
 model: claude-sonnet-4-6
 allowed_tools:
   - Bash
@@ -36,6 +38,7 @@ eng --build               →  /test                      (full test suite again
 - `/test --init` — **setup mode** (does not run tests). Profile the codebase, recommend which test buckets, third-party tools, and packages it needs, optionally install them, and write `.claude/test/test.json`. See **Init mode** below and `refs/modes/init.md`.
 - `/test` — detect and run all applicable test buckets against the current working tree
 - `/test --base <branch>` — scope diff to changed files since `<branch>` (passed to test runners as file filters)
+- `/test --base <branch> --changed-only` — additionally skip whole buckets whose surface the diff doesn't touch (e.g. no UI files changed → skip `qa`/`a11y`/`perf`/`e2e`/`mobile`). Requires `--base`; ignored (with a printed note) if `--base` is absent. See Step 1b.
 - `/test --prd <path>` — read PRD to bootstrap an eval_set for the functional bucket (if no `--eval-set` supplied)
 - `/test --eval-set <path>` — consume `eval_set.json` written by `/review`; skip PRD re-bootstrap; run only the `executable` assertions from that file
 
@@ -57,8 +60,9 @@ When **no** mode flag is supplied, all applicable buckets run (existing default)
 **Execution flags:**
 
 - `--fast` — run all selected, non-skipped buckets **in parallel** rather than sequentially
+- `--flaky <N>` — retry each failing unit/e2e test up to `N` times before counting it as a real failure; a test that passes on any retry is reclassified as flaky rather than a hard failure. No effect on other buckets. See `refs/modes/unit.md` Step 3b / `refs/modes/e2e.md` Step 3b.
 
-Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_set.json --unit --e2e --fast`
+Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_set.json --unit --e2e --fast --flaky 2`
 
 **Hard refusals (execution path):** does NOT modify source code; does NOT write outside `features/` and `/tmp/`; makes exactly ONE `AskUserQuestion` call (Step 3 gate).
 
@@ -190,6 +194,21 @@ Detection runs once; never re-derive mid-run. Treat the script's output as autho
 
 **Read the init cache (if present):** read `.claude/test/test.json` if it exists. It does NOT override detection commands — detection stays authoritative for *how* to run. Use only its `needed_buckets` to flag gaps: for any entry with `needed: true` whose runner came back `null` from detection, annotate that bucket in the Step 3 plan with `⚠ needed but not configured — run /test --init`. Absent cache → no annotations; proceed normally.
 
+### Step 1b — Diff-surface classification (`--changed-only` only)
+
+Only runs when both `--changed-only` and `--base <branch>` are supplied. If `--changed-only` is given without `--base`, ignore it and print `"--changed-only requires --base <branch> — ignored."`; skip the rest of this step.
+
+Take the changed file list already resolved for `--base` scoping (`git diff --name-only <base>...HEAD`) and classify each path into a surface:
+
+| Surface | Path counts as this surface if it matches | Buckets gated by this surface |
+|---------|---------------------------------------------|--------------------------------|
+| UI | `*.tsx`, `*.jsx`, `*.vue`, `*.svelte`, `*.css`, `*.scss`, any path containing `/components/`, `/pages/`, `/views/`, `/screens/`; for Flutter projects (project type `mobile` or Dart files present) also `lib/**/*.dart` | `qa`, `a11y`, `perf`, `e2e`, `mobile` |
+| API/backend | any path containing `/routes/`, `/controllers/`, `/handlers/`, `/api/`, `/server/`, `/services/`; `*.proto`; OpenAPI/Swagger spec files | `load`, `api` |
+
+A gated bucket becomes **surface-skip-eligible** if zero changed files match its surface. `unit`, `functional`, and `coverage` are never surface-gated — they always run regardless of which surfaces the diff touches.
+
+**Fail open:** if the changed-file list can't be resolved, or classification is ambiguous, do not mark anything skip-eligible — an unnecessary run is cheaper than a missed regression. Note in the Step 3 plan which buckets were skipped this way and why (e.g. `skipped — no UI files changed`).
+
 ### Step 2/5 — Resolve eval_set
 
 | Condition | Action |
@@ -202,14 +221,14 @@ Emit: `Eval-set: <N> executable assertions.`
 
 ### Step 3/5 — Confirm and gate ← sole AskUserQuestion call
 
-Show execution plan. Omit any bucket that is mode-flag-excluded, has a `null` runner, or has an empty `eval_set`. If `--fast` is set, append `[parallel]` to the header line.
+Show execution plan. Omit any bucket that is mode-flag-excluded, has a `null` runner, or has an empty `eval_set`. If `--fast` is set, append `[parallel]` to the header line; if `--flaky <N>` is set, append `[flaky ×N]`. For any bucket marked surface-skip-eligible at Step 1b, show it with a `skipped — <reason>` line instead of its command.
 
 ```
-Test execution plan  [parallel]        ← only shown with --fast
+Test execution plan  [parallel] [flaky ×2]        ← tags only shown with --fast / --flaky <N>
 Unit/Integration  → <test_runner.command> (<N> changed files)
 E2E               → <e2e_runner.command>
 Functional        → <N> executable assertions via /tmp scripts
-QA / Visual       → <qa_runner.command>
+QA / Visual       → skipped — no UI files changed (--changed-only)
 Load              → <load_runner.command>
 Accessibility     → <a11y_runner.command>
 Performance       → <perf_runner.command>
@@ -228,6 +247,7 @@ No further `AskUserQuestion` calls.
 - A mode flag (`--unit`, `--e2e`, `--functional`, `--qa`, `--load`, `--a11y`, `--perf`, `--api`, `--mobile`, `--coverage`) was supplied and this bucket's flag was NOT included.
 - The required runner / eval_set is absent (see table below).
 - The user skipped it at the Step 3 gate.
+- (`--changed-only` + `--base` only) the bucket was marked surface-skip-eligible at Step 1b (`qa`, `a11y`, `perf`, `e2e`, `mobile`, `load`, `api`) and none of the changed files matched its surface.
 
 | Order | Bucket | Mode flag | Mode ref | Additional skip condition |
 |-------|--------|-----------|----------|---------------------------|

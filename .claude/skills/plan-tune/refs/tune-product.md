@@ -33,6 +33,7 @@ The target PRD follows `plan-pm`'s `template-prd.md` schema, which has exactly 8
 | §6 Error cases present | Section absent | Major |
 | §7 Open questions present | Section absent (an empty list is acceptable — not every PRD has open questions) | Minor |
 | §8 Glossary | §8 present but any domain term used in §1–§7 has no glossary entry | Minor |
+| §8 vs `devkit/GLOSSARY.md` | A term appears in both this PRD's §8 and the project's `devkit/GLOSSARY.md` (read in SKILL.md Step 1, if the file exists) with a conflicting definition | Critical |
 
 ## Dimension 2 — Consistency
 
@@ -154,4 +155,4 @@ Summary:
 
 Body: numbered findings, ordered by severity (Critical first), then by PRD section order within each severity.
 
-Footer: present the human gate defined in SKILL.md Step 5.
+Footer: present the human gate defined in SKILL.md Step 4/4.

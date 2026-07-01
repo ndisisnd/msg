@@ -60,10 +60,27 @@ Read each engineering section's integration contracts (§7 of the eng plan templ
 
 ### 5f — Eng plan completeness (quality gate audit)
 
-Check each engineering section against the quality gates in `.claude/skills/eng/refs/plan/template-eng-plan.md` (Summary, Alternatives considered, Design decisions, PRD coverage, Phases, Integration contracts, Developer experience, Migration, Risks, Open questions).
+Read the canonical `## Quality gates before save` table directly from `.claude/skills/eng/refs/plan/template-eng-plan.md` for every run — do not hand-copy or restate its rules here, so this check never drifts from eng's own definition of "complete." Apply every gate in that table to each engineering section, except the three already covered elsewhere in Dimension 5 (skip them here to avoid duplicate findings): PRD coverage → 5a, Integration contracts → 5c, Migration → 5d.
+
+For each remaining gate that fails, draft one finding citing the gate name from the canonical table and the exact rule text it violates.
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
-| Summary present | §1 absent or does not name the target platform and shipping shape | Major |
-| Alternatives considered | §3 absent or writes `None.` without a sentence explaining why one approach is obviously correct | Minor |
-| At least three risks | §11 has fewer than three rows | Minor |
+| Summary | Canonical "Summary" gate fails | Major |
+| Alternatives | Canonical "Alternatives" gate fails | Minor |
+| Design decisions | Canonical "Design decisions" gate fails | Major |
+| Phases | Canonical "Phases" gate fails | Major |
+| Developer experience | Canonical "Developer experience" gate fails | Minor |
+| Risks | Canonical "Risks" gate fails (fewer than three rows, or a row with no mitigation) | Minor |
+| Findings | Canonical "Findings" gate fails | Minor |
+| Open questions | Canonical "Open questions" gate fails | Major |
+| Exact identifiers | Canonical "Exact identifiers" gate fails (a guessed or approximate name) | Critical |
+
+### 5g — Cross-PRD breaking-change consistency
+
+Read this PRD's own frontmatter `affects` and `depends_on` lists (`template-prd.md` file header). Cross-check them against this same PRD's `## Engineering —` sections — specifically the breaking changes surfaced by 5d and the scope mapping from 5a. This check reads only the input PRD's own frontmatter and its own engineering sections; it does not open other PRD files. Reconciling against the actual prior PRD files is `plan-em`'s Step 1 pre-flight responsibility (`plan-em/SKILL.md:88–106`) — this check exists to catch drift introduced or missed after that pre-flight already ran, e.g. when a later tune run edits an engineering section without re-running plan-em.
+
+| Check | Fail condition | Severity if fails |
+|-------|----------------|-------------------|
+| Breaking change registered | An engineering section names a breaking change to a schema, API contract, or module (per 5d) whose owning PRD is not listed in this PRD's frontmatter `affects` | Critical |
+| Dependency accounted for | A frontmatter `depends_on` entry names a PRD ID that no engineering section's scope mapping or integration contracts reference or build against | Major |

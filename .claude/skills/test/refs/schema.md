@@ -78,6 +78,10 @@ enum, category enum, dedup/regression keys, and verdict normalization.
   (E2E screenshots/traces, Functional script output, QA diff images, A11y page
   screenshots) put the artifact path in `evidence.file`. Unit, Load, and Perf may
   leave `evidence.file` null (Perf uses `repro` to link the Lighthouse HTML report).
+  When `/test --flaky <N>` is supplied, Unit and E2E findings that pass on retry
+  add `evidence.flaky: true` and `evidence.retries: <n>`, and the bucket's `totals`
+  gains a `flaky` count — see `refs/modes/unit.md` Step 3b / `refs/modes/e2e.md`
+  Step 4b. Both are omitted when `--flaky` wasn't used.
 - **`regression_of`** is `null` from buckets; the consuming gate sets it during aggregation.
 
 `pass`-type results are NOT findings — they belong in `totals`/`evaluated`, never `findings[]`.

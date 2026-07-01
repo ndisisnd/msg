@@ -24,7 +24,9 @@
       "Bash(mkdir -p components src)",
       "Bash(touch pages/index.tsx components/Button.tsx schema.prisma src/foo.ts)",
       "Bash(/Users/andychan/Desktop/Drive/code/msg/.claude/scripts/test-init-profile.sh)",
-      "Edit(/.claude/skills/test/**)"
+      "Edit(/.claude/skills/test/**)",
+      "Skill(update-config)",
+      "Skill(update-config:*)"
     ]
   },
   "hooks": {

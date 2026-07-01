@@ -40,6 +40,17 @@ For each e2e test failure:
 
 Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a named spec failure (matches the pre-merge severity floor for e2e); `medium` when attribution is unclear. `evidence.file` carries the screenshot/trace artifact path (`null` if none produced); the shared schema sanctions e2e adding `evidence.spec` for the spec file path alongside the top-level `file`.
 
+### Step 4b — Flaky retry (`--flaky <N>` only)
+
+Runs only when `--flaky <N>` was supplied and Step 3 produced at least one spec failure.
+
+For each individually-failing spec that has a `repro` command (e.g. `npx playwright test e2e/auth.spec.ts`), re-run just that spec, up to `N` times, stopping as soon as it passes. Specs with no derivable single-spec `repro` are skipped by this step and stay classified as regular failures — note `"Flaky retry skipped for <n> spec(s) — no single-spec repro available"` when this happens.
+
+- **Passes within `N` retries** → reclassify as **flaky**: keep the finding in `findings[]` for visibility, set `severity: "medium"`, and add `evidence.flaky: true` and `evidence.retries: <attempts used>` (alongside the existing `evidence.spec`). Do not count it toward `totals.failed`; instead increment `totals.flaky`.
+- **Still fails after `N` retries** → genuine failure: unchanged from Step 4 (`severity: "high"`, counts toward `totals.failed`).
+
+Recompute the bucket verdict after retries: `fail` only if at least one spec is still failing after exhausting its retries. If every originally-failing spec resolved as flaky, verdict is `pass_with_warnings` with note `"<n> flaky spec(s) passed on retry"`.
+
 ## Output
 
 ```json
@@ -48,7 +59,7 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
   "bucket": "e2e",
   "runner": "<e2e_runner.name>",
   "command": "<command executed>",
-  "totals": { "passed": 0, "failed": 0, "skipped": 0 },
+  "totals": { "passed": 0, "failed": 0, "skipped": 0, "flaky": 0 },
   "findings": [
     {
       "id": "e2e-<n>",
@@ -64,7 +75,9 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
         "file": "<screenshot or trace path, or null>",
         "line": <number or null>,
         "snippet": "<failure message and first relevant stack line>",
-        "spec": "<spec file path>"
+        "spec": "<spec file path>",
+        "flaky": true,
+        "retries": 1
       },
       "suggestion": null,
       "repro": "<re-run command or null>",
@@ -74,4 +87,6 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 }
 ```
 
-`fail` if any e2e test failed (non-crash). `pass_with_warnings` if runner not found or crashed. `pass` if all tests pass.
+`totals.flaky` and `evidence.flaky`/`evidence.retries` are only populated when `--flaky <N>` was supplied; omit them otherwise rather than emitting zeros/`false` on every finding.
+
+`fail` if any e2e test failed (non-crash) after exhausting retries (or immediately, when `--flaky` wasn't supplied). `pass_with_warnings` if runner not found, crashed, or all failures resolved as flaky. `pass` if all tests pass.

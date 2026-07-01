@@ -49,6 +49,17 @@ For each test failure in the output, extract:
 
 Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a straightforward test failure attributable to the code under test; `medium` when attribution is unclear (e.g. the failure looks flaky, or is adjacent to a harness/fixture issue rather than the assertion itself). `evidence.tool` is the runner name; `evidence.snippet` carries the runner's failure output line.
 
+### Step 3b — Flaky retry (`--flaky <N>` only)
+
+Runs only when `--flaky <N>` was supplied and Step 3 produced at least one test failure.
+
+For each individually-failing test that has a `repro` command, re-run just that test via `repro`, up to `N` times, stopping as soon as it passes. Tests with no derivable `repro` (ambiguous file→test mapping, runner doesn't support single-test invocation) are skipped by this step and stay classified as regular failures — note `"Flaky retry skipped for <n> test(s) — no single-test repro available"` when this happens.
+
+- **Passes within `N` retries** → reclassify as **flaky**: keep the finding in `findings[]` for visibility, set `severity: "medium"`, and add `evidence.flaky: true` and `evidence.retries: <attempts used>`. Do not count it toward `totals.failed`; instead increment `totals.flaky`.
+- **Still fails after `N` retries** → genuine failure: unchanged from Step 4 (`severity: "high"`, counts toward `totals.failed`).
+
+Recompute the bucket verdict after retries: `fail` only if at least one test is still failing after exhausting its retries. If every originally-failing test resolved as flaky, verdict is `pass_with_warnings` with note `"<n> flaky test(s) passed on retry"`.
+
 ## Output
 
 ```json
@@ -57,7 +68,7 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
   "bucket": "unit",
   "runner": "<test_runner.name>",
   "command": "<command executed>",
-  "totals": { "passed": 0, "failed": 0, "skipped": 0 },
+  "totals": { "passed": 0, "failed": 0, "skipped": 0, "flaky": 0 },
   "findings": [
     {
       "id": "unit-<n>",
@@ -72,7 +83,9 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
         "tool": "<test_runner.name>",
         "file": "<test file path or null>",
         "line": <number or null>,
-        "snippet": "<runner failure output line>"
+        "snippet": "<runner failure output line>",
+        "flaky": true,
+        "retries": 1
       },
       "suggestion": null,
       "repro": "<re-run command or null>",
@@ -82,4 +95,6 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 }
 ```
 
-`fail` if any test failed (non-crash). `pass_with_warnings` if runner not found or crashed. `pass` if all tests pass.
+`totals.flaky` and `evidence.flaky`/`evidence.retries` are only populated when `--flaky <N>` was supplied; omit them otherwise rather than emitting zeros/`false` on every finding.
+
+`fail` if any test failed (non-crash) after exhausting retries (or immediately, when `--flaky` wasn't supplied). `pass_with_warnings` if runner not found, crashed, or all failures resolved as flaky. `pass` if all tests pass.

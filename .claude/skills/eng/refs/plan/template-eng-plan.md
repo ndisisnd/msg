@@ -216,7 +216,7 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 
 | Gate | Rule |
 |------|------|
-| Summary | §1 states what is being built, the target platform, and shipping shape. |
+| Summary | §1 states what is being built, the agent's owned stack, and shipping shape. |
 | Alternatives | §3 documents at least one rejected option with a reason. |
 | Design decisions | §4 has a subsection for every non-obvious implementation choice. Each has trade-offs and a resolution or is marked OPEN. |
 | PRD coverage | Every assigned PRD feature ID appears in §5 (Scope mapping). |
