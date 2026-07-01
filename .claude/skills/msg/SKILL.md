@@ -1,7 +1,6 @@
 ---
 name: msg
 description: Root menu for msg skills
-model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
 ---

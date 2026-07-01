@@ -16,8 +16,6 @@ allowed_tools:
 
 Platform-agnostic engineering agent. Operates in one of two modes — `--plan`, `--build` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
 
-**Model:** runs on the invoking session's model — no model is pinned here. If the session is running on Haiku, suggest upgrading to at least Sonnet before proceeding; eng's output (code, or the plan spec that gates all downstream build work) is high-leverage enough that a weaker model risks costly rework.
-
 ---
 
 ## Step 0 — Route to the active mode

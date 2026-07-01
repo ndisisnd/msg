@@ -11,7 +11,6 @@ description: >
   path is provided, asks the user for a file path, directory, or description.
   Adversarial posture — assumes the PRD is broken until proven otherwise.
   Applies all fixes directly to the PRD file. No separate report file.
-model: claude-opus-4-7
 allowed_tools:
   - AskUserQuestion
   - Bash

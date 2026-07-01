@@ -4,7 +4,6 @@ description: >
   Lightweight improvement planner. Takes a target skill and a description of
   what to improve, asks follow-up questions, and writes a plan + acceptance
   criteria to improve/[n]-[feature-type]/. Invoke with /improve <description>.
-model: claude-sonnet-4-6
 allowed_tools:
   - Agent
   - AskUserQuestion
@@ -20,11 +19,11 @@ allowed_tools:
 
 **Invoke**: `/improve <description of what to improve>`. When invoked without a description, prompts the user to select one of three intents: improve an existing skill or workflow, create a new agent (full design flow via `/agent-plan` if available, or lightweight inline plan), or describe something that feels broken.
 
-**`--review` flag**: `/improve --review <plan>` — runs an adversarial Opus review against an existing plan instead of creating a new one. See **--review mode** below.
+**`--review` flag**: `/improve --review <plan>` — runs an adversarial review against an existing plan instead of creating a new one. See **--review mode** below.
 
 ## --review mode
 
-When invoked as `/improve --review <plan>` (or `/improve --review` with no plan), skip Steps 1–7 entirely and run the adversarial review protocol below using Opus.
+When invoked as `/improve --review <plan>` (or `/improve --review` with no plan), skip Steps 1–7 entirely and run the adversarial review protocol below.
 
 **Step R1 — Resolve plan path**
 
@@ -36,11 +35,11 @@ When invoked as `/improve --review <plan>` (or `/improve --review` with no plan)
 
 Read `plan.md` and `acceptance.md` from the resolved path. If either file is missing, emit an error and stop.
 
-**Step R2 — Adversarial review via Opus**
+**Step R2 — Adversarial review**
 
 Read `.claude/skills/improve/refs/review-protocol.md`.
 
-Spawn an `Agent` with `model: "opus"` and this prompt:
+Spawn an `Agent` with this prompt:
 
 ```
 <protocol>
@@ -60,7 +59,7 @@ Review the plan and acceptance criteria above following the protocol. Output you
 
 **Step R3 — Emit findings inline**
 
-Display the Opus agent's output exactly as returned. Do not paraphrase or trim it.
+Display the review agent's output exactly as returned. Do not paraphrase or trim it.
 
 **Step R4 — Human gate**
 
@@ -141,4 +140,4 @@ Emit `$OUT` as a markdown link.
 
 Call `AskUserQuestion` with a `questions` array: `header: "Next step"`, `question: "What would you like to do next?"`, `multiSelect: false`, `options`:
 - **Revise** — ask what to change, then read and edit `$OUT/plan.md` and `$OUT/acceptance.md` in place. Update the corresponding `_INDEX.md` row if the description changed. Re-emit Step 7.
-- **Done** — emit exactly: "Plan and acceptance criteria emitted. Run `/improve --review <n>` to run an adversarial Opus review against this plan."
+- **Done** — emit exactly: "Plan and acceptance criteria emitted. Run `/improve --review <n>` to run an adversarial review against this plan."

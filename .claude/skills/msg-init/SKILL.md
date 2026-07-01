@@ -9,7 +9,6 @@ description: >
   features/ directory. Idempotent — skips files that already exist;
   never overwrites. All other msg skills read these files but never
   create them.
-model: claude-sonnet-4-6
 allowed_tools:
   - AskUserQuestion
   - Bash

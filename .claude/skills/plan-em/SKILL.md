@@ -6,7 +6,6 @@ description: >
   (asks for approval), spins them up to write engineering sections directly into the
   PRD, prompts for the eng tune (plan-tune --eng), then synthesises the full
   output. Refuses without a referenced PRD .md path.
-model: claude-opus-4-7
 allowed_tools:
   - Agent
   - AskUserQuestion

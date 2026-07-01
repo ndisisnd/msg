@@ -5,7 +5,6 @@ description: >
   checks against a diff; emits a JSON document with severity-graded issues, evidence,
   and pass/fail verdict. Activates on /pre-merge after local testing is complete but
   before merge/push.
-model: claude-sonnet-4-6
 allowed_tools:
   - Bash
   - Read

@@ -9,7 +9,6 @@ description: >
   tooling) layered in ahead of the semantic agents — aggregating findings
   into a single structured JSON. Consumed by preflight or read directly by
   a human.
-model: claude-sonnet-4-6
 allowed_tools:
   - Bash
   - Read

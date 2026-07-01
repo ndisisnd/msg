@@ -570,3 +570,16 @@
 - `ARCHITECTURE.md` — removed handoff from skill inventory; documented improve's install exclusion
 - `README.md` — removed handoff and improve rows from skills table
 - `install.sh` — added `LOCAL_ONLY_SKILLS` exclusion list
+
+- Remove per-skill `model:` frontmatter pins so skills run on whichever model the invoking session is already using, instead of forcing a specific one; also drop a stale model-upgrade note from `eng` and Opus-specific wording from `improve`'s `--review` mode.
+
+- `.claude/skills/eng/SKILL.md` — drop stale model-upgrade note
+- `.claude/skills/improve/SKILL.md` — remove `model:` pin; drop Opus-specific wording in `--review` mode
+- `.claude/skills/msg/SKILL.md` — remove `model:` pin
+- `.claude/skills/msg-init/SKILL.md` — remove `model:` pin
+- `.claude/skills/plan-em/SKILL.md` — remove `model:` pin
+- `.claude/skills/plan-pm/SKILL.md` — remove `model:` pin
+- `.claude/skills/plan-tune/SKILL.md` — remove `model:` pin
+- `.claude/skills/pre-merge/SKILL.md` — remove `model:` pin
+- `.claude/skills/review/SKILL.md` — remove `model:` pin
+- `.claude/skills/test/SKILL.md` — remove `model:` pin

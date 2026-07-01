@@ -15,7 +15,6 @@ description: >
   doesn't touch. Emits structured JSON findings conforming to the shared
   canonical finding schema (.claude/skills/shared/refs/finding-schema.md),
   the same shape /review and /pre-merge emit.
-model: claude-sonnet-4-6
 allowed_tools:
   - Bash
   - Read
