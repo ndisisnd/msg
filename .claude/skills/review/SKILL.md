@@ -94,9 +94,15 @@ Set `eval_set_source` in the top-level output JSON to one of:
 
 Emit before continuing: `Eval-set: <N> assertions (prd: <a>, tests: <b>, schemas: <c>, diff: <d>).` where the four counts sum to N (omit zero buckets only if it improves readability; otherwise show all four).
 
+**Classify each merged assertion** into `executable` / `intent` / `negative` using the taxonomy table in `refs/modes/functional.md` Step 1. Classification happens once, here, because Coverage mode (Step 6, order 2) runs before Functional mode (Step 6, order 3) and needs the `class` to suppress assertion-gaps for deferred executables. Attach `class` to each `eval_set[]` entry in memory; Functional mode reads it rather than re-deriving it.
+
 ### Step 4/7 — Derive review surface
 
-Cross-reference diff against PRD: produce `files_changed`, `prd_rows_covered`, `uncovered_changes[]` (scope creep candidates). Assemble flags per mode using `active_domains[]` and the global + per-domain tables in `refs/FLAG-LIST.md`. **Validate every assembled flag against `flag_inventory` (loaded in Step 2) — any flag absent from the inventory is silently dropped.** Surface schema: `refs/schema.md`.
+Cross-reference diff against PRD: produce `files_changed`, `uncovered_changes[]` (scope creep candidates). Assemble flags per mode using `active_domains[]` and the global + per-domain tables in `refs/FLAG-LIST.md`. **Validate every assembled flag against `flag_inventory` (loaded in Step 2) — any flag absent from the inventory is silently dropped.**
+
+**Undetected-domain check:** match `files_changed` against the extension list in `refs/FLAG-LIST.md#extensions-with-no-domain-specific-coverage`. If any match, set `surface.undetected_domain_note` to `"<N> changed files in <ext list> have no domain-specific review — /cook has no matching standards shelf"` (omit the field entirely when no matches). This only flags a known no-coverage list — it does not fire for domain-less files that were never expected to match (config, docs, styles, etc).
+
+Surface schema: `refs/schema.md`.
 
 ### Step 5/7 — Confirm surface ← sole AskUserQuestion call
 
@@ -108,6 +114,7 @@ Functional → eval-set assertions vs diff               (3 assertions)
 Security   → /cook --security --auth --typescript      (auth.ts, api/users.ts)
 Performance→ /cook --performance --database            (api/users.ts)
 ```
+If `surface.undetected_domain_note` is set, print it directly above the execution plan so the user sees the coverage gap before approving — it is not a mode, so it never appears as a row.
 
 Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue without re-asking) / **Cancel** (exit, no findings). No further `AskUserQuestion` calls.
 
@@ -135,7 +142,7 @@ Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = wors
 
 ## References
 
-- `refs/FLAG-LIST.md` — domain, test-runner, mechanical-runner, and secret-scanner detection signals + authoritative `/cook` flag inventory (single source of truth for Step 2 fingerprint and Step 4 flag validation)
+- `refs/FLAG-LIST.md` — domain detection signals + authoritative `/cook` flag inventory (single source of truth for `active_domains[]` detection and Step 4 flag validation). Mechanical-runner and secret-scanner detection are owned separately by `../shared/refs/tooling-detection.md`.
 - `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics (findings conform to the shared canonical finding object)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /test and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
 - `refs/modes/quality.md` — Quality mode: flags, orchestrator rubric (extends `/cook`'s flag coverage with orchestrator-owned checks), and sub-agent prompt amendment

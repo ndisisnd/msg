@@ -92,6 +92,8 @@ Metric-specific suggestions:
 - `repro` — `npx size-limit` or `npx bundlesize`
 - `suggestion` — `"Analyse with source-map-explorer or webpack-bundle-analyzer to find oversized dependencies"`
 
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a budget breach (runtime metric or bundle entry); `medium` if the breach is marginal or thresholds fell back to defaults rather than project config. `evidence.tool` is the runtime or bundle runner name; `evidence.file` carries the Lighthouse HTML report path (runtime) or is `null` (bundle, which has no per-entry artifact); `evidence.snippet` carries the observed-vs-budget line.
+
 ## Error handling
 
 A bucket-level error never stops other buckets. All errors produce `pass_with_warnings` (not `fail`) so a broken runner does not falsely block a merge.
@@ -131,14 +133,22 @@ A bucket-level error never stops other buckets. All errors produce `pass_with_wa
   "findings": [
     {
       "id": "perf-<n>",
-      "severity": "fail" | "warn",
+      "source": "perf",
+      "severity": "high" | "medium",
+      "category": "perf",
       "file": "<page URL or bundle entry>",
       "line": null,
       "rule": "<metric or bundle-size>",
       "message": "<observed vs budget>",
-      "repro": "<runner command>",
+      "evidence": {
+        "tool": "<runtime or bundle runner name>",
+        "file": "<Lighthouse HTML report path or null>",
+        "line": null,
+        "snippet": "<observed vs budget line>"
+      },
       "suggestion": "<actionable fix or null>",
-      "evidence": "<Lighthouse HTML report path or null>"
+      "repro": "<runner command>",
+      "regression_of": null
     }
   ]
 }

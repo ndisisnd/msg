@@ -16,8 +16,8 @@ If `e2e_runner` is `null`: emit `pass_with_warnings` with note `"No e2e runner d
 
 Construct the run command from `e2e_runner.command`:
 
-- If `--base <branch>` was supplied and the runner supports spec-path filtering (Playwright: `--grep`, Cypress: `--spec`), attempt to map changed source files to e2e spec files by name convention (e.g. `auth.ts` → `e2e/auth.spec.ts`) and append the filter.
-- If no scoping is possible (no `--base` flag, or no matching spec files found): run the full e2e suite.
+- If `--base <branch>` was supplied and the runner supports spec-path filtering (Playwright: `--grep`, Cypress: `--spec`), attempt to map changed source files to e2e spec files by name convention (e.g. `auth.ts` → `e2e/auth.spec.ts`) and append the filter. **This is a best-effort heuristic, not a reliable protocol** — the detect script's `e2e_runner.command` carries no `<files>`/`<spec>` placeholder, so the mapping is entirely name-guessed here. It will miss specs that don't follow a 1:1 source↔spec naming convention (grouped specs, feature-based spec files, renamed modules) more often than it hits in real repos.
+- If no scoping is possible (no `--base` flag, no matching spec files found, or the guessed mapping can't be verified to exist on disk), run the full e2e suite — do not run a guessed filter that resolves to zero matched spec files silently as if it were a deliberate empty scope.
 
 ### Step 3 — Run
 
@@ -36,7 +36,9 @@ For each e2e test failure:
 - `rule` — test title / `describe + it` path
 - `message` — failure message and first relevant stack line
 - `repro` — command to re-run just this spec (e.g. `npx playwright test e2e/auth.spec.ts`)
-- `evidence` — screenshot or trace path if the runner produced one, else `null`
+- artifact path — screenshot or trace path if the runner produced one, else `null`
+
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a named spec failure (matches the pre-merge severity floor for e2e); `medium` when attribution is unclear. `evidence.file` carries the screenshot/trace artifact path (`null` if none produced); the shared schema sanctions e2e adding `evidence.spec` for the spec file path alongside the top-level `file`.
 
 ## Output
 
@@ -50,13 +52,23 @@ For each e2e test failure:
   "findings": [
     {
       "id": "e2e-<n>",
-      "severity": "fail" | "warn",
+      "source": "e2e",
+      "severity": "high" | "medium",
+      "category": "e2e",
       "file": "<spec file path or null>",
       "line": <number or null>,
       "rule": "<test title>",
       "message": "<failure message>",
+      "evidence": {
+        "tool": "<e2e_runner.name>",
+        "file": "<screenshot or trace path, or null>",
+        "line": <number or null>,
+        "snippet": "<failure message and first relevant stack line>",
+        "spec": "<spec file path>"
+      },
+      "suggestion": null,
       "repro": "<re-run command or null>",
-      "evidence": "<screenshot or trace path, or null>"
+      "regression_of": null
     }
   ]
 }

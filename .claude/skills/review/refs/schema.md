@@ -83,8 +83,8 @@ After collecting all sub-agent outputs for a mode, `/review` applies a deduplica
   "eval_set_path": "<features/prd-n/review/eval_set.json>" | null,
   "surface": {
     "files_changed": [ "<path>" ],
-    "prd_rows_covered": [ "<row-id>" ],
     "uncovered_changes": [ "<path or description>" ],
+    "undetected_domain_note": "<optional — present only when files_changed includes an extension with no /cook standards shelf>",
     "modes": [
       { "mode": "<mode-name>", "flags": [ "<flag>" ] }
     ]
@@ -112,7 +112,7 @@ Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` objec
 
   Functional mode reads this and downgrades its verdict to `warn` only when value is `"diff"` (diff-derived assertions are circular by construction; PRD/tests/schemas sources are authoritative and do not trigger a downgrade).
 
-- `eval_set_path` — path to the `eval_set.json` artifact written by Functional mode after classifying assertions. `null` when no PRD is known (no persistent run directory). `/test` consumes this via `--eval-set <path>` to re-run deferred executable assertions without re-bootstrapping from the PRD.
+- `eval_set_path` — path to the `eval_set.json` artifact written by Functional mode after classifying assertions. `null` when no PRD is known (no persistent run directory). `/test` consumes this via `--eval-set <path>` to re-run deferred executable assertions without re-bootstrapping from the PRD. The file's shape (`assertions: [{text, class}]`, `class` is `"executable" | "intent" | "negative"`) is defined in `refs/modes/functional.md` Step 1, not repeated here — it's a distinct artifact from this file's own inline `eval_set` field above (that field is a flat array of assertion strings for display; `eval_set.json` is the structured, classified version `/test` reads).
 
 ### Functional mode fields
 
@@ -144,10 +144,10 @@ Step 2 of `SKILL.md` produces these structures, consumed downstream by Step 4 (s
   ],
   "secret_scanner": {
     "name": "<scanner>",
-    "command": "<diff-mode command with <files> placeholder>",
-    "full_tree_command": "<command for --full-secret-scan>",
-    "expects_zero_exit": true,
-    "severity_on_fail": "block"
+    "type": "secret",
+    "command_diff": "<diff-mode command with <files> placeholder>",
+    "command_full": "<command for --full-secret-scan>",
+    "severity_on_hit": "block"
   } | null,
   "flag_inventory": ["<flag>"]
 }

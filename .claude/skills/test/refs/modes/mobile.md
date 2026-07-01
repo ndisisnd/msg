@@ -92,11 +92,11 @@ For each failure, extract:
 - `line` — line number of the failing assertion if reported, else `null`
 - `rule` — test name / description (e.g. `"renders login button"`)
 - `message` — failure message from the test output
-- `platform` — `"ios"` | `"android"` | `"widget"` (device-free)
-- `device` — device name/id, or `null` for widget tests
 - `repro` — `flutter test <file> --name "<test name>" -d <device-id>` or equivalent
 - `suggestion` — `null` (test failures are self-describing; no generic suggestion)
-- `evidence` — path to screenshot or trace artifact if produced, else `null`
+- artifact — path to screenshot or trace artifact if produced, else `null` (goes in `evidence.file`)
+
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a widget or integration test failure; `medium` for a device/matrix-degraded result. `platform` (`"ios"` | `"android"` | `"widget"`) and `device` (device name/id, or `null` for widget tests) are **not** top-level finding fields — the shared schema only sanctions bucket extensions inside `evidence`, so they live at `evidence.platform` / `evidence.device`. `evidence.tool` is `flutter`/`fvm flutter`/`patrol`/`maestro`, whichever sub-check produced the finding.
 
 **Patrol / Maestro output:** parse their respective JSON/XML output formats using the same field mapping.
 
@@ -146,16 +146,24 @@ Record aggregate totals:
   "findings": [
     {
       "id": "mobile-<n>",
-      "severity": "fail" | "warn",
+      "source": "mobile",
+      "severity": "high" | "medium",
+      "category": "mobile",
       "file": "<dart test file path>",
       "line": "<number or null>",
       "rule": "<test name>",
       "message": "<failure message>",
-      "platform": "ios" | "android" | "widget",
-      "device": "<device name or null>",
-      "repro": "<flutter test command to reproduce>",
+      "evidence": {
+        "tool": "flutter" | "fvm flutter" | "patrol" | "maestro",
+        "file": "<screenshot or trace path, or null>",
+        "line": "<number or null>",
+        "snippet": "<failure message>",
+        "platform": "ios" | "android" | "widget",
+        "device": "<device name or null>"
+      },
       "suggestion": null,
-      "evidence": "<screenshot or trace path, or null>"
+      "repro": "<flutter test command to reproduce>",
+      "regression_of": null
     }
   ]
 }

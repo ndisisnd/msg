@@ -21,9 +21,9 @@ Read `eval_set_source` from the top-level run output (emitted by SKILL.md Step 3
   ```
   Cap the mode verdict at `warn` regardless of per-assertion outcomes.
 
-### Step 1 — Classify each assertion
+### Step 1 — Read each assertion's class
 
-For each entry in `eval_set[]`, assign one of three classes:
+Each entry in `eval_set[]` already carries a `class`, assigned once in `SKILL.md` Step 3 (bootstrap) — Coverage mode (which runs earlier, Step 6 order 2) depends on that same classification to suppress assertion-gaps for deferred executables, so classification cannot happen here. This step reads that `class`, it does not assign it. The taxonomy used in Step 3:
 
 | Class | Definition | Example |
 |-------|------------|---------|
@@ -31,11 +31,11 @@ For each entry in `eval_set[]`, assign one of three classes:
 | `intent` | Reasoning-only — concerns design, naming, structure, or invariants without a runnable check | `"Login flow uses the new session abstraction instead of the legacy cookie helper"` |
 | `negative` | Asserts removal or absence | `"The legacy /auth/v1 endpoint is no longer reachable"` |
 
-If the project has no runnable surface (pure type-level refactor, doc-only change, etc.), reclassify every `executable` candidate as `intent` and annotate the mode output with `"downgrade_reason": "no runnable surface"`.
+If the project has no runnable surface (pure type-level refactor, doc-only change, etc.), reclassify every `executable` candidate as `intent` here and annotate the mode output with `"downgrade_reason": "no runnable surface"`. This is the one case where Functional mode overrides the Step 3 classification — Coverage mode has no equivalent runnable-surface check, so its Step 2 may still suppress the now-reclassified assertion; that's an acceptable miss since a downgraded assertion has no executable form to defer to `/test` anyway.
 
 Also tag each assertion `applicable: true | false`. An assertion is **applicable** when it concerns code touched by the diff or its direct dependencies (files importing or imported by changed files). Non-applicable assertions get verdict `n/a` and are excluded from the pass/warn/block tally.
 
-**Write eval_set.json** — after classifying all assertions, write the following to `eval_set_path` (derived in SKILL.md Step 3):
+**Write eval_set.json** — write the classified assertions (from Step 3's `class`, with any Step 1 runnable-surface downgrade applied) to `eval_set_path` (derived in SKILL.md Step 3):
 
 ```json
 {

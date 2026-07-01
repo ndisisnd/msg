@@ -40,16 +40,32 @@ Bulleted list of features or behaviors explicitly excluded. Each item has a one-
 
 ### 2. Target platform
 
+**Single platform detected** — write a field-value table:
+
 | Field | Value |
 |-------|-------|
-| Platform | iOS / Android / Web (fill in) |
+| Platform | <detected platform, e.g. iOS> |
 | Min OS version | e.g., iOS 16.0+ |
 
-**Worked example:**
+**Multiple platforms detected** — write a priorities table ranked by delivery priority (1 = highest), one-line reason per row:
+
+| Platform | Priority | Reason |
+|----------|----------|--------|
+
+**Worked examples:**
+
+*Single platform:*
 | Field | Value |
 |-------|-------|
 | Platform | iOS |
 | Min OS version | iOS 16.0+ |
+
+*Multiple platforms:*
+| Platform | Priority | Reason |
+|----------|----------|--------|
+| iOS | 1 | Primary user base; launch target |
+| Android | 2 | Secondary market; shipped after iOS |
+| Web | 3 | Admin-only surface; lower traffic |
 
 ### 3. Features & acceptance criteria
 

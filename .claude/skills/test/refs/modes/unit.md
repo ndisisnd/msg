@@ -14,7 +14,17 @@ If `test_runner` is `null`: emit `pass_with_warnings` with note `"No test runner
 
 ### Step 2 — Scope
 
-If `--base <branch>` was supplied: replace `<files>` in `test_runner.command` with the space-separated list of changed file paths (source files only — not test files themselves, since the runner will find associated tests).
+If `--base <branch>` was supplied, resolve the changed source file list (source files only — not test files themselves, since the runner will find associated tests), then substitute `<files>`/`<file>` in `test_runner.command` per-runner — each runner expects a different format, not a plain space-separated path list:
+
+| Runner | `<files>` placeholder expects | Example substitution |
+|--------|-------------------------------|-----------------------|
+| Vitest | space-separated file/glob paths (positional args) | `npx vitest run --coverage src/auth.ts src/user.ts` |
+| Jest | a single regex, not literal paths — join changed paths with `\|` and escape regex metacharacters | `npx jest --coverage --testPathPattern="(src/auth\.ts\|src/user\.ts)"` |
+| Mocha | space-separated file paths (positional args) | `npx nyc npx mocha src/auth.ts src/user.ts` |
+| pytest | `--cov=<files>` in the detected command sets the **coverage measurement scope**, not the test selection — it does NOT filter which tests run. To actually scope execution, append changed test file paths or `::`-qualified nodeids as trailing positional args instead of touching `--cov=`; leave `--cov=<files>` as `--cov=.` (or drop `--base` scoping for pytest and run the full suite) until the detect script is fixed to separate the two concerns. |
+| Dart/Flutter | the placeholder is singular `<file>` — pass one path per `flutter test` invocation, or a single shared parent directory if all changed files share one; do not join multiple paths with spaces into one `<file>` slot |
+
+If a runner isn't listed above, or the changed-file mapping is ambiguous (e.g. more files than the runner's arg limit, or no reliable file→test mapping), fall back to the full suite rather than guessing at syntax.
 
 If no `--base` flag: use `test_runner.command` without a file filter (full suite run).
 
@@ -37,6 +47,8 @@ For each test failure in the output, extract:
 - `message` — failure message from the runner
 - `repro` — the command used to re-run just this test (if the runner supports `--testNamePattern` or equivalent)
 
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a straightforward test failure attributable to the code under test; `medium` when attribution is unclear (e.g. the failure looks flaky, or is adjacent to a harness/fixture issue rather than the assertion itself). `evidence.tool` is the runner name; `evidence.snippet` carries the runner's failure output line.
+
 ## Output
 
 ```json
@@ -49,12 +61,22 @@ For each test failure in the output, extract:
   "findings": [
     {
       "id": "unit-<n>",
-      "severity": "fail" | "warn",
+      "source": "unit",
+      "severity": "high" | "medium",
+      "category": "unit",
       "file": "<test file path or null>",
       "line": <number or null>,
       "rule": "<test description>",
       "message": "<failure message>",
-      "repro": "<re-run command or null>"
+      "evidence": {
+        "tool": "<test_runner.name>",
+        "file": "<test file path or null>",
+        "line": <number or null>,
+        "snippet": "<runner failure output line>"
+      },
+      "suggestion": null,
+      "repro": "<re-run command or null>",
+      "regression_of": null
     }
   ]
 }

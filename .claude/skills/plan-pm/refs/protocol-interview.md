@@ -50,7 +50,7 @@ Flow:
 
 Ask what should be explicitly excluded from this release. Use `multiSelect: true`.
 
-Non-targeted platforms (everything except `platform` from pre-flight) are always added to §2 (Out-of-scope) automatically — do not present them as Q2 options.
+Non-targeted platforms (everything except `platform` from pre-flight) are always added to §1 (Out-of-scope) automatically — do not present them as Q2 options.
 
 Derive 2–4 options from the confirmed feature list and brief. Common candidates:
 - A feature or scope item mentioned in the brief but not included in the confirmed list

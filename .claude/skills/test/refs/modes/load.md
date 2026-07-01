@@ -66,6 +66,8 @@ Also record aggregate totals for the summary:
 - `totals.p99_ms` — measured p99 latency in ms
 - `totals.error_rate_pct` — error rate as a percentage
 
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a breached threshold; `medium` if the breach is marginal or the threshold source is a default rather than project-configured. `evidence.tool` is the load runner name; `evidence.snippet` carries the observed-vs-expected line.
+
 ## Output
 
 ```json
@@ -86,13 +88,22 @@ Also record aggregate totals for the summary:
   "findings": [
     {
       "id": "load-<n>",
-      "severity": "fail" | "warn",
+      "source": "load",
+      "severity": "high" | "medium",
+      "category": "load",
       "file": "<load script path or null>",
       "line": null,
       "rule": "<threshold name>",
       "message": "<observed vs expected>",
+      "evidence": {
+        "tool": "<load_runner.name>",
+        "file": "<load script path or null>",
+        "line": null,
+        "snippet": "<observed vs expected line>"
+      },
+      "suggestion": "<actionable fix or null>",
       "repro": "<re-run command or null>",
-      "suggestion": "<actionable fix or null>"
+      "regression_of": null
     }
   ]
 }

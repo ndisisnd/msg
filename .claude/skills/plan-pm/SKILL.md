@@ -100,7 +100,7 @@ List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` 
 3. Classify each flagged relationship and hold in context for Step 4 frontmatter population:
    - **Dependency** (`depends_on`): the new PRD requires a prior PRD's output to function (e.g., relies on an auth system, schema, or API that prior PRD owns). Record the prior PRD's ID.
    - **Affects** (`affects`): the new PRD modifies scope, contracts, or module ownership that a prior PRD also touches. Record the prior PRD's ID.
-4. Record each overlapping PRD by ID in §6 (Open questions) of the new PRD.
+4. Record each overlapping PRD by ID in §7 (Open questions) of the new PRD.
 
 Proceed immediately to Step 3.
 
@@ -150,7 +150,7 @@ Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 | Section | Source |
 |---------|--------|
 | §1 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
-| §2 Target platform | Platform from pre-flight |
+| §2 Target platform | If one platform detected: `| Field \| Value |` table (platform + min OS version). If multiple platforms detected: `| Platform \| Priority \| Reason |` priorities table — rank by delivery priority (1 = highest), derive order and reasoning from the brief and interview context |
 | §3 Features & acceptance criteria | Confirmed Q1 feature list with its F-IDs from `refs/template-feature-table.md`; one acceptance criterion per feature derived from its Q5 interaction + Q4 error cases; Dependencies column from Q3 |
 | §4 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature; then **Components** (design system) and **Files touched** per feature |
 | §5 Key user interactions | Q5 answers |
@@ -176,7 +176,7 @@ The populated file is the artifact of this step.
 
 Before emitting the completion summary, identify learnings from this run worth capturing. A learning qualifies if any of:
 - A feature was constrained or invalidated by a CLAUDE.md rule
-- Overlap with a prior PRD was found and recorded in §6
+- Overlap with a prior PRD was found and recorded in §7
 - Intake required clarification because target user or scope was missing
 - An interview answer revealed an assumption that significantly narrowed scope
 
@@ -208,7 +208,7 @@ Ask the user: "Would you like to address the open questions now?" via `AskUserQu
 
 - Present the question text and a set of plausible answers as a `multiSelect` `AskUserQuestion`. Always include "Skip" as one option.
 - If the user selects "Skip" (or only "Skip"), record no answer for that question and move to the next.
-- If the user provides an answer, update §6 of the PRD to reflect the resolution inline next to the question (e.g., append `→ <answer>`).
+- If the user provides an answer, update §7 of the PRD to reflect the resolution inline next to the question (e.g., append `→ <answer>`).
 
 After all questions have been presented (answered or skipped), proceed to the next-step prompt.
 
@@ -260,14 +260,11 @@ Each PRD carries four status fields in its YAML frontmatter. The owning skill is
 | `product-tuned` | `no` | `plan-tune --product` (via next-step prompt) | `yes` | user accepts tuned output |
 | `eng-tuned` | `no` | `plan-tune --eng` (via next-step prompt) | `yes` | plan-tune completes |
 | `reviewed` | `no` | `review` skill | `yes` | code review of PRD's changes is complete |
-
-**Hook note:** The `status` and `reviewed` updates can alternatively be implemented as a `PostToolUse` hook on the `Write` tool — when a skill writes to a PRD file, the hook inspects context and patches the relevant frontmatter field. Either pattern is acceptable; what matters is the field is always accurate after each skill run.
-
 ## References
 
 - `refs/principles.md` — core operating principles; read this first before any other ref
 - `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 4
-- `refs/template-error.md` — error case format, rules, and examples; used when populating §5 in Step 5
+- `refs/template-error.md` — error case format, rules, and examples; used when populating §6 in Step 5
 - `refs/protocol-interview.md` — structured interview questions and format for Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
 - `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md

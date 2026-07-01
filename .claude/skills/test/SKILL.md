@@ -252,6 +252,8 @@ No further `AskUserQuestion` calls.
 
 Do NOT compute the overall verdict or hand-merge the bucket JSON. Throughout Step 4, each bucket's final JSON is written to `/tmp/test-<runid>/<bucket>.json` (recognised buckets: `unit`, `e2e`, `functional`, `qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`). Skipped buckets are simply not written.
 
+**Write isolation under `--fast`:** the bucket name is baked into every path a bucket writes to — the final JSON (`/tmp/test-<runid>/<bucket>.json`) and any bucket-owned scratch dir (e.g. Functional's `/tmp/test-functional-<runid>/`, Mobile's per-device artifact paths). No two buckets ever share a filename or directory, so concurrent buckets under `--fast` cannot clobber each other's output or scratch files even though they run at the same time. If a future bucket needs scratch space, it must namespace it under its own bucket name the same way — never write to a shared, bucket-agnostic path.
+
 Then invoke the aggregator:
 
 ```bash

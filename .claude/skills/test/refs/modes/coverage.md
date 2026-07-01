@@ -119,6 +119,8 @@ Record aggregate totals:
 | All files excluded (generated code only) | `pass_with_warnings` | `"All source files are excluded (generated code) — no coverage thresholds enforced."` |
 | Branch coverage not available for runner (e.g. Go) | Skip branch threshold; check lines only | Note `"Branch coverage not available for <runner> — checking lines only."` |
 
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). Per Step 5's severity split: `fail`-tier files (shortfall drags overall coverage below threshold) → `high`; `warn`-tier files (below threshold but not overall-blocking) → `medium`. `evidence.tool` is the coverage runner name; `evidence.file` mirrors the top-level `file`; `evidence.snippet` carries the observed-vs-threshold line.
+
 ## Output
 
 ```json
@@ -141,13 +143,22 @@ Record aggregate totals:
   "findings": [
     {
       "id": "coverage-<n>",
-      "severity": "fail" | "warn",
+      "source": "coverage",
+      "severity": "high" | "medium",
+      "category": "coverage",
       "file": "<source file path>",
       "line": null,
       "rule": "line-coverage" | "branch-coverage" | "function-coverage",
       "message": "<file>: <pct>% <metric> (threshold: <threshold>%)",
+      "evidence": {
+        "tool": "<runner name>",
+        "file": "<source file path>",
+        "line": null,
+        "snippet": "<file>: <pct>% <metric> (threshold: <threshold>%)"
+      },
+      "suggestion": "<add tests for uncovered lines/branches>",
       "repro": "<coverage command for this file>",
-      "suggestion": "<add tests for uncovered lines/branches>"
+      "regression_of": null
     }
   ]
 }

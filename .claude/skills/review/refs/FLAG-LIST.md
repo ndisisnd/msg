@@ -1,8 +1,8 @@
 # Cook Flag Reference
 
-Complete list of every valid `/cook` flag plus the detection signals `/review` uses to fingerprint a codebase. Generated from `vocab/tag-vocabulary.json` and `standards/*/refs/` at runtime — this file is a snapshot; the vocab and disk are the source of truth.
+Complete list of every valid `/cook` flag plus the domain detection signals `/review` uses to fingerprint a codebase. This is a hand-maintained snapshot of `vocab/tag-vocabulary.json` and `standards/*/refs/` — it is **not** generated at runtime; update it manually when the vocab or standards shelves change.
 
-**Test runner, mechanical runner, and security scanner detection tables** (used by review Step 2 fingerprint) live in `../shared/refs/tooling-detection.md`. That file is the single source of truth for `test_runner`, `mechanical_runners[]`, and `security_scanners[]` / `secret_scanner`.
+This file owns `active_domains[]` detection and the `/cook` flag inventory only. **Test runner, mechanical runner, and security scanner detection tables** live in `../shared/refs/tooling-detection.md` — that file is the single source of truth for `test_runner`, `mechanical_runners[]`, and `security_scanners[]` / `secret_scanner`. Do not duplicate those tables here.
 
 ---
 
@@ -23,6 +23,14 @@ Run checks in parallel. Populate `active_domains[]` from signals found:
 | `@supabase/supabase-js` or `supabase` in `package.json` deps | Supabase |
 
 Domains not detected produce no domain flags. `active_domains[]` is set once and never re-derived mid-run.
+
+### Extensions with no domain-specific coverage
+
+`/cook` has no standards shelf for these languages — changed files matching them never receive domain-specific review, only the global concern flags. Step 4 checks the diff against this list and surfaces a warning (see `SKILL.md` Step 4) rather than silently under-covering the change:
+
+`.py`, `.go`, `.rs`, `.java`, `.rb`, `.php`, `.c`, `.cpp`, `.cs`, `.swift`, `.kt`, `.scala`
+
+Extend this list when a new shelf-less language shows up in a review; remove an entry once its shelf is added under `standards/`.
 
 ---
 

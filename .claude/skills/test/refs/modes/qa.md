@@ -55,7 +55,9 @@ For each visual diff failure, extract:
 - `rule` — test name / story name / snapshot name
 - `message` — description of the diff (e.g. `"23.4% pixel difference exceeds 0.1% threshold"`)
 - `repro` — command to re-run just this snapshot comparison
-- `evidence` — path to the diff image (baseline vs actual comparison) produced by the runner, or the runner's report URL (Chromatic/Percy)
+- artifact — path to the diff image (baseline vs actual comparison) produced by the runner, or the runner's report URL (Chromatic/Percy)
+
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). `severity` is `high` for a diff exceeding threshold; `medium` if the diff is present but attribution or threshold configuration is uncertain. `evidence.file` carries the diff image path or report URL.
 
 ## Output
 
@@ -69,13 +71,22 @@ For each visual diff failure, extract:
   "findings": [
     {
       "id": "qa-<n>",
-      "severity": "fail" | "warn",
+      "source": "qa",
+      "severity": "high" | "medium",
+      "category": "qa",
       "file": "<spec or story file path, or null>",
       "line": null,
       "rule": "<snapshot or story name>",
       "message": "<diff description>",
+      "evidence": {
+        "tool": "<qa_runner.name>",
+        "file": "<diff image path or report URL, or null>",
+        "line": null,
+        "snippet": "<diff description>"
+      },
+      "suggestion": null,
       "repro": "<re-run command or null>",
-      "evidence": "<diff image path or report URL, or null>"
+      "regression_of": null
     }
   ]
 }

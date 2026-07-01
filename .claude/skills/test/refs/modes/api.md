@@ -78,6 +78,8 @@ Also record aggregate totals across all runners:
 - `totals.failed` — number of assertions / schema rules that failed
 - `totals.warned` — number of warnings
 
+Findings conform to the canonical finding object (`../../../shared/refs/finding-schema.md`). Map the table above's `fail`/`warn` failure type to canonical severity: `fail` → `high`, `warn` → `medium`. `evidence.tool` is the runner that produced the finding (Pact/Newman/Dredd/Hurl/Spectral/openapi-validator); `evidence.file` mirrors the top-level `file`; `evidence.snippet` carries the violation description.
+
 ## Error handling
 
 A bucket-level error never stops other buckets. All errors produce `pass_with_warnings` so a broken test environment does not falsely block a merge.
@@ -113,13 +115,22 @@ A bucket-level error never stops other buckets. All errors produce `pass_with_wa
   "findings": [
     {
       "id": "api-<n>",
-      "severity": "fail" | "warn",
+      "source": "api",
+      "severity": "high" | "medium",
+      "category": "api",
       "file": "<contract / spec / collection path or null>",
       "line": "<number or null>",
       "rule": "<rule ID or assertion name>",
       "message": "<description of the mismatch or violation>",
+      "evidence": {
+        "tool": "<runner that produced this finding>",
+        "file": "<contract / spec / collection path or null>",
+        "line": "<number or null>",
+        "snippet": "<description of the mismatch or violation>"
+      },
+      "suggestion": "<actionable fix or null>",
       "repro": "<re-run command or null>",
-      "suggestion": "<actionable fix or null>"
+      "regression_of": null
     }
   ]
 }

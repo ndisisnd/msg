@@ -113,3 +113,5 @@ via the verdict-normalization table in `../../shared/refs/finding-schema.md`, so
 ```
 
 `/test` reads only `executable`-classed assertions from this file. `intent` and `negative` assertions are owned by `/review` Functional mode and are not re-run here.
+
+**Producer contract:** this shape is owned by `/review` — see `../review/refs/modes/functional.md` Step 1 ("Write eval_set.json") for the authoritative definition of the `class` enum and when each class is assigned. If that step changes the shape, this section must be updated to match.

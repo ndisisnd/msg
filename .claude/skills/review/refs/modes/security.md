@@ -31,8 +31,8 @@ Runs **before** the `/cook` semantic stage. Operates on `secret_scanner` from St
 | `secret_scanner` value | `--full-secret-scan` | Action |
 |------------------------|----------------------|--------|
 | `null` | any | Emit a single `warn` finding: `"No secret scanner detected — install gitleaks for full coverage."` Then proceed to semantic stage. |
-| set | absent (default) | Run the scanner's diff-mode command (`<files>` substituted with the diff file list). Parse hits. |
-| set | present | Run the scanner's full-tree command (no `<files>` substitution). Parse hits. |
+| set | absent (default) | Run `secret_scanner.command_diff` (`<files>` substituted with the diff file list). Parse hits. |
+| set | present | Run `secret_scanner.command_full` (no `<files>` substitution). Parse hits. |
 
 Each scanner hit produces one finding:
 - `severity: "block"`

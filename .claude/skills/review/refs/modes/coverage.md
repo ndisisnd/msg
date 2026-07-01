@@ -23,12 +23,14 @@ Classify the changed file as *critical* if it contains business logic — not pu
 
 ### Step 2 — Assertion-reference check
 
-For each assertion in `eval_set[]`, scan the sibling test file(s) located in Step 1 and any test files present in the diff:
+Skip every assertion classed `executable` (classification happens once in `SKILL.md` Step 3, before Coverage runs). Executable assertions are deferred to `/test --eval-set`, which will verify them directly — a static text-match here would only produce false gaps against a check that hasn't run yet. Only `intent` and `negative` assertions are eligible for an assertion-gap in this step.
+
+For each remaining (`intent`/`negative`) assertion in `eval_set[]`, scan the sibling test file(s) located in Step 1 and any test files present in the diff:
 
 - Match if the assertion text (or a significant substring of ≥ 5 consecutive words) appears in a test description string (`it(...)`, `test(...)`, `describe(...)` argument)
 - Match if the assertion's key domain terms (nouns + verbs) appear as a cluster in the test file body
 
-An assertion with no match in any reachable test file is an **assertion gap** (`warn`).
+An `intent`/`negative` assertion with no match in any reachable test file is an **assertion gap** (`warn`).
 
 ### Step 3 — Classify gaps and emit verdict
 
