@@ -3,6 +3,7 @@
 #
 # Usage:
 #   scan-n.prd prd                  next available PRD number (plan-pm)
+#   scan-n.prd sub <parent-n>       next available sub-PRD minor for parent <parent-n> (plan-pm --sub)
 #
 # Run from the project root. Reads from features/.
 
@@ -24,8 +25,28 @@ case "$mode" in
     echo $(( max + 1 ))
     ;;
 
+  sub)
+    parent="${2:-}"
+    [[ -n "$parent" ]] || { echo "Usage: scan-n.prd sub <parent-n>" >&2; exit 1; }
+    [[ "$parent" =~ ^[0-9]+$ ]] || { echo "scan-n.prd sub: parent-n must be numeric, got '$parent'" >&2; exit 1; }
+    max=0
+    # Sub-PRDs live nested inside the parent's folder as
+    #   features/prd-<parent>-<slug>/prd-<parent>.<m>-<sub_slug>/
+    # Scan for the highest existing minor <m> and return the next one (.1 if none).
+    for dir in features/prd-"$parent"-*/prd-"$parent".*-*/; do
+      [[ -d "$dir" ]] || continue
+      base="${dir%/}"
+      base="${base##*/}"                 # prd-<parent>.<m>-<sub_slug>
+      rest="${base#prd-"$parent".}"      # <m>-<sub_slug>
+      [[ "$rest" =~ ^([0-9]+) ]] || continue
+      m="${BASH_REMATCH[1]}"
+      (( m > max )) && max=$m
+    done
+    echo $(( max + 1 ))
+    ;;
+
   *)
-    echo "Usage: scan-n.prd prd" >&2
+    echo "Usage: scan-n.prd prd | scan-n.prd sub <parent-n>" >&2
     exit 1
     ;;
 esac

@@ -164,6 +164,14 @@ If PRD known, write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json` **be
 
 Omit unrun modes from output. Include `eval_set_path` in the top-level output (value derived in Step 3; `null` if PRD unknown).
 
+**Sub-PRD next-step offer (printed, not a question):** after emitting the JSON and summary line, print one plain-text next-step line offering a follow-up sub-PRD for any additional changes surfaced by this review:
+
+```
+Next: to capture additional changes as a tracked follow-up, run /plan-pm --sub <this PRD number> to spin off a sub-PRD (nested under the parent, builds on the same branch).
+```
+
+Substitute the PRD number when a PRD is known; when it isn't, print the bare `/plan-pm --sub` form. This is an emitted suggestion only — it adds **no** `AskUserQuestion` call, so the "exactly ONE `AskUserQuestion` (Step 5)" contract holds. See `plan-pm`'s § Sub-PRD mode.
+
 ## References
 
 - `refs/FLAG-LIST.md` — domain detection signals + authoritative `/cook` flag inventory (single source of truth for `active_domains[]` detection and Step 4 flag validation). Mechanical-runner and secret-scanner detection are owned separately by `../shared/refs/tooling-detection.md`.

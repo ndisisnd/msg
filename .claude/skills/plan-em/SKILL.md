@@ -28,7 +28,7 @@ allowed_tools:
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.
-- PRD path does not exist or does not match `features/prd-*/prd-*.md`: refuse. State the expected location.
+- PRD path does not exist or does not match `features/prd-*/prd-*.md` (top-level) or `features/prd-*/prd-*/prd-*.md` (nested sub-PRD, per `plan-pm`'s § Sub-PRD mode): refuse. State the expected location.
 
 ## Inputs
 
@@ -71,7 +71,7 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 **Step 1/5 — Validate and pre-flight**
 
-First, validate: verify the PRD path exists and matches `features/prd-*/prd-*.md`. Resolve and store the actual matched directory as `$PRD_DIR` — write every artifact below relative to `$PRD_DIR`, never to a reconstructed `features/prd-[n]/`. Derive `n` as the first numeric segment of the parent directory name (`prd-3-habit-tracking` → `n=3`). If validation fails, refuse and emit the rule. Produce no output on failure.
+First, validate: verify the PRD path exists and matches `features/prd-*/prd-*.md` (top-level) **or** `features/prd-*/prd-*/prd-*.md` (a nested sub-PRD, e.g. `features/prd-2-habit-tracking/prd-2.1-streak-freeze/prd-2.1-streak-freeze.md`). Resolve and store the actual matched directory (the PRD file's own parent directory) as `$PRD_DIR` — write every artifact below relative to `$PRD_DIR`, never to a reconstructed `features/prd-[n]/`. Derive `n` as the first numeric segment of that parent directory name (`prd-3-habit-tracking` → `n=3`; `prd-2.1-streak-freeze` → `n=2`, i.e. the parent's number for a sub-PRD). If validation fails, refuse and emit the rule. Produce no output on failure.
 
 Then, mandatory pre-flight scan (devkit + PRD). Devkit files live in `devkit/` (created by `msg-init`); `CLAUDE.md` is at project root. Read all of the following in order:
 
@@ -205,13 +205,23 @@ Each agent writes its engineering section directly to the PRD file. Emit a short
 
 **Bootstrap the development eval_set (plan mode only):** After all plan-mode agents have written their engineering sections — so the PRD now carries the full feature list, engineering sections, and execution table — invoke `/test --prd <prd-path>` **once** (via the `Skill` tool, with the resolved PRD path from Step 1). This reads the PRD and bootstraps an `eval_set` of functional assertions for the feature, written under `$PRD_DIR/`. Running it here, once, means the eval_set exists before the build phase begins; downstream `eng --build` agents and `/review` consume it via `/test --eval-set <path>` rather than each re-deriving it. Emit a one-line note with the assertion count (e.g. `Eval-set: 12 executable assertions bootstrapped.`). If `/test` reports zero executable assertions, note it and continue — this is a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
 
-**Build mode (`$MODE = build`):** First, create the feature branch **once**: if `feat/prd-[n]-<short-name>` does not exist, cut it from `main` and push it. Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
+**Build mode (`$MODE = build`):** First, resolve and create the feature branch **once**.
+
+**Branch resolution (parent-aware).** Read the PRD's frontmatter for a `parent:` field (present only on sub-PRDs — see `plan-pm`'s § Sub-PRD mode):
+- **No `parent:`** (top-level PRD) → `$BRANCH = feat/prd-[n]-<short-name>`, derived from this PRD's own id/title as before.
+- **`parent: prd-<parent-n>-<parent-slug>`** (sub-PRD) → `$BRANCH = feat/prd-<parent-n>-<parent-slug>`, parsed directly from the `parent` value. A sub-PRD **never** gets its own branch — its commits land on the parent's feature branch, so `/review` and `/test` see the sub-PRD's changes in the parent's existing run directory.
+
+**Idempotent create-or-checkout.** Check `git branch --list "$BRANCH"`:
+- If it **does not exist** (the common case for a top-level PRD's first build) → cut it from `main` and push it.
+- If it **already exists** (the common case for a sub-PRD, whose parent branch is already present) → check it out; do **not** re-create or reset it.
+
+Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--build` mode. For each agent, the prompt must include:
 
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--build`
 3. `prd-path`: the PRD file path (with engineering sections already appended)
 4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
-5. `branch`: `feat/prd-[n]-<short-name>` (the feature branch derived in plan mode, created above)
+5. `branch`: `$BRANCH` (the feature branch resolved and created/checked-out above — the parent's branch for a sub-PRD)
 6. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
 
 Emit a short progress note as each agent completes.

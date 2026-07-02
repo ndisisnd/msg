@@ -44,3 +44,7 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 | `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
 | `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
 | `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |
+
+---
+
+Credits to my dear JC who previously had her own harness with a bajillion agents. Great times.

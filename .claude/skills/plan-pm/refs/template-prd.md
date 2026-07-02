@@ -14,6 +14,7 @@ Populate every section. Do not delete a section — if a section does not apply,
 ---
 name: prd-[n]-[feature_slug]
 feature: <short feature name>
+# parent: prd-[n]-[parent_slug]   # sub-PRDs only — omit for top-level PRDs. Resolves the shared feature branch; a sub-PRD never gets its own branch.
 module: <primary module or domain this PRD touches, e.g. auth | payments | notifications>
 affects: []   # prd-[n]-[feature_slug] IDs whose scope this PRD overlaps or may break
 depends_on: []  # prd-[n]-[feature_slug] IDs that must ship before this one

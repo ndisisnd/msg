@@ -17,7 +17,11 @@ Beyond the shared four (`--build`, `prd-path`, `rows`, `agent`), build mode requ
 
 ### Branch contract (what `branch` means)
 
-`branch` is the **feature branch the orchestrator created and will review** — it is the destination for this build's commits, **not** merely a PR target. There are two commit modes:
+`branch` is the **feature branch the orchestrator created and will review** — it is the destination for this build's commits, **not** merely a PR target.
+
+**Sub-PRD parent-aware derivation.** Before hard-refusing on a missing `branch`, read the PRD's frontmatter for a `parent:` field (present only on sub-PRDs — see `plan-pm`'s § Sub-PRD mode). If `parent: prd-<parent-n>-<parent-slug>` is present and `branch` was not explicitly passed, default `branch` to `feat/prd-<parent-n>-<parent-slug>` — the parent's feature branch, which already exists. A sub-PRD never gets its own branch. (Under `plan-em` orchestration `branch` is always passed explicitly and already resolves this way; this fallback covers a human running `eng --build` directly against a sub-PRD.) The `branch`-already-exists rule in Work-step 1 then applies unchanged: the parent branch is checked out, not created.
+
+There are two commit modes:
 
 - **`direct` (default — used by `ship`):** Commit your work **directly onto `branch`**. Do **not** cut a sub-branch and do **not** open a PR. The orchestrator reviews/tests `branch` itself, so your commits must be on it. When several build agents run in parallel against one `branch`, each agent owns a **disjoint set of files** (the exec-table groups rows by agent), so committing to the shared branch is safe as long as you touch only the files your assigned rows specify (Step 6 scope enforcement guarantees this).
 - **`sub-branch` (direct human invocation):** Cut a working sub-branch `{branch}/{row-slug}` from `branch`, do all work there, commit, and open a PR from the sub-branch into `branch`. Use this only when a human runs `eng --build` standalone and wants a reviewable PR per agent.
@@ -29,7 +33,7 @@ If `commit_mode` is absent, default to `direct`.
 /eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
-**Hard-refuse if `branch` is missing — check this before reading any file.** Emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight.
+**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the sub-PRD parent-aware derivation above (read the PRD frontmatter's `parent:` field). Only if `branch` is still unresolved — no explicit value and no `parent:` frontmatter — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
 
 ---
 
