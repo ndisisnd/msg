@@ -3,6 +3,9 @@ name: msg
 description: Root menu for msg skills
 allowed_tools:
   - AskUserQuestion
+  - Read
+  - Write
+  - Bash
 ---
 
 # msg
@@ -11,6 +14,7 @@ allowed_tools:
 
 **Invoke**: `/msg` — two-step category → skill picker.
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
+**Invoke**: `/msg --gui` (or `/msg gui`) — launch the local read-only PRD Kanban/List board.
 
 ## Skills
 
@@ -43,6 +47,28 @@ allowed_tools:
                                                                          ↓
                                                                  gh pr create
 ```
+
+---
+
+## Dispatch
+
+Before running any picker, check the invocation:
+
+1. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
+   "show me the PRD board", "visualize my PRDs", "open kanban" — → **Protocol: --gui**. Skip
+   the picker; do not call `AskUserQuestion`; go straight to rendering.
+2. `--help` → **Protocol: --help**.
+3. Otherwise → **Protocol: default**.
+
+---
+
+## Protocol: --gui
+
+Dispatch to [`refs/protocol-gui.md`](refs/protocol-gui.md) and follow it end to end: enumerate
+`features/prd-*/`, parse frontmatter + F-IDs + any `## Todos`, infer each PRD's completion
+status, fill the `refs/gui/` HTML/CSS templates with the collected data, serve the result
+GET-only on `127.0.0.1`, and open the browser. The board is a pure read model — nothing is
+editable and no PRD file is written.
 
 ---
 
