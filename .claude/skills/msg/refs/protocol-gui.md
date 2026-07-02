@@ -31,10 +31,17 @@ exist). For each, locate its PRD markdown (`prd-*.md` in that folder) and parse:
    with neither section yields an empty `features[]` (no error).
 
 3. **Todos.** Only where a `## Todos` section exists: under each agent sub-heading, read each
-   feature's `### F<n>` block and parse its items (`type`, `file`, `action`, `done-when`).
-   Attach each item to the matching `features[].id`. **No done-state field exists in the todo
-   schema yet** (see the feature's P0 prerequisite) — set every item's `done` to `false`.
-   PRDs with no `## Todos` section get `hasTodos: false` and no todo items (edge case 3).
+   feature's `### F<n>` block and parse its **tickets** (JIRA/Linear-style, per
+   `.claude/skills/eng/refs/todo/template-todo.md`). Each ticket's title line is `**<id> — <title>**`;
+   its indented fields are `objective`, `type`, `priority`, `files`, `depends-on`, `done-when`.
+   Map them to `{ id, title, objective, type, priority, files: [{ path, action }], dependsOn: [ids],
+   doneWhen, done }`. `files` is a comma-separated list of `` `path` (action) `` — split into the
+   `files[]` array; also keep the first path as `file` and its action as `action` for backward
+   compatibility with older single-file todo blocks (a legacy `type · file · action · done-when`
+   bullet parses as a one-ticket-per-item block with an empty `title`/`objective`). Attach each
+   ticket to the matching `features[].id`. **No done-state field exists in the todo schema**
+   (`done-when` is the acceptance *check*, not a stored status) — set every ticket's `done` to
+   `false`. PRDs with no `## Todos` section get `hasTodos: false` and no tickets (edge case 3).
 
 Never write or modify any PRD file (criterion 14).
 
@@ -79,8 +86,12 @@ Assemble one JSON object. This is the exact shape `refs/gui/index.html` expects:
       "hasTodos": false,
       "features": [
         { "id": "F1", "title": "Booking page creation",
-          "todos": [ { "type": "code", "file": "src/x.ts", "action": "add",
-                       "doneWhen": "…", "done": false } ] }
+          "todos": [ { "id": "F1-T1", "title": "Booking page route",
+                       "objective": "Let a host publish a bookable page",
+                       "type": "code", "priority": "P0",
+                       "files": [ { "path": "src/x.ts", "action": "add" } ],
+                       "file": "src/x.ts", "action": "add",
+                       "dependsOn": [], "doneWhen": "…", "done": false } ] }
       ]
     }
   ],

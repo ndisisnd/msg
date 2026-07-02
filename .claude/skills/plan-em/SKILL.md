@@ -65,6 +65,30 @@ Read `refs/principles.md` before any other ref. Apply all five categories throug
 
 Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
+## Step 0 — Resolve the todo preference (`prefs.json`)
+
+Runs once at the very start of every invocation, before Step 1's progress line. It resolves `$TODOS` (a boolean), which gates the **entire** todo layer: the execution table's Todos column (Step 3), the todo phase (Step 4), and the todo handoff (Step 5). The todo layer is owned entirely by `plan-em` — this preference is the single switch for it.
+
+Read `.claude/skills/plan-em/prefs.json`:
+
+- **File exists and parses** with a boolean `todos` field → set `$TODOS` to that value. Do **not** re-scan; the stored value governs. This is the common case on every invocation after the first.
+- **File missing, unreadable, or corrupt** (not valid JSON, or no `todos` boolean) → treat as **first invocation**: run the scan below, write the file, and proceed. A corrupt file is overwritten, not crashed on.
+
+**First-invocation scan.** Determine whether the user already has their own todos / task-breakdown skill, and defer to it if so:
+
+- List skill directories in `.claude/skills/` (this project) and `~/.claude/skills/` (global).
+- A skill counts as a **pre-existing user task-breakdown skill** if it is **not** part of the msg skill set (`eng`, `improve`, `msg`, `msg-init`, `plan-em`, `plan-pm`, `plan-tune`, `pre-merge`, `review`, `test`, `shared`) **and** its directory name contains `todo` or `task`, or its `SKILL.md` `description` mentions todo generation / task breakdown / task list.
+- **Found** one → `todos: false` (defer to the user's own; msg does not add a competing todo layer).
+- **None found** → `todos: true` (msg owns the todo layer).
+
+Write the result to `.claude/skills/plan-em/prefs.json`:
+
+```json
+{ "todos": true }
+```
+
+Set `$TODOS` to the written value and continue to Step 1. `$TODOS = false` means the pipeline runs plan → build exactly as it did before this feature — no Todos column, no todo phase, no `## Todos` section.
+
 ## Step-by-step protocol
 
 ---
@@ -161,7 +185,21 @@ Do not activate any agent without explicit approval.
 
 **Execution table skeleton**
 
-Once the roster is approved, build the execution table skeleton using `refs/template-exec-table.md` as the guide. Enumerate features from the PRD's §3 Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the keys for every exec-table row. For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair, with the Feature cell as the exact `<F-ID>: <name> — <concern>` text. Pre-populate the Feature and Agent columns; leave Execution steps blank. Append the skeleton to the PRD as:
+Once the roster is approved, build the execution table skeleton using `refs/template-exec-table.md` as the guide. Enumerate features from the PRD's §3 Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the keys for every exec-table row. For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair, with the Feature cell as the exact `<F-ID>: <name> — <concern>` text. Pre-populate the Feature and Agent columns; leave Execution steps blank.
+
+**Todos column (only when `$TODOS = true`).** If the todo layer is enabled, add a **Todos** column between Execution steps and Agent. Each row's Todos cell is an anchor link to that feature's `### F<n>` subsection under the `## Todos` section: `[F<n>](#todos-f<n>)` (e.g. `[F1](#todos-f1)`). All rows sharing an F-ID point to the same anchor. The target blocks don't exist yet — they're written in the todo phase (Step 4) — so this is a forward pointer. When `$TODOS = false`, **omit this column entirely**; the table is unchanged from before this feature.
+
+Append the skeleton to the PRD. With `$TODOS = true`:
+
+```markdown
+## Execution Table
+
+| Feature | Execution steps | Todos | Agent |
+|---------|----------------|-------|-------|
+| F1: Set daily goal — API contract | | [F1](#todos-f1) | backend-eng |
+```
+
+With `$TODOS = false`:
 
 ```markdown
 ## Execution Table
@@ -191,7 +229,15 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 
 **Step 4/5 — Agents write**
 
-**Mode detection:** Scan the PRD for any heading matching `## Engineering —`. If none exist → `$MODE = plan`. If one or more exist → `$MODE = build`. Use `refs/$MODE/` when constructing all agent protocol paths below.
+**Mode detection:** Scan the PRD's headings for `## Engineering —` and `## Todos —` blocks. The number of agents in the approved roster is the expected count for "all agents." Resolve `$MODE` by `$TODOS` (from Step 0):
+
+- **`$TODOS = false`** (todo layer off — pre-feature behaviour): no `## Engineering —` heading → `$MODE = plan`; one or more `## Engineering —` headings present → `$MODE = build`. The todo state is skipped entirely.
+- **`$TODOS = true`** (todo layer on — three states):
+  - no `## Engineering —` heading exists → `$MODE = plan`;
+  - `## Engineering —` present but a `## Todos —` heading is **absent for any agent** (fewer `## Todos —` blocks than roster agents) → `$MODE = todo`;
+  - a `## Todos —` heading is present for **all** agents → `$MODE = build`.
+
+Use `refs/$MODE/` when constructing all agent protocol paths below (`plan` → `refs/plan/`, `todo` → `refs/todo/`, `build` → `refs/build/`). `--todo` agents run only after **all** `--plan` agents have written their `## Engineering — <Agent>` sections, and before **any** `--build` agent runs — the detection above enforces this ordering automatically.
 
 **Plan mode (`$MODE = plan`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--plan` mode. For each agent, the prompt must include:
 
@@ -204,6 +250,18 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 Each agent writes its engineering section directly to the PRD file. Emit a short progress note as each agent completes.
 
 **Bootstrap the development eval_set (plan mode only):** After all plan-mode agents have written their engineering sections — so the PRD now carries the full feature list, engineering sections, and execution table — invoke `/test --prd <prd-path>` **once** (via the `Skill` tool, with the resolved PRD path from Step 1). This reads the PRD and bootstraps an `eval_set` of functional assertions for the feature, written under `$PRD_DIR/`. Running it here, once, means the eval_set exists before the build phase begins; downstream `eng --build` agents and `/review` consume it via `/test --eval-set <path>` rather than each re-deriving it. Emit a one-line note with the assertion count (e.g. `Eval-set: 12 executable assertions bootstrapped.`). If `/test` reports zero executable assertions, note it and continue — this is a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
+
+**Todo mode (`$MODE = todo` — only reachable when `$TODOS = true`):** The confirmed `## Engineering — <Agent>` sections now exist; break each F-ID's scope into an executable todo checklist before any build agent runs.
+
+First, append the `## Todos` umbrella heading to the PRD **once** (if absent), immediately after the last `## Engineering — <Agent>` section — this is the anchor namespace the execution table's Todos column points into, and creating it here (rather than in the parallel agents) avoids a write race. Then activate each approved agent as a parallel subagent via the `Agent` tool, each running the `eng` skill in `--todo` mode. For each agent, the prompt must include:
+
+1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
+2. Mode flag: `--todo`
+3. `prd-path`: the PRD file path (with engineering sections already appended)
+4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
+5. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
+
+Each agent appends its own `## Todos — <Agent>` block (one `### F<n>` block per owned feature) under the `## Todos` umbrella. Emit a short progress note as each agent completes. When every agent has written its `## Todos —` block, the todo phase is complete and the next `plan-em` invocation will detect `$MODE = build`.
 
 **Build mode (`$MODE = build`):** First, resolve and create the feature branch **once**.
 
@@ -262,23 +320,31 @@ After synthesis, ask via `AskUserQuestion` (single-select):
 
 > What would you like to do next?
 
+The options offered depend on the phase just completed (`$MODE` from Step 4) and `$TODOS` from Step 0.
+
+**After the `plan` phase** (or after `todo`, whichever ran):
+
 Options:
 - **Run plan-tune (eng mode)** — run `plan-tune --eng` on this PRD
+- **Run todo breakdown** *(offer only when `$TODOS = true` and no `## Todos —` blocks exist yet — i.e. the todo phase hasn't run)* — decompose the confirmed engineering sections into per-feature todos before building
 - **Run eng --build** — begin the build phase using this PRD
 - **Skip** — terminate plan-em with no further action
 
 Based on the user's selection:
 - **Run plan-tune (eng mode)** → invoke `Skill("plan-tune", "<prd-path> --eng")` where `<prd-path>` is the resolved PRD path from Step 1. Do not terminate until plan-tune completes.
-- **Run eng --build** → invoke `Skill("plan-em", "<prd-path>")`. Since engineering sections are now present in the PRD, plan-em will automatically detect `$MODE = build` in Step 4 and activate build agents.
+- **Run todo breakdown** → invoke `Skill("plan-em", "<prd-path>")`. Since engineering sections are present but no todos exist yet and `$TODOS = true`, plan-em detects `$MODE = todo` in Step 4 and activates the todo agents.
+- **Run eng --build** → invoke `Skill("plan-em", "<prd-path>")`. plan-em re-runs mode detection in Step 4: with `$TODOS = true` and no todos yet, it will run the `todo` phase first (todos always precede build when enabled); once todos exist for all agents it detects `$MODE = build` and activates build agents. With `$TODOS = false` it detects `$MODE = build` directly.
 - **Skip** → terminate plan-em immediately with no further action.
 
-Final state: the PRD contains all engineering sections, the synthesis is visible to the user, no Critical findings are unresolved, and the suggested branch is emitted.
+Final state: the PRD contains all engineering sections (and, when `$TODOS = true` and the todo phase has run, a `## Todos` section with a `## Todos — <Agent>` block per agent), the synthesis is visible to the user, no Critical findings are unresolved, and the suggested branch is emitted.
 
 ## References
 
 - `refs/principles.md` — core operating principles; read before any other ref (shared)
 - `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
-- `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table before activating agents (shared)
-- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
+- `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (with the Todos column when `$TODOS = true`) before activating agents (shared)
+- `.claude/skills/plan-em/prefs.json` — persisted `todos` boolean resolved in Step 0; gates the entire todo layer (Todos column, todo phase, `## Todos` section)
+- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan`, `--todo`, or `--build` mode
+- `.claude/skills/eng/refs/todo/template-todo.md` — todo schema written in the `todo` phase and consumed by build agents
 - `.claude/skills/test/SKILL.md` — `/test --prd` bootstraps the development eval_set in Step 4 plan mode; build agents and `/review` later consume it via `--eval-set`

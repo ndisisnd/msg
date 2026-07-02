@@ -294,15 +294,32 @@ function renderDetail(id) {
 /* TODO completion buckets — with no stored done-state, all render as Open (edge case 5) */
 var TODO_BUCKETS = [ { key: false, label: "Open" }, { key: true, label: "Done" } ];
 
+// files: prefer the ticket's files[] array; fall back to the legacy single file/action.
+function ticketFiles(t) {
+  if (Array.isArray(t.files) && t.files.length) {
+    return t.files.map(function (f) { return f.path + (f.action ? " (" + f.action + ")" : ""); });
+  }
+  if (t.file) return [t.file + (t.action ? " (" + t.action + ")" : "")];
+  return [];
+}
+function ticketHeading(t) {
+  var id = t.id || t._fid || "";
+  var title = t.title || t.action || "todo";
+  return (id ? id + " · " : "") + title;
+}
+
 function todoCard(t) {
+  var files = ticketFiles(t);
   var c = el(
     '<div class="card todo-card" tabindex="0">' +
-      '<div class="title">' + esc(t.action ? t.action + " · " : "") + esc(t._fid || "") +
+      '<div class="title">' + esc(ticketHeading(t)) +
         (t._feature ? ' <span class="prose dim">' + esc(t._feature) + '</span>' : '') + '</div>' +
-      '<div class="path">' + esc(t.file || "(no file)") + '</div>' +
+      (t.objective ? '<div class="prose dim">' + esc(t.objective) + '</div>' : '') +
+      '<div class="path">' + esc(files.length ? files.join(", ") : "(no files)") + '</div>' +
       '<div class="meta">' +
         (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + '</span>' : '') +
-        (t.action ? '<span class="pill">' + esc(t.action) + '</span>' : '') +
+        (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + '</span>' : '') +
+        ((t.dependsOn && t.dependsOn.length) ? '<span class="pill muted">⛓ ' + esc(t.dependsOn.join(", ")) + '</span>' : '') +
       '</div>' +
     '</div>'
   );
@@ -331,15 +348,18 @@ function todoTable(p, todos) {
   var sorted = todos.slice().sort(function (a, b) { return (a.done === true ? 1 : 0) - (b.done === true ? 1 : 0); });
   var wrap = el('<div class="table-wrap compact"></div>');
   var table = el('<table><thead><tr>' +
-    '<th>Feature</th><th>Type</th><th>Action</th><th>File</th><th>Status</th>' +
+    '<th>Ticket</th><th>Objective</th><th>Type</th><th>Priority</th><th>Files</th><th>Depends on</th><th>Status</th>' +
     '</tr></thead></table>');
   var tbody = el('<tbody></tbody>');
   sorted.forEach(function (t) {
+    var files = ticketFiles(t);
     var row = el('<tr>' +
-      '<td>' + esc(t._fid || "") + '</td>' +
+      '<td>' + esc((t.id || t._fid || "") + (t.title ? " · " + t.title : "")) + '</td>' +
+      '<td class="prose">' + esc(t.objective || "") + '</td>' +
       '<td>' + (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + '</span>' : '') + '</td>' +
-      '<td class="action-' + esc(t.action || "") + '">' + esc(t.action || "") + '</td>' +
-      '<td class="mono">' + esc(t.file || "") + '</td>' +
+      '<td>' + (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + '</span>' : '') + '</td>' +
+      '<td class="mono">' + esc(files.join(", ")) + '</td>' +
+      '<td class="mono">' + esc((t.dependsOn && t.dependsOn.length) ? t.dependsOn.join(", ") : "—") + '</td>' +
       '<td>' + (t.done ? '<span class="pill st-shipped">Done</span>' : '<span class="pill muted">Open</span>') + '</td>' +
     '</tr>');
     row.addEventListener("click", function () { openPanel(t); });
@@ -357,12 +377,16 @@ function field(label, value, mono) {
          '<div class="val' + (mono ? ' mono' : '') + '">' + esc(value) + '</div></div>';
 }
 function openPanel(t) {
-  document.getElementById("panel-title").textContent = (t._fid ? t._fid + " · " : "") + (t.action || "todo");
+  document.getElementById("panel-title").textContent = ticketHeading(t);
+  var files = ticketFiles(t);
   document.getElementById("panel-body").innerHTML =
     field("Feature", t._feature) +
+    field("Ticket", t.id) +
+    field("Objective", t.objective) +
     field("Type", t.type) +
-    field("Action", t.action) +
-    field("File", t.file, true) +
+    field("Priority", t.priority) +
+    field("Files", files.join("\n"), true) +
+    field("Depends on", (t.dependsOn && t.dependsOn.length) ? t.dependsOn.join(", ") : "none") +
     field("Done when", t.doneWhen) +
     field("Status", t.done ? "Done" : "Open");
   document.getElementById("panel").classList.add("open");

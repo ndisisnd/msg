@@ -1,7 +1,7 @@
 ---
 name: eng
 description: >
-  Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval), --build (write code from exec-table rows). Invoked by plan-em or directly by the user.
+  Platform-agnostic engineering agent with three modes: --plan (propose file changes for human approval), --todo (break the confirmed plan into a per-feature todo checklist), --build (write code from the todos, falling back to exec-table rows). Invoked by plan-em or directly by the user.
 allowed_tools:
   - Bash
   - Read
@@ -14,7 +14,7 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent. Operates in one of two modes — `--plan`, `--build` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
+Platform-agnostic engineering agent. Operates in one of three modes — `--plan`, `--todo`, `--build` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
 
 ---
 
@@ -25,12 +25,13 @@ Read the invocation flag and load exactly one mode protocol:
 | Flag | Read |
 |------|------|
 | `--plan` | `refs/plan/protocol.md` |
+| `--todo` | `refs/todo/protocol-todo.md` |
 | `--build` | `refs/build/protocol.md` |
 
-Exactly one mode flag (`--plan` or `--build`) must be present. If zero mode flags or more than one mode flag is given, emit:
+`--todo` sits strictly between `--plan` and `--build`: design doc → task breakdown → build. Exactly one mode flag (`--plan`, `--todo`, or `--build`) must be present. If zero mode flags or more than one mode flag is given, emit:
 
 ```
-Hard failure: exactly one mode flag required (--plan | --build). Got: <list>.
+Hard failure: exactly one mode flag required (--plan | --todo | --build). Got: <list>.
 ```
 
 Stop. Otherwise read the active mode file **fully** before any other step. It defines the mode-specific input rules, the summary content, the work steps, and the output contract. The numbered steps below are the shared spine — they run for every mode and point to the active mode file where the path diverges.
@@ -43,7 +44,7 @@ All modes require four fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
-| mode flag | `--plan` or  `--build` |
+| mode flag | `--plan`, `--todo`, or `--build` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
 | `rows` | Semicolon-separated exec-table Feature identifiers assigned to this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
 | `agent` | This invocation's agent identity (e.g. `eng-backend`) — the name in the exec-table **Agent** column for the assigned rows. Used to name the `## Engineering — <agent>` heading and to confirm each `rows` identifier is owned by this agent. |
@@ -150,6 +151,7 @@ If `/cook` returns no coverage for a stack, do not substitute a different stack'
 Follow the work steps and output contract in the active mode file. This is where the modes diverge:
 
 - `--plan` → emit a proposed changes document. No implementation files are written. Inline code snippets and pseudocode are permitted — and encouraged — to illustrate proposed changes within the plan document.
+- `--todo` → decompose the confirmed `## Engineering — <Agent>` section into per-feature `### F<n>` todo blocks under `## Todos — <Agent>`. No implementation files are written.
 - `--build` → write code to derived paths; emit a build summary.
 
 ---
@@ -168,6 +170,8 @@ Throughout Steps 2–5, enforce strict scope:
 
 - `refs/plan/protocol.md` — `--plan` mode: summary content, engineering section output contract, return-as-output rule.
 - `refs/plan/template-eng-plan.md` — plan-mode output format; §1–13 required sections, quality gates.
+- `refs/todo/protocol-todo.md` — `--todo` mode: reads the confirmed engineering section + F-ID feature table, decomposes each F-ID into tickets, writes `## Todos — <Agent>`.
+- `refs/todo/template-todo.md` — ticket schema (`id`/`title`/`objective`/`type`/`priority`/`files`/`depends-on`/`done-when`), `## Todos` structure, and per-`### F<n>` block rules.
 - `refs/build/protocol.md` — `--build` mode: the **branch contract** (`branch` is the feature branch your commits must land on; `commit_mode` `direct` (default, used by `ship`) commits straight to it, `sub-branch` cuts a PR), work steps, commit and PR contract.
 - `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.
 - **Contract:** the `## Engineering — <Agent>` heading written by `--plan` is how `plan-em` detects that the engineering section is ready and how `--build` locates its spec. Do not rename this heading.

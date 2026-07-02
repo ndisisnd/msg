@@ -217,6 +217,10 @@ tbody tr:hover { background: var(--bg-hover); }
 .action-add    { color: var(--st-shipped); }
 .action-edit   { color: var(--st-eng); }
 .action-remove { color: var(--st-review); }
+.prio-P0 { background: var(--st-review-bg);  color: var(--st-review); }
+.prio-P1 { background: var(--st-eng-bg);     color: var(--st-eng); }
+.prio-P2 { background: var(--bg-hover);      color: var(--text-muted); }
+.field .val { white-space: pre-line; }
 
 /* ---- Side panel ---------------------------------------------------------- */
 .scrim {

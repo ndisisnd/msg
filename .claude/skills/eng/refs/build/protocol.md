@@ -49,7 +49,15 @@ The 3–4 line summary covers:
 
 ## Work steps (Step 5)
 
-Use the PRD's `## Engineering — <Agent Name>` section as the sole specification. Do not re-interpret the PRD features section directly.
+**Spec source — prefer todos, fall back to the exec-table.** For each assigned F-ID, first look for a matching `### F<n>` todo block under this agent's `## Todos — <Agent Name>` section (written by `--todo` mode, when the todo layer is enabled):
+
+- **Todos present** for the F-ID → work the `### F<n>` block's **tickets** directly (JIRA/Linear-style; see the schema in `refs/todo/template-todo.md`). Each ticket carries `id`, `title`, `objective`, `type`, `priority`, `files` (each path + its `add|edit|remove` action), `depends-on`, and `done-when`. To execute a ticket: make the `files` changes to deliver the `objective`, then satisfy the `done-when` check. This is a mechanical checklist — no re-derivation of tasks from engineering-plan prose needed. (An explicitly empty `### F<n>` block — `_No discrete work for this feature._` — means nothing to build for that feature.)
+  - **Ordering (`depends-on` + `priority`).** Build tickets in dependency order: a ticket runs only after every id in its `depends-on` is complete (this replaces the old TDD `blocked by:` row annotation as the ordering signal when todos drive the build). Among tickets with no outstanding dependency, take higher `priority` first (`P0` → `P1` → `P2`). A ticket whose `depends-on` names an id that doesn't exist in this PRD's `## Todos`, or a dependency cycle, is a blocking gap → surface via `AskUserQuestion`, do not guess an order.
+  - **Objective keeps scope honest.** Use each ticket's `objective` as the intent check — implement exactly what serves it; anything beyond is out of scope (Step 6).
+- **No todos for the F-ID** (todo layer disabled, or no `### F<n>` block exists for it) → fall back to deriving tasks from the PRD's `## Engineering — <Agent Name>` section and the F-ID's execution-table rows, exactly as before.
+- **Neither todos nor a resolvable execution-table row** for an assigned F-ID → hard stop (no scope to build), consistent with the existing missing-input hard-refusals: emit `Hard failure: no todos and no execution-table row for '<F-ID>' — nothing to build` and stop.
+
+In all cases the PRD's `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers; the todos are the executable breakdown of that section. Do not re-interpret the PRD features section directly.
 
 0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
    - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
@@ -60,7 +68,7 @@ Use the PRD's `## Engineering — <Agent Name>` section as the sole specificatio
    - **`commit_mode: direct` (default):** check out `branch` itself and do all work on it. Your commits land directly on the feature branch the orchestrator reviews. Touch only the files your assigned rows specify (Step 6) so parallel agents on the same branch stay file-disjoint.
    - **`commit_mode: sub-branch`:** derive a sub-branch name `{branch}/{row-slug}` (where `row-slug` is a lowercase hyphenated slug of the first assigned row, e.g. `feat/prd-4-habit-tracking/streaks-schema`), cut it from `branch`, check it out, and do all work there.
    Do not push until the commit step.
-2. **Read Execution steps.** For each assigned exec-table row, read the Execution steps column. If a cell is blank, surface it as a blocking gap via `AskUserQuestion` — do not proceed on that row until resolved.
+2. **Read the tasks.** For each assigned F-ID, read its `### F<n>` todo block if present (preferred), else the assigned exec-table rows' Execution steps column (fallback), per **Spec source** above. If falling back and an Execution steps cell is blank, surface it as a blocking gap via `AskUserQuestion` — do not proceed on that row until resolved.
 3. **Discover testing tools.** Before writing any test file, scan existing test files in the relevant feature area for:
    - Test runner and framework (e.g., `pytest`, `jest`, `go test`, `flutter_test`)
    - Assertion libraries and matchers in use
