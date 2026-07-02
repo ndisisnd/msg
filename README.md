@@ -40,7 +40,7 @@ Run `/msg` to browse these interactively, or invoke any skill directly.
 
 | Skill | Description |
 |-------|-------------|
-| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval, `--build` writes code from exec-table rows. `--build --loop` adds a plan-tune review cycle after each build pass. |
+| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval, `--todo` breaks the confirmed plan into per-feature tickets, `--build` writes code from the todos (falling back to exec-table rows). `--build --loop` adds a plan-tune review cycle after each build pass. |
 | `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
 | `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
 | `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |

@@ -52,10 +52,10 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 
 ```
 Planning:   plan-pm → plan-tune --product → plan-em → plan-tune --eng
-Execution:  eng --build → review → test → fix (loop) → pre-merge
+Execution:  eng --plan → eng --todo → eng --build → review → test → fix (loop) → pre-merge
 ```
 
-Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically.
+Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The `eng --todo` phase (task breakdown into per-feature tickets) runs between `--plan` and `--build` only when `plan-em`'s `prefs.json` `todos` toggle is on; with it off, execution is `eng --plan → eng --build` as before.
 
 ## Skill inventory
 
@@ -64,7 +64,7 @@ Every skill is invoked directly and standalone; a skill's end-of-run gate recomm
 | `plan-pm` | Yes |
 | `plan-tune` | Yes (`--product` / `--eng`) |
 | `plan-em` | Yes |
-| `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
+| `eng` | Yes (`--plan` / `--todo` / `--build` / `--build --loop`) |
 | `review` | Yes |
 | `test` | Yes |
 | `pre-merge` | Yes |
