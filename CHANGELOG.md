@@ -1,5 +1,7 @@
 # Changelog
 
+- Make `/test` run buckets in parallel by default: dispatch each selected, non-skipped bucket as its own `Agent` subagent (replacing the old sequential 1→10 default), carve `load` and `perf` out of the concurrent batch to run isolated so contention can't skew their numbers, and stream each bucket's verdict as its subagent returns before a single final aggregation pass. **Breaking:** the `--fast` flag is removed (ignored with a printed note if passed, not a hard error) and a new `--sequential` flag restores the old in-order in-process run. Propagated through the frontmatter description, Step 3 plan-header tags, the Step 5 aggregator `--parallel` note, `refs/schema.md`'s `parallel` field semantics, and the seven `refs/modes/*` "When it runs" lines that referenced `--fast` (`load`/`perf` reworded to note isolation).
+
 - Remove `plan` and `ship` autonomous orchestrator skills: delete `.claude/skills/plan/SKILL.md` and `.claude/skills/ship/SKILL.md` along with their supporting scripts (`ship-find-prd.sh`, `ship-db-touch.sh`) and settings.json permissions; drop `plan`/`ship` rows and the autonomous-loop-shortcuts section from msg's skill menu and routing tables; remove `/plan` and `/ship` entries from README.md; update ARCHITECTURE.md's pipeline diagram and skill inventory for standalone-only invocation; remove the completed `19-plan-loop-modes` improvement plan/acceptance docs and its `_INDEX.md` entry.
 
 - Sync `kermit`'s `last_logged_commit` pointer in `.claude/kermit/pref.json` to the latest changelog-synced commit.

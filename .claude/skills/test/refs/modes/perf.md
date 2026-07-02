@@ -1,6 +1,6 @@
 # test — Performance budget bucket
 
-**When it runs:** seventh bucket — after Accessibility (sequential), or concurrently with other buckets (`--fast`).
+**When it runs:** seventh bucket in `--sequential` order — after Accessibility. Under the default parallel dispatch it is carved out of the concurrent batch and runs **isolated** as its own subagent — not overlapping other buckets or `load` — so CPU/network contention can't skew its Web Vitals / timing numbers.
 
 **What it checks:** two orthogonal performance concerns:
 1. **Runtime perf** — Core Web Vitals and Lighthouse scores against configured thresholds.

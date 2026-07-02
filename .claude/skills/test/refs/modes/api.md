@@ -1,6 +1,6 @@
 # test — API bucket
 
-**When it runs:** eighth bucket — after Performance (sequential), or concurrently with other buckets (`--fast`).
+**When it runs:** eighth bucket in `--sequential` order — after Performance; by default runs concurrently as its own subagent.
 
 **What it checks:** API contracts and OpenAPI spec validity — consumer-driven contract tests, HTTP collection runs, and schema conformance.
 
@@ -41,7 +41,7 @@ If zero targets are found across all runners: emit `pass_with_warnings` with not
 
 ### Step 3 — Run
 
-Execute each detected runner sequentially (or concurrently under `--fast`). Capture stdout, stderr, exit code, and any JSON/HTML report output.
+Execute each detected runner in turn within this bucket's subagent. Capture stdout, stderr, exit code, and any JSON/HTML report output.
 
 - **Exit 0, all checks passed** → verdict `pass` for that runner.
 - **Contract mismatches or schema violations found** → verdict `fail`; create one finding per violated contract or schema error.

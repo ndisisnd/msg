@@ -1,6 +1,6 @@
 # test — Coverage gate bucket
 
-**When it runs:** tenth bucket — after Mobile (sequential), or concurrently with other buckets (`--fast`).
+**When it runs:** tenth bucket in `--sequential` order — after Mobile; by default runs concurrently as its own subagent.
 
 **What it checks:** enforces minimum line/branch coverage thresholds by parsing an existing coverage report or re-running the test suite with coverage enabled.
 

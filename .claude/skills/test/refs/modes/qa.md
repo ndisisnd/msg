@@ -1,6 +1,6 @@
 # test — QA / Visual bucket
 
-**When it runs:** fourth bucket — after Functional (sequential), or concurrently with other buckets (`--fast`).
+**When it runs:** fourth bucket in `--sequential` order — after Functional; by default runs concurrently as its own subagent.
 
 **What it checks:** visual regressions by comparing screenshots or component renders against stored baselines.
 

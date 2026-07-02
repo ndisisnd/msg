@@ -1,6 +1,6 @@
 # test — Mobile bucket
 
-**When it runs:** ninth bucket — after API / Contract (sequential), or concurrently with other buckets (`--fast`).
+**When it runs:** ninth bucket in `--sequential` order — after API / Contract; by default runs concurrently as its own subagent.
 
 **What it checks:** Flutter/Dart app correctness across Android and iOS — widget tests (device-free), integration tests on device/emulator, and Patrol/Maestro flow tests.
 
@@ -69,7 +69,7 @@ Emit: `Mobile matrix: <N> devices (iOS: <n>, Android: <n>).`
 
 ### Step 4 — Run sub-checks
 
-Run each active sub-check in order (or concurrently per device under `--fast`):
+Run each active sub-check in order within this bucket's subagent:
 
 1. **Widget/unit** — `flutter test` (or `fvm flutter test`). No device required.
 2. **Integration (per device)** — `flutter test integration_test/ -d <device-id>`. Run on each device in the matrix.

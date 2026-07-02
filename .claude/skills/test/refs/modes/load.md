@@ -1,6 +1,6 @@
 # test — Load bucket
 
-**When it runs:** fifth bucket — after QA (sequential), or concurrently with other buckets (`--fast`).
+**When it runs:** fifth bucket in `--sequential` order — after QA. Under the default parallel dispatch it is carved out of the concurrent batch and runs **isolated** as its own subagent — not overlapping other buckets or `perf` — so CPU/network contention can't skew its throughput/timing numbers.
 
 **What it checks:** performance under load — throughput, latency percentiles, and error rate against configured thresholds.
 

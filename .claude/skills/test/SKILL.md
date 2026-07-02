@@ -6,7 +6,8 @@ description: >
   mobile (Flutter/Dart, Android + iOS), and coverage gate buckets via
   detected runners. Per-mode flags (--unit, --e2e, --functional, --qa,
   --load, --a11y, --perf, --api, --mobile, --coverage) target individual
-  buckets; --fast runs all selected buckets in parallel. --init profiles
+  buckets; selected buckets run in parallel as subagents by default
+  (--sequential forces the old in-order 1→10 run). --init profiles
   the codebase to recommend which test buckets, tools, and packages it
   needs, then writes a test.json cache the execution path reads. Accepts
   --eval-set to consume eval_set.json written by /review. --flaky <N>
@@ -58,10 +59,12 @@ When **no** mode flag is supplied, all applicable buckets run (existing default)
 
 **Execution flags:**
 
-- `--fast` — run all selected, non-skipped buckets **in parallel** rather than sequentially
+- `--sequential` — opt out of the default parallel dispatch and run selected, non-skipped buckets **in order 1→10** in-process, continuing past a failing bucket (the pre-parallel behavior, useful for debugging one bucket at a time). Parallel subagent dispatch is the default; this flag is the only way back to sequential.
 - `--flaky <N>` — retry each failing unit/e2e test up to `N` times before counting it as a real failure; a test that passes on any retry is reclassified as flaky rather than a hard failure. No effect on other buckets. See `refs/modes/unit.md` Step 3b / `refs/modes/e2e.md` Step 3b.
 
-Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_set.json --unit --e2e --fast --flaky 2`
+> **Removed:** `--fast` no longer exists — parallel execution is now the unconditional default, so there is nothing for it to toggle. If passed, it is ignored with a printed note (`--fast is removed — parallel is the default; use --sequential for in-order runs`); it is not a hard error.
+
+Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_set.json --unit --e2e --sequential --flaky 2`
 
 **Hard refusals (execution path):** does NOT modify source code; does NOT write outside `features/` and `/tmp/`; makes exactly ONE `AskUserQuestion` call (Step 3 gate).
 
@@ -220,10 +223,10 @@ Emit: `Eval-set: <N> executable assertions.`
 
 ### Step 3/5 — Confirm and gate ← sole AskUserQuestion call
 
-Show execution plan. Omit any bucket that is mode-flag-excluded, has a `null` runner, or has an empty `eval_set`. If `--fast` is set, append `[parallel]` to the header line; if `--flaky <N>` is set, append `[flaky ×N]`. For any bucket marked surface-skip-eligible at Step 1b, show it with a `skipped — <reason>` line instead of its command.
+Show execution plan. Omit any bucket that is mode-flag-excluded, has a `null` runner, or has an empty `eval_set`. Append `[parallel]` to the header line by default; append `[sequential]` instead when `--sequential` is set. If `--flaky <N>` is set, append `[flaky ×N]`. For any bucket marked surface-skip-eligible at Step 1b, show it with a `skipped — <reason>` line instead of its command.
 
 ```
-Test execution plan  [parallel] [flaky ×2]        ← tags only shown with --fast / --flaky <N>
+Test execution plan  [parallel] [flaky ×2]        ← [parallel] by default, [sequential] with --sequential; [flaky ×N] only with --flaky <N>
 Unit/Integration  → <test_runner.command> (<N> changed files)
 E2E               → <e2e_runner.command>
 Functional        → <N> executable assertions via /tmp scripts
@@ -240,7 +243,7 @@ Options: **Proceed** / **Skip bucket(s)** (user names which to skip; continue wi
 
 No further `AskUserQuestion` calls.
 
-### Step 4/5 — Run buckets in order (or in parallel with `--fast`)
+### Step 4/5 — Dispatch buckets as parallel subagents (default) or in order (`--sequential`)
 
 **Skip a bucket if any of these are true:**
 - A mode flag (`--unit`, `--e2e`, `--functional`, `--qa`, `--load`, `--a11y`, `--perf`, `--api`, `--mobile`, `--coverage`) was supplied and this bucket's flag was NOT included.
@@ -261,9 +264,13 @@ No further `AskUserQuestion` calls.
 | 9 | Mobile | `--mobile` | `refs/modes/mobile.md` | `mobile_runner` is `null` |
 | 10 | Coverage | `--coverage` | `refs/modes/coverage.md` | `coverage_runner` is `null` |
 
-**Sequential (default):** run in order 1→10; proceed to the next bucket even if a prior one fails or errors.
+**Parallel subagent dispatch (default):** activate each selected, non-skipped bucket as its own parallel subagent via the `Agent` tool — mirroring the dispatch language `plan-em` uses for `eng` agents ("Activate each approved agent as a parallel subagent via the `Agent` tool"). Each subagent runs exactly one bucket per its mode ref and writes that bucket's JSON to `/tmp/test-<runid>/<bucket>.json`. Do not wait for one to finish before starting the next.
 
-**Parallel (`--fast`):** start all selected, non-skipped buckets concurrently; collect all findings before aggregating. Do not wait for one to finish before starting the next.
+- **Resource isolation for `load` and `perf`:** these two buckets are carved out of the concurrent batch. Dispatch the remaining selected buckets (unit, e2e, functional, qa, a11y, api, mobile, coverage) fully parallel; run `load` and `perf` **on their own** — not competing with other buckets, and not with each other — so CPU/network contention can't skew their timing/throughput numbers. (Concretely: run the non-load/perf batch to completion, then run load and perf isolated, or otherwise guarantee neither overlaps another bucket.)
+- **Concurrency cap:** if more buckets are selected than the subagent dispatch limit, the excess queue and run as slots free — never a dispatch failure.
+- **Degenerate selections (fall out of the rules above, no special-casing needed):** a single selected bucket dispatches as a batch of one (the load/perf isolation rule still applies to it); if only `load`/`perf` are selected there is no concurrent batch at all, just the isolated run(s); if neither `load` nor `perf` is selected the isolation carve-out is a no-op and the concurrent batch runs alone; a skipped/surface-pruned bucket is never dispatched; if no buckets are selected nothing is dispatched and Step 5 aggregates an empty set.
+
+**Sequential (`--sequential`):** run in order 1→10 in-process (no subagents); proceed to the next bucket even if a prior one fails or errors. This is the pre-parallel behavior, retained for debugging one bucket at a time.
 
 **Bucket-level error rule:** a runner crash, missing binary, unreachable target, or auth failure within a bucket produces `pass_with_warnings` for that bucket — never `fail`. This prevents a broken CI environment from falsely blocking a merge. Each bucket's mode ref defines its specific error table; the top-level verdict aggregates across all completed buckets as normal.
 
@@ -271,7 +278,11 @@ No further `AskUserQuestion` calls.
 
 Do NOT compute the overall verdict or hand-merge the bucket JSON. Throughout Step 4, each bucket's final JSON is written to `/tmp/test-<runid>/<bucket>.json` (recognised buckets: `unit`, `e2e`, `functional`, `qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`). Skipped buckets are simply not written.
 
-**Write isolation under `--fast`:** the bucket name is baked into every path a bucket writes to — the final JSON (`/tmp/test-<runid>/<bucket>.json`) and any bucket-owned scratch dir (e.g. Functional's `/tmp/test-functional-<runid>/`, Mobile's per-device artifact paths). No two buckets ever share a filename or directory, so concurrent buckets under `--fast` cannot clobber each other's output or scratch files even though they run at the same time. If a future bucket needs scratch space, it must namespace it under its own bucket name the same way — never write to a shared, bucket-agnostic path.
+**Stream verdicts as subagents return:** under the default parallel dispatch, report each bucket's verdict to the user the moment its subagent returns (a one-line `<bucket> → <verdict>` as each completes), rather than withholding all output until the run ends. Once **every** dispatched subagent — including the isolated `load`/`perf` pair — has returned, run the final aggregation pass exactly **once** over all bucket JSON outputs (below). Under `--sequential` there is nothing to stream — buckets already complete in order — so just aggregate at the end.
+
+**Missing/failed subagent output (does not abort aggregation):** if a *dispatched* bucket's subagent returns without writing a valid `/tmp/test-<runid>/<bucket>.json` (crash, killed, wrote nothing), record that bucket as `pass_with_warnings` with a finding noting the missing output, and proceed — the final aggregation still runs over the remaining buckets. A dispatched bucket is never silently dropped; only *skipped* buckets (mode-flag-excluded, `null` runner, surface-pruned, user-skipped) are legitimately absent.
+
+**Write isolation:** the bucket name is baked into every path a bucket writes to — the final JSON (`/tmp/test-<runid>/<bucket>.json`) and any bucket-owned scratch dir (e.g. Functional's `/tmp/test-functional-<runid>/`, Mobile's per-device artifact paths). No two buckets ever share a filename or directory, so the concurrent subagents cannot clobber each other's output or scratch files even though they run at the same time. If a future bucket needs scratch space, it must namespace it under its own bucket name the same way — never write to a shared, bucket-agnostic path.
 
 Then invoke the aggregator:
 
@@ -281,7 +292,7 @@ S=.claude/scripts/test-aggregate-verdict.sh; [ -f "$S" ] || S="$HOME/.claude/scr
   --run-dir /tmp/test-<runid> \
   [--prd <path>] \
   [--eval-set <path>] \
-  [--parallel]                # only when --fast was used
+  [--parallel]                # default dispatch is parallel — pass this unless --sequential was used
 ```
 
 The script:

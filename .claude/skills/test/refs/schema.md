@@ -28,7 +28,7 @@ Skipped buckets (runner not detected, eval_set empty, mode-flag-excluded, or use
 ### Top-level fields
 
 - `verdict` — overall verdict across all completed buckets.
-- `parallel` — `true` if `--fast` was used, `false` otherwise.
+- `parallel` — `true` for the default parallel subagent dispatch; `false` only when `--sequential` was used.
 - `prd` — path to the PRD used for eval_set bootstrap, or `null` if not applicable.
 - `eval_set_path` — path to the `eval_set.json` consumed (from `--eval-set` flag or `null`).
 
