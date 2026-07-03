@@ -40,7 +40,11 @@ Stop. Otherwise read the active mode file **fully** before any other step. It de
 
 ## Step 1 — Input validation
 
-All modes require four fields. Hard-refuse if any is missing:
+There are two input sources. The **PRD/exec-table source** is the default for every mode; the **`test-json` source** is an alternate available on `--build` only.
+
+### PRD/exec-table source (all modes)
+
+Requires four fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
@@ -57,7 +61,28 @@ Hard failure: missing required field(s): <list>. Provide the mode flag, prd-path
 
 Stop. Do not proceed. The active mode file may add mode-specific input rules — apply those too.
 
-Eng derives all file paths from the codebase scan and exec-table. It does **not** accept file paths as input.
+### `test-json` source (`--build` only)
+
+`--build` accepts `test-json=<path to msg-test/test-N.json>` as an **alternate to `prd-path`+`rows`** — a bug list written by `/test` Step 6 instead of an exec-table. This path exists on `--build` only: **`--plan` (and `--todo`) with `test-json` is rejected** (`Hard failure: test-json is a --build-only input source`) — proposing a design or a todo breakdown against a bug list is out of scope. When `test-json` is supplied to `--build`, the required-field set becomes:
+
+| Field | Value |
+|-------|-------|
+| mode flag | `--build` |
+| `test-json` | Path to the `msg-test/test-N.json` file whose `issues[]` this build resolves |
+| `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see `refs/build/protocol.md`); must still exist before work starts |
+| `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
+
+Supplying **both `prd-path` and `test-json`** is a hard failure — ambiguous input source:
+
+```
+Hard failure: pass either prd-path+rows or test-json, not both (ambiguous input source).
+```
+
+A `test-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: test-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
+
+### Path derivation (both sources)
+
+Eng derives all *implementation* file paths from the codebase scan and the spec (exec-table or projected issue-tickets). `test-json`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
 
 ---
 
@@ -65,7 +90,10 @@ Eng derives all file paths from the codebase scan and exec-table. It does **not*
 
 Before producing any output, read the PRD, all devkit files, and all relevant codebase files in parallel — a single consolidated scan.
 
-**PRD + exec-table:** Read the full PRD at `prd-path`. Locate the Execution Table. Select rows whose **Feature** column text exactly matches one of the assigned `rows` identifiers. A `rows` identifier that matches no Feature cell is a hard failure — emit it and stop. For each selected row, confirm its **Agent** column equals the `agent` field; if a matched row is owned by a different agent, that is a hard failure — emit it and stop.
+**Spec source — PRD/exec-table (default) or `test-json` (build alternate):**
+
+- **PRD + exec-table:** Read the full PRD at `prd-path`. Locate the Execution Table. Select rows whose **Feature** column text exactly matches one of the assigned `rows` identifiers. A `rows` identifier that matches no Feature cell is a hard failure — emit it and stop. For each selected row, confirm its **Agent** column equals the `agent` field; if a matched row is owned by a different agent, that is a hard failure — emit it and stop.
+- **`test-json` (build only):** Read the `msg-test/test-N.json` file. Take its `issues[]` array — canonical finding objects — and **project each finding into an issue-ticket** per the shared mapping in `refs/todo/template-todo.md` (**Finding → issue-ticket projection**). Each projected ticket (keyed by the finding `id`, e.g. `unit-002`, `kind: "issue"`) **stands in for an exec-table row** — the rest of build mode walks one ticket model regardless of input source. There is no exec-table, no `rows` identifiers, and no `## Engineering —` / **Agent** ownership to confirm. If the file's `context.prd` is a real PRD path, read it for cross-reference as normal; if `context.prd` is `null` (an ad hoc branch run), **skip only that PRD cross-reference** — everything else in Step 2 proceeds unchanged.
 
 **Devkit files** (read in parallel with PRD):
 

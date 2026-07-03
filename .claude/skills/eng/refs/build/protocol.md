@@ -8,11 +8,16 @@ This file defines the build-mode specifics only. The shared protocol — input v
 
 ## Input contract (build-specific)
 
-Beyond the shared four (`--build`, `prd-path`, `rows`, `agent`), build mode requires one additional field, plus one optional commit-mode field:
+Build mode has two input sources (resolved at `SKILL.md` Step 1):
+
+- **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
+- **`test-json`** (alternate): `--build`, `test-json=<path to msg-test/test-N.json>`, `branch`, and optional `agent` (defaults to `eng-fix`). Drives the build from a `/test` bug list instead of an exec-table — see **Fixing from `test-json`** below.
+
+Either way, build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|
-| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. |
+| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `test-json` source, if `branch` is not passed it defaults to the file's own `context.branch` (see **Branch contract**). |
 | `commit_mode` | *(optional)* `direct` or `sub-branch`. Default `direct`. See **Branch contract** below. |
 
 ### Branch contract (what `branch` means)
@@ -33,7 +38,9 @@ If `commit_mode` is absent, default to `direct`.
 /eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
-**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the sub-PRD parent-aware derivation above (read the PRD frontmatter's `parent:` field). Only if `branch` is still unresolved — no explicit value and no `parent:` frontmatter — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
+**`test-json` source — `branch` defaults to `context.branch`.** When build is driven by `test-json` and `branch` is not explicitly passed, default it to the file's own `context.branch` — the branch `/test` was already running against when it found the issues — rather than asking the user to repeat what the file records. The `branch`-must-exist rule below still applies unchanged: a defaulted branch that doesn't exist is still a hard failure at Work-step 1.
+
+**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `test-json`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `test-json` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
 
 ---
 
@@ -58,6 +65,20 @@ The 3–4 line summary covers:
 - **Neither todos nor a resolvable execution-table row** for an assigned F-ID → hard stop (no scope to build), consistent with the existing missing-input hard-refusals: emit `Hard failure: no todos and no execution-table row for '<F-ID>' — nothing to build` and stop.
 
 In all cases the PRD's `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers; the todos are the executable breakdown of that section. Do not re-interpret the PRD features section directly.
+
+### Fixing from `test-json` (issue-ticket source)
+
+When build is driven by `test-json` instead of an exec-table, the numbered work steps below still run, with these deltas — the spec is a **bug list**, not a feature to build, so there is no red test to write (it already exists — it's literally what `/test` recorded):
+
+- **Item 0 is skipped entirely.** There is no exec-table and no `## Engineering —` section to cross-check against.
+- **Item 2 reads each issue, not Execution steps.** For each projected issue-ticket (from Step 2's projection of `issues[]`), read the finding's `message`, `evidence.snippet`, and `repro` — that triad *is* the spec for the fix.
+- **Item 4's TDD flow collapses from four phases to three**, because the failing test already exists. Per issue, in `priority` order (`P0`→`P1`→`P2`; findings carry no `depends-on`, so priority alone orders them):
+  - **(a) reproduce** — run the issue's `repro` command (or exercise the covering test) and confirm it still fails the same way. This replaces "write tests" + "verify red".
+  - **(b) fix** — implement the change, applying `/cook` standards exactly as today (Item 4c).
+  - **(c) verify green** — re-run `repro`, then the covering test file, same as the existing verify-green phase (Item 4d). A still-failing issue enters Debug mode unchanged.
+- **Flaky issues are not forced.** An issue carrying `evidence.flaky: true` (a `--flaky <N>`-classified warning, not a confirmed break) is fixed **only if phase (a) surfaces a clear, reproducible root cause**. If it won't reproduce, leave it noted in the build summary (`⚠ flaky — not reproduced, left as-is`) rather than forcing a green — that is the whole point of flaky-classification.
+- **Debug mode and its 3-cycle escalation apply per issue**, exactly as they do per row.
+- **The build summary table is keyed by `Issue`** (see Output contract) and, on completion, `eng --build` **writes the loop closed** in the `test-json` file (see Closing the loop below).
 
 0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
    - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
@@ -196,6 +217,23 @@ Emit a build summary after all rows are complete:
 **AHA entries:** <list any entries written to devkit/AHA.md, or "None">
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
 ```
+
+**`test-json` source — table keyed by `Issue`.** When the build was driven by `test-json`, swap the summary table's **`Row`** column for **`Issue`** (the finding `id`, e.g. `unit-002`); keep `Files created`, `Files modified`, `Tests`, and `Status` as-is:
+
+```markdown
+| Issue | Files created | Files modified | Tests | Status |
+|-------|--------------|---------------|-------|--------|
+| unit-002 | — | `src/streak.ts` | ✅ repro green | ✅ Done |
+```
+
+### Closing the loop (`test-json` source only)
+
+On completion, `eng --build` **updates the `test-json` file's own `follow_up.status`** so the ticket reflects that it was acted on rather than sitting permanently `open`:
+
+- every issue verified green → `"resolved"`
+- one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `"partially_resolved"`
+
+This is the **only** write build mode makes to `msg-test/test-<n>.json`; the `issues[]` array and every other field stay untouched (the file remains canonical findings — the projection was read-time only). The `--gui` board reads this `followUp.status` back to render an honest Open/Resolved state per test-issue card.
 
 **Constraints:**
 - Use the PRD's `## Engineering — <Agent Name>` section as the sole specification.

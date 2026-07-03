@@ -45,6 +45,18 @@ exist). For each, locate its PRD markdown (`prd-*.md` in that folder) and parse:
 
 Never write or modify any PRD file (criterion 14).
 
+## Step 1b — Collect persistent test issues (read-only)
+
+After enumerating `features/prd-*/`, also glob `msg-test/test-*.json` at the **repo root** — the persistent issue tickets `/test` Step 6 writes on a non-clean run. **If `msg-test/` is absent, skip this step cleanly** (it only exists once a non-clean run has occurred): `testIssues[]` is simply empty and the board still renders (edge case 5).
+
+For each `msg-test/test-<n>.json`:
+
+1. Parse the file (canonical findings — the shape in `.claude/skills/test/refs/schema.md`). If a file is unparseable, add `{ path, reason }` to `skipped[]` and keep going — same posture as a malformed PRD.
+2. **Project each finding in `issues[]` into an issue-ticket** per the shared mapping in `.claude/skills/eng/refs/todo/template-todo.md` (**Finding → issue-ticket projection**). Every projected ticket carries `kind: "issue"` plus the preserved diagnostic fields (`severity`, `category`, `rule`, `repro`, `evidence.snippet`, `suggestion`, `evidence.flaky`). This is a **read-time view** — never write the projection back to the file.
+3. Emit one `testIssues[]` entry per file (shape in Step 3).
+
+This projection is the *same* mapping `eng --build` applies — defined once in `template-todo.md` so the board and the fixer never drift.
+
 ## Step 2 — Infer completion status (criterion 19)
 
 For each PRD derive a `completion` bucket from observable signals, most-authoritative last,
@@ -95,6 +107,26 @@ Assemble one JSON object. This is the exact shape `refs/gui/index.html` expects:
       ]
     }
   ],
+  "testIssues": [
+    {
+      "file": "msg-test/test-1.json",
+      "runId": 1,
+      "verdict": "fail",
+      "context": { "prd": "features/prd-100-calendar-scheduling/prd-100-calendar-scheduling.md", "branch": "feat/prd-100-calendar-scheduling", "base": "main" },
+      "summary": { "failed": 2, "flaky": 1, "warnings": 0 },
+      "followUp": { "status": "open" },
+      "tickets": [
+        { "kind": "issue", "id": "unit-002", "title": "expected streak to persist across days",
+          "objective": "Restore correct behavior — expected streak to persist across days",
+          "type": "test", "priority": "P0",
+          "files": [ { "path": "src/streak.ts", "action": "edit" } ],
+          "dependsOn": [], "doneWhen": "`npm test -- streak` passes and the covering test file is green",
+          "severity": "blocker", "category": "unit", "rule": "streak persists across days",
+          "repro": "npm test -- streak", "evidence": { "snippet": "Expected 1 to be 2" },
+          "suggestion": "reset streak only when a day is missed", "flaky": false }
+      ]
+    }
+  ],
   "skipped": [ { "path": "features/prd-77/prd-77.md", "reason": "unparseable frontmatter" } ]
 }
 ```
@@ -105,6 +137,13 @@ Notes:
 - `detail` is the raw PRD body (everything after the frontmatter). The GUI shows it in a
   collapsible block and escapes it — do not pre-render HTML.
 - `completion` must be one of `product | eng | building | review | shipped`.
+- `testIssues[]` — one entry per `msg-test/test-<n>.json` (Step 1b). `verdict` is
+  `fail | pass_with_warnings`; `followUp.status` is `open | resolved | partially_resolved`
+  (written back by `eng --build` — the board **renders** it, never invents it). Each `tickets[]`
+  entry is a projected issue-ticket (`kind: "issue"`) carrying the same positional fields a todo
+  has (`id`/`title`/`objective`/`type`/`priority`/`files`/`dependsOn`/`doneWhen`) **plus** the
+  preserved diagnostic fields (`severity`, `category`, `rule`, `repro`, `evidence.snippet`,
+  `suggestion`, `flaky`). Absent `msg-test/` → `testIssues: []` (edge case 5).
 
 ## Step 4 — Fill the templates
 
@@ -142,8 +181,18 @@ across every project; it is **not** sourced from `devkit/DESIGN-SYSTEM.md` (crit
 
 ---
 
+## Test Issues surface + PRD cross-link (rendering)
+
+- **A distinct surface, not a PRD column.** Because a test issue may have no PRD (`context.prd: null`), `testIssues[]` render in their own **Test Issues** grouping on the board — one card per `msg-test/test-<n>.json` showing its `runId`, a `fail`/`pass_with_warnings` verdict pill, the `summary` counts, and the `followUp.status`.
+- **Every ticket is tagged by `kind`.** Todos render as before; issue-tickets get a distinct **🐞 Bug / Test issue** tag, surface `severity` as a coloured pill (not just `priority`), and expose `repro` + `evidence.snippet` in the side panel.
+- **Real done-state for issues.** Unlike a todo (no stored done-state → always **Open**), an issue-ticket's `followUp.status` is written back by `eng --build`, so a Test Issues card shows an honest Open/Resolved state and a real progress fraction — the GUI renders a field the file already carries, never inventing state.
+- **PRD cross-link (criterion 31).** When a `testIssues[]` entry's `context.prd` matches an enumerated PRD's path, its `tickets[]` **also** surface on that PRD's detail page inside the TODOs section, tagged `kind: "issue"` so they read as bugs against the PRD rather than build work. A `context.prd` matching no enumerated PRD appears only in the Test Issues surface (edge case 6).
+
 ## What this protocol never does
-- Never writes or edits a PRD (pure read model, criterion 14 / 24).
-- Never invents or persists todo done-state — with no stored field, all todos show as **Open**
-  and progress reads `0/N` only where todos exist (never `0/0`; edge cases 3, 5).
+- Never writes or edits a PRD (pure read model, criterion 14 / 24), and never writes back to a
+  `msg-test/test-<n>.json` file — the finding→ticket projection is read-time only; `followUp.status`
+  is written solely by `eng --build`, and the board merely renders it.
+- Never invents or persists **todo** done-state — with no stored field, all todos show as **Open**
+  and progress reads `0/N` only where todos exist (never `0/0`; edge cases 3, 5). **Issue** done-state
+  is different: it is read from the file's `followUp.status`, not invented.
 - Never binds to anything but `127.0.0.1` (criterion 6).

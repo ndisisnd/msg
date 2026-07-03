@@ -75,3 +75,48 @@ Each ticket is a bullet whose title line carries the ticket id and summary, foll
 6. **Empty features are explicit.** A feature whose scope yields no discrete work still gets a `### F<n>` block containing the single line `_No discrete work for this feature._` — never a missing block. This keeps the execution table's `#todos-f<n>` anchor resolvable.
 7. **F-IDs stay aligned with the exec table.** Every `### F<n>` under `## Todos` must correspond to an F-ID that has execution-table rows, and vice versa. A mismatch is a coverage gap surfaced by `protocol-todo.md`.
 8. **Ticket, not narrative.** Keep each ticket to its fields. Design rationale belongs in the `## Engineering — <Agent>` section; the ticket carries only what's needed to execute and verify it.
+
+---
+
+## The `kind` discriminator
+
+Every ticket — whether it originates from a PRD feature (`--todo` mode above) or from a test/review finding (below) — carries a `kind` field so a consumer (`--build`, the `--gui` board) can always tell a build todo apart from a bug:
+
+| `kind` | Origin | Id shape |
+|--------|--------|----------|
+| `"todo"` | a PRD `## Todos` `### F<n>` block (the schema above) | `F<n>-T<k>` |
+| `"issue"` | a canonical finding in `msg-test/test-<n>.json` (the projection below) | the finding `id`, e.g. `unit-002` |
+
+A ticket with no explicit `kind` is a `"todo"` (back-compat: every `## Todos` block written before this field existed is a todo). The id shape alone is a secondary signal — an `F<n>-T<k>` id is a todo, any other shape is an issue — but `kind` is authoritative.
+
+---
+
+## Finding → issue-ticket projection
+
+`msg-test/test-<n>.json` (written by `/test` Step 6) stores **canonical finding objects** — the same shape `/review` and `/pre-merge` emit, defined in `../../shared/refs/finding-schema.md`. To let `eng --build` walk those findings with the same ticket vocabulary a `--todo` build uses, and to let the `--gui` board render them beside PRD todos, each finding is **projected** into an issue-ticket through the single mapping below.
+
+This projection is cited by **both** `eng --build` (its `test-json` input path — see `refs/build/protocol.md`) and the `--gui` board (`msg/refs/protocol-gui.md` Step 1b). Defining it once here keeps the two consumers from drifting.
+
+**It is a read-time view, never a rewrite.** `msg-test/test-<n>.json` stays canonical findings on disk — the projection is applied in memory each time a finding is consumed. Findings are never re-serialized into ticket shape, so `/review`↔`/test`↔`/pre-merge` interop and the shared dedup/regression keys (`id`, `rule`, `regression_of`) are untouched.
+
+### Field mapping
+
+| Issue-ticket field | Source (canonical finding) |
+|--------------------|----------------------------|
+| `kind` | literal `"issue"` |
+| `id` | finding `id` **verbatim** (`unit-002`) — its non-`F<n>-T<k>` shape itself signals an issue, and keeps `depends-on`/dedup handles stable |
+| `title` | finding `message` |
+| `objective` | synthesized `Restore correct behavior — <message>` (prefer `suggestion` when present). Does **not** trace to a PRD user story — a bug's intent is the fix, and `context.prd` is often `null` |
+| `type` | mapped from `category`: test buckets (`unit`, `e2e`, `functional`, `qa`, `a11y`, `api`, `mobile`, `coverage`, `load`, `perf`, `integration`, `contract`) → `test`; review concerns (`security`, `performance`, `complexity`, …) → `code` |
+| `priority` | mapped from `severity`: `blocker`→`P0`, `high`→`P1`, `medium`/`low`→`P2` |
+| `files` | `[{ path: <finding.file>, action: "edit" }]`, or `[]` when `file` is `null` (suite-level finding). `action` is always `edit` — `file` is where the *symptom* was observed, not a command to edit that path; Step 2's codebase scan still resolves the real target |
+| `depends-on` | `none` — findings carry no dependency graph |
+| `done-when` | `<repro> passes and the covering test file is green` (from `repro`; when `repro` is `null`, `the finding no longer reproduces`) |
+
+### Preserved diagnostic fields
+
+A todo has no slot for these, but a bug needs them for the fix flow and the GUI side panel, so they ride **alongside** the projected fields on the issue-ticket (copied verbatim from the finding, never dropped):
+
+`severity`, `category`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, and `evidence.flaky`.
+
+`evidence.flaky: true` in particular changes how `eng --build` treats the ticket (fix only if a reproducible root cause surfaces — see `refs/build/protocol.md`) and how `--gui` tags it, so it must survive the projection.
