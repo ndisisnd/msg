@@ -25,7 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 ## 🗂️ Skills
 
-Run `/msg` to browse these interactively, or invoke any skill directly.
+Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, browse project docs, and run Claude prompts — served on `127.0.0.1` only.
 
 ### 📐 Plan
 

@@ -14,7 +14,7 @@ allowed_tools:
 
 **Invoke**: `/msg` — two-step category → skill picker.
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
-**Invoke**: `/msg --gui` (or `/msg gui`) — launch the local read-only PRD Kanban/List board.
+**Invoke**: `/msg --gui` (or `/msg gui`) — launch the local interactive PRD board (Kanban/List, editing, todos, prompt console, project docs).
 
 ## Skills
 
@@ -64,11 +64,14 @@ Before running any picker, check the invocation:
 
 ## Protocol: --gui
 
-Dispatch to [`refs/protocol-gui.md`](refs/protocol-gui.md) and follow it end to end: enumerate
-`features/prd-*/`, parse frontmatter + F-IDs + any `## Todos`, infer each PRD's completion
-status, fill the `refs/gui/` HTML/CSS templates with the collected data, serve the result
-GET-only on `127.0.0.1`, and open the browser. The board is a pure read model — nothing is
-editable and no PRD file is written.
+Dispatch to [`refs/protocol-gui.md`](refs/protocol-gui.md) and follow it end to end. Default
+is **interactive mode**: launch `refs/gui/server.py` bound to `127.0.0.1` and open the browser —
+the server parses `features/prd-*/` (frontmatter + F-IDs + `## Todos`), infers completion, and
+serves a Linear/Jira-style board where the user can edit PRD bodies, change status (dropdown or
+drag-and-drop), toggle todos, browse project docs (README, CLAUDE.md, `devkit/`), and run
+Claude prompts from a console. Writes are confined to `features/prd-*/` markdown. When a
+read-only snapshot is wanted (or `python3` is unavailable), fall back to the static
+template + data-fill path — same board, editing hidden, nothing ever written.
 
 ---
 

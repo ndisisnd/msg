@@ -69,7 +69,7 @@ Every skill is invoked directly and standalone; a skill's end-of-run gate recomm
 | `test` | Yes |
 | `pre-merge` | Yes |
 | `msg-init` | Yes |
-| `msg` | Yes (interactive skill browser) |
+| `msg` | Yes (interactive skill browser; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
 
 ## Cook integration
