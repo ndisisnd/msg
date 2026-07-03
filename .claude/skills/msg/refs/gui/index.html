@@ -32,10 +32,35 @@
 "use strict";
 
 /* ---- Load inline data ---------------------------------------------------- */
-var DATA = { prds: [], skipped: [] };
+var DATA = { prds: [], testIssues: [], skipped: [] };
 try { DATA = JSON.parse(document.getElementById("prd-data").textContent) || DATA; }
-catch (e) { DATA = { prds: [], skipped: [], _parseError: String(e) }; }
+catch (e) { DATA = { prds: [], testIssues: [], skipped: [], _parseError: String(e) }; }
 var PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
+var TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+
+/* ---- Test-issue helpers (Feature 6) -------------------------------------- */
+function findIssueFile(runId) {
+  return TEST_ISSUES.filter(function (t) { return String(t.runId) === String(runId); })[0];
+}
+// Per-ticket done-state is honest, not invented: derived only from the file's
+// followUp.status (resolved → done; open/partially_resolved → open). The card
+// still shows the real followUp.status pill so "partially_resolved" reads clearly.
+function issueFollowStatus(tf) { return (tf && tf.followUp && tf.followUp.status) || "open"; }
+function ticketDone(tf) { return issueFollowStatus(tf) === "resolved"; }
+// Return issue-tickets (kind:"issue") whose file's context.prd points at PRD p.
+function crossLinkedIssues(p) {
+  var out = [];
+  TEST_ISSUES.forEach(function (tf) {
+    var prd = tf.context && tf.context.prd;
+    if (!prd) return;
+    if (String(prd).indexOf(p.id) >= 0 || (p.path && String(prd).indexOf(p.path) >= 0)) {
+      (tf.tickets || []).forEach(function (t) {
+        out.push(Object.assign({ _fid: null, _feature: "test " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
+      });
+    }
+  });
+  return out;
+}
 
 /* ---- Completion buckets (criterion 17, 19) ------------------------------- */
 var BUCKETS = [
@@ -123,6 +148,7 @@ function renderList() {
   if (PRDS.length === 0) {                        // edge case 1 — empty board
     root.appendChild(el('<div class="empty-state"><div class="big">No PRDs yet</div>' +
       'Nothing under <code>features/prd-*/</code>. Run <code>/plan-pm</code> to create one.</div>'));
+    renderTestIssuesSection(root);                 // test issues can exist with no PRD (context.prd null)
     return;
   }
 
@@ -137,6 +163,58 @@ function renderList() {
   var body = el('<div id="list-body"></div>');
   root.appendChild(body);
   renderListBody(body);
+
+  renderTestIssuesSection(root);                   // Feature 6 — own grouping, not a PRD column
+}
+
+/* ---- Test Issues surface (Feature 6, criteria 26-30) --------------------- */
+function issueVerdictPill(v) {
+  var cls = v === "fail" ? "iv-fail" : "iv-warn";
+  return '<span class="pill dot ' + cls + '">' + esc(v || "?") + '</span>';
+}
+function followPill(s) {
+  var map = { resolved: "st-shipped", partially_resolved: "st-review", open: "muted" };
+  var label = s === "partially_resolved" ? "Partially resolved" : (s === "resolved" ? "Resolved" : "Open");
+  return '<span class="pill ' + (map[s] || "muted") + '">' + esc(label) + '</span>';
+}
+function issueProgressFrag(tf) {
+  var tickets = tf.tickets || [];
+  if (!tickets.length) return "";
+  var done = ticketDone(tf) ? tickets.length : 0;   // honest: file-level resolved → all done
+  var pct = Math.round((done / tickets.length) * 100);
+  return '<span class="progress"><span class="bar"><i style="width:' + pct + '%"></i></span>' +
+         done + '/' + tickets.length + '</span>';
+}
+function issueFileCard(tf) {
+  var s = tf.summary || {};
+  var counts = [];
+  if (s.failed)   counts.push(s.failed + ' failed');
+  if (s.flaky)    counts.push(s.flaky + ' flaky');
+  if (s.warnings) counts.push(s.warnings + ' warning' + (s.warnings === 1 ? '' : 's'));
+  var c = el(
+    '<div class="card issue-file-card" tabindex="0">' +
+      '<div class="title"><span class="num">test-' + esc(tf.runId) + '</span>' +
+        esc((tf.context && tf.context.branch) || tf.file || "") + '</div>' +
+      '<div class="meta">' +
+        issueVerdictPill(tf.verdict) +
+        (counts.length ? '<span class="pill muted">' + esc(counts.join(" · ")) + '</span>' : '') +
+        followPill(issueFollowStatus(tf)) +
+        issueProgressFrag(tf) +
+      '</div>' +
+    '</div>'
+  );
+  function go() { location.hash = "#/issues/" + encodeURIComponent(tf.runId); }
+  c.addEventListener("click", go);
+  c.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  return c;
+}
+function renderTestIssuesSection(container) {
+  if (!TEST_ISSUES.length) return;                 // absent msg-test/ → nothing here (edge case 5)
+  container.appendChild(el('<div class="section-title">🐞 Test Issues ' +
+    '<span class="n" style="color:var(--text-faint)">' + TEST_ISSUES.length + '</span></div>'));
+  var grid = el('<div class="issue-grid"></div>');
+  TEST_ISSUES.forEach(function (tf) { grid.appendChild(issueFileCard(tf)); });
+  container.appendChild(grid);
 }
 
 function visiblePrds() {
@@ -276,10 +354,13 @@ function renderDetail(id) {
   );
   root.appendChild(det);
 
-  // TODO section (criterion 21-23)
-  root.appendChild(el('<div class="section-title">Todos</div>'));
+  // TODO section (criterion 21-23) + cross-linked test issues (criterion 31)
   var todos = allTodos(p);
-  if (!p.hasTodos || todos.length === 0) {         // edge case 3 / no F2 output yet
+  var xIssues = crossLinkedIssues(p);              // issue-tickets whose context.prd matches this PRD
+  var combined = todos.concat(xIssues);
+  root.appendChild(el('<div class="section-title">Todos' +
+    (xIssues.length ? ' &amp; issues' : '') + '</div>'));
+  if (combined.length === 0) {                      // edge case 3 / no F2 output yet
     root.appendChild(el('<div class="empty-state">No todos for this PRD. ' +
       '<span class="prose dim">(Run <code>plan-em</code> with the todo layer enabled to generate them.)</span></div>'));
     return;
@@ -288,7 +369,70 @@ function renderDetail(id) {
   var toolbar = el('<div class="toolbar"></div>');
   toolbar.appendChild(seg("todoView", function () { renderDetail(id); }, [["kanban", "Kanban"], ["table", "Table"]]));
   root.appendChild(toolbar);
-  root.appendChild(state.todoView === "kanban" ? todoKanban(p, todos) : todoTable(p, todos));
+  root.appendChild(state.todoView === "kanban" ? todoKanban(p, combined) : todoTable(p, combined));
+}
+
+/* ========================================================================= */
+/*  TEST-ISSUE DETAIL PAGE  (Feature 6, criteria 28-30)                      */
+/* ========================================================================= */
+function renderIssueDetail(runId) {
+  var tf = findIssueFile(runId);
+  root.innerHTML = "";
+  if (!tf) {
+    root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a></div>'));
+    root.appendChild(el('<div class="empty-state"><div class="big">Test issue not found</div>test-' + esc(runId) + '</div>'));
+    return;
+  }
+
+  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 test-' +
+    esc(tf.runId) + '</span></div>'));
+
+  var ctx = tf.context || {};
+  var s = tf.summary || {};
+  var counts = [];
+  if (s.failed)   counts.push(s.failed + ' failed');
+  if (s.flaky)    counts.push(s.flaky + ' flaky');
+  if (s.warnings) counts.push(s.warnings + ' warning' + (s.warnings === 1 ? '' : 's'));
+
+  root.appendChild(el(
+    '<div class="detail-head">' +
+      '<h2><span class="num" style="color:var(--text-faint);font-weight:500;margin-right:8px">test-' + esc(tf.runId) + '</span>' +
+        'Test issues</h2>' +
+      '<div class="meta">' +
+        issueVerdictPill(tf.verdict) +
+        followPill(issueFollowStatus(tf)) +
+        (counts.length ? '<span class="pill muted">' + esc(counts.join(" · ")) + '</span>' : '') +
+        (ctx.branch ? '<span class="pill plat">' + esc(ctx.branch) + '</span>' : '') +
+        (ctx.base ? '<span class="pill">base: ' + esc(ctx.base) + '</span>' : '') +
+      '</div>' +
+      (ctx.prd
+        ? '<div class="prose dim" style="margin-top:10px;font-size:var(--fs-sm)">PRD: ' + esc(ctx.prd) +
+          (findPrdByCtx(ctx.prd) ? ' — also shown on <a class="xlink" href="#/prd/' + esc(findPrdByCtx(ctx.prd).id) + '">PRD-' + esc(findPrdByCtx(ctx.prd).num) + '</a>' : '') + '</div>'
+        : '<div class="prose dim" style="margin-top:10px;font-size:var(--fs-sm)">No PRD (ad hoc branch run)</div>') +
+      '<div class="prose dim" style="margin-top:6px;font-size:var(--fs-sm)">Fix: <code>/eng --build test-json=' + esc(tf.file) + '</code></div>' +
+    '</div>'
+  ));
+
+  root.appendChild(el('<div class="section-title">Issues</div>'));
+  var tickets = (tf.tickets || []).map(function (t) {
+    return Object.assign({ _feature: "run " + tf.runId, done: ticketDone(tf) }, t);
+  });
+  if (!tickets.length) {
+    root.appendChild(el('<div class="empty-state">This ticket file has no issues.</div>'));
+    return;
+  }
+  var toolbar = el('<div class="toolbar"></div>');
+  toolbar.appendChild(seg("todoView", function () { renderIssueDetail(runId); }, [["kanban", "Kanban"], ["table", "Table"]]));
+  root.appendChild(toolbar);
+  root.appendChild(state.todoView === "kanban" ? todoKanban(tf, tickets) : todoTable(tf, tickets));
+}
+
+// Match a context.prd path back to an enumerated PRD (criterion 31 / edge case 6).
+function findPrdByCtx(prdPath) {
+  if (!prdPath) return null;
+  return PRDS.filter(function (p) {
+    return String(prdPath).indexOf(p.id) >= 0 || (p.path && String(prdPath).indexOf(p.path) >= 0);
+  })[0] || null;
 }
 
 /* TODO completion buckets — with no stored done-state, all render as Open (edge case 5) */
@@ -308,15 +452,27 @@ function ticketHeading(t) {
   return (id ? id + " · " : "") + title;
 }
 
+function isIssue(t) { return t && t.kind === "issue"; }
+function sevPill(t) {
+  if (!isIssue(t) || !t.severity) return "";
+  return '<span class="pill sev-' + esc(t.severity) + '">' + esc(t.severity) + '</span>';
+}
+function kindTag(t) {
+  if (!isIssue(t)) return "";
+  return '<span class="pill kind-issue">🐞 ' + (t.flaky ? "Flaky" : "Bug") + '</span>';
+}
+
 function todoCard(t) {
   var files = ticketFiles(t);
   var c = el(
-    '<div class="card todo-card" tabindex="0">' +
+    '<div class="card todo-card' + (isIssue(t) ? ' issue-card' : '') + '" tabindex="0">' +
       '<div class="title">' + esc(ticketHeading(t)) +
         (t._feature ? ' <span class="prose dim">' + esc(t._feature) + '</span>' : '') + '</div>' +
       (t.objective ? '<div class="prose dim">' + esc(t.objective) + '</div>' : '') +
       '<div class="path">' + esc(files.length ? files.join(", ") : "(no files)") + '</div>' +
       '<div class="meta">' +
+        kindTag(t) +
+        sevPill(t) +
         (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + '</span>' : '') +
         (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + '</span>' : '') +
         ((t.dependsOn && t.dependsOn.length) ? '<span class="pill muted">⛓ ' + esc(t.dependsOn.join(", ")) + '</span>' : '') +
@@ -379,16 +535,24 @@ function field(label, value, mono) {
 function openPanel(t) {
   document.getElementById("panel-title").textContent = ticketHeading(t);
   var files = ticketFiles(t);
+  var snippet = t.evidence && t.evidence.snippet;
   document.getElementById("panel-body").innerHTML =
-    field("Feature", t._feature) +
+    field(isIssue(t) ? "Test run" : "Feature", t._feature) +
     field("Ticket", t.id) +
+    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky test issue" : "🐞 Bug / Test issue") : "") +
     field("Objective", t.objective) +
     field("Type", t.type) +
     field("Priority", t.priority) +
+    (isIssue(t) ? field("Severity", t.severity) : "") +
+    (isIssue(t) ? field("Category", t.category) : "") +
+    (isIssue(t) ? field("Rule", t.rule, true) : "") +
     field("Files", files.join("\n"), true) +
     field("Depends on", (t.dependsOn && t.dependsOn.length) ? t.dependsOn.join(", ") : "none") +
     field("Done when", t.doneWhen) +
-    field("Status", t.done ? "Done" : "Open");
+    (isIssue(t) ? field("Repro", t.repro, true) : "") +
+    (isIssue(t) ? field("Evidence", snippet, true) : "") +
+    (isIssue(t) ? field("Suggestion", t.suggestion) : "") +
+    field("Status", t.done ? (isIssue(t) ? "Resolved" : "Done") : "Open");
   document.getElementById("panel").classList.add("open");
   document.getElementById("panel").setAttribute("aria-hidden", "false");
   document.getElementById("scrim").classList.add("open");
@@ -418,7 +582,9 @@ function route() {
   closePanel();
   var h = location.hash || "#/";
   var m = h.match(/^#\/prd\/(.+)$/);
+  var mi = h.match(/^#\/issues\/(.+)$/);
   if (m) renderDetail(decodeURIComponent(m[1]));
+  else if (mi) renderIssueDetail(decodeURIComponent(mi[1]));
   else renderList();
 }
 window.addEventListener("hashchange", route);

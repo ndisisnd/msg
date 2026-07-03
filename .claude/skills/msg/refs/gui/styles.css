@@ -222,6 +222,33 @@ tbody tr:hover { background: var(--bg-hover); }
 .prio-P2 { background: var(--bg-hover);      color: var(--text-muted); }
 .field .val { white-space: pre-line; }
 
+/* ---- Test Issues (Feature 6) --------------------------------------------- */
+/* 🐞 kind tag — own colour so a bug is never mistaken for a build todo */
+.kind-issue { background: #fdecea; color: #c0392b; }
+
+/* severity pills — hotter than priority, distinct scale */
+.sev-blocker { background: #fdecea; color: #c0392b; }
+.sev-high    { background: var(--st-review-bg); color: var(--st-review); }
+.sev-medium  { background: var(--st-eng-bg);    color: var(--st-eng); }
+.sev-low     { background: var(--bg-hover);     color: var(--text-muted); }
+
+/* verdict pills on the Test Issues surface */
+.iv-fail { background: #fdecea; color: #c0392b; }
+.iv-warn { background: var(--st-eng-bg); color: var(--st-eng); }
+
+/* an issue-ticket card is visually distinct from a todo card */
+.issue-card { border-left: 3px solid #e0796a; }
+
+/* Test Issues grouping — one card per msg-test/test-<n>.json */
+.issue-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-3); margin-bottom: var(--sp-5);
+}
+.issue-file-card { border-left: 3px solid #e0796a; }
+
+.xlink { color: var(--accent); font-weight: 600; }
+.xlink:hover { text-decoration: underline; }
+
 /* ---- Side panel ---------------------------------------------------------- */
 .scrim {
   position: fixed; inset: 0; background: rgba(15,15,15,.28);

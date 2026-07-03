@@ -66,7 +66,7 @@ When **no** mode flag is supplied, all applicable buckets run (existing default)
 
 Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_set.json --unit --e2e --sequential --flaky 2`
 
-**Hard refusals (execution path):** does NOT modify source code; does NOT write outside `features/` and `/tmp/`; makes exactly ONE `AskUserQuestion` call (Step 3 gate).
+**Hard refusals (execution path):** does NOT modify source code; does NOT write outside `features/`, `/tmp/`, and `msg-test/` (the Step 6 ticket, written only on a non-clean verdict). The Step 3 plan-confirmation gate is the only **unconditional** `AskUserQuestion` call; Step 6 adds a **second, conditional** gate that fires *only* when the aggregated verdict is `fail`/`pass_with_warnings` (clean `pass` runs still make exactly one). The two never both fire on a clean run.
 
 **Init mode (`--init`) carve-out:** may install dev dependencies and write `.claude/test/test.json` after the user approves at its gate. It still does NOT write application or test source code (config scaffolds and example smoke tests are out of scope — it only recommends and records). When `--init` is present, run the **Init mode** protocol below and skip the execution protocol (Steps 1–5) entirely.
 
@@ -77,6 +77,7 @@ Flags are composable: `/test --base main --eval-set features/prd-3/review/eval_s
 | In | Diff scope | `--base <branch>` or full working tree |
 | In | eval_set | `--eval-set <path>` (JSON) or bootstrapped from `--prd <path>` |
 | Out | Findings JSON | stdout always; `features/prd-[n]/test/test-<YYYYMMDD-HHmmss>.json` when PRD known |
+| Out | Persistent issue ticket | `msg-test/test-<n>.json` — written by Step 6 only when the verdict is `fail`/`pass_with_warnings` (a clean `pass` writes none) |
 
 Schema and verdict semantics: `refs/schema.md` (conforms to the shared canonical finding object in `../shared/refs/finding-schema.md`).
 
@@ -305,6 +306,63 @@ Pipe stdout to `features/prd-<n>/test/test-<YYYYMMDD-HHmmss>.json` when a PRD is
 
 If the script exits 1, the offending bucket wrote invalid JSON — fix that bucket's emission and re-run; do NOT fall back to hand-aggregation.
 
+### Step 6 — Persist non-clean issues + follow-up gate (conditional)
+
+**Trigger.** Runs immediately after Step 5's aggregation, and **only** when the aggregated overall `verdict` is `fail` or `pass_with_warnings`. A clean `pass` (or a `refused` run) ends at Step 5 — it writes no file and asks nothing. Skip this entire step in those cases.
+
+This step persists the run's issues as a durable, numbered ticket independent of any PRD, then offers one action. It is the only place `/test` writes to `msg-test/`.
+
+**1 — Folder + next number.** The ticket lives at the **repo root** under `msg-test/`. Create it on demand (no separate init step):
+
+```bash
+mkdir -p msg-test
+n=$(ls msg-test/test-*.json 2>/dev/null | sed -E 's#.*/test-([0-9]+)\.json#\1#' | sort -n | tail -1)
+n=$(( ${n:-0} + 1 ))   # max numeric suffix + 1, or 1 when the folder is empty
+```
+
+This mirrors the inline `max(suffix)+1` numbering pattern (empty folder → `1`); it does **not** reuse `scan-n.prd`, which is PRD-specific.
+
+**2 — Write `msg-test/test-<n>.json`.** Match this template exactly:
+
+```json
+{
+  "version": 1,
+  "generated_at": "<ISO8601 — date -u +%Y-%m-%dT%H:%M:%SZ>",
+  "run_id": <n>,
+  "context": {
+    "prd": "<path to PRD .md, or null>",
+    "branch": "<current git branch>",
+    "base": "<--base value used for this run, or null>"
+  },
+  "source_run": {
+    "verdict": "fail" | "pass_with_warnings",
+    "archived_output": "<features/prd-<n>/test/test-<timestamp>.json, or null>"
+  },
+  "summary": { "failed": 0, "flaky": 0, "warnings": 0 },
+  "issues": [ /* canonical finding objects — copied verbatim from Step 5's aggregated findings[] */ ],
+  "follow_up": { "status": "open", "suggested_command": "/eng --build msg-test/test-<n>.json" }
+}
+```
+
+- `context.prd` / `context.branch` / `context.base` **reuse what Step 2 already resolved** — `context.prd` is the PRD used for the eval_set (`--prd`, auto-discovery, or `null`); `context.branch` is `git branch --show-current`; `context.base` is the `--base` value or `null`. No new detection logic.
+- `source_run.archived_output` is the `features/prd-<n>/test/test-<ts>.json` path Step 5 wrote when a PRD was known, else `null`.
+- `summary` counts come straight from the aggregated buckets: `failed` = findings of `severity` `blocker`/`high` that are not flaky; `flaky` = findings carrying `evidence.flaky: true`; `warnings` = remaining `medium`/`low` findings.
+- `issues[]` is the **same merged `findings[]` array Step 5 produced, copied verbatim** — the canonical finding objects, not re-derived and not reshaped into ticket form (the ticket projection is a read-time view owned by `eng/refs/todo/template-todo.md`; this file stays canonical findings).
+
+**3 — Follow-up gate (the second, conditional `AskUserQuestion`).** After writing the file, ask exactly once:
+
+```
+Test run left N issue(s) unresolved (msg-test/test-<n>.json)
+```
+
+with three options:
+
+- **Fix now** — invoke `/eng --build test-json=msg-test/test-<n>.json branch=<context.branch>` immediately (the file records its own branch). Build mode reads the issues and works them per its `test-json` input path.
+- **Investigate first** — do a **read-only** pass: for each issue, explain its likely root cause in plain language (drawn from `message`/`evidence.snippet`/`rule`), touching no files. End the explanation with the literal line `Run /eng --build msg-test/test-<n>.json to fix these.`
+- **Not now** — leave the file untouched and take no further action.
+
+This conditional gate is scoped to this step only — the same precedent `--init`'s Step I-0 sets — and does not conflict with the execution path's single-gate rule (see **Hard refusals**), which scopes Step 3's plan-confirmation gate.
+
 ## References
 
 - `.claude/scripts/test-tooling-detect.sh` — Step 1 fingerprint detector (installed runners)
@@ -313,6 +371,7 @@ If the script exits 1, the offending bucket wrote invalid JSON — fix that buck
 - `refs/modes/init.md` — `--init` decision tables (shape→buckets, bucket→tools) and `test.json` schema
 - `refs/schema.md` — output JSON schema and verdict semantics (conforms to the shared canonical finding object)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
+- `../eng/refs/todo/template-todo.md` — the finding→issue-ticket projection `eng --build` and `msg --gui` apply to the `issues[]` Step 6 persists (this file stays canonical findings; the projection is a read-time view)
 - `refs/modes/unit.md` — unit/integration runner invocation and output parsing
 - `refs/modes/e2e.md` — e2e runner invocation and output parsing
 - `refs/modes/functional.md` — executable assertion verification via ephemeral scripts
