@@ -87,8 +87,10 @@ Same read model as before — now implemented in `server.py`, re-run per request
 
 1. **Frontmatter** per `features/prd-*/prd-*.md` (missing fields are normal → `null`;
    missing/unparseable frontmatter → `skipped[]`, keep going).
-2. **F-ID feature rows** from `## 3. Features…`, falling back to `## Execution Table`.
-3. **Todos** under `## Todos` → tickets per
+2. **F-ID feature rows** from `## N. Features…` (any leading number, e.g.
+   `## 6. Features & acceptance criteria`), falling back to `## Execution Table` (legacy)
+   or `## N. Feature execution table` (new).
+3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 11. Todos`) → tickets per
    `.claude/skills/eng/refs/todo/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
@@ -122,12 +124,22 @@ is unchanged from the previous protocol revision, with these notes:
 - `detail` is still the **raw PRD markdown body** as a plain string. The GUI renders it
   client-side through its own self-contained, injection-safe formatter (source is
   HTML-escaped before any markup transformation; no external libraries, no network) and
-  now **splits it into one collapsible accordion per `##` section**. The `## Todos` dump
-  is omitted (todos render in their own section), and every `## Audit — <date>` block plus
-  any nested `### 12. Findings` list is parsed into a dedicated **Plan-tune findings**
-  table (columns: #, Severity, Finding, What's wrong, Why it matters, Suggested fix,
-  Source) rather than shown as prose. Producers must keep passing raw markdown — never
-  pre-rendered HTML.
+  now **splits it into one collapsible accordion per `##` section**. Section-name
+  matching tolerates an optional leading section number, so both the legacy unnumbered
+  headings and the new numbered template render: `## Todos` / `## 11. Todos`,
+  `## Execution Table` / `## 7. Feature execution table`, and `## 3. Features` /
+  `## 6. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
+  omitted (todos render in their own section). The findings section — new
+  `## N. Plan tune findings` (legacy `## Audit — <date>` still supported) — plus any
+  nested `### 12. Findings` eng list is parsed into a dedicated **Plan-tune findings**
+  table. In the new template that section is itself a **markdown table** with columns
+  `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`
+  (Auditor is `P` or `E`; Status is Open / Fixed / Still open / Clean; `Clean`/empty-
+  severity rows are skipped). Legacy prose findings (`Finding N — Severity — Title`) are
+  still parsed as a fallback. The rendered table shows columns **#, Date, Auditor,
+  Severity, What is wrong, Suggested fix, Why it matters, Status** — cells missing from a
+  legacy/eng finding (Date/Auditor/Status) render as `—`. Producers must keep passing raw
+  markdown — never pre-rendered HTML.
 - todos may carry `done: true` (from the toggle field); todo progress fractions are real
   when the field exists and `0/N` otherwise.
 - an optional top-level `projectFiles: [{path, group, content}]` may be embedded in

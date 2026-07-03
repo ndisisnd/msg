@@ -32,7 +32,7 @@ allowed_tools:
 
 ## Persona
 
-1. Interview before writing. Every spec item has an acceptance criterion. Open questions go in §7 (Open questions), never buried in prose.
+1. Interview before writing. Every spec item has an acceptance criterion. Open questions go in the Open questions section, never buried in prose.
 2. Never write a requirement an engineer could interpret two ways. Quote ambiguous text verbatim and ask for the precise definition.
 3. Output is numbered, dense, and engineer-readable. Tables for feature specs. No hedging or weasel words.
 4. All interview questions use `AskUserQuestion` — one at a time, with options plus "Other".
@@ -49,12 +49,12 @@ Before emitting any step, stat-check and read the following files in parallel vi
 
 | File | How to apply |
 |------|-------------|
-| `devkit/AHA.md` | Surface relevant entries in §7 (Open questions) |
-| `devkit/GLOSSARY.md` | Cross-reference when populating §8 (Glossary) in Step 5 |
+| `devkit/AHA.md` | Surface relevant entries in the Open questions section |
+| `devkit/GLOSSARY.md` | Cross-reference when populating the Glossary section in Step 5 |
 | `CLAUDE.md` | Extract tech stack constraints, conventions, and architecture notes; use to validate feasibility of proposed features and to pre-fill or constrain interview answers where the answer is already determined by the project setup |
-| `devkit/ARCHITECTURE.md` | Load system layers and existing integration points; validate feasibility of proposed features against existing constraints and note any conflicts in §7 (Open questions) |
-| `devkit/DESIGN-SYSTEM.md` | Load the component registry; when populating §4 (User flows) and §5 (Key user interactions), identify which components the proposed feature would impact or reuse and note them inline |
-| `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that may block or constrain proposed features; surface relevant entries in §7 (Open questions) |
+| `devkit/ARCHITECTURE.md` | Load system layers and existing integration points; validate feasibility of proposed features against existing constraints and note any conflicts in the Open questions section |
+| `devkit/DESIGN-SYSTEM.md` | Load the component registry; when populating User flow and Key user interactions, identify which components the proposed feature would impact or reuse and note them inline |
+| `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that may block or constrain proposed features; surface relevant entries in the Open questions section |
 
 **Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
 
@@ -137,7 +137,7 @@ List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` 
 3. Classify each flagged relationship and hold in context for Step 4 frontmatter population:
    - **Dependency** (`depends_on`): the new PRD requires a prior PRD's output to function (e.g., relies on an auth system, schema, or API that prior PRD owns). Record the prior PRD's ID.
    - **Affects** (`affects`): the new PRD modifies scope, contracts, or module ownership that a prior PRD also touches. Record the prior PRD's ID.
-4. Record each overlapping PRD by ID in §7 (Open questions) of the new PRD.
+4. Record each overlapping PRD by ID in the Open questions section of the new PRD.
 
 Proceed immediately to Step 3.
 
@@ -182,28 +182,27 @@ All section bodies remain as placeholders. This initialized file is the artifact
 
 Read `refs/principles.md` first. Apply every principle throughout.
 
-Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from the interview answers:
+Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from the interview answers, in the canonical order defined by `refs/template-prd.md`:
 
 | Section | Source |
 |---------|--------|
-| §1 Out-of-scope | Q2 answers; non-targeted platforms auto-added |
-| §2 Target platform | If one platform detected: `| Field \| Value |` table (platform + min OS version). If multiple platforms detected: `| Platform \| Priority \| Reason |` priorities table — rank by delivery priority (1 = highest), derive order and reasoning from the brief and interview context |
-| §3 Features & acceptance criteria | Confirmed Q1 feature list with its F-IDs from `refs/template-feature-table.md`; one acceptance criterion per feature derived from its Q5 interaction + Q4 error cases; Dependencies column from Q3 |
-| §4 User flows | Q3 dependencies as flow preconditions; one ASCII flow per feature; then **Components** (design system) and **Files touched** per feature |
-| §5 Key user interactions | Q5 answers |
-| §6 Error cases | Q4 answers; format from `refs/template-error.md` |
-| §7 Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries |
-| §8 Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
+| 1. Product objective | One paragraph stating the user/business goal from the Q1 brief; the outcome that defines success. No feature list, no implementation |
+| 2. Out-of-scope | Q2 answers; non-targeted platforms auto-added |
+| 3. User flow | Q3 dependencies as flow preconditions; one ASCII flow per feature. User-visible flow only — no engineering detail |
+| 4. Key user interactions | Q5 answers |
+| 5. Error cases | Q4 answers; format from `refs/template-error.md` |
+| 6. Features & acceptance criteria | Confirmed Q1 feature list with its F-IDs from `refs/template-feature-table.md`; one user-goal acceptance criterion per feature derived from its Q5 interaction + Q4 error cases; Dependencies column from Q3. Keep free of engineering detail (no APIs, schemas, components, files) |
+| 7. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder from the template — plan-em owns the engineering breakdown |
+| 8. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries, written as `\| # \| Question \| Answer \| Status \|` rows (Status = `Open` when unanswered) |
+| 9. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder from the template — plan-tune owns it |
+| 10. Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
+| 11. Todos | Leave the `_Populated by /todo …_` placeholder from the template |
 
-Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout. Carry every F-ID assigned during the interview (`refs/template-feature-table.md`) into §3 unchanged; downstream `plan-em` keys its execution table on these IDs.
+Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout. Carry every F-ID assigned during the interview (`refs/template-feature-table.md`) into §6 unchanged; downstream `plan-em` keys its execution table (§7) on these IDs.
 
-**§4 per-feature supplement — components and files:**
+Platform is captured only in the frontmatter `platform` field (set from Step 3 detection). Do not write a "Target platform" body section — it no longer exists in the template.
 
-After each ASCII flow diagram in §4, emit two subsections:
-
-1. **Components (from design system):** — Scan `devkit/DESIGN-SYSTEM.md` for components the feature would reuse or impact. List each as `- \`ComponentName\` — <one-line usage note>`. Omit this subsection entirely if no design system exists or no existing components apply; do not write a blank heading.
-
-2. **Files touched:** — Based on `devkit/ARCHITECTURE.md` and the feature scope, list the source files the feature will require new or modified code in. List each as `- \`path/to/file\` — <one-line reason>`. If a file does not yet exist, prefix with `(new)`. Use approximate paths where exact paths are unknown; plan-em will confirm specifics. Always include at least the screen/view file and any relevant store/service/model files inferred from architecture.
+**Engineering detail placement:** components (from `devkit/DESIGN-SYSTEM.md`) and files touched (from `devkit/ARCHITECTURE.md`) are engineering detail and belong in §7 Feature execution table, which `plan-em` populates. Do not attach them to the User flow section. In this step, leave §7 as the template placeholder.
 
 The populated file is the artifact of this step.
 
@@ -213,7 +212,7 @@ The populated file is the artifact of this step.
 
 Before emitting the completion summary, identify learnings from this run worth capturing. A learning qualifies if any of:
 - A feature was constrained or invalidated by a CLAUDE.md rule
-- Overlap with a prior PRD was found and recorded in §7
+- Overlap with a prior PRD was found and recorded in the Open questions section
 - Intake required clarification because target user or scope was missing
 - An interview answer revealed an assumption that significantly narrowed scope
 
@@ -245,7 +244,7 @@ Ask the user: "Would you like to address the open questions now?" via `AskUserQu
 
 - Present the question text and a set of plausible answers as a `multiSelect` `AskUserQuestion`. Always include "Skip" as one option.
 - If the user selects "Skip" (or only "Skip"), record no answer for that question and move to the next.
-- If the user provides an answer, update §7 of the PRD to reflect the resolution inline next to the question (e.g., append `→ <answer>`).
+- If the user provides an answer, update the Open questions table row: write the answer into that row's `Answer` cell and set its `Status` to `Addressed`.
 
 After all questions have been presented (answered or skipped), proceed to the next-step prompt.
 

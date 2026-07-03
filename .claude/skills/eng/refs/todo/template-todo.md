@@ -33,7 +33,7 @@ Todos are appended to the **PRD file** (the same file `--plan` wrote `## Enginee
 
 - `## Todos` — the umbrella section, appended **once** after the last `## Engineering — <Agent>` section. It gives the `todos-` anchor namespace the execution table's Todos column points into (`#todos-f1`, `#todos-f2`, …). `plan-em` creates this heading before dispatching todo agents; agents do not create it.
 - `## Todos — <Agent Name>` — one per agent, the per-agent sub-heading, mirroring the `## Engineering — <Agent>` convention exactly. Detection scans for this literal heading (`## Todos —`); the todo phase is not complete until every agent that wrote an engineering section has a matching `## Todos —` block.
-- `### F<n>` — one subsection per feature the agent owns, holding that feature's tickets. The F-ID matches the PRD's §3 feature table and the execution-table rows.
+- `### F<n>` — one subsection per feature the agent owns, holding that feature's tickets. The F-ID matches the PRD's Features & acceptance criteria table and the execution-table rows.
 
 ---
 

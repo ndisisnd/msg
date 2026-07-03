@@ -165,7 +165,7 @@ If more than 3 ambiguities exist, surface them as a numbered list and ask which 
 
 `/cook` is keyword-driven — it matches a short task summary, not a single platform word. Build that summary from two sources:
 
-1. **Stack** — the concrete technology from `CLAUDE.md` and PRD §3 (e.g. `Flutter/Dart` for mobile, `React/Next.js web`, `Node backend`, `Supabase/Postgres`). Use the real stack, not a generic bucket.
+1. **Stack** — the concrete technology from `CLAUDE.md` and the PRD's `platform` frontmatter / Features & acceptance criteria (e.g. `Flutter/Dart` for mobile, `React/Next.js web`, `Node backend`, `Supabase/Postgres`). Use the real stack, not a generic bucket.
 2. **Concerns** — the concern keywords from the assigned rows: `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, plus `tests` where a Tests row is owned.
 
 Invoke `/cook` once with a summary combining both (e.g. `Flutter/Dart mobile — component, tests` or `React/Next.js web — api endpoint, component, tests`). If rows span multiple stacks, send one summary per stack. Read each result fully before producing any output. Eng has no hardcoded standards — `/cook` is the sole source of coding standards and must always be called.

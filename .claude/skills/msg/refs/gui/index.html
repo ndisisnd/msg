@@ -679,7 +679,7 @@ function splitSections(detail) {
   });
   push();
   return secs
-    .filter(function (s) { return !/^Todos\b/i.test(s.heading) && !/^Audit\b/i.test(s.heading); })
+    .filter(function (s) { return !/^(?:\d+\.\s*)?(Todos|Audit|Plan tune findings)\b/i.test(s.heading); })
     .map(function (s, idx) {
       var body = s.preamble ? s.body.replace(/^#\s+.*(\n|$)/, "").trim() : s.body;   // drop the duplicate H1
       body = stripEngFindings(body);
@@ -689,35 +689,80 @@ function splitSections(detail) {
 }
 
 /* ---- Plan-tune findings parsing (Edit 4) ----------------------------------------
-   Two producers feed one table: the product `## Audit — <date>` blocks
-   (Finding N — Severity — Title, then What is wrong / Why it matters / Suggested
-   fix), and the eng `### 12. Findings — PRD gaps` list (`N. **Severity** — text`). */
+   Two producers feed one table. The product findings section — new
+   `## N. Plan tune findings` (legacy `## Audit — <date>` still supported) — is now a
+   markdown table (columns: #, Date, Auditor, Severity, What is wrong, Suggested fix,
+   Why it matters, Status). Legacy PRDs used prose blocks (Finding N — Severity — Title,
+   then What is wrong / Why it matters / Suggested fix) — still parsed as a fallback.
+   The eng `### 12. Findings — PRD gaps` list (`N. **Severity** — text`) also feeds the
+   table (see parseEngFindings). */
+function splitTableRow(row) {
+  return String(row).replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|")
+    .map(function (c) { return c.trim(); });
+}
+function parseFindingsTable(seg) {
+  var headerIdx = -1;
+  for (var i = 0; i < seg.length; i++) {
+    if (/\|/.test(seg[i]) && /severity/i.test(seg[i]) && /what is wrong/i.test(seg[i])) { headerIdx = i; break; }
+  }
+  if (headerIdx < 0) return null;
+  var sepIdx = headerIdx + 1;
+  while (sepIdx < seg.length && !seg[sepIdx].trim()) sepIdx++;
+  if (sepIdx >= seg.length || !/^\s*\|?[\s:|]*-[-\s:|]*\|?\s*$/.test(seg[sepIdx])) return null;
+  var cols = splitTableRow(seg[headerIdx]).map(function (c) { return c.toLowerCase(); });
+  function colIdx(pred) { for (var k = 0; k < cols.length; k++) if (pred(cols[k])) return k; return -1; }
+  var numIdx = colIdx(function (c) { return c === "#" || c === "num"; });
+  var dateIdx = colIdx(function (c) { return c.indexOf("date") >= 0; });
+  var audIdx = colIdx(function (c) { return c.indexOf("auditor") >= 0; });
+  var sevIdx = colIdx(function (c) { return c.indexOf("severity") >= 0; });
+  var wrongIdx = colIdx(function (c) { return c.indexOf("what is wrong") >= 0; });
+  var fixIdx = colIdx(function (c) { return c.indexOf("suggested fix") >= 0 || c.indexOf("fix") >= 0; });
+  var mattersIdx = colIdx(function (c) { return c.indexOf("why it matters") >= 0 || c.indexOf("matters") >= 0; });
+  var statusIdx = colIdx(function (c) { return c.indexOf("status") >= 0; });
+  var out = [];
+  for (var r = sepIdx + 1; r < seg.length; r++) {
+    if (!/\|/.test(seg[r])) continue;                 // table ended
+    var cells = splitTableRow(seg[r]);
+    function cell(idx) { return idx >= 0 && idx < cells.length ? cells[idx] : ""; }
+    var sev = cell(sevIdx);
+    if (!sev || sev === "—" || sev === "-") continue; // skip Clean / empty rows
+    out.push({ source: "Plan tune", n: cell(numIdx), date: cell(dateIdx), auditor: cell(audIdx),
+      severity: sev, title: "", wrong: cell(wrongIdx), fix: cell(fixIdx),
+      matters: cell(mattersIdx), status: cell(statusIdx) });
+  }
+  return out;
+}
+function parseFindingsProse(seg) {
+  var out = [], starts = [];
+  seg.forEach(function (l, i) {
+    var fm = l.match(/^Finding\s+(\d+)\s*[—–-]\s*(\w+)\s*[—–-]\s*(.+)$/);
+    if (fm) starts.push({ n: +fm[1], severity: fm[2], title: fm[3].trim(), i: i });
+  });
+  starts.forEach(function (f, k) {
+    var end = k + 1 < starts.length ? starts[k + 1].i : seg.length;
+    var fields = { wrong: "", matters: "", fix: "" }, key = null;
+    seg.slice(f.i + 1, end).forEach(function (l) {
+      if (/^What is wrong:/i.test(l)) { key = "wrong"; return; }
+      if (/^Why it matters/i.test(l)) { key = "matters"; return; }
+      if (/^Suggested fix:/i.test(l)) { key = "fix"; return; }
+      if (key && l.trim()) fields[key] += (fields[key] ? " " : "") + l.trim();
+    });
+    out.push({ source: "Product Audit", n: f.n, severity: f.severity, title: f.title,
+      wrong: fields.wrong.trim(), matters: fields.matters.trim(), fix: fields.fix.trim(),
+      date: "", auditor: "", status: "" });
+  });
+  return out;
+}
 function parseAuditFindings(detail) {
   var text = String(detail == null ? "" : detail).replace(/\r\n?/g, "\n");
   var lines = text.split("\n");
   var out = [];
   for (var a = 0; a < lines.length; a++) {
-    if (!/^##\s+Audit\b/i.test(lines[a])) continue;
+    if (!/^##\s+(?:\d+\.\s*)?(Plan tune findings|Audit)\b/i.test(lines[a])) continue;
     var b = a + 1;
-    while (b < lines.length && !/^##\s+(?!Audit\b)/i.test(lines[b])) b++;   // to next non-Audit H2
+    while (b < lines.length && !/^##\s+/.test(lines[b])) b++;   // to next H2
     var seg = lines.slice(a + 1, b);
-    var starts = [];
-    seg.forEach(function (l, i) {
-      var fm = l.match(/^Finding\s+(\d+)\s*[—–-]\s*(\w+)\s*[—–-]\s*(.+)$/);
-      if (fm) starts.push({ n: +fm[1], severity: fm[2], title: fm[3].trim(), i: i });
-    });
-    starts.forEach(function (f, k) {
-      var end = k + 1 < starts.length ? starts[k + 1].i : seg.length;
-      var fields = { wrong: "", matters: "", fix: "" }, key = null;
-      seg.slice(f.i + 1, end).forEach(function (l) {
-        if (/^What is wrong:/i.test(l)) { key = "wrong"; return; }
-        if (/^Why it matters/i.test(l)) { key = "matters"; return; }
-        if (/^Suggested fix:/i.test(l)) { key = "fix"; return; }
-        if (key && l.trim()) fields[key] += (fields[key] ? " " : "") + l.trim();
-      });
-      out.push({ source: "Product Audit", n: f.n, severity: f.severity, title: f.title,
-        wrong: fields.wrong.trim(), matters: fields.matters.trim(), fix: fields.fix.trim() });
-    });
+    out = out.concat(parseFindingsTable(seg) || parseFindingsProse(seg));
     a = b - 1;
   }
   return out;
@@ -750,18 +795,19 @@ function findingsAccordion(p) {
   det.addEventListener("toggle", function () { state.openSections.__findings = det.open; });
   var wrap = el('<div class="table-wrap findings-table"></div>');
   var table = el("<table><thead><tr>" +
-    "<th>#</th><th>Severity</th><th>Finding</th><th>What&#39;s wrong</th><th>Why it matters</th><th>Suggested fix</th><th>Source</th>" +
+    "<th>#</th><th>Date</th><th>Auditor</th><th>Severity</th><th>What is wrong</th><th>Suggested fix</th><th>Why it matters</th><th>Status</th>" +
     "</tr></thead><tbody></tbody></table>");
   var tb = table.querySelector("tbody");
   rows.forEach(function (r) {
     tb.appendChild(el("<tr>" +
       '<td class="mono">' + esc(r.n) + "</td>" +
+      "<td>" + esc(r.date || "—") + "</td>" +
+      "<td>" + esc(r.auditor || "—") + "</td>" +
       "<td>" + findingSevPill(r.severity) + "</td>" +
-      '<td class="f-title">' + esc(r.title) + "</td>" +
-      '<td class="prose">' + esc(r.wrong || "—") + "</td>" +
-      '<td class="prose">' + esc(r.matters || "—") + "</td>" +
+      '<td class="prose">' + esc(r.wrong || r.title || "—") + "</td>" +
       '<td class="prose">' + esc(r.fix || "—") + "</td>" +
-      '<td><span class="pill muted">' + esc(r.source) + "</span></td>" +
+      '<td class="prose">' + esc(r.matters || "—") + "</td>" +
+      "<td>" + esc(r.status || "—") + "</td>" +
     "</tr>"));
   });
   wrap.appendChild(table);

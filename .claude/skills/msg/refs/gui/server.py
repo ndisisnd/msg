@@ -96,7 +96,9 @@ def as_badge(v):
 
 
 def parse_features(body):
-    """F-ID rows from `## 3. Features…` or, failing that, `## Execution Table`."""
+    """F-ID rows from `## N. Features…` (any leading number, e.g. `## 6. Features &
+    acceptance criteria`) or, failing that, `## Execution Table` (legacy) /
+    `## N. Feature execution table` (new)."""
     feats, order = {}, []
 
     def scan(section_re):
@@ -129,8 +131,9 @@ def parse_features(body):
             found = True
         return found
 
-    if not scan(r"^##\s*3\.\s*Features.*$"):
-        scan(r"^##\s*Execution Table.*$")
+    if not scan(r"^##\s*\d+\.\s*Features.*$"):
+        if not scan(r"^##\s*Execution Table.*$"):
+            scan(r"^##\s*\d+\.\s*Feature execution table.*$")
     return feats, order
 
 
@@ -157,7 +160,7 @@ def parse_files_field(val):
 
 
 def parse_todos(body, feats, order):
-    m = re.search(r"^##\s*Todos\s*$", body, re.M)
+    m = re.search(r"^##\s*(?:\d+\.\s*)?Todos\s*$", body, re.M)
     has = bool(m)
     if not has:
         return False
@@ -176,7 +179,7 @@ def parse_todos(body, feats, order):
             i += 1
             continue
         if re.match(r"^##\s", line):  # left the Todos umbrella? only stop at a non-Todos ## heading
-            if not re.match(r"^##\s*Todos\b", line):
+            if not re.match(r"^##\s*(?:\d+\.\s*)?Todos\b", line):
                 break
             i += 1
             continue
@@ -477,7 +480,7 @@ def toggle_todo(rel, ticket_id, done):
     if not md:
         return "PRD not found or outside features/: %s" % rel
     text = open(md, encoding="utf-8").read()
-    um = re.search(r"^##\s*Todos\s*$", text, re.M)
+    um = re.search(r"^##\s*(?:\d+\.\s*)?Todos\s*$", text, re.M)
     if not um:
         return "PRD has no ## Todos section"
     lines = text.splitlines(keepends=True)

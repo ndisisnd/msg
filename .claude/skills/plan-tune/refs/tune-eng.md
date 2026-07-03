@@ -8,11 +8,11 @@ type: reference
 
 ## Dimension 5 — Eng Plan Integrity (Eng tune only)
 
-Apply only when running an Eng tune (PRD contains `## Engineering — <Agent Name>` sections). Read each engineering section against the PRD requirements and against the quality gates in `.claude/skills/eng/refs/plan/template-eng-plan.md`. One finding per issue. The §-numbers below (§5 scope mapping, §7 integration contracts, §9 migration, §13 open questions) are anchored to that template — if eng renumbers it, update these references.
+Apply only when running an Eng tune (PRD contains `## Engineering — <Agent Name>` sections). Read each engineering section against the PRD requirements and against the quality gates in `.claude/skills/eng/refs/plan/template-eng-plan.md`. One finding per issue. The eng-plan subsections referenced below (scope mapping, integration contracts, migration, open questions) are matched by their **titles** in that template, so they survive renumbering. PRD product sections are likewise referenced by title (Features & acceptance criteria, Open questions, etc.), never by number.
 
 ### 5a — Feature coverage
 
-Every feature ID in the PRD must appear in at least one engineering section's scope mapping table (§5 of the eng plan template).
+Every feature ID in the PRD must appear in at least one engineering section's scope mapping table (the scope-mapping subsection of the eng plan template).
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
@@ -28,12 +28,12 @@ Read every engineering design decision against PRD constraints, acceptance crite
 |-------|-----------------|-------------------|
 | Design decision ↔ PRD constraint | An engineering design decision contradicts or ignores a stated PRD constraint | Critical |
 | Eng scope ↔ Out-of-scope | An engineering section implements behavior listed as out-of-scope in the PRD | Critical |
-| Platform match | An engineering section targets a platform not listed in the PRD platform priorities table | Major |
+| Platform match | An engineering section targets a platform other than the PRD frontmatter `platform` value | Major |
 | Acceptance criterion ↔ Eng plan | A PRD acceptance criterion has no corresponding implementation detail in any engineering section | Major |
 
 ### 5c — Integration contract completeness
 
-Read each engineering section's integration contracts (§7 of the eng plan template).
+Read each engineering section's integration contracts (the integration-contracts subsection of the eng plan template).
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|

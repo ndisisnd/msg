@@ -1,12 +1,34 @@
 ---
 name: Tune Product Checklist
-description: Adversarial audit checklist for product tune — severity definitions, Dimensions 1–4, finding format, and output structure
+description: Adversarial audit checklist for product tune — severity definitions, Dimensions 1–4, findings-table schema, and output structure
 type: reference
 ---
 
 # Tune Product Checklist
 
-Apply every item below to the target PRD. Read the document twice — once for completeness and consistency, once for agent-readability and scope integrity. Produce a numbered findings report. Every finding carries a severity tag and a concrete suggested fix.
+Apply every item below to the target PRD. Read the document twice — once for completeness and consistency, once for agent-readability and scope integrity. Produce findings as rows in the findings table (schema below). Every finding carries a severity tag and a concrete suggested fix.
+
+**Bind every check to a section title, not a number.** The PRD numbers its sections (`## 1. Product objective` … `## 11. Todos`), but numbers shift when sections are added or removed. Match sections by their title so these checks survive any reorder.
+
+## Canonical PRD sections
+
+`plan-pm`'s `template-prd.md` emits these sections in order. The product tune audits the **product-authored** sections (marked ✓); the tool-owned sections (Feature execution table, Plan tune findings, Todos) are populated later by other skills — never flag them as missing in a product tune.
+
+| Section | Product-tune audits? |
+|---------|----------------------|
+| Product objective | ✓ |
+| Out-of-scope | ✓ |
+| User flow | ✓ |
+| Key user interactions | ✓ |
+| Error cases | ✓ |
+| Features & acceptance criteria | ✓ |
+| Feature execution table | — (eng tune / plan-em) |
+| Open questions | ✓ |
+| Plan tune findings | — (this skill writes it) |
+| Glossary | ✓ |
+| Todos | — (/todo) |
+
+Platform is metadata in the PRD frontmatter (`platform:`), not a body section. There is no "Target platform" section to audit.
 
 ## Severity tags
 
@@ -18,22 +40,21 @@ Apply every item below to the target PRD. Read the document twice — once for c
 
 ## Dimension 1 — Completeness
 
-The target PRD follows `plan-pm`'s `template-prd.md` schema, which has exactly 8 sections: §1 Out-of-scope, §2 Target platform, §3 Features & acceptance criteria, §4 User flows, §5 Key user interactions, §6 Error cases, §7 Open questions, §8 Glossary.
-
-**Gate every check on "section present."** Only fire a finding when the section exists and a row/field inside it is missing or malformed. If a whole section is absent, that is a single Major "missing section" finding — do not cascade it into per-row Criticals across the other dimensions.
+**Gate every check on "section present."** Only fire a finding when the section exists and a row/field inside it is missing or malformed. If a whole product section is absent, that is a single Major "missing section" finding — do not cascade it into per-row Criticals across the other dimensions.
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
-| §1 Out-of-scope present | Section absent, or present with zero items | Major |
-| §2 Target platform present | Section absent, or Platform field left as the unfilled placeholder | Major |
-| §3 Features & acceptance criteria present | Section/table absent | Critical |
-| §3 Feature IDs | §3 present but any feature row missing an F-ID | Major |
-| §3 Feature acceptance criteria | §3 present but any feature row with an empty or placeholder Acceptance criterion cell | Critical |
-| §4 User flows present | Section absent, or a confirmed feature has no flow diagram | Major |
-| §6 Error cases present | Section absent | Major |
-| §7 Open questions present | Section absent (an empty list is acceptable — not every PRD has open questions) | Minor |
-| §8 Glossary | §8 present but any domain term used in §1–§7 has no glossary entry | Minor |
-| §8 vs `devkit/GLOSSARY.md` | A term appears in both this PRD's §8 and the project's `devkit/GLOSSARY.md` (read in SKILL.md Step 1, if the file exists) with a conflicting definition | Critical |
+| Product objective present | Section absent, or present with no stated user/business goal | Major |
+| Out-of-scope present | Section absent, or present with zero items | Major |
+| Features & acceptance criteria present | Section/table absent | Critical |
+| Feature IDs | Features section present but any feature row missing an F-ID | Major |
+| Feature acceptance criteria | Features section present but any feature row with an empty or placeholder Acceptance criterion cell | Critical |
+| User flow present | Section absent, or a confirmed feature has no flow diagram | Major |
+| Key user interactions present | Section absent | Minor |
+| Error cases present | Section absent | Major |
+| Open questions present | Section absent (an empty table is acceptable — not every PRD has open questions) | Minor |
+| Glossary | Glossary present but any domain term used in the product sections has no glossary entry | Minor |
+| Glossary vs `devkit/GLOSSARY.md` | A term appears in both this PRD's Glossary and the project's `devkit/GLOSSARY.md` (read in SKILL.md Step 1, if the file exists) with a conflicting definition | Critical |
 
 ## Dimension 2 — Consistency
 
@@ -41,12 +62,12 @@ Read every section against every other section. Check for contradictions.
 
 | Check | What to look for | Severity if fails |
 |-------|-----------------|-------------------|
-| §3 Feature ↔ §1 Out-of-scope | A §3 feature row claims behavior that is also listed in §1 out-of-scope | Critical |
-| §3 Feature ↔ §2 Platform | A §3 feature targets a platform that §2 excludes | Major |
-| §3 Dependencies ↔ §3 IDs | A §3 Dependencies cell names an F-ID that does not exist in the table | Major |
-| §8 Glossary ↔ Usage | A term defined in §8 is used inconsistently across §3–§6 | Minor |
-| Acceptance criterion ↔ Acceptance criterion | Two §3 feature rows define overlapping behavior with conflicting acceptance criteria | Critical |
-| §3 Feature ↔ §4 Flow | A §3 feature has no corresponding §4 user flow, or a §4 flow covers a feature absent from §3 | Major |
+| Feature ↔ Out-of-scope | A Features row claims behavior that is also listed in Out-of-scope | Critical |
+| Feature ↔ Objective | A Features row pursues an outcome the Product objective does not cover, or contradicts it | Major |
+| Dependencies ↔ IDs | A Features Dependencies cell names an F-ID that does not exist in the table | Major |
+| Glossary ↔ Usage | A term defined in Glossary is used inconsistently across the product sections | Minor |
+| Acceptance criterion ↔ Acceptance criterion | Two Features rows define overlapping behavior with conflicting acceptance criteria | Critical |
+| Feature ↔ Flow | A Features row has no corresponding User flow, or a User flow covers a feature absent from the Features table | Major |
 
 ## Dimension 3 — Agent-readability
 
@@ -84,75 +105,44 @@ Read every requirement as if an AI coding agent will execute it without asking t
 
 ## Dimension 4 — Scope integrity
 
-Look for invitations to scope creep and missing technical contracts.
+Look for invitations to scope creep and misplaced engineering detail.
 
-A product-tune PRD has no engineering sections, so do not demand engineering-level contracts (API shape, schema migration, rollback plans) here — those are Dimension 5 (eng tune) concerns. At the product level, check only that the PRD does not invite scope creep or leave a happy path without an error path.
+A product-tune PRD keeps engineering detail out of the product sections — API shape, schema migration, rollback plans belong in the Feature execution table (a Dimension 5 / eng-tune concern), not in the user-goal acceptance criteria. At the product level, check only that the PRD does not invite scope creep, does not leave a happy path without an error path, and does not smuggle engineering detail into user-goal criteria.
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
-| Owner platform per feature | A §3 feature whose behavior differs across platforms but names no owning platform, when §2 lists more than one platform | Major |
-| Error states | A §3 feature / §5 interaction with a happy path but no matching §6 error case | Major |
-| Out-of-scope creep | A §3 feature row that restates or contradicts a §1 out-of-scope item | Major |
-| Persisted-data implication | A §3 feature that implies new persisted user data but whose acceptance criterion does not state the observable persisted result | Minor |
+| Eng detail in acceptance criterion | A Features & acceptance criteria row names an API/endpoint/schema/component/file — engineering detail that belongs in the Feature execution table | Minor |
+| Error states | A Features row / Key-user-interaction with a happy path but no matching Error cases entry | Major |
+| Out-of-scope creep | A Features row that restates or contradicts an Out-of-scope item | Major |
+| Persisted-data implication | A Features row that implies new persisted user data but whose acceptance criterion does not state the observable persisted result | Minor |
 
-## Worked example — finding format
+## Findings table schema
 
-Every finding must follow this structure:
+Both the inline user summary and the PRD's **Plan tune findings** section use this one table. Columns, in order:
 
+| Column | Meaning |
+|--------|---------|
+| `#` | Monotonic finding number, continued across runs — never reset to 1. |
+| `Date` | Run date, `YYYY-MM-DD`. |
+| `Auditor` | `P` (product tune) or `E` (eng tune). |
+| `Severity` | Critical / Major / Minor. |
+| `What is wrong` | Terse — cite the section and the problem. ≤100 chars, ≤2 lines. |
+| `Suggested fix` | Terse concrete action, specific enough to apply without further interpretation. ≤100 chars. |
+| `Why it matters` | Terse — the wrong default an agent would silently apply, or the consequence. ≤100 chars. |
+| `Status` | `Open` (new/unfixed), `Fixed` (fix applied this run), `Still open` (carried forward unchanged), `Clean` (a no-findings marker row). |
+
+Markdown form written to the PRD:
+
+```markdown
+| # | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status |
+|---|------|---------|----------|---------------|---------------|----------------|--------|
+| 1 | 2026-07-04 | P | Critical | Streak "local" timezone undefined (Features F2) | Define as user-profile tz, fallback device, fallback America/Los_Angeles | Backend defaults UTC, mobile defaults device — divergent streaks | Open |
 ```
-Finding N — [Severity] — <one-line title>
 
-What is wrong:
-  <Cite the exact PRD section and sentence. Quote verbatim.>
-
-Why it matters for agent-readability:
-  <Name the wrong default an AI agent would silently apply.>
-
-Suggested fix:
-  <Concrete rewrite. Specific enough to drop into the PRD without further interpretation.>
-```
-
-**Worked example:**
-
-```
-Finding 3 — Critical — Streak timezone reference is undefined
-
-What is wrong:
-  PRD-1 §3 F2 acceptance criterion: "Streak +1 when log occurs in
-  [00:00, 23:59] local". The word "local" is ambiguous — device timezone,
-  server timezone, and user-profile timezone are three different values.
-
-Why it matters for agent-readability:
-  An AI agent will default to server UTC for backend logic, while a
-  mobile-eng agent will default to device-local. The two will compute
-  different streak values for the same user. This will not surface in
-  unit tests; it will surface as a customer support escalation after
-  travel or DST.
-
-Suggested fix:
-  Replace "local time" with "user-profile timezone, defaulting to device
-  timezone if the user has not set a profile timezone, defaulting to
-  America/Los_Angeles if neither is set." Add a glossary entry for
-  "streak day boundary" pointing to this definition.
-```
+The inline summary shown to the user may omit `Date`, `Auditor`, and `Status` (it shows only this run's fresh findings); it keeps `#`, `Severity`, `What is wrong`, `Suggested fix`, `Why it matters`.
 
 ## Output structure
 
-Top of report:
-
-```markdown
-# Tune audit — prd-[n]
-
-Audited: features/prd-[n]-[slug]/prd-[n]-[slug].md
-Auditor: product-plan-tune
-Date: YYYY-MM-DD
-
-Summary:
-  Critical: <N>
-  Major: <N>
-  Minor: <N>
-```
-
-Body: numbered findings, ordered by severity (Critical first), then by PRD section order within each severity.
-
-Footer: present the human gate defined in SKILL.md Step 4/4.
+- Findings are written to the PRD's **Plan tune findings** section as rows in the table above — never as prose "Finding N —" blocks, and never as a separate dated section. SKILL.md Step 2/4 owns the create-once / append-rows mechanics.
+- Order rows by severity (Critical first), then by PRD section order within each severity.
+- Footer: present the human gate defined in SKILL.md Step 4/4.

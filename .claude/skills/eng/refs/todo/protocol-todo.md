@@ -33,9 +33,9 @@ The 3–4 line summary covers:
 
 ## Work steps (Step 5)
 
-Use the PRD's `## Engineering — <Agent Name>` section and the PRD's §3 F-ID feature table as the joint specification. Do not re-interpret the PRD features section independently of the confirmed engineering section — the engineering section is the authority on *how*; the feature table is the authority on *which F-IDs* are in scope and *why* (the user story / acceptance criteria each F-ID serves).
+Use the PRD's `## Engineering — <Agent Name>` section and the PRD's Features & acceptance criteria F-ID table as the joint specification. Do not re-interpret the PRD features section independently of the confirmed engineering section — the engineering section is the authority on *how*; the feature table is the authority on *which F-IDs* are in scope and *why* (the user story / acceptance criteria each F-ID serves).
 
-1. **Read the confirmed engineering section and feature table.** Read this agent's `## Engineering — <Agent Name>` section in full (its integration contracts, exact identifiers, and the Execution steps it filled into the execution table) and the PRD's §3 F-ID feature table (each F-ID's user story and acceptance criteria). The set of F-IDs to decompose is exactly those assigned to this invocation via `rows`.
+1. **Read the confirmed engineering section and feature table.** Read this agent's `## Engineering — <Agent Name>` section in full (its integration contracts, exact identifiers, and the Execution steps it filled into the execution table) and the PRD's Features & acceptance criteria F-ID table (each F-ID's user story and acceptance criteria). The set of F-IDs to decompose is exactly those assigned to this invocation via `rows`.
 
 2. **Decompose each owned F-ID into tickets.** For each F-ID in scope, walk its engineering-section scope and execution-table rows and group the changes into **tickets** — each a coherent unit of work — following the `refs/todo/template-todo.md` schema. For each ticket fill every field:
    - **`id`** — `F<n>-T<k>`, numbered 1-based within the feature.

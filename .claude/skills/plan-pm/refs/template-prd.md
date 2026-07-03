@@ -6,7 +6,7 @@ type: reference
 
 # PRD Template
 
-Populate every section. Do not delete a section — if a section does not apply, write `N/A` with a one-sentence reason.
+Populate every section. Do not delete a section — if a section does not apply, write `N/A` with a one-sentence reason. Emit each section as an **H2** heading in the exact numbered order below (`## 1. …` through `## 11. …`). Do not emit the scaffolding headings on this page (`## File header`) into the PRD — only the eleven numbered sections.
 
 ## File header
 
@@ -29,9 +29,18 @@ created: YYYY-MM-DD
 # PRD-[n]: <Feature Name>
 ```
 
-## Required sections
+`platform` stays in the frontmatter as routing metadata (branch, module inheritance, eng targeting). There is no "Target platform" body section.
 
-### 1. Out-of-scope
+**Emit these eleven sections, in this order, each as an H2 `## N. Title` heading:**
+
+## 1. Product objective
+
+One paragraph stating the user or business goal this feature serves — the outcome that defines success. No feature list, no implementation. Answer: *who is this for, and what changes for them when it ships?*
+
+**Worked example:**
+> Users who track daily habits abandon the app when they lose a streak by accident. This feature lets them retroactively mark a missed day as complete within a 24-hour grace window, so an honest lapse does not erase weeks of progress — increasing 30-day retention among active streak-holders.
+
+## 2. Out-of-scope
 
 Bulleted list of features or behaviors explicitly excluded. Each item has a one-line reason.
 
@@ -39,54 +48,9 @@ Bulleted list of features or behaviors explicitly excluded. Each item has a one-
 - Social sharing of streaks — covered in PRD-4-social-sharing (separate workstream).
 - Backfill of historical habits — out of scope; users start from sign-up date.
 
-### 2. Target platform
+## 3. User flow
 
-**Single platform detected** — write a field-value table:
-
-| Field | Value |
-|-------|-------|
-| Platform | <detected platform, e.g. iOS> |
-| Min OS version | e.g., iOS 16.0+ |
-
-**Multiple platforms detected** — write a priorities table ranked by delivery priority (1 = highest), one-line reason per row:
-
-| Platform | Priority | Reason |
-|----------|----------|--------|
-
-**Worked examples:**
-
-*Single platform:*
-| Field | Value |
-|-------|-------|
-| Platform | iOS |
-| Min OS version | iOS 16.0+ |
-
-*Multiple platforms:*
-| Platform | Priority | Reason |
-|----------|----------|--------|
-| iOS | 1 | Primary user base; launch target |
-| Android | 2 | Secondary market; shipped after iOS |
-| Web | 3 | Admin-only surface; lower traffic |
-
-### 3. Features & acceptance criteria
-
-Every feature confirmed in the interview (Q1) gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion — no `supports`, `handles`, or other vague verbs (see `refs/principles.md`). Derive each acceptance criterion from the feature's Q5 key interaction and its Q4 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from Q3); use `—` if none.
-
-This table is the canonical feature list for the pipeline: `plan-em` keys its execution table on these F-IDs, and `plan-tune --product` audits the acceptance-criterion column.
-
-| ID | Feature | Acceptance criterion | Dependencies |
-|----|---------|----------------------|--------------|
-
-**Worked example:**
-
-| ID | Feature | Acceptance criterion | Dependencies |
-|----|---------|----------------------|--------------|
-| F1 | Set daily goal | When the user saves a habit with a non-empty name and a frequency, the habit row appears on the Home screen within 200ms; an empty name shows the inline error "Name required". | — |
-| F2 | Track streak | A habit's streak increments by 1 the first time it is marked complete on a given user-profile-timezone day, and resets to 0 after one missed day. | F1 |
-
-### 4. User flows
-
-At least one ASCII flow diagram per feature. Each flow must show the happy path from entry point to completion. Use boxes (`[ ]`), arrows (`-->`), and decision diamonds (`< >`). Label every step with the screen name or action.
+At least one ASCII flow diagram per feature. Each flow must show the happy path from entry point to completion. Use boxes (`[ ]`), arrows (`-->`), and decision diamonds (`< >`). Label every step with the screen name or action. Keep this section about user-visible flow only — engineering detail (files, components, contracts) belongs in §7 Feature execution table.
 
 **Format per feature:**
 
@@ -127,17 +91,7 @@ Feature: Set daily goal
                 row appears instantly]
 ```
 
-**Components (from design system):**
-- `TextInput` — name entry field with inline validation
-- `Button` — primary CTA to save habit
-- `HabitRow` — row that appears on Home screen after save
-
-**Files touched:**
-- `src/screens/NewHabitScreen.tsx` — new screen; entry point for flow
-- `src/components/HabitRow.tsx` — updated to show new habit immediately
-- `src/store/habitsSlice.ts` — add habit to store on save
-
-### 5. Key user interactions
+## 4. Key user interactions
 
 Bulleted list of the core actions a user can take within this feature. Each item is a single sentence starting with "User can …". Derived from Q5 of the interview.
 
@@ -146,19 +100,68 @@ Bulleted list of the core actions a user can take within this feature. Each item
 - User can delete an existing habit from the habit list.
 - User can edit a habit's name or frequency after creation.
 
-### 6. Error cases
+## 5. Error cases
 
 Format, rules, and examples: see `refs/template-error.md`.
 
-### 7. Open questions
+## 6. Features & acceptance criteria
 
-Bulleted list. Each item is a single unresolved question that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity surfaced during the interview.
+Every feature confirmed in the interview (Q1) gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs (see `refs/principles.md`). Derive each acceptance criterion from the feature's Q5 key interaction and its Q4 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from Q3); use `—` if none.
+
+**Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §7 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built.
+
+This table is the canonical feature list for the pipeline: `plan-em` keys its execution table (§7) on these F-IDs, and `plan-tune --product` audits the acceptance-criterion column.
+
+| ID | Feature | Acceptance criterion | Dependencies |
+|----|---------|----------------------|--------------|
 
 **Worked example:**
-- PRD-2-streak-tracking also handles streak resets — confirm which PRD owns the reset logic before building.
-- Target OS minimum not confirmed; assumed iOS 16.0+ pending design sign-off.
 
-### 8. Glossary
+| ID | Feature | Acceptance criterion | Dependencies |
+|----|---------|----------------------|--------------|
+| F1 | Set daily goal | When the user saves a habit with a non-empty name and a frequency, the habit row appears on the Home screen within 200ms; an empty name shows the inline error "Name required". | — |
+| F2 | Track streak | A habit's streak increments by 1 the first time it is marked complete on a given user-profile-timezone day, and resets to 0 after one missed day. | F1 |
+
+## 7. Feature execution table
+
+**Reserved for the engineering breakdown of each feature.** `plan-em` / `eng` populate this section (wiring not yet enabled — leave the placeholder below until it is). It maps every F-ID from §6 to its implementation detail: files touched, design-system components, integration contracts, schema changes, and phases. This is the single home for engineering detail — the product sections above stay user-facing.
+
+Until populated, leave exactly:
+
+```
+_To be populated by plan-em — engineering breakdown of the §6 features._
+```
+
+Skeleton the eng stage will fill:
+
+| F-ID | Files touched | Components | Contracts / schema | Phase |
+|------|---------------|------------|--------------------|-------|
+
+## 8. Open questions
+
+Table of unresolved questions that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity surfaced during the interview. `Status` is derived from the `Answer` cell: `Addressed` when an answer is present, `Open` when the `Answer` cell is empty. An empty table (no open questions) is acceptable. `plan-tune` recomputes `Status` and keeps this table normalized.
+
+| # | Question | Answer | Status |
+|---|----------|--------|--------|
+
+**Worked example:**
+
+| # | Question | Answer | Status |
+|---|----------|--------|--------|
+| 1 | PRD-2-streak-tracking also handles streak resets — which PRD owns the reset logic? | | Open |
+| 2 | Target OS minimum? | iOS 16.0+, confirmed with design. | Addressed |
+
+## 9. Plan tune findings
+
+**Reserved for `plan-tune`.** Each tune run (`--product` or `--eng`) writes its audit findings here as one growing table — created on the first run, appended to thereafter (never a second section). Columns: `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`.
+
+Until the first tune run, leave exactly:
+
+```
+_Populated by plan-tune (/plan-tune) — audit findings table._
+```
+
+## 10. Glossary
 
 Table of domain terms used in this PRD. Cross-reference `GLOSSARY.md`; include any term defined there that appears in this document. Add new terms not yet in `GLOSSARY.md`.
 
@@ -172,3 +175,12 @@ Table of domain terms used in this PRD. Cross-reference `GLOSSARY.md`; include a
 | Streak | Consecutive days a habit is marked complete. Resets to 0 on a missed day. |
 | Habit | A user-defined recurring activity tracked by the app. |
 
+## 11. Todos
+
+**Reserved for `/todo`.** Will list the TODO tickets generated for this PRD, grouped by feature F-ID (wiring not yet enabled — leave the placeholder below until it is).
+
+Until populated, leave exactly:
+
+```
+_Populated by /todo — generated implementation tickets, grouped by feature._
+```

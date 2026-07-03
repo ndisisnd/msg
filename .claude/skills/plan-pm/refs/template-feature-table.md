@@ -17,5 +17,5 @@ Use this table during Step 2 (Interview) to present the confirmed feature list t
 - Description is one sentence max — what the feature does, not how.
 - Platform column uses the Q1 value unless a specific feature applies to a subset.
 - This table is presented inline (not via `AskUserQuestion`). The user reviews it before Q3 runs.
-- Acceptance criteria are **not** added here — they belong in PRD §3 (Features & acceptance criteria). Keep this table lightweight.
-- The F-IDs assigned here (F1, F2, …) carry forward unchanged into PRD §3. `plan-em` keys its execution table on these same IDs, so they must stay stable from interview to PRD.
+- Acceptance criteria are **not** added here — they belong in the PRD's Features & acceptance criteria section. Keep this table lightweight.
+- The F-IDs assigned here (F1, F2, …) carry forward unchanged into the PRD's Features & acceptance criteria section. `plan-em` keys its execution table on these same IDs, so they must stay stable from interview to PRD.

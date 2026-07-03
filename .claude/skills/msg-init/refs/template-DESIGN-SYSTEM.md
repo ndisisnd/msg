@@ -37,5 +37,5 @@ Component registry for {{project_name}}. Read by `plan-pm` when assessing UI imp
 ## Notes
 
 - Design tokens, component library, and conventions are pre-populated from the Step 4 design system interview. The Components table `[USER: …]` rows remain for the user to fill in as components are built.
-- `plan-pm` reads the Components table to identify which components a proposed feature impacts or can reuse, and surfaces this in §3 (User flows) and §4 (Key user interactions).
+- `plan-pm` reads the Components table to identify which components a proposed feature impacts or can reuse; the engineering detail is recorded in the PRD's Feature execution table (populated by `plan-em`), keeping the product sections user-facing.
 - `plan-em` reads the Components table and Design tokens section to scope frontend engineering work and flag data-ingestion changes that components would require.

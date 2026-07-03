@@ -164,7 +164,7 @@ Do not activate any agent until the user responds.
 
 **3a — Fetch coding standards to confirm agent types**
 
-Before proposing any roster, derive the platform identifiers implied by PRD §2 (Target platform) and the §3 Features & acceptance criteria table. Then call `/cook` once per implied platform and read each result fully. The platforms `/cook` returns coverage for are the canonical agent identifiers — use them to name agents (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook` is the authority on what platforms are supported.
+Before proposing any roster, derive the platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` once per implied platform and read each result fully. The platforms `/cook` returns coverage for are the canonical agent identifiers — use them to name agents (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook` is the authority on what platforms are supported.
 
 If `/cook` returns no coverage for a platform implied by the PRD, surface it as a blocking gap: emit a warning, list the uncovered platform, and ask the user via `AskUserQuestion` how to proceed before continuing.
 
@@ -185,7 +185,7 @@ Do not activate any agent without explicit approval.
 
 **Execution table skeleton**
 
-Once the roster is approved, build the execution table skeleton using `refs/template-exec-table.md` as the guide. Enumerate features from the PRD's §3 Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the keys for every exec-table row. For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair, with the Feature cell as the exact `<F-ID>: <name> — <concern>` text. Pre-populate the Feature and Agent columns; leave Execution steps blank.
+Once the roster is approved, build the execution table skeleton using `refs/template-exec-table.md` as the guide. Enumerate features from the PRD's Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the keys for every exec-table row. For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair, with the Feature cell as the exact `<F-ID>: <name> — <concern>` text. Pre-populate the Feature and Agent columns; leave Execution steps blank.
 
 **Todos column (only when `$TODOS = true`).** If the todo layer is enabled, add a **Todos** column between Execution steps and Agent. Each row's Todos cell is an anchor link to that feature's `### F<n>` subsection under the `## Todos` section: `[F<n>](#todos-f<n>)` (e.g. `[F1](#todos-f1)`). All rows sharing an F-ID point to the same anchor. The target blocks don't exist yet — they're written in the todo phase (Step 4) — so this is a forward pointer. When `$TODOS = false`, **omit this column entirely**; the table is unchanged from before this feature.
 
