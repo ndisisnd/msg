@@ -18,15 +18,12 @@ cleanup() { rm -rf "${TMP_DIR}"; }
 trap cleanup EXIT
 
 # ── Parse args ────────────────────────────────────────────────────────────────
-WITH_COOK=false
 for arg in "$@"; do
   case "$arg" in
-    --with-cook|--cook) WITH_COOK=true ;;
     --help|-h)
-      echo "Usage: install.sh [--with-cook]"
+      echo "Usage: install.sh"
       echo
-      echo "  (no flags)   Install msg skills only"
-      echo "  --with-cook  Install msg skills + cook"
+      echo "  Installs the msg skills into ~/.claude/skills."
       exit 0
       ;;
     *) die "Unknown flag: $arg" ;;
@@ -36,29 +33,6 @@ done
 # ── Preflight ─────────────────────────────────────────────────────────────────
 command -v git  >/dev/null 2>&1 || die "git is required but not installed"
 command -v curl >/dev/null 2>&1 || die "curl is required but not installed"
-
-# ── Interactive prompt (if no flag given) ─────────────────────────────────────
-if [[ "${WITH_COOK}" == false && $# -eq 0 ]]; then
-  echo
-  echo "  What would you like to install?"
-  echo "  [1] msg only"
-  echo "  [2] msg + cook (recommended)"
-  echo
-  read -r -p "  Choice [1/2]: " choice
-  case "${choice}" in
-    2) WITH_COOK=true ;;
-    1|"") WITH_COOK=false ;;
-    *) die "Invalid choice" ;;
-  esac
-fi
-
-# ── Install cook first (if requested) ─────────────────────────────────────────
-if [[ "${WITH_COOK}" == true ]]; then
-  echo
-  info "Installing cook..."
-  eval "${COOK_INSTALL}" || die "cook installation failed"
-  success "cook installed"
-fi
 
 # ── Clone msg ─────────────────────────────────────────────────────────────────
 echo
@@ -119,14 +93,7 @@ find "${SKILLS_DIR}" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || tru
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
 success "msg installed successfully"
-if [[ "${WITH_COOK}" == true ]]; then
-  echo "  Skills: ${SKILLS_DIR}"
-  echo "  cook:   see cook's output above"
-else
-  echo "  Skills: ${SKILLS_DIR}"
-  echo
-  echo "  Tip: re-run with --with-cook to also install cook"
-fi
+echo "  Skills: ${SKILLS_DIR}"
 echo
 echo "  Next steps:"
 echo "    • Run /msg-init in a project to scaffold devkit files"
@@ -134,4 +101,9 @@ echo "    • Run /msg to see the full menu of skills"
 echo
 echo "  Stay up to date: https://github.com/ndisisnd/msg"
 echo "  (check periodically for updates)"
+echo
+echo "  msg works best with cook, a coding standard tooling for maximum code quality. Check out the repo at https://github.com/ndisisnd/cook"
+echo "  or install it now with ${COOK_INSTALL}"
+echo
+echo "  Dedicated to JC, who started agentic engineering way before I did anything."
 echo
