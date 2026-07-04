@@ -352,6 +352,10 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
 }
 .detail-head h2 .num { color: var(--text-faint); font-weight: 500; font-variant-numeric: tabular-nums; }
 .detail-head .subtitle { color: var(--text-faint); font-size: var(--fs-sm); margin-bottom: var(--sp-2); }
+.detail-head .detail-summary {
+  color: var(--text-muted); font-size: var(--fs-sm); line-height: 1.5;
+  margin: var(--sp-2) 0 var(--sp-3); max-width: 72ch;
+}
 .detail-head .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 
 .section { margin-bottom: var(--sp-5); }
@@ -688,22 +692,21 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
 
 /* ---- Roadmap view (plan-pm --roadmap) — reuses .kanban/.column/.card/.pill ---- */
 .roadmap-lanes .column-head { text-transform: none; }
+/* Phase goal sits between head and body, which have no side padding of their own —
+   inset it so the text lines up inside the lane instead of hugging the edges. */
 .roadmap-goal {
   font-size: var(--fs-sm); color: var(--text-muted);
-  margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); line-height: 1.4;
+  padding: var(--sp-2) var(--sp-3) var(--sp-3); margin: 0; line-height: 1.4;
 }
 .card.muted { opacity: 0.6; }
 .roadmap-why {
   font-size: var(--fs-xs); color: var(--text-faint);
   margin-top: var(--sp-2); line-height: 1.4;
 }
-.roadmap-tunelog {
-  margin-top: var(--sp-5); border: 1px solid var(--border);
-  border-radius: var(--radius-sm); background: var(--surface);
-  padding: var(--sp-3) var(--sp-4);
-}
-.roadmap-tunelog > summary {
-  cursor: pointer; font-weight: 600; color: var(--text-muted);
-  font-size: var(--fs-sm);
-}
-.roadmap-tunelog .md-body { margin-top: var(--sp-3); }
+/* Completed (shipped) roadmap PRD — greyed but still shown. */
+.roadmap-lanes .card.done { opacity: 0.55; background: var(--bg-sunken); }
+.roadmap-lanes .card.done .title { color: var(--text-muted); }
+.card .done-check { color: var(--st-shipped, var(--text-muted)); font-weight: 700; margin-left: 4px; }
+/* Phase whose PRDs have all shipped. */
+.roadmap-lanes .column.phase-done .column-head { color: var(--st-shipped, var(--text-muted)); }
+.column-head .phase-check { color: var(--st-shipped, var(--text-muted)); font-weight: 700; }

@@ -285,6 +285,7 @@ def parse_prd_dir(d):
         "path": rel + "/",
         "file": os.path.relpath(mds[0], root_path()),
         "feature": fm.get("feature") or fm.get("name") or slug.replace("-", " ").title(),
+        "summary": fm.get("summary"),
         "module": fm.get("module"),
         "platform": fm.get("platform"),
         "status": fm.get("status"),

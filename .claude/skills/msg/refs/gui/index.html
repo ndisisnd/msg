@@ -657,12 +657,14 @@ function listTable(list) {
 /* ========================================================================= */
 function roadmapCard(c) {
   var bucket = BUCKET_ORDER[c.completion] != null ? c.completion : "product";
+  var isDone = bucket === "shipped";   // a shipped PRD is complete — grey it out, don't hide it
   var numMatch = /^prd-([\d.]+)/.exec(c.id || "");
   var num = numMatch ? numMatch[1] : "";
   var card = el(
-    '<div class="card' + (c.known ? "" : " muted") + '"' + (c.known ? ' tabindex="0" role="button"' : "") + ">" +
+    '<div class="card' + (c.known ? "" : " muted") + (isDone ? " done" : "") + '"' + (c.known ? ' tabindex="0" role="button"' : "") + ">" +
       '<div class="title">' + (num ? '<span class="num">PRD-' + esc(num) + "</span>" : "") +
-        esc(c.feature || c.id) + "</div>" +
+        esc(c.feature || c.id) +
+        (isDone ? ' <span class="done-check" title="Completed" aria-label="Completed">✓</span>' : "") + "</div>" +
       '<div class="meta">' +
         '<span class="pill dot st-' + bucket + '">' + esc(bucketLabel(bucket)) + "</span>" +
         (c.known ? "" : '<span class="pill muted">retired/unknown</span>') +
@@ -700,8 +702,11 @@ function renderRoadmap() {
   var wrap = el('<div class="kanban roadmap-lanes"></div>');
   phases.forEach(function (ph) {
     var cards = ph.prds || [];
-    var col = el('<div class="column"></div>');
+    // A phase is complete when it has PRDs and every one of them has shipped.
+    var phaseDone = cards.length > 0 && cards.every(function (c) { return c.completion === "shipped"; });
+    var col = el('<div class="column' + (phaseDone ? " phase-done" : "") + '"></div>');
     var head = el('<div class="column-head">Phase ' + esc(ph.phase) + ' — ' + esc(ph.name) +
+      (phaseDone ? ' <span class="phase-check" title="Phase complete" aria-label="Phase complete">✓</span>' : "") +
       ' <span class="n">' + cards.length + "</span></div>");
     col.appendChild(head);
     if (ph.goal) col.appendChild(el('<div class="roadmap-goal">' + esc(ph.goal) + "</div>"));
@@ -711,12 +716,6 @@ function renderRoadmap() {
     wrap.appendChild(col);
   });
   root.appendChild(wrap);
-
-  if (ROADMAP.tuneLog) {
-    var det = el('<details class="roadmap-tunelog"><summary>Roadmap tune log</summary></details>');
-    det.appendChild(el('<div class="md-body">' + mdToHtml(ROADMAP.tuneLog) + "</div>"));
-    root.appendChild(det);
-  }
 }
 
 /* ---- PRD-body section splitting (G-detail) --------------------------------------
@@ -891,6 +890,13 @@ function findingsAccordion(p) {
 /* ========================================================================= */
 /*  DETAIL PAGE                                                               */
 /* ========================================================================= */
+// A succinct gist shown below the PRD title. Prefers the authored frontmatter
+// `summary`; falls back to the feature-title list so it is never blank.
+function detailSummary(p) {
+  if (p.summary) return esc(p.summary);
+  var titles = (p.features || []).map(function (f) { return f.title; }).filter(Boolean);
+  return titles.length ? "Delivers " + esc(titles.join("; ")) + "." : "";
+}
 function renderDetail(id) {
   var p = findPrd(id);
   root.innerHTML = "";
@@ -908,6 +914,8 @@ function renderDetail(id) {
   var h2 = el('<h2><span class="num">PRD-' + esc(p.num) + "</span><span>" + esc(p.feature || p.id) + "</span></h2>");
   h2.appendChild(statusControl(p));
   head.appendChild(h2);
+  var sum = detailSummary(p);   // 2–3 sentence gist of features + product objective, below the title
+  if (sum) head.appendChild(el('<div class="detail-summary">' + sum + "</div>"));
   if (p.created) head.appendChild(el('<div class="subtitle">Created on: ' + esc(p.created) + "</div>"));
   head.appendChild(el('<div class="meta">' +
     (p.module ? '<span class="pill">' + esc(p.module) + "</span>" : "") +
