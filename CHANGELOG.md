@@ -1,5 +1,9 @@
 # Changelog
 
+- Gitignore the generated `roadmap/` directory. `roadmap/roadmap.md` is per-project output of `plan-pm --roadmap` (same generated-content class as the already-ignored `features/` and `plans/`), so it is local-only and no longer tracked.
+
+- `.gitignore` — add `roadmap/` under the working-dirs section
+
 - Teach `plan-pm` to author the PRD `summary` frontmatter field that the `/msg --gui` detail page renders. The PRD template grows a `summary:` field (a single-line 2–3 sentence gist of the core objective + headline features); Step 4 initializes it from the Q1 brief and Step 5 reconciles it against the finalized §1 Product objective and §6 feature list. Sub-PRDs author their own `summary` (not inherited from the parent), and the `protocol-gui.md` data-shape doc records the new field. New PRDs now ship a summary out of the box; older PRDs without one still fall back to the GUI's feature-title list.
 
 - `.claude/skills/plan-pm/refs/template-prd.md` — add `summary:` to the file-header frontmatter with authoring guidance

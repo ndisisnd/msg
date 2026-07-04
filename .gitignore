@@ -25,6 +25,7 @@ settings.local.json
 # ── Working dirs (plans, features, evals) ─────────────────────────────────────
 plans/
 features/
+roadmap/
 evals/
 eval-msg-workflow*
 handoff/
