@@ -27,6 +27,7 @@ Read the invocation flag and load exactly one mode protocol:
 | `--plan` | `refs/plan/protocol.md` |
 | `--todo` | `refs/todo/protocol-todo.md` |
 | `--build` | `refs/build/protocol.md` |
+| `--build roadmap=<path>` | `refs/build/protocol-roadmap.md` |
 
 `--todo` sits strictly between `--plan` and `--build`: design doc → task breakdown → build. Exactly one mode flag (`--plan`, `--todo`, or `--build`) must be present. If zero mode flags or more than one mode flag is given, emit:
 
@@ -34,13 +35,17 @@ Read the invocation flag and load exactly one mode protocol:
 Hard failure: exactly one mode flag required (--plan | --todo | --build). Got: <list>.
 ```
 
-Stop. Otherwise read the active mode file **fully** before any other step. It defines the mode-specific input rules, the summary content, the work steps, and the output contract. The numbered steps below are the shared spine — they run for every mode and point to the active mode file where the path diverges.
+Stop.
+
+**Roadmap orchestrator override:** when `--build` is invoked with a `roadmap=<path>` field, load `refs/build/protocol-roadmap.md` **instead of** `refs/build/protocol.md`. That protocol turns this session into an autonomous **product-operations orchestrator** that executes a whole `roadmap/roadmap.md` phase-by-phase by spawning `eng`/`review`/`test`/`pre-merge` subagents — it is a superset that itself invokes leaf `--build` runs. `roadmap=` is a `--build`-only source (Step 1); it is rejected on `--plan`/`--todo`.
+
+Otherwise read the active mode file **fully** before any other step. It defines the mode-specific input rules, the summary content, the work steps, and the output contract. The numbered steps below are the shared spine — they run for every mode and point to the active mode file where the path diverges.
 
 ---
 
 ## Step 1 — Input validation
 
-There are two input sources. The **PRD/exec-table source** is the default for every mode; the **`test-json` source** is an alternate available on `--build` only.
+There are three input sources. The **PRD/exec-table source** is the default for every mode; the **`test-json` source** and the **`roadmap` source** are alternates available on `--build` only.
 
 ### PRD/exec-table source (all modes)
 
@@ -80,7 +85,23 @@ Hard failure: pass either prd-path+rows or test-json, not both (ambiguous input 
 
 A `test-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: test-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
 
-### Path derivation (both sources)
+### `roadmap` source (`--build` only)
+
+`--build` accepts `roadmap=<path to roadmap/roadmap.md>` as an **alternate to `prd-path`+`rows`** — it hands the whole roadmap to the product-operations orchestrator (`refs/build/protocol-roadmap.md`) rather than building one agent's rows. When `roadmap=` is supplied, this SKILL routes to that protocol at Step 0 and the orchestrator owns everything downstream; the required-field set is just:
+
+| Field | Value |
+|-------|-------|
+| mode flag | `--build` |
+| `roadmap` | Path to `roadmap/roadmap.md` (written by `plan-pm --roadmap`) |
+
+Rejections (all hard failures, emit and stop):
+- `roadmap=` with `--plan` or `--todo` → `Hard failure: roadmap= is a --build-only input source`.
+- `roadmap=` together with `prd-path`/`rows` **or** `test-json` → `Hard failure: pass exactly one of prd-path+rows, test-json, or roadmap (ambiguous input source).`
+- A `roadmap` path that does not exist or has no phases → `Hard failure: roadmap <path> not found or empty`.
+
+`roadmap=` does **not** require the four PRD fields — the orchestrator derives per-PRD `prd-path`/`rows`/`agent`/`branch` for each leaf `eng --build` subagent it spawns.
+
+### Path derivation (PRD + test-json sources)
 
 Eng derives all *implementation* file paths from the codebase scan and the spec (exec-table or projected issue-tickets). `test-json`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
 
@@ -202,4 +223,6 @@ Throughout Steps 2–5, enforce strict scope:
 - `refs/todo/template-todo.md` — ticket schema (`id`/`title`/`objective`/`type`/`priority`/`files`/`depends-on`/`done-when`), `## Todos` structure, and per-`### F<n>` block rules.
 - `refs/build/protocol.md` — `--build` mode: the **branch contract** (`branch` is the feature branch your commits must land on; `commit_mode` `direct` (default, used by `ship`) commits straight to it, `sub-branch` cuts a PR), work steps, commit and PR contract.
 - `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.
+- `refs/build/protocol-roadmap.md` — `--build roadmap=<path>` orchestrator: the product-operations specialist that executes `roadmap/roadmap.md` phase-by-phase, spawning `eng`/`review`/`test`/`pre-merge` subagents, fixing critical+major by default, guarding production, and never terminating mid-phase.
+- `.claude/scripts/eng-db-touch.sh` — production/data guardrail: flags a diff that touches migrations, schema, models/entities, seeds/fixtures, or env/production config; the orchestrator pauses for sign-off when it trips.
 - **Contract:** the `## Engineering — <Agent>` heading written by `--plan` is how `plan-em` detects that the engineering section is ready and how `--build` locates its spec. Do not rename this heading.

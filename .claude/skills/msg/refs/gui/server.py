@@ -7,6 +7,7 @@ JSON API that turns the board into a lightweight Linear/Jira-style tool:
   GET  /                      filled index.html (styles + fresh data + token)
   GET  /api/ping              liveness + existing job ids
   GET  /api/data              rebuilt data contract (see protocol-gui.md Step 3)
+  GET  /api/roadmap           roadmap/roadmap.md parsed into phases (Roadmap tab)
   GET  /api/files             allowlisted project docs (README, CLAUDE.md, devkit/)
   GET  /api/file?path=…       one doc's content
   POST /api/prd/save          {path, body}        rewrite a PRD body (frontmatter kept)
@@ -356,6 +357,62 @@ def collect_test_issues(skipped):
     return out
 
 
+# --------------------------------------------------------------------------- roadmap
+
+ROADMAP_REL = os.path.join("roadmap", "roadmap.md")
+PHASE_RE = re.compile(r"^##\s+Phase\s+(\d+)\s*[—–-]\s*(.+?)\s*$", re.M)
+
+
+def build_roadmap(prds):
+    """Parse roadmap/roadmap.md into ordered phases, each with its PRD cards
+    cross-referenced against the live PRD set so a card carries the same
+    completion bucket the Board shows. Absent file → an empty, valid payload."""
+    full = confine(ROADMAP_REL)
+    if not full or not os.path.isfile(full):
+        return {"exists": False, "phases": [], "tuneLog": ""}
+    text = open(full, encoding="utf-8", errors="replace").read()
+    _fm, body = parse_frontmatter(text)
+    body = body if body else text
+    by_id = {p["id"]: p for p in prds}
+
+    # Split off the trailing `## Roadmap tune log` so it never leaks into the last phase.
+    tm = re.search(r"^##\s+Roadmap tune log\s*$", body, re.M)
+    tune_log = body[tm.end():].strip() if tm else ""
+    phase_body = body[:tm.start()] if tm else body
+
+    matches = list(PHASE_RE.finditer(phase_body))
+    phases = []
+    for i, m in enumerate(matches):
+        name = m.group(2).strip()
+        seg = phase_body[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(phase_body)]
+        goal = ""
+        gm = re.search(r"^\s*Goal:\s*(.+?)\s*$", seg, re.M)
+        if gm:
+            goal = gm.group(1).strip()
+        cards = []
+        # Separator between id and the rest is a *spaced* em/en-dash — never the
+        # ASCII hyphens inside the id itself (prd-101-task-crud).
+        for lm in re.finditer(r"^-\s+(prd-[\w.-]+?)\s+[—–]\s+(.+?)\s*$", seg, re.M):
+            pid = lm.group(1)
+            parts = [p.strip() for p in re.split(r"\s+[—–]\s+", lm.group(2))]
+            feature = parts[0] if parts else ""
+            file_bucket = parts[1] if len(parts) > 1 else ""
+            rationale = parts[2] if len(parts) > 2 else ""
+            live = by_id.get(pid)
+            cards.append({
+                "id": pid,
+                "feature": (live or {}).get("feature") or feature,
+                "completion": (live or {}).get("completion") or file_bucket or "product",
+                "fileBucket": file_bucket,
+                "rationale": rationale,
+                "path": (live or {}).get("path"),
+                "known": live is not None,
+            })
+        phases.append({"phase": int(m.group(1)), "name": name, "goal": goal, "prds": cards})
+
+    return {"exists": True, "phases": phases, "tuneLog": tune_log}
+
+
 # --------------------------------------------------------------------------- data + files
 
 def read_h1(rel_or_abs):
@@ -406,6 +463,7 @@ def build_data():
         "project": project_name(),
         "prds": prds,
         "testIssues": test_issues,
+        "roadmap": build_roadmap(prds),
         "skipped": skipped,
     }
 
@@ -593,6 +651,7 @@ def fill_template():
     html = html.replace("__STYLES__", styles, 1)
     html = html.replace("__PRD_DATA__", data, 1)
     html = html.replace("__API_TOKEN__", TOKEN, 1)
+    html = html.replace("__DEFAULT_VIEW__", getattr(ARGS, "view", "board") or "board", 1)
     return html
 
 
@@ -655,6 +714,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json({"ok": True, "root": root_path(), "jobs": ids})
         elif u.path == "/api/data":
             self._json(build_data())
+        elif u.path == "/api/roadmap":
+            self._json(build_roadmap(build_data()["prds"]))
         elif u.path == "/api/files":
             self._json({"files": list_project_files()})
         elif u.path == "/api/file":
@@ -711,6 +772,8 @@ def main():
     ap.add_argument("--gui-dir", default=os.path.dirname(os.path.abspath(__file__)),
                     help="dir containing index.html + styles.css")
     ap.add_argument("--port", type=int, default=0, help="port (0 = pick a free one)")
+    ap.add_argument("--view", default="board", choices=("board", "roadmap"),
+                    help="initial tab the served board opens on")
     ap.add_argument("--runner", default="claude -p {prompt} --permission-mode acceptEdits",
                     help="command template for /api/prompt; {prompt} is replaced argv-safely")
     ARGS = ap.parse_args()

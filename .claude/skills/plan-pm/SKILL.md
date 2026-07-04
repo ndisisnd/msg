@@ -20,11 +20,12 @@ allowed_tools:
 
 **Invoke**: `/plan-pm`. Pass an optional product idea or brief as input.
 
-- Slash commands: `/plan-pm`, `/plan-pm --sub [parent PRD path | number]`
+- Slash commands: `/plan-pm`, `/plan-pm --sub [parent PRD path | number]`, `/plan-pm --roadmap`
 - Natural language: "start a new feature", "plan and build", "begin product workflow", "kick off the build pipeline", "draft a PRD"
 - Natural language (**sub-PRD**): "create a sub-PRD", "more changes to PRD 2", "follow-up fixes for this PRD", "spin off a sub-PRD" — route to the `--sub` mode in the § Sub-PRD mode section below.
+- Natural language (**roadmap**): "build a roadmap", "arrange my PRDs into phases", "sequence the PRDs", "plan the roadmap", "organise the PRDs into a roadmap" — route to the `--roadmap` mode in the § Roadmap mode section below.
 
-**Modes:** default (new top-level PRD) and `--sub` (a numbered follow-up nested under an existing parent PRD). When `--sub` is present — as a flag or via a sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first: it changes intake (Step 1), numbering (Step 4 Part 1), the folder/frontmatter written (Step 4 Part 2), and nothing else. All other steps run identically.
+**Modes:** default (new top-level PRD), `--sub` (a numbered follow-up nested under an existing parent PRD), and `--roadmap` (analyse the existing PRDs and arrange them into sequenced phases). When `--sub` is present — as a flag or via a sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first: it changes intake (Step 1), numbering (Step 4 Part 1), the folder/frontmatter written (Step 4 Part 2), and nothing else. All other steps run identically. When `--roadmap` is present, read § Roadmap mode (`--roadmap`): it is a **separate protocol** (`refs/protocol-roadmap.md`), not the six-step PRD flow — it runs no interview and writes no new PRD, operating instead on the PRDs already in `features/`.
 
 **Hard refusals:**
 - Request lacks a target user or scope: ask one clarifying `AskUserQuestion` before proceeding.
@@ -95,7 +96,22 @@ features/prd-<parent-n>-<parent-slug>/prd-<parent-n>.<m>-<sub_slug>/prd-<parent-
 
 Everywhere the steps in `refs/protocol-pm.md` say `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`, substitute the nested sub-PRD path from D3 when in `--sub` mode.
 
+## Roadmap mode (`--roadmap`)
+
+`--roadmap` is a distinct capability, not a variant of the PRD-authoring flow. It takes the **existing** done and open PRDs in `features/`, analyses them, and arranges them into an ordered set of **roadmap phases** (waves of whole PRDs) — then writes `roadmap/roadmap.md` and offers an interactive GUI view.
+
+It follows `refs/protocol-roadmap.md` end-to-end (its own six-step protocol) — **do not** run the § Step-by-step protocol below when `--roadmap` is set. Key differences from the default flow:
+
+- **No interview, no new PRD.** It reads PRDs; it does not author one. The Pre-run devkit reads and the Persona still apply.
+- **Analysis, not blind ingestion.** It flags **bloated** PRDs (≥2 unrelated feature clusters) and **overlapping/foldable** PRDs, and proposes `SPLIT` / `MERGE` / `FOLD` / `TRIM` ops. Reshaping PRD files is **approval-gated per op** (protocol Step 3) — nothing is rewritten silently, and a superseded PRD is marked `status: retired`, never deleted.
+- **Stable reruns.** A rerun keeps each PRD in its current phase unless it was reshaped, a new hard dependency forces it later, or huge overlap consolidates it (protocol Step 4). Prior phase names and order survive regeneration.
+- **Artifact + handoff.** The output is `roadmap/roadmap.md`. Step 6 offers the Roadmap GUI (the same `/msg --gui` board on its Roadmap tab) and the execution handoff `/eng --build roadmap=roadmap/roadmap.md` (the autonomous product-ops orchestrator).
+
+**Roadmap phase vs eng phase:** a roadmap phase orders whole PRDs; the pre-existing "phase" in PRD §7 / eng plan §6 orders work *inside* one PRD. They do not collide — the protocol always qualifies "roadmap phase".
+
 ## Step-by-step protocol
+
+_Default and `--sub` modes only. In `--roadmap` mode, follow `refs/protocol-roadmap.md` instead (see § Roadmap mode above)._
 
 Follow `refs/protocol-pm.md` end-to-end. It defines the full six-step flow — Step 1 Intake (with epic detection), Step 2 Scan prior PRDs for overlap, Step 3 Interview, Step 4 Pre-flight run and initialize template, Step 5 Populate sections, Step 6 Summary and next steps — plus the multi-PRD final summary emitted when multi-PRD mode completes.
 
@@ -113,6 +129,9 @@ Each PRD carries four status fields in its YAML frontmatter. The owning skill is
 ## References
 
 - `refs/protocol-pm.md` — end-to-end six-step execution protocol + multi-PRD final summary; followed from § Step-by-step protocol
+- `refs/protocol-roadmap.md` — end-to-end `--roadmap` protocol: inventory → analyse for bloat/overlap → gated reshaping → stable phase sequencing → `roadmap/roadmap.md` → GUI/execution handoff; followed from § Roadmap mode
+- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic PRD inventory (JSONL); call in Roadmap Step 1
+- `roadmap/roadmap.md` — the roadmap artifact written by `--roadmap`; read by `/msg --gui` (Roadmap tab) and `/eng --build roadmap=…`
 - `refs/principles.md` — core operating principles; read this first before any other ref
 - `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 4
 - `refs/template-error.md` — error case format, rules, and examples; used when populating §6 in Step 5

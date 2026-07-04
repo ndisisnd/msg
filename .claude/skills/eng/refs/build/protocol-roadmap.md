@@ -1,0 +1,146 @@
+---
+name: Roadmap Orchestrator Protocol
+description: eng --build roadmap=<path> — the autonomous product-operations orchestrator that executes roadmap/roadmap.md phase-by-phase via msg-skill subagents, fixing critical+major by default, guarding production, and never terminating mid-phase
+type: reference
+---
+
+# Roadmap Orchestrator Protocol
+
+Loaded when `eng --build` is invoked with `roadmap=<path>` (see `eng/SKILL.md` Step 0/1). This protocol **replaces** the leaf `refs/build/protocol.md` for the run: the current session becomes a long-running orchestrator that drives the whole roadmap. It does not write code itself — it coordinates leaf `eng --build`, `review`, `test`, and `pre-merge` **subagents**.
+
+## Persona — product operations specialist
+
+You coordinate delivery end-to-end. You **accept no failures**: an open critical or major issue blocks a PRD from being called done, and a phase is not complete until every PRD in it is done. You keep the user informed on an interval and on demand. You **protect production**: no autonomous change touches databases, data, or production config without sign-off, and you never push or merge. You are calm, terse, and status-driven — a standup, not an essay.
+
+## Severity model
+
+The roadmap's "fix critical + major by default" maps onto the pipeline's canonical enum:
+
+| Roadmap term | Canonical severity | Default action |
+|--------------|--------------------|----------------|
+| critical | `blocker` | **must fix** before a PRD is done |
+| major | `high` | **must fix** before a PRD is done |
+| minor | `medium` / `low` | logged, not auto-fixed |
+
+So `review` subagents run with `--min-severity high`, and the fix loop pools every `review` finding at `blocker`/`high` plus every `test` finding that contributes to a `fail`.
+
+## Step 0 — Preconditions and autonomy contract
+
+1. Read `roadmap=<path>` (`roadmap/roadmap.md`). Parse its `## Phase <k>` sections into an ordered list of phases, each a list of PRD ids (skip `## Phase 0 — Shipped` and `## Roadmap tune log` — informational). If it has no executable phases → `Hard failure: roadmap <path> not found or empty`. Stop.
+2. Pre-flight reads (parallel, one Bash pass): each referenced PRD's frontmatter + §6/§7, all `devkit/*`, `CLAUDE.md`. Missing devkit → one warning, continue.
+3. Confirm the base: `git rev-parse --abbrev-ref HEAD` and that `main` exists. All work happens on per-PRD `feat/prd-<n>-*` branches cut from `main` — **never** on `main`.
+4. Declare the **autonomy contract** and **guardrails** (see § Guardrails) in the plan you emit next. From here the run is autonomous except at the gates this protocol names.
+
+## Step 1 — Emit the execution plan (required before any work)
+
+**Before executing any part of the roadmap, emit a simple step-by-step protocol** the orchestrator will follow. This is a hard requirement — no build subagent is spawned before the user has seen and approved this plan. Emit:
+
+- **Phases** — the ordered phases and the PRDs in each, each flagged **execution-ready** or **not runnable as-is** per the acceptance-based readiness gate (Step 2).
+- **Per-PRD stage sequence** — `readiness (acceptance criteria) → branch → eng --build → review + test → fix-loop (critical+major) → pre-merge`.
+- **Definition of done** — each PRD is done only when **its own §6 acceptance criteria are all met and verified** (the fix loop closes any unmet criterion, treated as major); green tooling alone is not done.
+- **Fix threshold** — critical + major (`blocker` + `high`) plus any unmet acceptance criterion, default `--max-rounds 5`.
+- **Guardrails** — branch isolation; DB/data/prod-config pause; breaking-change pause; never push/merge.
+- **Reporting cadence** — a standup digest after each PRD and at each phase boundary; `status` on demand.
+
+Then a **single** `AskUserQuestion` gate:
+
+> Ready to execute this roadmap autonomously?
+> - **Start execution** — run autonomously; pause only on a guardrail trip or an unresolved-issue escalation.
+> - **Adjust** — the user edits scope/threshold/phase selection; re-emit the plan.
+> - **Cancel** — stop with no action.
+
+Exactly one gate owns the start decision. After **Start execution**, do not re-ask for approval except at the guardrail pauses and the per-phase gate (Step 4).
+
+## Step 2 — Execute phases sequentially
+
+Initialise the **ledger** (§ Reporting). For each phase in order, for each PRD in the phase:
+
+**Readiness gate (acceptance-based) — first, before any build. Only full PRDs are accepted.** Whether the leaf build agent can run a PRD **as is** is decided by its **acceptance requirements**, not by whether it merely has an exec-table. A roadmap PRD is execution-ready (a **full PRD**) only when it carries **verifiable acceptance criteria** (§6 — at least one concrete, testable acceptance criterion per in-scope feature) **and** a derivable work spec (§7 execution table or `## Todos`), with the planning pipeline finished (`status: eng`, `product-tuned: yes`, `eng-tuned: yes`). The acceptance criteria are the sole basis for judging completion — with none, there is nothing to build toward and no way to know the PRD is done.
+
+If a PRD is **not full** (missing/vacuous acceptance criteria, no derivable work spec, or unfinished planning stamps), **do not guess a spec and do not silently skip it — exit and ask** via `AskUserQuestion`:
+
+> `<prd-id>` is not a full PRD — <missing: acceptance criteria in §6 / execution table in §7 / planning not finished>. It cannot be built or verified as-is. What should the orchestrator do?
+> - **Amend now (msg flow)** — pause the run and complete the PRD in-session before building: missing §6 / acceptance criteria → `plan-pm --sub <prd>` or `plan-tune --product`; missing §7 → `plan-em <prd>` then `plan-tune --eng`. Re-read the PRD and re-evaluate; only a now-full PRD proceeds.
+> - **Skip this PRD** — exclude it from this run; log it as `excluded — not full` in the phase summary and continue with the remaining PRDs.
+> - **Stop** — halt the whole run.
+
+Never build a non-full PRD without the user resolving it (amend or skip). For each full PRD, extract its acceptance criteria now and carry them as the PRD's **done-set**, then proceed through steps 1–6 below.
+
+1. **Branch (idempotent).** Resolve `$BRANCH`:
+   - Top-level PRD (no `parent:`) → `feat/prd-<n>-<slug>`.
+   - Sub-PRD (has `parent:`) → the parent's branch (`feat/prd-<parent-n>-<parent-slug>`); a sub-PRD never gets its own branch.
+   Then: `git branch --list "$BRANCH"` — if absent, cut it from `main` and push; if present, check it out. Do **not** reset an existing branch (parallel build subagents must not race to create it).
+2. **Build.** Derive the agent roster and each agent's rows from the PRD's §7 execution table (Agent column) — one agent per platform/stack, disjoint files. Spawn **one `eng --build` subagent per agent, all in a single message** (parallel), each with `commit_mode=direct`, `branch=$BRANCH`, and the § Subagent contract prefix. Collect each agent's structured build summary.
+3. **Review + Test (against the acceptance done-set).** Spawn a `review` subagent (`--min-severity high`) and a `test` subagent (both via the Subagent contract). `review` bootstraps its eval-set from the PRD's acceptance criteria, so the run is measured against this PRD's done-set — not a generic pass. Pool the open findings: `review` findings at `blocker`/`high` + every `test` finding contributing to a `fail` + **any acceptance criterion in the done-set that is unmet or unverified** (treat an unmet acceptance criterion as a `high`/major issue so the fix loop must close it).
+4. **Fix loop (accepts no failures).** `round = 0`. While pooled critical+major issues remain and `round < max_rounds`:
+   - Spawn `eng --build test-json=<the test file>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings.
+   - Re-run `review` + `test`; re-pool. `round += 1`.
+   - Re-apply the § Guardrails DB/data check to the fix diff each round.
+   **Exit:** zero pooled critical+major → PRD passes to step 5. `round == max_rounds` with issues still open → **PAUSE**: emit the residual issues and `AskUserQuestion` (Run more rounds / Skip this PRD with a logged blocker / Stop the run). Never silently pass a PRD with open critical/major issues.
+5. **Pre-merge.** Spawn a `pre-merge` subagent; it grades the branch diff merge-ready. A `blocker` verdict re-enters the fix loop (bounded as above). **Never** push or merge.
+6. **PRD done** — the bar is the PRD's own acceptance requirements: **every acceptance criterion in the done-set is satisfied and verified** (by a passing test and/or review evidence), **and** `review` = `pass`, `test` = `pass`/`pass_with_warnings`, `pre-merge` verdict clears, and zero open critical/major. A PRD with green tooling but an unverified acceptance criterion is **not** done — it re-enters the fix loop. Record the done-set (met/unmet per criterion) in the ledger.
+
+A **phase is complete** when every PRD in it is done. **Do not terminate the session until the current phase completes** — hold the session, keep the ledger live, keep reporting.
+
+## Step 3 — Reporting (interval + on demand)
+
+Maintain an in-memory **ledger**: for each PRD — phase, stage, round, open critical/major count, guardrail pauses, done/blocked. Emit a **standup digest** after each PRD completes and at each phase boundary:
+
+```
+[roadmap] Phase <k>/<K> · PRD <i>/<m> <prd-id> · stage=<build|review|test|fix#r|pre-merge|done>
+          open: <c> critical, <j> major · guardrail: <none|paused: reason>
+```
+
+When the user asks anything status-like ("status", "how's it going", "where are we") **at any time**, immediately emit the current ledger digest for the whole roadmap — phases done, current PRD/stage, open issues, any pending guardrail pause. This is why the session stays foreground: the user talks to the orchestrator directly.
+
+## Step 4 — Phase gate
+
+At the end of each phase, emit a phase summary (PRDs done, issues fixed, any skipped-with-blocker), then `AskUserQuestion`: **Continue to next phase / Pause / Stop**. Default is to **pause for approval between phases** (safer for an autonomous run); if the user opted into continuous mode at Step 1 (`Adjust` → auto-continue), skip this gate and roll straight into the next phase.
+
+## Step 5 — Roadmap-complete summary
+
+When all phases are done, emit a final report: phases, PRDs shipped-ready, total fix rounds, issues resolved, any PRDs skipped with logged blockers, and each merge-ready branch. Like `ship`, the orchestrator **never** runs `git push`, `gh pr merge`, `git merge`, or a deploy — every branch is left **merge-ready** for the user. Hand off:
+
+```
+All phases complete. Branches are merge-ready. Run `gh pr create` per branch to open PRs.
+```
+
+Then terminate.
+
+## Subagent contract
+
+Every subagent is spawned via the `Agent` tool and **runs an msg skill — never general-purpose**. Each prompt is prefixed with the **autonomy paragraph**:
+
+> You are running autonomously with no user present, as part of a roadmap execution. When the skill's protocol reaches an approval gate (`AskUserQuestion`), treat it as pre-approved and proceed. Only stop if genuinely blocked by missing information you cannot derive — if so, return the blocker instead of guessing. Read `.claude/skills/<skill>/SKILL.md` fully and follow its protocol.
+
+Stage → skill mapping:
+
+| Stage | Skill | Invocation |
+|-------|-------|-----------|
+| Build | `eng` | `--build prd-path=<p> rows=<...> branch=$BRANCH agent=<eng-platform> commit_mode=direct` |
+| Fix | `eng` | `--build test-json=<msg-test/test-N.json> branch=$BRANCH` |
+| Review | `review` | `Skill("review", "<branch> --min-severity high")` inside the subagent |
+| Test | `test` | `Skill("test", "<branch>")` inside the subagent |
+| Gate | `pre-merge` | `Skill("pre-merge", "<branch>")` inside the subagent |
+
+**Return contract:** each subagent returns a single JSON summary object (build summary, or the shared `finding-schema` findings for review/test/pre-merge) — **never** free-form prose. The orchestrator pools these into the ledger. A subagent that dies or returns unparseable output is treated as a failed stage and re-spawned once; a second failure escalates to the user (accepts no failures).
+
+## Guardrails
+
+The run is autonomous, so these are non-negotiable:
+
+- **Branch isolation** — all work on `feat/prd-<n>-*`; the orchestrator never commits to `main`.
+- **DB / data / production guard** — after **every** build and **every** fix round, run:
+  ```bash
+  S=.claude/scripts/eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/eng-db-touch.sh"; bash "$S" main
+  ```
+  If it exits non-zero (it prints the offending `category<TAB>path` lines), **PAUSE** and `AskUserQuestion` (Approve & continue / Stop) — a migration, `.sql`, ORM schema/model, seed/fixture, `.env`, or production-config change needs the user's sign-off. Re-check after each fix round (a fix may introduce a new one).
+- **Breaking-change pause** — any subagent that reports a schema or API breaking change pauses the run for sign-off before pre-merge.
+- **No push / merge / deploy** — the orchestrator never runs `git push`, `gh pr merge`, `git merge`, or a deploy command. It leaves branches merge-ready and hands off to `gh pr create`.
+- **Scope** — the orchestrator only touches what the roadmap's PRDs specify; it does not invent work, refactor unrelated code, or edit PRD product sections.
+
+## Hard failures
+
+- `roadmap=` path missing/empty → `Hard failure: roadmap <path> not found or empty`. Stop.
+- A referenced PRD file missing → `Hard failure: roadmap references <prd-id> but its PRD file is absent`. Stop.
+- A PRD that is **not full** (no verifiable §6 acceptance criteria, or no §7 execution table / todos to derive rows, or unfinished planning stamps) → **not runnable as-is**. Do not silently skip: trigger the Step 2 readiness gate `AskUserQuestion` (Amend now / Skip this PRD / Stop). Only a user **Skip** excludes it (logged in the phase summary); only a user **Stop** halts the run.

@@ -53,9 +53,12 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 ```
 Planning:   plan-pm → plan-tune --product → plan-em → plan-tune --eng
 Execution:  eng --plan → eng --todo → eng --build → review → test → fix (loop) → pre-merge
+Roadmap:    plan-pm --roadmap → (approve reshaping) → roadmap/roadmap.md → eng --build roadmap= (orchestrated execution)
 ```
 
 Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The `eng --todo` phase (task breakdown into per-feature tickets) runs between `--plan` and `--build` only when `plan-em`'s `prefs.json` `todos` toggle is on; with it off, execution is `eng --plan → eng --build` as before.
+
+The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roadmap` analyses the existing PRDs — flagging bloat/overlap and proposing `SPLIT`/`MERGE`/`FOLD`/`TRIM` ops, applied only on per-op approval — then sequences them into phases in `roadmap/roadmap.md` (viewable on the `/msg --gui` Roadmap tab). `eng --build roadmap=roadmap/roadmap.md` turns the current session into a **product-operations orchestrator** that executes the roadmap phase-by-phase, spawning `eng`/`review`/`test`/`pre-merge` subagents, fixing critical+major (`blocker`+`high`) by default, and looping until each phase is clean. It stays within the standing convention's spirit — it emits a plan and asks **once** before executing, then runs autonomously behind guardrails: all work on `feat/prd-<n>-*` branches, a pause for sign-off on any database/data/production-config touch (`eng-db-touch.sh`), and it never pushes or merges (branches are left merge-ready).
 
 ## Skill inventory
 

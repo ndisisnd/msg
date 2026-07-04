@@ -685,3 +685,25 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
   .filter-input { min-width: 0; width: 100%; }
   .file-content { padding: var(--sp-4); }
 }
+
+/* ---- Roadmap view (plan-pm --roadmap) — reuses .kanban/.column/.card/.pill ---- */
+.roadmap-lanes .column-head { text-transform: none; }
+.roadmap-goal {
+  font-size: var(--fs-sm); color: var(--text-muted);
+  margin: calc(-1 * var(--sp-2)) 0 var(--sp-3); line-height: 1.4;
+}
+.card.muted { opacity: 0.6; }
+.roadmap-why {
+  font-size: var(--fs-xs); color: var(--text-faint);
+  margin-top: var(--sp-2); line-height: 1.4;
+}
+.roadmap-tunelog {
+  margin-top: var(--sp-5); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface);
+  padding: var(--sp-3) var(--sp-4);
+}
+.roadmap-tunelog > summary {
+  cursor: pointer; font-weight: 600; color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+.roadmap-tunelog .md-body { margin-top: var(--sp-3); }

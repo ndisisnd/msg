@@ -32,7 +32,7 @@ Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --
 | Skill | Description |
 |-------|-------------|
 | `/msg-init` | One-time project bootstrap — 7-step, three-phase interview (project basics, architecture, design system), then scaffolds `devkit/` (AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md) and root files. Idempotent. |
-| `/plan-pm` | Principal PM — interviews via 5 questions, then writes a structured PRD to `features/prd-[n]/`. Splits large epics. |
+| `/plan-pm` | Principal PM — interviews via 5 questions, then writes a structured PRD to `features/prd-[n]/`. Splits large epics. `--roadmap` analyses the existing PRDs (flagging bloat/overlap, proposing approval-gated split/merge/fold/trim) and sequences them into phases in `roadmap/roadmap.md`, viewable on the `/msg --gui` Roadmap tab. |
 | `/plan-tune` | Staff PM auditor — numbered, severity-tagged PRD audit (`--product`/`--eng`); applies all fixes inline. |
 | `/plan-em` | Engineering Manager — spins up specialist agents to write engineering sections into the PRD, then synthesises the output. |
 
@@ -40,7 +40,7 @@ Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --
 
 | Skill | Description |
 |-------|-------------|
-| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval, `--todo` breaks the confirmed plan into per-feature tickets, `--build` writes code from the todos (falling back to exec-table rows). `--build --loop` adds a plan-tune review cycle after each build pass. |
+| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval, `--todo` breaks the confirmed plan into per-feature tickets, `--build` writes code from the todos (falling back to exec-table rows). `--build --loop` adds a plan-tune review cycle after each build pass. `--build roadmap=roadmap/roadmap.md` runs an autonomous **product-operations orchestrator** that executes a whole roadmap phase-by-phase via `eng`/`review`/`test`/`pre-merge` subagents — fixing critical+major by default, guarding production (DB/data/config pauses, branch-isolated, never pushes/merges), and reporting on an interval. |
 | `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
 | `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
 | `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |

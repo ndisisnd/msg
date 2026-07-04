@@ -2,7 +2,8 @@
 
 Build and serve a **local-only** GUI over `features/prd-*/`: a Kanban/Table board of PRDs
 → per-PRD detail page (rendered PRD body + a TODOs section with its own Kanban/Table
-toggle and a side panel), a **Files** view over the project's docs (README, CLAUDE.md,
+toggle and a side panel), a **Roadmap** view (phases-as-lanes over `roadmap/roadmap.md`,
+shown when that file exists), a **Files** view over the project's docs (README, CLAUDE.md,
 `devkit/`), and — in interactive mode — a **Prompts** console that runs Claude against the
 project. The surface lives in `refs/gui/` (`index.html`, `styles.css`, `server.py`); this
 protocol only launches or fills it.
@@ -68,6 +69,15 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
 - **View project docs** — `GET /api/files` lists root `*.md` (README, CLAUDE.md, CHANGELOG…)
   and `devkit/*.md`, grouped; `GET /api/file?path=…` returns one file, rendered as markdown
   in the Files view.
+- **View the roadmap** — `GET /api/roadmap` parses `roadmap/roadmap.md` (written by
+  `plan-pm --roadmap`) into ordered phases, each cross-referenced against the live PRD set so
+  a card shows the same completion pill the Board uses. The same payload is also folded into
+  `/api/data` under `roadmap`, so both live and static modes render the tab. The Roadmap view
+  is **read-only for v1** (no write endpoints — the roadmap is authored by `plan-pm`). The
+  server accepts `--view <board|roadmap>` to choose the initial tab; `plan-pm --roadmap`
+  launches with `--view roadmap`. The **Roadmap** nav tab appears only when a roadmap exists
+  (or in interactive mode); each phase renders as a lane (reusing the Kanban column, header,
+  and card/pill components) with `Phase 0 — Shipped` first and the tune log in a footer accordion.
 
 ### Security posture (unchanged spirit, wider surface)
 

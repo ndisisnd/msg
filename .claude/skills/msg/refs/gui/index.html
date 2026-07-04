@@ -48,10 +48,13 @@ try { DATA = JSON.parse(document.getElementById("prd-data").textContent) || DATA
 catch (e) { DATA = { prds: [], testIssues: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
 var PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
 var TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+var ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
 
 /* ---- Live-mode plumbing ---------------------------------------------------- */
 var TOKEN = "__API_TOKEN__";
 if (TOKEN.indexOf("__") === 0) TOKEN = "";           // static fill leaves the placeholder
+var DEFAULT_VIEW = "__DEFAULT_VIEW__";
+if (DEFAULT_VIEW.indexOf("__") === 0) DEFAULT_VIEW = "board";   // static fill leaves the placeholder
 var LIVE = false;                                     // flipped by ping() at boot
 
 function api(path, body) {
@@ -70,6 +73,7 @@ function adoptData(d) {
   DATA = d || DATA;
   PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
   TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+  ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
 }
 function refreshData(rerender) {
   if (!LIVE) { if (rerender) route(); return Promise.resolve(); }
@@ -412,6 +416,8 @@ function topbar(active, opts) {
   var showFiles = LIVE || (DATA.projectFiles && DATA.projectFiles.length);
   var nav = el('<nav class="nav"></nav>');
   nav.appendChild(el('<a href="#/"' + (active === "board" ? ' class="active"' : "") + ">Board</a>"));
+  if (ROADMAP && (ROADMAP.exists || LIVE))
+    nav.appendChild(el('<a href="#/roadmap"' + (active === "roadmap" ? ' class="active"' : "") + ">Roadmap</a>"));
   if (showFiles) nav.appendChild(el('<a href="#/files"' + (active === "files" ? ' class="active"' : "") + ">Files</a>"));
   if (LIVE) nav.appendChild(el('<a href="#/prompts"' + (active === "prompts" ? ' class="active"' : "") + ">Prompts</a>"));
   bar.appendChild(nav);
@@ -644,6 +650,73 @@ function listTable(list) {
   table.appendChild(tbody);
   wrap.appendChild(table);
   return wrap;
+}
+
+/* ========================================================================= */
+/*  ROADMAP PAGE                                                              */
+/* ========================================================================= */
+function roadmapCard(c) {
+  var bucket = BUCKET_ORDER[c.completion] != null ? c.completion : "product";
+  var numMatch = /^prd-([\d.]+)/.exec(c.id || "");
+  var num = numMatch ? numMatch[1] : "";
+  var card = el(
+    '<div class="card' + (c.known ? "" : " muted") + '"' + (c.known ? ' tabindex="0" role="button"' : "") + ">" +
+      '<div class="title">' + (num ? '<span class="num">PRD-' + esc(num) + "</span>" : "") +
+        esc(c.feature || c.id) + "</div>" +
+      '<div class="meta">' +
+        '<span class="pill dot st-' + bucket + '">' + esc(bucketLabel(bucket)) + "</span>" +
+        (c.known ? "" : '<span class="pill muted">retired/unknown</span>') +
+      "</div>" +
+      (c.rationale ? '<div class="roadmap-why">' + esc(c.rationale) + "</div>" : "") +
+    "</div>"
+  );
+  if (c.known) {
+    var go = function () { location.hash = "#/prd/" + encodeURIComponent(c.id); };
+    card.addEventListener("click", go);
+    card.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); }
+    });
+  }
+  return card;
+}
+
+function renderRoadmap() {
+  root.innerHTML = "";
+  var phases = (ROADMAP && ROADMAP.phases) || [];
+  var total = phases.reduce(function (n, ph) { return n + (ph.prds ? ph.prds.length : 0); }, 0);
+  root.appendChild(topbar("roadmap", {
+    title: (DATA.project || "Roadmap") + " — Roadmap",
+    count: phases.length + " phase" + (phases.length === 1 ? "" : "s") + " · " +
+           total + " PRD" + (total === 1 ? "" : "s")
+  }));
+
+  if (!ROADMAP || !ROADMAP.exists || phases.length === 0) {
+    root.appendChild(el('<div class="empty-state"><div class="big">No roadmap yet</div>' +
+      'Nothing at <code>roadmap/roadmap.md</code>. Run <code>/plan-pm --roadmap</code> ' +
+      'to arrange your PRDs into phases.</div>'));
+    return;
+  }
+
+  var wrap = el('<div class="kanban roadmap-lanes"></div>');
+  phases.forEach(function (ph) {
+    var cards = ph.prds || [];
+    var col = el('<div class="column"></div>');
+    var head = el('<div class="column-head">Phase ' + esc(ph.phase) + ' — ' + esc(ph.name) +
+      ' <span class="n">' + cards.length + "</span></div>");
+    col.appendChild(head);
+    if (ph.goal) col.appendChild(el('<div class="roadmap-goal">' + esc(ph.goal) + "</div>"));
+    var cb = el('<div class="column-body' + (cards.length ? "" : " empty") + '"></div>');
+    cards.forEach(function (c) { cb.appendChild(roadmapCard(c)); });
+    col.appendChild(cb);
+    wrap.appendChild(col);
+  });
+  root.appendChild(wrap);
+
+  if (ROADMAP.tuneLog) {
+    var det = el('<details class="roadmap-tunelog"><summary>Roadmap tune log</summary></details>');
+    det.appendChild(el('<div class="md-body">' + mdToHtml(ROADMAP.tuneLog) + "</div>"));
+    root.appendChild(det);
+  }
 }
 
 /* ---- PRD-body section splitting (G-detail) --------------------------------------
@@ -1370,11 +1443,17 @@ function route() {
   else if ((m = h.match(/^#\/files\/(.+)$/))) renderFiles(decodeURIComponent(m[1]));
   else if (h === "#/files") renderFiles(null);
   else if (h === "#/prompts") renderPrompts();
+  else if (h === "#/roadmap") renderRoadmap();
   else renderList();
 }
 window.addEventListener("hashchange", route);
 
 /* ---- Boot: detect live mode, then render ------------------------------------------ */
+// Honour --view: open on the Roadmap tab when asked and no explicit hash was given.
+if ((!location.hash || location.hash === "#/" || location.hash === "#") &&
+    DEFAULT_VIEW === "roadmap" && ROADMAP && (ROADMAP.exists || LIVE)) {
+  location.hash = "#/roadmap";
+}
 route();                                              // paint immediately from inline data
 if (typeof fetch === "function") fetch("api/ping", { headers: { "X-Msg-Token": TOKEN } })
   .then(function (r) { return r.ok ? r.json() : null; })

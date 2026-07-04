@@ -148,6 +148,7 @@ Call `AskUserQuestion` with three questions in a single call:
   - `label`: `Working code or test results`, `description`: `Implementation, test run, or pre-push gate`
   - `label`: `A review or audit report`, `description`: `Findings on code, docs, or a skill`
   - `label`: `A commit or task list`, `description`: `Conventional commit or TODOs.json`
+  - `label`: `A roadmap`, `description`: `Sequence existing PRDs into phases, or execute one`
 
 **Step 2 — Route**
 
@@ -160,8 +161,10 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Planning | Nothing yet / rough idea | An engineering plan | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |
 | Planning | A PRD or spec | An engineering plan | plan-em |
+| Planning | any | A roadmap | plan-pm --roadmap |
 | Building | Nothing yet / rough idea | Working code or test results | plan-pm |
 | Building | A PRD or spec | Working code or test results | eng |
+| Building | any | A roadmap | eng --build roadmap=roadmap/roadmap.md |
 | Building | Code or a diff | Working code or test results | test |
 | Building | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | Code or a diff | A review or audit report | review |
