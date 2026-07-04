@@ -1,5 +1,13 @@
 # Changelog
 
+- Slim the `plan-pm` and `plan-em` skills by extracting their step-by-step protocols into dedicated ref files, leaving each `SKILL.md` as a thin overview that points to the protocol. No behaviour change — the extracted protocols are the originals verbatim, plus a cleanup pass on `plan-em` that removes dead `refs/$MODE/` path references and repairs a broken Step 1 read-list. `plan-pm/SKILL.md` drops 307→122 lines and `plan-em/SKILL.md` 350→106; the full protocols now live in `refs/protocol-pm.md` and `refs/protocol-em.md`. A stale `plan-em/SKILL.md:88–106` line citation in `plan-tune` was repointed to the new ref.
+
+- `.claude/skills/plan-pm/SKILL.md` — replace inline six-step protocol + multi-PRD summary with a pointer to `refs/protocol-pm.md`; add ref entry; retarget Sub-PRD "steps below" wording to the ref
+- `.claude/skills/plan-pm/refs/protocol-pm.md` — new: full six-step execution protocol + multi-PRD final summary
+- `.claude/skills/plan-em/SKILL.md` — replace inline five-step protocol with a pointer to `refs/protocol-em.md`; add ref entry (Step 0 todo-preference stays in `SKILL.md`)
+- `.claude/skills/plan-em/refs/protocol-em.md` — new: full five-step execution protocol; drop dead `refs/$MODE/` path claims, fix Step 1 read-list numbering
+- `.claude/skills/plan-tune/refs/tune-eng.md` — repoint stale `plan-em/SKILL.md:88–106` citation to `plan-em/refs/protocol-em.md`, Step 1
+
 - Simplify the installer by dropping the `--with-cook` install option. `install.sh` no longer accepts `--with-cook`/`--cook`, drops the interactive `[1] msg / [2] msg + cook` prompt, and removes the inline cook install step — installing msg now always installs the msg skills only. In its place the completion footer prints a note pointing at the cook repo with its one-line install command, plus a dedication to JC.
 
 - `install.sh` — remove `--with-cook`/`--cook` flag, interactive install prompt, and inline cook install; add footer note linking the cook repo + install command and a dedication

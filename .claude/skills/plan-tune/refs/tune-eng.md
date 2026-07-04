@@ -78,7 +78,7 @@ For each remaining gate that fails, draft one finding citing the gate name from 
 
 ### 5g — Cross-PRD breaking-change consistency
 
-Read this PRD's own frontmatter `affects` and `depends_on` lists (`template-prd.md` file header). Cross-check them against this same PRD's `## Engineering —` sections — specifically the breaking changes surfaced by 5d and the scope mapping from 5a. This check reads only the input PRD's own frontmatter and its own engineering sections; it does not open other PRD files. Reconciling against the actual prior PRD files is `plan-em`'s Step 1 pre-flight responsibility (`plan-em/SKILL.md:88–106`) — this check exists to catch drift introduced or missed after that pre-flight already ran, e.g. when a later tune run edits an engineering section without re-running plan-em.
+Read this PRD's own frontmatter `affects` and `depends_on` lists (`template-prd.md` file header). Cross-check them against this same PRD's `## Engineering —` sections — specifically the breaking changes surfaced by 5d and the scope mapping from 5a. This check reads only the input PRD's own frontmatter and its own engineering sections; it does not open other PRD files. Reconciling against the actual prior PRD files is `plan-em`'s Step 1 pre-flight responsibility (`plan-em/refs/protocol-em.md`, Step 1 — multi-PRD cross-reference) — this check exists to catch drift introduced or missed after that pre-flight already ran, e.g. when a later tune run edits an engineering section without re-running plan-em.
 
 | Check | Fail condition | Severity if fails |
 |-------|----------------|-------------------|
