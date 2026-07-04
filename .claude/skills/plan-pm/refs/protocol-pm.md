@@ -79,6 +79,7 @@ Create `features/` if absent. Create `features/prd-[n]-[feature_slug]/`.
 Write `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
 - `name`: `prd-[n]-[feature_slug]`
 - `feature`: short feature name from Q1
+- `summary`: 2–3 sentence plain-prose gist on a single line — the core product objective plus the headline features, derived from the Q1 brief and confirmed feature list. No markdown, no line breaks (it is a single YAML value read by the `/msg --gui` detail page). Reconcile in Step 5 if §1/§6 shift during population.
 - `module`: primary module or domain inferred from Q1 answers (e.g., `auth`, `payments`, `notifications`, `onboarding`). Use one lowercase word or hyphenated phrase. If ambiguous, use the broadest domain name that covers the feature.
 - `affects`: list of prior PRD IDs classified as **Affects** in Step 2 (e.g., `[prd-1-user-auth, prd-3-payment-flow]`). Empty list `[]` if none.
 - `depends_on`: list of prior PRD IDs classified as **Dependency** in Step 2 (e.g., `[prd-2-onboarding-flow]`). Empty list `[]` if none.
@@ -112,6 +113,8 @@ Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 | 11. Todos | Leave the `_Populated by /todo …_` placeholder from the template |
 
 Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout. Carry every F-ID assigned during the interview (`refs/template-feature-table.md`) into §6 unchanged; downstream `plan-em` keys its execution table (§7) on these IDs.
+
+**Frontmatter `summary` reconciliation:** the `summary` set in Step 4 was drafted from the Q1 brief. After §1 Product objective and §6 features are finalized here, re-read the `summary` and adjust it so it stays a faithful 2–3 sentence gist of the finalized objective + headline features. Keep it single-line, plain prose.
 
 Platform is captured only in the frontmatter `platform` field (set from Step 3 detection). Do not write a "Target platform" body section — it no longer exists in the template.
 

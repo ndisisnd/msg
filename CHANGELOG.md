@@ -1,5 +1,12 @@
 # Changelog
 
+- Teach `plan-pm` to author the PRD `summary` frontmatter field that the `/msg --gui` detail page renders. The PRD template grows a `summary:` field (a single-line 2–3 sentence gist of the core objective + headline features); Step 4 initializes it from the Q1 brief and Step 5 reconciles it against the finalized §1 Product objective and §6 feature list. Sub-PRDs author their own `summary` (not inherited from the parent), and the `protocol-gui.md` data-shape doc records the new field. New PRDs now ship a summary out of the box; older PRDs without one still fall back to the GUI's feature-title list.
+
+- `.claude/skills/plan-pm/refs/template-prd.md` — add `summary:` to the file-header frontmatter with authoring guidance
+- `.claude/skills/plan-pm/refs/protocol-pm.md` — Step 4 frontmatter bullet for `summary`; Step 5 reconciliation note
+- `.claude/skills/plan-pm/SKILL.md` — sub-PRD D4 authors a fresh `summary` rather than inheriting the parent's
+- `.claude/skills/msg/refs/protocol-gui.md` — document `summary` in the PRD data payload shape
+
 - Polish the `/msg --gui` **Roadmap tab** and add a PRD summary to the detail page. Roadmap PRD cards that have **shipped** now render in a greyed-out `done` state with a ✓ (kept visible, not hidden), and a roadmap phase whose PRDs have *all* shipped gets a ✓ on its lane header. The phase **goal** line is inset to sit within the lane padding instead of hugging the edges, and the **roadmap tune log** is no longer rendered on the board (it stays in `roadmap/roadmap.md` for rerun-stability). The **PRD detail page** now shows a 2–3 sentence summary below the title, sourced from a new frontmatter `summary` field with a feature-title-list fallback when absent. Verified: `server.py` change exercised via `/api/data`, `index.html` passes node --check, and the live roadmap/summary payloads were confirmed end-to-end.
 
 - `.claude/skills/msg/refs/gui/index.html` — detail-page `summary` render (`detailSummary` w/ feature-title fallback); roadmap card `done`/✓ state for shipped PRDs; `phase-done` ✓ on fully-shipped lanes; drop tune-log render

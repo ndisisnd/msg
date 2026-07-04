@@ -14,6 +14,7 @@ Populate every section. Do not delete a section — if a section does not apply,
 ---
 name: prd-[n]-[feature_slug]
 feature: <short feature name>
+summary: <2–3 sentence plain-prose gist on a single line — the core product objective plus the headline features. Shown under the PRD title on the /msg --gui detail page. Derive from §1 Product objective + §6 feature list; no markdown, no line breaks.>
 # parent: prd-[n]-[parent_slug]   # sub-PRDs only — omit for top-level PRDs. Resolves the shared feature branch; a sub-PRD never gets its own branch.
 module: <primary module or domain this PRD touches, e.g. auth | payments | notifications>
 affects: []   # prd-[n]-[feature_slug] IDs whose scope this PRD overlaps or may break

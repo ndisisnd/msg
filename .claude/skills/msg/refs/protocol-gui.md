@@ -160,7 +160,8 @@ is unchanged from the previous protocol revision, with these notes:
 {
   "generatedAt": "…", "project": "Your Project",
   "prds": [ { "num": 100, "id": "prd-100-…", "path": "features/prd-100-…/",
-    "feature": "…", "module": "…", "platform": "…", "status": "eng", "created": "2026-07-02",
+    "feature": "…", "summary": "<2–3 sentence gist from frontmatter `summary`; null if absent — detail page falls back to the feature-title list>",
+    "module": "…", "platform": "…", "status": "eng", "created": "2026-07-02",
     "badges": { "productTuned": true, "engTuned": true, "reviewed": false },
     "completion": "building", "completionSource": "branch feat/prd-100-… exists",
     "detail": "<raw PRD markdown body>", "hasTodos": true,

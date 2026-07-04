@@ -90,6 +90,7 @@ features/prd-<parent-n>-<parent-slug>/prd-<parent-n>.<m>-<sub_slug>/prd-<parent-
 - `name`: `prd-<parent-n>.<m>-<sub_slug>`
 - `parent`: `prd-<parent-n>-<parent-slug>` — **new field, sub-PRD only.** This is the field `plan-em`/`eng --build` read to resolve the shared branch (a sub-PRD never gets its own branch).
 - `module` / `platform`: **default to the parent's values** (read in D1). Overridable only if the interview reveals the sub-PRD's scope genuinely differs — otherwise inherit unchanged.
+- `summary`: authored fresh for the sub-PRD's own follow-up scope (2–3 single-line sentences), exactly as a top-level PRD — do not inherit the parent's.
 - All other fields (`status: product`, `product-tuned: no`, `eng-tuned: no`, `reviewed: no`, `created`, `affects`, `depends_on`) exactly as a top-level PRD.
 
 **Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–6) → `plan-tune --product` → `plan-em` → `plan-tune --eng` → `eng --build`. Step 6's next-step prompt hands off exactly as for a top-level PRD, using the nested sub-PRD path.
