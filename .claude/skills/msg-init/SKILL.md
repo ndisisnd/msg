@@ -27,6 +27,8 @@ allowed_tools:
 - Context: empty or near-empty repository where the user asks Claude to set up project structure
 - Hand-off from another msg skill (e.g. `plan-pm`) when `AHA.md` or `GLOSSARY.md` is missing
 
+**Flash mode:** `/msg-init --flash` — zero-interview bootstrap: run `init-setup.sh` then `init.sh` with auto-detected `PROJECT_NAME`/`PLATFORM`; script fallbacks fill the rest (unknowns → `[USER: …]`); **≤1** confirm `AskUserQuestion`. Idempotency + standard headings preserved. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+
 **Hard refusals:**
 - Working directory is not a git repository: emit a warning and ask the user to confirm via `AskUserQuestion` before proceeding. Do not block — proceed if confirmed.
 

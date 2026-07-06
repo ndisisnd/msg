@@ -32,8 +32,13 @@ eng --build  →  /test  →  /review  →  [address findings]  →  /review (re
 - `/review <PR#>` — fetches PR diff via `gh pr diff <n>`
 - `/review --full-secret-scan` — opts Security mode Stage 0 into scanning the full working tree (default is diff-only). Composable with branch and PR args, e.g. `/review feature/x --full-secret-scan` or `/review 42 --full-secret-scan`.
 - `/review --min-severity <blocker|high|medium|low>` — drop findings below this severity from the emitted output (default: no floor, all severities emitted). Applied in Step 7 after dedup, so dedup's highest-severity-wins logic always runs on the full set first. Verdict computation and the written run-directory JSON are unaffected — only the emitted `findings[]` arrays are filtered. Intended for callers (e.g. `ship`'s iterate loop) that only act on high-signal findings and want a smaller payload to parse each pass.
+- `/review --flash` — flash mode; see Step 0. Composable with branch/PR args.
 
-**Hard refusals:** does NOT modify source code; does NOT check documentation; makes exactly ONE `AskUserQuestion` call (Step 5).
+**Hard refusals:** does NOT modify source code; does NOT check documentation. Comprehensive mode makes exactly ONE `AskUserQuestion` call (Step 5); flash mode makes zero.
+
+### Step 0 — Mode
+
+Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive). If it resolves to `flash`, read `refs/flash.md` and follow it — skip Steps 1-7. Otherwise run the comprehensive protocol below.
 
 ## Inputs / Outputs
 
@@ -146,6 +151,8 @@ Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue witho
 
 **Compile standards once (before spawning any mode subagent):** the four cook-backed modes (Quality, Security, Performance, Migration) draw their standards from `/cook`. Call `/cook` **once per distinct stack this run** — pass the union of every cook-backed mode's assembled flags in a single invocation — and hold the compiled standards payload. Then, for each mode, inject the slice of that payload matching the mode's flags into that mode's **single** subagent prompt. Mode subagents do **not** call `/cook` themselves. The compiled payload names each rule's source flag, so per-rule attribution survives into aggregated findings. Shared cook-backed execution contract: `refs/modes/_common.md`.
 _Fallback:_ if this pre-compile step was skipped (review reached Step 6 with no precompiled payload), each cook-backed mode compiles `/cook` **once** for its own flag set — never once per flag.
+
+_Mode propagation:_ the mode resolved at Step 0 is carried into every spawned subagent prompt (`../shared/refs/flash-floor.md`); a `flash` resolution routes to `refs/flash.md` (one combined agent) before this step, so comprehensive Step 6 always runs comprehensive subagents.
 
 **Conditional-mode triggers (evaluated here — load the mode file only on a match):**
 

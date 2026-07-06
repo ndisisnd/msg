@@ -15,6 +15,8 @@ allowed_tools:
 **Invoke**: `/msg` — two-step category → skill picker.
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
 **Invoke**: `/msg --gui` (or `/msg gui`) — launch the local interactive PRD board (Kanban/List, editing, todos, prompt console, project docs).
+**Invoke**: `/msg --flash` — resolve to a skill in **≤1** grouped `AskUserQuestion` (or route directly from prose args, no question). `--gui --flash` is **interactive-only** — it never runs the static build; with `python3` missing it prints a one-line instruction instead. Safety floor (`../shared/refs/flash-floor.md`) never relaxed.
+**Invoke**: `/msg --set-mode --flash|--comprehensive` — persist the harness-wide run mode to `pref.json` (asks local vs global scope), then confirm and stop. Precedence + file format: `../shared/refs/mode-resolution.md`.
 
 ## Skills
 
@@ -54,11 +56,12 @@ allowed_tools:
 
 Before running any picker, check the invocation:
 
-1. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
+1. `--set-mode` → **Protocol: --set-mode**. Skip the picker.
+2. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
    "show me the PRD board", "visualize my PRDs", "open kanban" — → **Protocol: --gui**. Skip
    the picker; do not call `AskUserQuestion`; go straight to rendering.
-2. `--help` → **Protocol: --help**.
-3. Otherwise → **Protocol: default**.
+3. `--help` → **Protocol: --help**.
+4. Otherwise → **Protocol: default**.
 
 ---
 
@@ -75,7 +78,19 @@ template + data-fill path — same board, editing hidden, nothing ever written.
 
 ---
 
+## Protocol: --set-mode
+
+**Step 1 — Scope.** Call `AskUserQuestion` (header `Scope`): `Local` (`.claude/msg/pref.json`, this project) or `Global` (`~/.claude/msg/pref.json`, all projects).
+
+**Step 2 — Write.** Read the target `pref.json` if it exists, set `"mode"` to the requested value (`flash`/`comprehensive`), and write it back **merging** — never clobber unrelated keys, never create a duplicate. `mkdir -p` the parent if absent. If neither `--flash` nor `--comprehensive` was passed, ask which via one `AskUserQuestion` first.
+
+**Step 3 — Confirm and stop.** Emit `Mode set to <mode> (<scope>: <path>).` and terminate. Do not run a picker.
+
+---
+
 ## Protocol: default (no args)
+
+**Step 0 — Show active mode.** Resolve the current mode per `../shared/refs/mode-resolution.md` and print one line before the picker: `Mode: <flash|comprehensive> (source: <local pref | global pref | default>).`
 
 **Step 1 — Category**
 

@@ -27,6 +27,8 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, browse project docs, and run Claude prompts — served on `127.0.0.1` only.
 
+**Run modes.** Every skill runs in one of two modes: **comprehensive** (default — full fan-out, all gates) or **flash** (fewer subagents/buckets/gates/turns for a fast pass). Add `--flash`/`--comprehensive` per run, or set a durable default with `/msg --set-mode --flash|--comprehensive` (precedence: per-run flag > orchestrator-forwarded > local `pref.json` > global > comprehensive). The safety floor — DB/breaking-change pauses, branch isolation, never push/merge, secret scan, PRD §9 ledger — is **never relaxed in either mode**. See ARCHITECTURE.md § Run modes.
+
 ### 📐 Plan
 
 | Skill | Description |

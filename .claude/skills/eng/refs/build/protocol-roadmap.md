@@ -140,6 +140,8 @@ Stage → skill mapping (Build/Fix carry the injected `standards payload` + scop
 | Test | `test` | `Skill("test", "<branch>")` inside the subagent |
 | Gate | `pre-merge` | `Skill("pre-merge", "<branch>")` inside the subagent |
 
+**Mode propagation.** The orchestrator forwards its resolved run mode into **every** invocation above — append `--flash` (or `--comprehensive`) to each `eng`/`review`/`test`/`pre-merge` subagent's args. Leaf skills honor the forwarded flag and **never re-read the pref**, so the whole roadmap runs one mode without local/global drift (`../../shared/refs/flash-floor.md`, `../../shared/refs/mode-resolution.md`).
+
 **Return contract:** each subagent returns a single JSON summary object (build summary, or the shared `finding-schema` findings for review/test/pre-merge) — **never** free-form prose. The orchestrator pools these into the ledger. A subagent that dies or returns unparseable output is treated as a failed stage and re-spawned once; a second failure escalates to the user (accepts no failures).
 
 ## Guardrails
