@@ -169,6 +169,8 @@ was installed, and the next command to run (`/test` to execute, or per-bucket fl
 
 ### Step 1/5 — Detect tooling
 
+**Verify-prelude (consumer — first, before detecting):** if a fresh `.claude/msg/cache/verify-prelude.json` exists (same `HEAD` + base as this run — the freshness key in `../shared/refs/verify-prelude.md`), consume its `tooling` block instead of re-running the detector, and consume its `eval_set_path` in Step 2 (wire it in as if `--eval-set <path>` were supplied) instead of re-deriving. Record that this run consumed the prelude. If the prelude is missing, stale, or unparseable → **self-setup as today**: run the detector below and resolve the eval_set in Step 2 exactly as documented. An explicit `--eval-set`/`--prd` flag always wins over the prelude's `eval_set_path`.
+
 Invoke the deterministic detector — do NOT walk priority tables by hand:
 
 ```bash
@@ -217,8 +219,9 @@ A gated bucket becomes **surface-skip-eligible** if zero changed files match its
 | Condition | Action |
 |-----------|--------|
 | `--eval-set <path>` supplied | Read `eval_set.json`; extract only `executable`-classed assertions. Skip PRD bootstrap. |
-| `--prd <path>` supplied | Bootstrap eval_set from the named PRD using the same discovery protocol as `/review` Step 3. Classify all assertions; keep only `executable` for this step. |
-| Neither flag | Attempt PRD auto-discovery (`features/prd-*/prd-*.md`, most recent first); if found, bootstrap as above. If no PRD, set `eval_set = []`. |
+| `--prd <path>` supplied | Bootstrap eval_set from the named PRD **via its digest slice** — run `G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] \|\| G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<path>" --slice eval` and consume the JSON's `features[]` acceptance criteria + `error_cases[]` (the same `eval`-slice read `/review` Step 3 uses), rather than reading the PRD prose. Classify all assertions; keep only `executable` for this step. **Escape hatch:** if the PRD holds assertions in a non-standard section the slice omits (digest `unparsed_sections`), read only that entry's `prose_lines` range — do **not** default to reading the whole PRD. Source stays canonical / regenerate-on-stale: `../shared/refs/session-cache.md`. |
+| Fresh verify-prelude (no `--eval-set`/`--prd`) | If a fresh `verify-prelude.json` supplied an `eval_set_path` in Step 1, read that `eval_set.json` and extract `executable`-classed assertions — same as the `--eval-set` row — skipping PRD re-bootstrap. Explicit `--eval-set`/`--prd` override this. |
+| Neither flag | Attempt PRD auto-discovery (`features/prd-*/prd-*.md`, most recent first); if found, bootstrap via the `--slice eval` read as above. If no PRD, set `eval_set = []`. |
 
 Emit: `Eval-set: <N> executable assertions.`
 

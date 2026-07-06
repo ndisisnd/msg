@@ -72,6 +72,8 @@ Severity rubric: `refs/severity-rubric.md`.
 
 ### Step 1 — Resolve diff vs base
 
+**Verify-prelude (consumer — check first):** if a fresh `.claude/msg/cache/verify-prelude.json` exists (same `HEAD` + base as this run — the freshness key in `../shared/refs/verify-prelude.md`), consume its resolved `diff` block (`files_changed`, `lines_added`/`lines_removed`, `commit_count`, `base`) instead of re-running `resolve-diff.sh`, and consume its `tooling` block in Step 2 instead of re-detecting. Record that this run consumed the prelude. If the prelude is missing, stale, or unparseable → **self-setup**: run `resolve-diff.sh` here and the detector in Step 2, exactly as documented. This composes with the existing `--test-json` bucket skip (Step 2a) — the prelude dedups diff/tooling setup; `--test-json` still independently skips the integration/e2e buckets `/test` already covered. The empty-diff refusal below is evaluated on whichever `files_changed` was used (prelude or fresh).
+
 Run `scripts/resolve-diff.sh <base>` (default base = `origin/main`). This emits a structured summary:
 - `files_changed` — list of changed file paths
 - `lines_added` / `lines_removed` — totals from `--stat`
@@ -80,6 +82,8 @@ Run `scripts/resolve-diff.sh <base>` (default base = `origin/main`). This emits 
 If `files_changed` is empty (clean tree vs base): emit refusal JSON with `verdict: "refused"`, `reason: "no_diff"` (shape: `refs/refusal-patterns.md#no_diff`) and **terminate**. Do not fingerprint. Do not gate.
 
 ### Step 2 — Detect tooling + load context
+
+**Verify-prelude (consumer):** if a fresh prelude was consumed in Step 1, take `detected` from its `tooling` block (the verbatim detector JSON) instead of re-running the script below. Missing/stale/unparseable prelude → self-setup: run the detector as documented. See `../shared/refs/verify-prelude.md`.
 
 Run the shared tooling-detect script once and read its JSON from stdout — do **not**
 manually walk `../shared/refs/tooling-detection.md` at runtime (that file is

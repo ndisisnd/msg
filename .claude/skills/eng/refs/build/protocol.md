@@ -11,30 +11,13 @@ This file defines the build-mode specifics only. The shared protocol — input v
 Build mode has two input sources (resolved at `SKILL.md` Step 1):
 
 - **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
-- **`test-json`** (alternate): `--build`, `test-json=<path to msg-test/test-N.json>`, `branch`, and optional `agent` (defaults to `eng-fix`). Drives the build from a `/test` bug list instead of an exec-table — see **Fixing from `test-json`** below.
-
-### `test-json` source — required fields and rejections
-
-When `test-json` is supplied to `--build`, the required-field set becomes:
-
-| Field | Value |
-|-------|-------|
-| mode flag | `--build` |
-| `test-json` | Path to the `msg-test/test-N.json` file whose `issues[]` this build resolves |
-| `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see **Branch contract**); must still exist before work starts |
-| `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
-
-- `test-json` is a **`--build`-only** input source. `--plan` (and `--todo`) with `test-json` is a hard failure: `Hard failure: test-json is a --build-only input source`.
-- Supplying **both `prd-path` and `test-json`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or test-json, not both (ambiguous input source).`
-- A `test-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: test-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
-
-**Path derivation.** Eng derives all *implementation* file paths from the codebase scan and the spec (exec-table or projected issue-tickets). `test-json`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
+- **`test-json`** (alternate, `--build`-only): if a `test-json=<path to msg-test/test-N.json>` arg is present, **load `protocol-build-testjson.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `test-json` is a hard failure — ambiguous source; see that ref.)
 
 Either way, build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|
-| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `test-json` source, if `branch` is not passed it defaults to the file's own `context.branch` (see **Branch contract**). |
+| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `test-json` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `protocol-build-testjson.md`). |
 | `commit_mode` | *(optional)* `direct` or `sub-branch`. Default `direct`. See **Branch contract** below. |
 
 ### Branch contract (what `branch` means)
@@ -55,11 +38,23 @@ If `commit_mode` is absent, default to `direct`.
 /eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
-**`test-json` source — `branch` defaults to `context.branch`.** When build is driven by `test-json` and `branch` is not explicitly passed, default it to the file's own `context.branch` — the branch `/test` was already running against when it found the issues — rather than asking the user to repeat what the file records. The `branch`-must-exist rule below still applies unchanged: a defaulted branch that doesn't exist is still a hard failure at Work-step 1.
-
 **Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `test-json`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `test-json` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
 
 ---
+
+## PRD read (Step 2 — standalone build, PRD/exec-table source)
+
+This refines the **standalone path** of `SKILL.md` Step 2 for build mode. On a standalone build (no orchestrator injected scoped context) driven by the PRD/exec-table source, do **not** read the full PRD to locate the execution table and engineering section. Instead, run the PRD-digest generator for the **build** slice, once per assigned F-ID, and consume the JSON it prints:
+
+```bash
+G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<prd-path>" --slice build --feature <F-ID>
+```
+
+The `build --feature <F-ID>` slice returns that feature's row (F-ID + acceptance criterion verbatim), its execution-table rows, and the `engineering` block (integration contracts, migration/breaking-change, scope mapping, findings, open questions) — the spec the Work steps below consume (Item 0 cross-check + exec-table fallback). Run it per assigned F-ID (or omit `--feature` to get all features and filter to your `rows` locally). The generator re-parses the current PRD on every call, so the slice is never stale and the PRD prose stays canonical — see `.claude/skills/shared/refs/session-cache.md`.
+
+**Escape hatch:** if a row needs a detail the slice omits — Design-decisions / Phases prose or exact identifiers buried in narrative beyond the captured contracts/migration/scope blocks, or a heading under the digest's `unparsed_sections` — read only that engineering section's `prose_lines` range. Do **not** default to reading the whole PRD. (The `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers, per Work steps below.) The `### F<n>` **todo** blocks are not part of the slice; when the todo layer drives the build, read them from the PRD's `## Todos — <Agent Name>` section as the Work steps specify.
+
+The **orchestrated** build path is unchanged (work from the injected scoped excerpts, PRD path as escape hatch only), and the **`test-json`** source reads no exec-table at all — neither invokes this slice read.
 
 ## Summary content (Step 3 — Pre-run 1 of 2)
 
@@ -105,19 +100,7 @@ Derive the flags from the stack and the assigned rows' concerns:
 
 In all cases the PRD's `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers; the todos are the executable breakdown of that section. Do not re-interpret the PRD features section directly.
 
-### Fixing from `test-json` (issue-ticket source)
-
-When build is driven by `test-json` instead of an exec-table, the numbered work steps below still run, with these deltas — the spec is a **bug list**, not a feature to build, so there is no red test to write (it already exists — it's literally what `/test` recorded):
-
-- **Item 0 is skipped entirely.** There is no exec-table and no `## Engineering —` section to cross-check against.
-- **Item 2 reads each issue, not Execution steps.** For each projected issue-ticket (from Step 2's projection of `issues[]`), read the finding's `message`, `evidence.snippet`, and `repro` — that triad *is* the spec for the fix.
-- **Item 4's TDD flow collapses from four phases to three**, because the failing test already exists. Per issue, in `priority` order (`P0`→`P1`→`P2`; findings carry no `depends-on`, so priority alone orders them):
-  - **(a) reproduce** — run the issue's `repro` command (or exercise the covering test) and confirm it still fails the same way. This replaces "write tests" + "verify red".
-  - **(b) fix** — implement the change, applying the Step 4 coding standards (injected payload, or `/cook` on a standalone run) exactly as today (Item 4c).
-  - **(c) verify green** — re-run `repro`, then the covering test file, same as the existing verify-green phase (Item 4d). A still-failing issue enters Debug mode unchanged.
-- **Flaky issues are not forced.** An issue carrying `evidence.flaky: true` (a `--flaky <N>`-classified warning, not a confirmed break) is fixed **only if phase (a) surfaces a clear, reproducible root cause**. If it won't reproduce, leave it noted in the build summary (`⚠ flaky — not reproduced, left as-is`) rather than forcing a green — that is the whole point of flaky-classification.
-- **Debug mode and its 3-cycle escalation apply per issue**, exactly as they do per row.
-- **The build summary table is keyed by `Issue`** (see Output contract) and, on completion, `eng --build` **writes the loop closed** in the `test-json` file (see Closing the loop below).
+**`test-json` source.** When build is driven by `test-json` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `protocol-build-testjson.md`**.
 
 0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
    - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
@@ -146,9 +129,9 @@ When build is driven by `test-json` instead of an exec-table, the numbered work 
 
    **c. Write implementation.** For each implementation row in this group, in order: Schema migration → API contract → Authentication → Webhook → Client implementation. Create or modify the files named in the Execution steps. Apply the Step 4 coding standards (the injected `standards payload`, or `/cook` on a standalone run). Reuse existing components from `DESIGN-SYSTEM.md` before creating new ones.
 
-   **d. Verify green.** Re-run the test files for this group. If all pass, continue to the next feature group. If any fail, enter Debug mode (see below). Do not move to the next feature group until this group's tests are green.
+   **d. Verify green.** Re-run the test files for this group. If all pass, continue to the next feature group. If any fail, enter Debug mode (`protocol-build-debug.md`). Do not move to the next feature group until this group's tests are green.
 
-5. **Full-suite gate.** After all feature groups are green, run the project's **full** test suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). The per-group runs only covered the files this agent wrote; this catches breakage in sibling code. Any new failure introduced by this agent's changes goes to Debug mode (max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed (out of scope). If the project has no test or lint command, state that in the build summary and continue.
+5. **Full-suite gate.** After all feature groups are green, run the project's **full** test suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). The per-group runs only covered the files this agent wrote; this catches breakage in sibling code. Any new failure introduced by this agent's changes goes to Debug mode (`protocol-build-debug.md`, max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed (out of scope). If the project has no test or lint command, state that in the build summary and continue.
    *Caller override: orchestrators (e.g. `ship`) may suppress this gate and run a dedicated test stage instead. When suppressed, skip to step 6.*
 6. **Confirm before commit.** Emit a one-line change summary (files touched, tests added, full-suite result) and ask via `AskUserQuestion` whether to commit and open the PR. Proceed only on an explicit "Yes". This is the single human gate between writing code and publishing it.
    *Caller override: when invoked with an autonomy contract (e.g. by `ship`), this gate is treated as pre-approved; proceed without prompting.*
@@ -159,29 +142,7 @@ When build is driven by `test-json` instead of an exec-table, the numbered work 
 
 ## Debug mode
 
-Activates when: tests fail at the verify-green phase (step 4d), or code produces a compile/runtime error during implementation (step 4c).
-
-Run the following cycle per failing issue. Apply one change per cycle. Max 3 cycles per issue.
-
-1. **Identify** — record the exact failing assertion or error message.
-2. **Isolate** — read the failing test file, its implementation counterpart, and any shared helper, fixture, or module they directly import that the failure points at. Follow the failure, not the whole codebase — do not browse unrelated files.
-3. **Hypothesize** — write one specific root-cause sentence.
-4. **Fix** — make one targeted change within the failing row's scope only. No refactors outside it.
-5. **Verify** — re-run the test or build step.
-6. **Log** — append an AHA entry regardless of outcome (see AHA.md below). If this is the 3rd failed cycle (escalation), tag the entry with `severity: escalated` (see AHA.md format).
-
-After 3 failed cycles, stop. Emit a structured escalation:
-
-```
-Debug escalation — <Row>
-Failing assertion: <exact text>
-Cycles tried: 3
-Hypotheses: (1) <h1>  (2) <h2>  (3) <h3>
-Fixes applied: (1) <f1>  (2) <f2>  (3) <f3>
-Needed to continue: <what information or change is required>
-```
-
-Mark the affected row's Tests column as `❌ Escalated` in the build summary.
+Activates on a test failure at verify-green (step 4d) or a compile/runtime error during implementation (step 4c): a bounded per-issue cycle (identify → isolate → hypothesize → fix → verify → log), max 3 cycles, then a structured escalation. **See `protocol-build-debug.md`** — load it only when a failure actually occurs.
 
 ---
 
@@ -216,20 +177,9 @@ Throughout the build, append to `devkit/OPEN-QUESTIONS.md` (read by `plan-pm` an
 Append when any of the following occur:
 - An execution step's intent is genuinely ambiguous (not just under-specified enough to infer from the PRD/CLAUDE.md/ARCHITECTURE.md) and eng proceeds on a stated assumption.
 - A product or design decision surfaces mid-build that the PRD didn't anticipate and that would affect scope beyond the current row.
-- A debug escalation (3 failed cycles, see Debug mode above) leaves a row unresolved — log here in addition to AHA, since it blocks a decision rather than just recording a learning.
+- A debug escalation (3 failed cycles, see `protocol-build-debug.md`) leaves a row unresolved — log here in addition to AHA, since it blocks a decision rather than just recording a learning.
 
-**Format** (matches `devkit/OPEN-QUESTIONS.md`'s own template):
-
-```
-### [YYYY-MM-DD] Short question title
-
-**Question**: Full question text.
-**Severity**: critical | high | medium | low
-**Status**: open
-**Context**: Where this came up and why it matters.
-**Options**: A / B / C (optional).
-**Raised by**: eng-<agent name>
-```
+**Format:** use the entry template in `.claude/skills/msg-init/refs/template-OPEN-QUESTIONS.md`, with these eng-specific values — `Status: open` (build agents never write `in-progress`/`resolved`) and `Raised by: eng-<agent name>`.
 
 Append under the `## Open Questions` heading only — never write to `## Resolved` (that section is curated by humans or `plan-em`/`plan-tune`, not by build agents). `devkit/OPEN-QUESTIONS.md` is append-only, same as AHA.md. Reference any entries written during the run in the build summary.
 
@@ -244,8 +194,7 @@ Emit a build summary after all rows are complete:
 
 | Row | Files created | Files modified | Tests | Status |
 |-----|--------------|---------------|-------|--------|
-| F2: Track streak — Schema migration | `migrations/0043_add_streaks.sql` | `models/streak.py` | ✅ 2/2 pass | ✅ Done |
-| F2: Track streak — API contract | — | `routes/streaks.py`, `openapi.yaml` | ✅ 3/3 pass | ✅ Done |
+| <Feature — Concern> | `<path/created>` | `<path/modified>` | ✅ <n>/<n> pass | ✅ Done |
 
 **PR:** <link, or "none — direct commit mode">
 **Branch:** <branch the commits landed on — the feature branch in `direct` mode, or the sub-branch name in `sub-branch` mode>
@@ -257,22 +206,7 @@ Emit a build summary after all rows are complete:
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
 ```
 
-**`test-json` source — table keyed by `Issue`.** When the build was driven by `test-json`, swap the summary table's **`Row`** column for **`Issue`** (the finding `id`, e.g. `unit-002`); keep `Files created`, `Files modified`, `Tests`, and `Status` as-is:
-
-```markdown
-| Issue | Files created | Files modified | Tests | Status |
-|-------|--------------|---------------|-------|--------|
-| unit-002 | — | `src/streak.ts` | ✅ repro green | ✅ Done |
-```
-
-### Closing the loop (`test-json` source only)
-
-On completion, `eng --build` **updates the `test-json` file's own `follow_up.status`** so the ticket reflects that it was acted on rather than sitting permanently `open`:
-
-- every issue verified green → `"resolved"`
-- one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `"partially_resolved"`
-
-This is the **only** write build mode makes to `msg-test/test-<n>.json`; the `issues[]` array and every other field stay untouched (the file remains canonical findings — the projection was read-time only). The `--gui` board reads this `followUp.status` back to render an honest Open/Resolved state per test-issue card.
+**`test-json` source.** When the build was driven by `test-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `follow_up.status` — see `protocol-build-testjson.md`.
 
 **Constraints:**
 - Use the PRD's `## Engineering — <Agent Name>` section as the sole specification.

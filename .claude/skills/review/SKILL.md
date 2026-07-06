@@ -73,11 +73,19 @@ Produce four outputs from this step:
 - **`secret_scanner`** — the `secret_scanner` object from the detector JSON (highest-priority detected secret scanner, used by Security mode Stage 0), or `null` if none. When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
 - **`flag_inventory`** — in-memory set of every valid flag token parsed from `refs/FLAG-LIST.md` (concerns + per-domain + sub-refs). Used by Step 4 to validate assembled flags.
 
+**Verify-prelude (producer — normal path):** review is the producer of the shared verify prelude (`../shared/refs/verify-prelude.md`). Having resolved the diff (Step 1) and detected tooling here, generate/refresh `.claude/msg/cache/verify-prelude.json` with the resolved `diff` (files/base/ranges) and `tooling` (the detector JSON), keyed on current `HEAD` + diff base. This is a best-effort persist that does **not** change review's behavior — review still runs Steps 1-2 in full every time; it merely also records them so `test`/`pre-merge` can consume a fresh prelude instead of redoing setup. Standalone runs are unaffected (the write never fails the run). Complete the `eval_set_path` field of the prelude in Step 3.
+
 ### Step 3/7 — Locate PRD; bootstrap eval-set
 
 Discovery runs in this order, merging results into `eval_set[]` and deduplicating by assertion text:
 
-1. **PRD sections** — search `features/prd-*/prd-*.md` by recency; extract "Acceptance Criteria", "Test Cases", or "Assertions" sections.
+1. **PRD sections (via digest slice)** — locate the PRD by recency over `features/prd-*/prd-*.md`, then run the PRD-digest generator for the `eval` slice and consume its JSON instead of reading the PRD prose:
+
+   ```bash
+   G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<prd-path>" --slice eval
+   ```
+
+   The `eval` slice returns `features[]` (each with its acceptance criterion, verbatim) and `error_cases[]` — the acceptance criteria and error-behavior assertions this step extracts. The generator re-parses the current PRD on every call, so the slice is never stale and the PRD prose stays canonical — see `../shared/refs/session-cache.md`. **Escape hatch:** if the PRD carries assertions in a non-standard section the slice omits (surfaced under the digest's `unparsed_sections`, e.g. a bespoke "Test Cases" heading), read only that section's `prose_lines` range — do **not** default to reading the whole PRD.
 2. **Test files in the diff** — for each `*.test.*`, `*.spec.*`, or `__tests__/` file present in the diff, parse `it(...)`, `test(...)`, `describe(...)` strings as assertions.
 3. **Co-located tests** — for each changed source file, check for a sibling test file (same basename, `.test.*` or `.spec.*` suffix, or matching path under `__tests__/`) even if not in the diff; extract assertions as in step 2.
 4. **schemas.json** — if the located PRD has a sibling `agent-audit/` or `audit/` run dir (e.g. `features/prd-<n>/agent-audit/schemas.json`), read the `assertions` field and merge.
@@ -90,6 +98,8 @@ Also derive `eval_set_path` in this step:
 - If PRD is unknown: `eval_set_path = null`
 
 This value is passed to Functional mode (Step 6) and emitted in the top-level output (Step 7). Functional mode writes `eval_set.json` to this path after classifying assertions.
+
+**Verify-prelude (producer):** write this `eval_set_path` into the `verify-prelude.json` started in Step 2, completing the prelude (diff + tooling + eval_set_path) as the producer on the normal path. Best-effort persist only — review's own behavior is identical whether or not the write succeeds; downstream `test` consumes this eval_set path from a fresh prelude. See `../shared/refs/verify-prelude.md`.
 
 Set `eval_set_source` in the top-level output JSON to one of:
 - `"prd"` — every assertion from PRD sections.

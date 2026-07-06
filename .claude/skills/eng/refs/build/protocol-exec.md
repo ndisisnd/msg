@@ -99,8 +99,8 @@ PRD feature F2: Track streak. The following rows are assigned to `eng-backend`:
 | Feature | Execution steps | Agent |
 |---------|----------------|-------|
 | F2: Track streak — Schema migration | 1. Create migration `0043_add_streaks` — add `streaks` table: `id UUID PK`, `user_id FK`, `date DATE`, `count INT`<br>2. Add `Streak` ORM model with `user` relation<br>3. Add composite index on `(user_id, date)` — supports per-user daily lookup<br>4. Write rollback to drop `streaks` table | eng-backend |
-| F2: Track streak — API contract | 1. Define GET /streaks/{userId} — response: `{ current: int, longest: int, lastDate: date }`<br>2. Add OpenAPI entry for `getStreak` operation<br>3. Wire to `StreakController.get()`<br>4. Add 401 guard — reuse existing JWT middleware | eng-backend |
-| F2: Track streak — Tests | 1. Unit test `StreakService.increment()` — cover: same-day idempotency, midnight rollover, gap reset<br>2. Integration test GET /streaks/{userId} — seed: 3-day streak fixture, assert count and lastDate<br>3. Integration test streak reset on day gap | eng-backend |
+
+(The same shape repeats per concern — one imperative, file-anchored step per numbered line; API-contract, Tests, etc. follow the concern patterns above.)
 
 ## Quality gate
 

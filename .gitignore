@@ -13,6 +13,7 @@ dist/
 .cache/
 al-*.jsonl
 **/ux-style-cache.md
+.claude/msg/cache/
 
 # ── Runtime artefacts ─────────────────────────────────────────────────────────
 **/run/
