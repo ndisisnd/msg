@@ -9,36 +9,14 @@ dedup pass, and the output JSON envelope.
 
 ## Sub-skill interface contract
 
-Each `/cook --<flag>` sub-agent called by `/review` must conform to:
+Each `/cook`-backed semantic subagent called by `/review` must conform to:
 
 **Input:** `diff` (string — git diff output) + files scoped to its domain.
 
-**Output:**
-```json
-{
-  "verdict": "pass" | "warn" | "block",
-  "findings": [
-    {
-      "id": "<flag>-<nnn>",
-      "source": "<flag>",
-      "severity": "blocker" | "high" | "medium" | "low",
-      "category": "<category>",
-      "rule": "<rule-id>",
-      "message": "<description>",
-      "file": "<path>",
-      "line": <number>,
-      "evidence": {
-        "tool": "<flag or runner>",
-        "file": "<path or null>",
-        "line": <number or null>,
-        "snippet": "<exact offending code or tool output>"
-      },
-      "suggestion": "<actionable fix>",
-      "regression_of": null
-    }
-  ]
-}
-```
+**Output:** `{ "verdict": "pass" | "warn" | "block", "findings": [ … ] }`, where
+every entry in `findings[]` is a **canonical finding object** — full field
+reference, evidence shape, and the `sec-001` example all live in
+`../../shared/refs/finding-schema.md`. Do not re-list the field set here.
 
 Per-finding `severity` uses the canonical four-level scale
 (`blocker`/`high`/`medium`/`low`); the mode/run-level `verdict` keeps `/review`'s
@@ -101,7 +79,7 @@ After collecting all sub-agent outputs for a mode, `/review` applies a deduplica
 }
 ```
 
-Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` object — not included as empty objects. `migration` and `a11y_i18n` are additionally omitted whenever their trigger condition doesn't match (`refs/modes/migration.md` / `refs/modes/a11y-i18n.md`) — this is the normal case, not an error; most diffs touch neither a migration file nor UI code.
+Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` object — not included as empty objects. `migration` and `a11y_i18n` are additionally omitted whenever their trigger condition doesn't match (trigger conditions defined inline in `SKILL.md` Step 6; the mode file is loaded only on a match) — this is the normal case, not an error; most diffs touch neither a migration file nor UI code.
 
 ### Top-level fields
 

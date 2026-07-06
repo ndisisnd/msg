@@ -5,9 +5,15 @@ description: Shared tooling fingerprint protocol. Produces package manager, test
 
 # Tooling Detection
 
+> **Reference documentation for maintainers.** Runtime detection is done by
+> `.claude/scripts/test-tooling-detect.sh`, which emits this data as JSON — skills
+> consume the script, not this file. The tables below document the heuristics the
+> script implements (and the output shapes it emits) so a maintainer can audit or
+> extend detection; they are no longer walked by hand at runtime.
+
 Shared fingerprint protocol. Run all checks in parallel. Populate outputs once per skill invocation; never re-derive mid-run.
 
-> **Deterministic detector available:** `.claude/scripts/test-tooling-detect.sh` covers `package_manager`, `test_runner`, `e2e_runner`, plus the test-skill-specific runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`). It does NOT cover `build_tool`, `mechanical_runners`, `security_scanners`, or `bundle_analyzer` — those still come from this ref's tables. `/test` invokes the script in Step 1; `/review` and `/pre-merge` may invoke it for the runner subset they need and derive the remaining outputs from this protocol.
+> **Deterministic detector:** `.claude/scripts/test-tooling-detect.sh` emits a single JSON object covering **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the test-skill-specific runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. `/test`, `/review`, and `/pre-merge` all invoke the script and read the fields they need — no skill re-derives these outputs from the tables below.
 
 ---
 

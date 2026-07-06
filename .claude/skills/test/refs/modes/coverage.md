@@ -6,23 +6,11 @@
 
 ## Execution
 
-Reads `coverage_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. `coverage_runner` (name, coverage `command`, and `report` path — e.g. Flutter / Jest / NYC / pytest-cov / Go) comes from the Step 1 fingerprint — this bucket does not re-detect. The fingerprint's command is already FVM-aware for Flutter.
 
 ### Step 1 — Guard
 
-If `coverage_runner` is `null`: emit `pass_with_warnings` with note `"No coverage runner detected — coverage bucket skipped."` and return immediately.
-
-Recognised runners (detection order):
-
-| Runner | Detection signal | Coverage command | Report artifact |
-|--------|-----------------|-----------------|-----------------|
-| Flutter | `pubspec.yaml` with `flutter:` key; `flutter` / `fvm flutter` in PATH | `flutter test --coverage` | `coverage/lcov.info` |
-| Jest | `jest.config.*` present or `jest` in devDeps | `npx jest --coverage --coverageReporters=json-summary` | `coverage/coverage-summary.json` or `coverage/lcov.info` |
-| NYC / Istanbul | `nyc` in devDeps or `.nycrc` present | `npx nyc --reporter=lcov npm test` | `coverage/lcov.info` |
-| pytest-cov | `pytest.ini` / `setup.cfg` `[coverage]` / `pyproject.toml` `[tool.coverage]` | `pytest --cov --cov-report=lcov` | `coverage.lcov` or `.coverage` |
-| Go | `go.mod` present | `go test -coverprofile=coverage.out ./...` | `coverage.out` |
-
-Use the first match. For Flutter projects with FVM, prefer `fvm flutter test --coverage`.
+Per `_common.md`: if `coverage_runner` is `null`, emit `pass_with_warnings` with note `"No coverage runner detected — coverage bucket skipped."` and return immediately.
 
 ### Step 2 — Resolve existing report
 
@@ -123,45 +111,15 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 
 ## Output
 
+Envelope + finding shape per `_common.md`. Bucket fields:
+
 ```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "coverage",
-  "runner": "<runner name>",
-  "report_path": "<path to lcov.info or equivalent>",
-  "report_source": "existing" | "regenerated",
-  "thresholds": { "lines": 80, "branches": 70, "functions": 80 },
-  "totals": {
-    "overall": {
-      "lines_pct": 0.0,
-      "branches_pct": 0.0,
-      "functions_pct": 0.0
-    },
-    "files_checked": 0,
-    "files_below_threshold": 0
-  },
-  "findings": [
-    {
-      "id": "coverage-<n>",
-      "source": "coverage",
-      "severity": "high" | "medium",
-      "category": "coverage",
-      "file": "<source file path>",
-      "line": null,
-      "rule": "line-coverage" | "branch-coverage" | "function-coverage",
-      "message": "<file>: <pct>% <metric> (threshold: <threshold>%)",
-      "evidence": {
-        "tool": "<runner name>",
-        "file": "<source file path>",
-        "line": null,
-        "snippet": "<file>: <pct>% <metric> (threshold: <threshold>%)"
-      },
-      "suggestion": "<add tests for uncovered lines/branches>",
-      "repro": "<coverage command for this file>",
-      "regression_of": null
-    }
-  ]
-}
+"runner": "<runner name>", "report_path": "<path to lcov.info or equivalent>",
+"report_source": "existing" | "regenerated",
+"thresholds": { "lines": 80, "branches": 70, "functions": 80 },
+"totals": { "overall": { "lines_pct": 0.0, "branches_pct": 0.0, "functions_pct": 0.0 }, "files_checked": 0, "files_below_threshold": 0 }
 ```
+
+Findings: category/source `coverage`; per the Step 5 severity split (overall-blocking→high, else→medium); `rule` = `"line-coverage"|"branch-coverage"|"function-coverage"`, `line` = null (file-level).
 
 `fail` if overall line, branch, or function coverage falls below its threshold. `pass_with_warnings` if runner unavailable, report unreadable, or all files excluded. `pass` if all thresholds are met.

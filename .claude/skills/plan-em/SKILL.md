@@ -67,27 +67,7 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 ## Step 0 — Resolve the todo preference (`prefs.json`)
 
-Runs once at the very start of every invocation, before Step 1's progress line. It resolves `$TODOS` (a boolean), which gates the **entire** todo layer: the execution table's Todos column (Step 3), the todo phase (Step 4), and the todo handoff (Step 5). The todo layer is owned entirely by `plan-em` — this preference is the single switch for it.
-
-Read `.claude/skills/plan-em/prefs.json`:
-
-- **File exists and parses** with a boolean `todos` field → set `$TODOS` to that value. Do **not** re-scan; the stored value governs. This is the common case on every invocation after the first.
-- **File missing, unreadable, or corrupt** (not valid JSON, or no `todos` boolean) → treat as **first invocation**: run the scan below, write the file, and proceed. A corrupt file is overwritten, not crashed on.
-
-**First-invocation scan.** Determine whether the user already has their own todos / task-breakdown skill, and defer to it if so:
-
-- List skill directories in `.claude/skills/` (this project) and `~/.claude/skills/` (global).
-- A skill counts as a **pre-existing user task-breakdown skill** if it is **not** part of the msg skill set (`eng`, `improve`, `msg`, `msg-init`, `plan-em`, `plan-pm`, `plan-tune`, `pre-merge`, `review`, `test`, `shared`) **and** its directory name contains `todo` or `task`, or its `SKILL.md` `description` mentions todo generation / task breakdown / task list.
-- **Found** one → `todos: false` (defer to the user's own; msg does not add a competing todo layer).
-- **None found** → `todos: true` (msg owns the todo layer).
-
-Write the result to `.claude/skills/plan-em/prefs.json`:
-
-```json
-{ "todos": true }
-```
-
-Set `$TODOS` to the written value and continue to Step 1. `$TODOS = false` means the pipeline runs plan → build exactly as it did before this feature — no Todos column, no todo phase, no `## Todos` section.
+Runs once at the very start of every invocation, before Step 1's progress line, to resolve `$TODOS` — the single boolean that gates the **entire** todo layer (the execution table's Todos column, the todo phase, and the todo handoff). Read `.claude/skills/plan-em/prefs.json`: if it exists and parses with a boolean `todos` field, set `$TODOS` to that value (the common case — do not re-scan); if it is missing, unreadable, or corrupt, treat this as the **first invocation** and run `refs/prefs-bootstrap.md`, which detects any pre-existing user task-breakdown skill, writes `prefs.json`, and sets `$TODOS`. Continue to Step 1 with the resolved value.
 
 ## Step-by-step protocol
 
@@ -96,6 +76,7 @@ Follow `refs/protocol-em.md` end-to-end. It defines the full five-step flow — 
 ## References
 
 - `refs/protocol-em.md` — end-to-end five-step execution protocol; followed from § Step-by-step protocol
+- `refs/prefs-bootstrap.md` — Step 0 first-invocation todo-preference bootstrap (read only when `prefs.json` is missing/corrupt)
 - `refs/principles.md` — core operating principles; read before any other ref (shared)
 - `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)

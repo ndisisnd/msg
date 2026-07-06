@@ -38,30 +38,10 @@ Skipped buckets (runner not detected, eval_set empty, mode-flag-excluded, or use
 
 Every finding produced by any bucket conforms to the **canonical finding object**
 in `../../shared/refs/finding-schema.md` — the single source of truth shared with
-`/review` and `/pre-merge`. Read that file for the full field reference, severity
-enum, category enum, dedup/regression keys, and verdict normalization.
-
-```json
-{
-  "id": "<bucket>-<n>",
-  "source": "<bucket>",
-  "severity": "blocker" | "high" | "medium" | "low",
-  "category": "<bucket>",
-  "rule": "<test name, assertion text, or rule-id>",
-  "message": "<description of what failed or was observed>",
-  "file": "<path or null>",
-  "line": <number or null>,
-  "evidence": {
-    "tool": "<runner name>",
-    "file": "<path or null>",
-    "line": <number or null>,
-    "snippet": "<exact runner output line>"
-  },
-  "suggestion": "<actionable fix or null>",
-  "repro": "<command or script path to reproduce the failure, or null>",
-  "regression_of": null
-}
-```
+`/review` and `/pre-merge`. That file is the **one** full definition of the finding
+object; read it for the full field reference, severity enum, category enum,
+dedup/regression keys, and verdict normalization. The test-specific bindings below
+say only how each bucket populates that canonical object.
 
 ### Test specifics
 

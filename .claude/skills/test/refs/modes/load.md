@@ -6,23 +6,13 @@
 
 ## Execution
 
-Reads `load_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. `load_runner` (name, command, e.g. k6 / Artillery / Locust / autocannon / wrk / hey) comes from the Step 1 fingerprint — this bucket does not re-detect.
 
 ### Step 1 — Guard
 
-If `load_runner` is `null`: emit `pass_with_warnings` with note `"No load testing runner detected — Load bucket skipped."` and return immediately.
+Per `_common.md`: if `load_runner` is `null`, emit `pass_with_warnings` with note `"No load testing runner detected — Load bucket skipped."` and return immediately.
 
-Recognised runners (detection order):
-
-| Runner | Detection signal | Default command |
-|--------|-----------------|-----------------|
-| k6 | `k6` in PATH or `k6` script in `package.json` | `k6 run <script>` |
-| Artillery | `artillery.yml` / `artillery.json` or `artillery` in devDeps | `npx artillery run <config>` |
-| Locust | `locustfile.py` present | `locust --headless -u 10 -r 2 --run-time 30s` |
-| autocannon | `autocannon` in devDeps or scripts | `npx autocannon <url>` |
-| wrk / hey | binary in PATH | `wrk -t4 -c100 -d30s <url>` / `hey -n 1000 <url>` |
-
-Use the first match found. `<script>` / `<config>` resolved by searching `load/`, `tests/load/`, `perf/`, project root (in order).
+`<script>` / `<config>` in the runner command is resolved by searching `load/`, `tests/load/`, `perf/`, project root (in order).
 
 ### Step 2 — Threshold resolution
 
@@ -70,43 +60,14 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 
 ## Output
 
+Envelope + finding shape per `_common.md`. Bucket fields:
+
 ```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "load",
-  "runner": "<load_runner.name>",
-  "command": "<command executed>",
-  "thresholds": { "p95_ms": 500, "p99_ms": 1000, "error_rate_pct": 1 },
-  "totals": {
-    "requests": 0,
-    "passed_checks": 0,
-    "failed_checks": 0,
-    "p95_ms": null,
-    "p99_ms": null,
-    "error_rate_pct": null
-  },
-  "findings": [
-    {
-      "id": "load-<n>",
-      "source": "load",
-      "severity": "high" | "medium",
-      "category": "load",
-      "file": "<load script path or null>",
-      "line": null,
-      "rule": "<threshold name>",
-      "message": "<observed vs expected>",
-      "evidence": {
-        "tool": "<load_runner.name>",
-        "file": "<load script path or null>",
-        "line": null,
-        "snippet": "<observed vs expected line>"
-      },
-      "suggestion": "<actionable fix or null>",
-      "repro": "<re-run command or null>",
-      "regression_of": null
-    }
-  ]
-}
+"runner": "<load_runner.name>", "command": "<command executed>",
+"thresholds": { "p95_ms": 500, "p99_ms": 1000, "error_rate_pct": 1 },
+"totals": { "requests": 0, "passed_checks": 0, "failed_checks": 0, "p95_ms": null, "p99_ms": null, "error_rate_pct": null }
 ```
+
+Findings: category/source `load`; `rule` = threshold name, `evidence.snippet` = observed-vs-expected line.
 
 `fail` if any threshold is breached. `pass_with_warnings` if runner not found or crashed. `pass` if all thresholds are met.

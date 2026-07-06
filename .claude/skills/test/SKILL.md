@@ -368,6 +368,7 @@ This conditional gate is scoped to this step only — the same precedent `--init
 - `.claude/scripts/test-tooling-detect.sh` — Step 1 fingerprint detector (installed runners)
 - `.claude/scripts/test-init-profile.sh` — Init Step I-1 codebase shape profiler
 - `.claude/scripts/test-aggregate-verdict.sh` — Step 5 verdict aggregator + JSON merger
+- `refs/modes/_common.md` — shared bucket contract (runner guard, bucket-error rule, output envelope, canonical-finding pointer) referenced by all ten execution buckets
 - `refs/modes/init.md` — `--init` decision tables (shape→buckets, bucket→tools) and `test.json` schema
 - `refs/schema.md` — output JSON schema and verdict semantics (conforms to the shared canonical finding object)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /pre-merge (severity enum, dedup/regression keys, verdict normalization)

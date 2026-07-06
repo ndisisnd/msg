@@ -6,11 +6,11 @@
 
 ## Execution
 
-Reads `e2e_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. The runner comes from the Step 1 fingerprint — this bucket does not re-detect.
 
 ### Step 1 — Guard
 
-If `e2e_runner` is `null`: emit `pass_with_warnings` with note `"No e2e runner detected — E2E bucket skipped."` and return immediately.
+Per `_common.md`: if `e2e_runner` is `null`, emit `pass_with_warnings` with note `"No e2e runner detected — E2E bucket skipped."` and return immediately.
 
 ### Step 2 — Scope
 
@@ -53,40 +53,6 @@ Recompute the bucket verdict after retries: `fail` only if at least one spec is 
 
 ## Output
 
-```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "e2e",
-  "runner": "<e2e_runner.name>",
-  "command": "<command executed>",
-  "totals": { "passed": 0, "failed": 0, "skipped": 0, "flaky": 0 },
-  "findings": [
-    {
-      "id": "e2e-<n>",
-      "source": "e2e",
-      "severity": "high" | "medium",
-      "category": "e2e",
-      "file": "<spec file path or null>",
-      "line": <number or null>,
-      "rule": "<test title>",
-      "message": "<failure message>",
-      "evidence": {
-        "tool": "<e2e_runner.name>",
-        "file": "<screenshot or trace path, or null>",
-        "line": <number or null>,
-        "snippet": "<failure message and first relevant stack line>",
-        "spec": "<spec file path>",
-        "flaky": true,
-        "retries": 1
-      },
-      "suggestion": null,
-      "repro": "<re-run command or null>",
-      "regression_of": null
-    }
-  ]
-}
-```
-
-`totals.flaky` and `evidence.flaky`/`evidence.retries` are only populated when `--flaky <N>` was supplied; omit them otherwise rather than emitting zeros/`false` on every finding.
+Envelope + finding shape per `_common.md`. Bucket fields: `runner` (`e2e_runner.name`), `command`, `totals: { passed, failed, skipped, flaky }`. Findings: category/source `e2e`; `evidence.spec` carries the spec path; `totals.flaky` and `evidence.flaky`/`evidence.retries` are populated **only** under `--flaky` — omit otherwise, never zeros/`false` on every finding.
 
 `fail` if any e2e test failed (non-crash) after exhausting retries (or immediately, when `--flaky` wasn't supplied). `pass_with_warnings` if runner not found, crashed, or all failures resolved as flaky. `pass` if all tests pass.

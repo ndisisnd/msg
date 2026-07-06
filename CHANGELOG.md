@@ -1,5 +1,24 @@
 # Changelog
 
+- **msg-v1 Phase 1 — token-efficiency structural fixes (no behavior change).** Cut the pipeline's dominant token costs without altering any artifact, safety, scope, or branch guarantee. `review` now spawns **one `/cook` sub-agent per mode instead of per flag** (~12–13 → ≤4 semantic agents) and the orchestrator **compiles `/cook` once per stack and injects the compiled standards payload** into each sub-agent prompt rather than every leaf re-invoking cook; `eng`/`plan-em` call cook via **explicit `--<domain>` flags** (cacheable, P0-guaranteed) instead of the uncacheable prose path, and drop cook from `--todo`/`--plan` entirely. Build sub-agents receive **row-scoped context** (exec rows + relevant PRD feature sections + a devkit digest) instead of re-reading the full PRD and all devkit. The finding object is now defined **once** in `shared/refs/finding-schema.md` — the ~17 inlined copies across `test`/`review`/`pre-merge` collapse to path references. `test`'s 10 mode files share a new `_common.md` (guard + error rule + output envelope + schema pointer) and drop all 7 redundant runner-detection tables (the detect script is authoritative); `review`'s cook-backed modes share a `_common.md` Execution contract, conditional-mode triggers are hoisted into `SKILL.md` Step 6 (mode files loaded only on match), and `performance.md` is folded in and deleted. Tooling detection moves out of hot paths into `test-tooling-detect.sh` JSON (now also emitting mechanical runners, secret scanners, build tool, bundle analyzer), and the GUI static fallback is a `fill-static.py` call instead of a ~35k-token manual splice. `pre-merge` accepts `--test-json` to skip integration/e2e buckets already covered by a fresh, clean `/test` run. Hot `SKILL.md` files slim down (`eng` 2222→1492w, `plan-pm` 1909→1274w) by moving rare-mode content to refs; `msg-init`'s interview batches into ≤4 `AskUserQuestion` calls; and `review`'s dedup key is fixed to the canonical `(category, file, line, rule)`. Net −459 lines. Cook-internal tasks (T1.12 budget, cook `_INDEX` archives, cook `--flash`) are deferred — cook is a separate repo.
+
+- `.claude/skills/review/SKILL.md` — Step 6 rewrite: compile-once/inject, one sub-agent per mode, inline conditional triggers, folded performance mode, dedup key → `(category, file, line, rule)`; Step 2 consumes detect-script JSON
+- `.claude/skills/review/refs/modes/_common.md` — new: shared cook-backed Execution contract
+- `.claude/skills/review/refs/modes/{quality,security,migration}.md` — Execution block → `_common.md`; `performance.md` deleted; `schema.md` → pointer at shared
+- `.claude/skills/test/refs/modes/_common.md` — new: guard + error rule + output envelope + schema pointer
+- `.claude/skills/test/refs/modes/*.md`, `test/refs/schema.md` — inlined finding schema → pointer; runner tables removed; boilerplate factored to `_common.md`
+- `.claude/skills/eng/SKILL.md`, `eng/refs/build/protocol.md`, `protocol-roadmap.md` — flag-based cook, compile-once/inject, row-scoped sub-agent context, slimmed hot file (test-json/roadmap docs → build refs)
+- `.claude/skills/plan-em/{SKILL.md,refs/protocol-em.md,refs/prefs-bootstrap.md}` — flag-based cook, payload injection, row-scoped context, Step 0 prefs prose → ref
+- `.claude/skills/plan-pm/{SKILL.md,refs/protocol-pm.md,refs/protocol-sub.md}` — sub-PRD/roadmap sections → refs; open-questions batched
+- `.claude/skills/plan-tune/SKILL.md` — persona/outputs de-duplicated; `refs/principles.md` deleted (stale copy)
+- `.claude/skills/msg-init/SKILL.md` — 14-question interview → 4 batched `AskUserQuestion` calls
+- `.claude/skills/pre-merge/{SKILL.md,refs/finding-schema.md,refs/output-schema.md}` — schema → pointer; `--test-json` bucket-skip; Step 2 detect-script JSON; `pre-merge-plan.md` deleted
+- `.claude/scripts/test-tooling-detect.sh` — emit build tool, mechanical runners, secret scanners, bundle analyzer as JSON
+- `.claude/skills/msg/refs/gui/fill-static.py` — new: GUI static-fill substitution; `protocol-gui.md` Step 4 invokes it
+- `.claude/skills/shared/refs/tooling-detection.md` — demoted to maintainer documentation
+- `README.md`, `ARCHITECTURE.md` — docu: msg-init step count, detect-script scope, cook-integration paragraph
+- `msg-v1.md` — the four-phase plan (Phase 1 marked done)
+
 - Gitignore the generated `roadmap/` directory. `roadmap/roadmap.md` is per-project output of `plan-pm --roadmap` (same generated-content class as the already-ignored `features/` and `plans/`), so it is local-only and no longer tracked.
 
 - `.gitignore` — add `roadmap/` under the working-dirs section

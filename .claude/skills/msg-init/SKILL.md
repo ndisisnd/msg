@@ -50,8 +50,8 @@ allowed_tools:
 |------|--------|--------|
 | Working directory state | `key=value` lines from `init-setup.sh` | `init-setup.sh` at Step 1 |
 | Project metadata | Interview answers | `AskUserQuestion` at Step 2 |
-| Architecture details | Interview answers | `AskUserQuestion` at Step 3 |
-| Design system details | Interview answers | `AskUserQuestion` at Step 4 |
+| Architecture details | Interview answers | `AskUserQuestion` at Step 2 |
+| Design system details | Interview answers | `AskUserQuestion` at Step 2 |
 | Optional brief | Free text | User message at invocation |
 
 ## Outputs
@@ -69,15 +69,15 @@ allowed_tools:
 | CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | features/ | Empty directory | `<cwd>/features/` |
-| Manifest | Inline table — file, status, line count | Shown inline at Step 7 |
+| Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
 
 ## Progress emission
 
-Emit `Step X/7 — <title>` at the start of each step, unconditionally.
+Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 ## Step-by-step protocol
 
-**Step 1/7 — Scan the working directory**
+**Step 1/5 — Scan the working directory**
 
 Run `init-setup.sh` via Bash:
 
@@ -89,48 +89,49 @@ Parse the five `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK
 
 If `ALL_COMPLETE=true`, emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step.
 
-**Step 2/7 — Project basics interview**
+**Step 2/5 — Interview (batched)**
 
-Run 4–5 `AskUserQuestion` prompts, one at a time. Skip Q2 when `STACK_HINTS` has exactly one entry — in that case set `PLATFORM = STACK_DEFAULT` directly, no question asked. Otherwise, if `STACK_DEFAULT` is not "Not specified", pre-select it as Q2's default option (user can still pick another).
+Run the full interview — project basics, architecture, design system — as **batched `AskUserQuestion` calls, 3–4 questions per call**, in the four calls below (Call 4 fires only when a UI layer exists). The whole interview completes in **≤4 `AskUserQuestion` calls**; no question is dropped. `AskUserQuestion` returns all answers in a call together, so ask each call's full set at once. Hold every answer in conversation context under the variable names given.
 
-| Q | Question | Format |
-|---|----------|--------|
-| 1 | Project name and one-line description? | Free text |
-| 2 | Primary platform or stack? | 4 options + Other: Web (frontend), Mobile (iOS/Android), Backend API, CLI |
-| 2b | What is the primary language or framework? (e.g. Flutter, Go, React, NestJS, Swift) | Free text |
-| 3 | Team type? | 4 options + Other: Solo, Small team (<5), Cross-functional, Open source |
-| 4 | Any house conventions already in place? | Free text or "None yet" |
+**Call 1 — Project basics** (Q1, Q2, Q2b, Q3):
 
-Hold every answer in conversation context.
+| Q | Question | Format | Holds as |
+|---|----------|--------|----------|
+| 1 | Project name and one-line description? | Free text | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
+| 2 | Primary platform or stack? | 4 options + Other: Web (frontend), Mobile (iOS/Android), Backend API, CLI | `PLATFORM` |
+| 2b | What is the primary language or framework? (e.g. Flutter, Go, React, NestJS, Swift) | Free text | `LANGUAGE` |
+| 3 | Team type? | 4 options + Other: Solo, Small team (<5), Cross-functional, Open source | `TEAM_TYPE` |
 
-**Step 3/7 — Architecture interview**
+Skip Q2 when `STACK_HINTS` has exactly one entry — in that case set `PLATFORM = STACK_DEFAULT` directly, no question asked (Call 1 then carries Q1, Q2b, Q3 only). Otherwise, if `STACK_DEFAULT` is not "Not specified", pre-select it as Q2's default option (user can still pick another).
 
-Run 5 `AskUserQuestion` prompts, one at a time, to understand the intended system design.
+**Call 2 — Conventions + architecture** (Q4, A1, A2, A3):
 
-| Q | Question | Format |
-|---|----------|--------|
-| A1 | Describe the major components of your system and how they interact. | Free text |
-| A2 | What external services or APIs will your system depend on? (e.g. Stripe, Auth0, S3) | Free text or "None" |
-| A3 | What data stores will you use? | 4 options + Other (multiSelect): PostgreSQL, MySQL / MariaDB, MongoDB / DynamoDB, Redis |
-| A4 | Authentication approach? | 4 options + Other: JWT / stateless sessions, OAuth 2.0 / SSO, API keys, None / not applicable |
-| A5 | Deployment pipeline? (e.g. GitHub Actions → AWS ECS, Vercel, manual) | 4 options + Other: GitHub Actions, Vercel / Netlify, AWS / GCP / Azure, Not decided yet |
+| Q | Question | Format | Holds as |
+|---|----------|--------|----------|
+| 4 | Any house conventions already in place? | Free text or "None yet" | `CONVENTIONS` |
+| A1 | Describe the major components of your system and how they interact. | Free text | `ARCH_OVERVIEW` |
+| A2 | What external services or APIs will your system depend on? (e.g. Stripe, Auth0, S3) | Free text or "None" | `ARCH_EXTERNAL` |
+| A3 | What data stores will you use? | 4 options + Other (multiSelect): PostgreSQL, MySQL / MariaDB, MongoDB / DynamoDB, Redis | `ARCH_DATA_STORES` |
 
-Hold every answer as `ARCH_OVERVIEW` (A1), `ARCH_EXTERNAL` (A2), `ARCH_DATA_STORES` (A3), `ARCH_AUTH` (A4), `ARCH_DEPLOYMENT` (A5) in conversation context.
+**Call 3 — Architecture + UI gate** (A4, A5, D1):
 
-**Step 4/7 — Design system interview**
+| Q | Question | Format | Holds as |
+|---|----------|--------|----------|
+| A4 | Authentication approach? | 4 options + Other: JWT / stateless sessions, OAuth 2.0 / SSO, API keys, None / not applicable | `ARCH_AUTH` |
+| A5 | Deployment pipeline? (e.g. GitHub Actions → AWS ECS, Vercel, manual) | 4 options + Other: GitHub Actions, Vercel / Netlify, AWS / GCP / Azure, Not decided yet | `ARCH_DEPLOYMENT` |
+| D1 | Does this project include a UI layer? | 2 options: Yes, No | (gates Call 4) |
 
-Ask D1 first. If the user answers "No", skip D2–D4 and set all DS vars to "Not applicable — no UI layer."
+**Call 4 — Design system** (D2, D3, D4) — **only if D1 = "Yes"**:
 
-| Q | Question | Format |
-|---|----------|--------|
-| D1 | Does this project include a UI layer? | 2 options: Yes, No |
-| D2 | Which component library are you using? | 4 options + Other: shadcn/ui, MUI / Material UI, Tailwind UI, Custom / none |
-| D3 | Where do your design tokens live? (e.g. src/tokens/colors.ts, Figma variables, CSS custom properties) | Free text or "Not defined yet" |
-| D4 | Any naming or folder structure conventions for components? (e.g. Atomic design, feature-based folders) | Free text or "None yet" |
+| Q | Question | Format | Holds as |
+|---|----------|--------|----------|
+| D2 | Which component library are you using? | 4 options + Other: shadcn/ui, MUI / Material UI, Tailwind UI, Custom / none | `DS_LIBRARY` |
+| D3 | Where do your design tokens live? (e.g. src/tokens/colors.ts, Figma variables, CSS custom properties) | Free text or "Not defined yet" | `DS_TOKENS` |
+| D4 | Any naming or folder structure conventions for components? (e.g. Atomic design, feature-based folders) | Free text or "None yet" | `DS_CONVENTIONS` |
 
-Hold every answer as `DS_LIBRARY` (D2), `DS_TOKENS` (D3), `DS_CONVENTIONS` (D4) in conversation context.
+If D1 = "No", skip Call 4 entirely and set `DS_LIBRARY`, `DS_TOKENS`, `DS_CONVENTIONS` all to "Not applicable — no UI layer." (interview then completes in 3 calls).
 
-**Step 5/7 — Generate missing files**
+**Step 3/5 — Generate missing files**
 
 Run `init.sh` via Bash, passing all interview answers as env vars and the working directory as the positional argument:
 
@@ -152,13 +153,13 @@ DS_CONVENTIONS="<D4 answer>" \
 <skill_dir>/init.sh "<cwd>"
 ```
 
-`init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 7.
+`init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
 
-**Step 6/7 — Verify**
+**Step 4/5 — Verify**
 
 `init.sh` exits non-zero and marks failures in the manifest if any write fails. If the script exits non-zero, surface its stderr and stop. Do not retry — the user re-runs or fixes manually.
 
-**Step 7/7 — Emit manifest and suggest next step**
+**Step 5/5 — Emit manifest and suggest next step**
 
 Print the manifest from `init.sh` stdout verbatim. Then emit a one-line next-step suggestion:
 

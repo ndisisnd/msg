@@ -182,12 +182,25 @@ is unchanged from the previous protocol revision, with these notes:
 When interactive mode isn't possible or wanted:
 
 1. Collect the Step 3 JSON yourself (read-only — same parsing rules as Step 2; never write
-   or modify any PRD file).
-2. Read `refs/gui/index.html` + `refs/gui/styles.css`; replace `__STYLES__` with the CSS,
-   `__PRD_DATA__` with the JSON (exactly once, valid JSON), and `__API_TOKEN__` with an
-   empty string. Optionally embed `projectFiles` (path/group/content) for the Files view.
-3. Write the single filled file to a fresh temp dir (`mktemp -d`) — never into the repo —
-   and serve GET-only: `python3 -m http.server <port> --bind 127.0.0.1 --directory "$DIR"`.
+   or modify any PRD file). Write it to a fresh temp dir (`mktemp -d`) — never into the
+   repo. Optionally include a top-level `projectFiles` (path/group/content) array to light
+   up the read-only Files view.
+2. Fill the template by running `refs/gui/fill-static.py` — **do not** Read/splice
+   `index.html`/`styles.css` by hand. The script does the `__STYLES__` / `__PRD_DATA__` /
+   `__API_TOKEN__` substitution (validates the JSON, escapes `</` so the inline data can't
+   break out of its `<script>` tag, and leaves the token empty so the editing UI stays off):
+
+   ```bash
+   DIR=$(mktemp -d)
+   #   …write the Step-3 data contract to "$DIR/data.json"…
+   python3 .claude/skills/msg/refs/gui/fill-static.py \
+     --data "$DIR/data.json" --out "$DIR/index.html"
+   ```
+
+   Defaults resolve the template and CSS from the sibling `refs/gui/` files. Pass
+   `--default-view roadmap` to open on the Roadmap tab (omit it to leave the JS `board`
+   fallback). `--data -` reads the JSON from stdin instead of a file.
+3. Serve the temp dir GET-only: `python3 -m http.server <port> --bind 127.0.0.1 --directory "$DIR"`.
 4. Open the browser / print the URL; tear down as in Step 1.
 
 Templates must stay as files under `refs/gui/` — never inline the HTML/CSS in this

@@ -13,6 +13,23 @@ Build mode has two input sources (resolved at `SKILL.md` Step 1):
 - **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
 - **`test-json`** (alternate): `--build`, `test-json=<path to msg-test/test-N.json>`, `branch`, and optional `agent` (defaults to `eng-fix`). Drives the build from a `/test` bug list instead of an exec-table — see **Fixing from `test-json`** below.
 
+### `test-json` source — required fields and rejections
+
+When `test-json` is supplied to `--build`, the required-field set becomes:
+
+| Field | Value |
+|-------|-------|
+| mode flag | `--build` |
+| `test-json` | Path to the `msg-test/test-N.json` file whose `issues[]` this build resolves |
+| `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see **Branch contract**); must still exist before work starts |
+| `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
+
+- `test-json` is a **`--build`-only** input source. `--plan` (and `--todo`) with `test-json` is a hard failure: `Hard failure: test-json is a --build-only input source`.
+- Supplying **both `prd-path` and `test-json`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or test-json, not both (ambiguous input source).`
+- A `test-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: test-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
+
+**Path derivation.** Eng derives all *implementation* file paths from the codebase scan and the spec (exec-table or projected issue-tickets). `test-json`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
+
 Either way, build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
@@ -54,6 +71,28 @@ The 3–4 line summary covers:
 
 ---
 
+## Coding-standards flags (Step 4)
+
+Standards are resolved at `SKILL.md` Step 4. **On orchestrated build runs the orchestrator injects a compiled `standards payload` and this agent does not call `/cook` at all** — use the injected payload. Only on a **standalone** build (a human runs `eng --build` directly, no payload injected) does this agent call `/cook` itself, via **explicit flags** (never a prose summary) so the call is cacheable and always loads the P0 floor.
+
+Derive the flags from the stack and the assigned rows' concerns:
+
+| Source | Flags |
+|--------|-------|
+| P0 floor — **always** | `--global` |
+| Flutter/Dart mobile | `--flutter --dart` |
+| React web | `--react` |
+| Next.js web | `--nextjs` |
+| Node backend | `--nodejs` |
+| TypeScript | `--typescript` |
+| Supabase / Postgres | `--supabase --database` |
+| GraphQL | `--graphql` |
+| A **Tests** row is owned | add the stack's testing sub-ref: `--flutter:testing` / `--dart:testing` / `--react:testing` / `--nextjs:testing` / `--nodejs:testing` / `--typescript:testing` / `--graphql:testing` |
+
+`--global` is mandatory on every call — it loads the **P0 universal floor** plus all 8 concern refs (architecture, api-design, auth, security, performance, error-handling, debug, cicd). Those concern refs already cover the row concerns `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, so no separate concern flags are added — only stack (domain) and tests (sub-ref) flags. Invoke `/cook` **once** with all applicable flags (e.g. `/cook --global --flutter --dart --flutter:testing`); if rows span multiple stacks, add each stack's domain flags to the **same** call. A repeated identical flag set is a cook **cache hit** (script-only run, no index scan). Read the result fully. If `/cook` returns no coverage for a stack, do not substitute another stack's standards — surface the uncovered stack as a named gap in the build summary and proceed using only `CLAUDE.md` and `devkit/ARCHITECTURE.md` conventions for that stack.
+
+---
+
 ## Work steps (Step 5)
 
 **Spec source — prefer todos, fall back to the exec-table.** For each assigned F-ID, first look for a matching `### F<n>` todo block under this agent's `## Todos — <Agent Name>` section (written by `--todo` mode, when the todo layer is enabled):
@@ -74,7 +113,7 @@ When build is driven by `test-json` instead of an exec-table, the numbered work 
 - **Item 2 reads each issue, not Execution steps.** For each projected issue-ticket (from Step 2's projection of `issues[]`), read the finding's `message`, `evidence.snippet`, and `repro` — that triad *is* the spec for the fix.
 - **Item 4's TDD flow collapses from four phases to three**, because the failing test already exists. Per issue, in `priority` order (`P0`→`P1`→`P2`; findings carry no `depends-on`, so priority alone orders them):
   - **(a) reproduce** — run the issue's `repro` command (or exercise the covering test) and confirm it still fails the same way. This replaces "write tests" + "verify red".
-  - **(b) fix** — implement the change, applying `/cook` standards exactly as today (Item 4c).
+  - **(b) fix** — implement the change, applying the Step 4 coding standards (injected payload, or `/cook` on a standalone run) exactly as today (Item 4c).
   - **(c) verify green** — re-run `repro`, then the covering test file, same as the existing verify-green phase (Item 4d). A still-failing issue enters Debug mode unchanged.
 - **Flaky issues are not forced.** An issue carrying `evidence.flaky: true` (a `--flaky <N>`-classified warning, not a confirmed break) is fixed **only if phase (a) surfaces a clear, reproducible root cause**. If it won't reproduce, leave it noted in the build summary (`⚠ flaky — not reproduced, left as-is`) rather than forcing a green — that is the whole point of flaky-classification.
 - **Debug mode and its 3-cycle escalation apply per issue**, exactly as they do per row.
@@ -105,7 +144,7 @@ When build is driven by `test-json` instead of an exec-table, the numbered work 
 
    **b. Verify red.** Run only the test files just written. Confirm they fail with assertion failures — not compile errors or import errors. If a test errors instead of fails, fix the setup until it fails cleanly on a real assertion. A test that errors is not a red test; do not proceed to implementation until this is resolved.
 
-   **c. Write implementation.** For each implementation row in this group, in order: Schema migration → API contract → Authentication → Webhook → Client implementation. Create or modify the files named in the Execution steps. Apply coding standards from `/cook`. Reuse existing components from `DESIGN-SYSTEM.md` before creating new ones.
+   **c. Write implementation.** For each implementation row in this group, in order: Schema migration → API contract → Authentication → Webhook → Client implementation. Create or modify the files named in the Execution steps. Apply the Step 4 coding standards (the injected `standards payload`, or `/cook` on a standalone run). Reuse existing components from `DESIGN-SYSTEM.md` before creating new ones.
 
    **d. Verify green.** Re-run the test files for this group. If all pass, continue to the next feature group. If any fail, enter Debug mode (see below). Do not move to the next feature group until this group's tests are green.
 

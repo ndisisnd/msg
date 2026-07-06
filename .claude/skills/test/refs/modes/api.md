@@ -6,22 +6,11 @@
 
 ## Execution
 
-Reads `api_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. `api_runner` is an **array** of detected runners (Pact / Newman / Dredd / Hurl / Spectral / openapi-validator), each with name + command from the Step 1 fingerprint — this bucket does not re-detect.
 
 ### Step 1 — Guard
 
-If `api_runner` is `null`: emit `pass_with_warnings` with note `"No API testing runner detected — API bucket skipped."` and return immediately.
-
-Recognised runners (detection order):
-
-| Runner | Detection signal | Default command |
-|--------|-----------------|-----------------|
-| Pact | `@pact-foundation/pact` or `pact` in devDeps; or `pacts/` / `.pact/` directory present | `npx pact verify` |
-| Newman | `newman` in devDeps or PATH; Postman collection `.json` in `postman/`, `collections/`, or `tests/api/` | `npx newman run <collection>` |
-| Dredd | `dredd` in devDeps or `.dredd/dredd.yml` present | `npx dredd` |
-| Hurl | `*.hurl` files in `tests/`, `api/`, or project root; `hurl` binary in PATH | `hurl --test <files>` |
-| Spectral | `.spectral.yaml` / `.spectral.json` present or `@stoplight/spectral-cli` in devDeps | `npx spectral lint <spec>` |
-| openapi-validator | `ibm-openapi-validator` in devDeps or `.validaterc` present | `npx ibm-openapi-validator <spec>` |
+Per `_common.md`: if `api_runner` is `null`, emit `pass_with_warnings` with note `"No API testing runner detected — API bucket skipped."` and return immediately.
 
 Unlike other buckets, **all** detected runners are used — it is common for a repo to have both contract tests (Pact/Newman) and a spec linter (Spectral) simultaneously. Findings are merged and de-prefixed.
 
@@ -82,7 +71,7 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 
 ## Error handling
 
-A bucket-level error never stops other buckets. All errors produce `pass_with_warnings` so a broken test environment does not falsely block a merge.
+Applies `_common.md`'s bucket-error rule (every error → `pass_with_warnings`, never `fail`) with these api-specific cases:
 
 | Error condition | Verdict | Note in output |
 |----------------|---------|----------------|
@@ -98,42 +87,14 @@ A bucket-level error never stops other buckets. All errors produce `pass_with_wa
 
 ## Output
 
+Envelope + finding shape per `_common.md`. Bucket fields:
+
 ```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "api",
-  "runners": ["<runner1>", "<runner2>"],
-  "commands": ["<cmd1>", "<cmd2>"],
-  "errors": [
-    { "runner": "<runner>", "reason": "<error description>" }
-  ],
-  "totals": {
-    "passed": 0,
-    "failed": 0,
-    "warned": 0
-  },
-  "findings": [
-    {
-      "id": "api-<n>",
-      "source": "api",
-      "severity": "high" | "medium",
-      "category": "api",
-      "file": "<contract / spec / collection path or null>",
-      "line": "<number or null>",
-      "rule": "<rule ID or assertion name>",
-      "message": "<description of the mismatch or violation>",
-      "evidence": {
-        "tool": "<runner that produced this finding>",
-        "file": "<contract / spec / collection path or null>",
-        "line": "<number or null>",
-        "snippet": "<description of the mismatch or violation>"
-      },
-      "suggestion": "<actionable fix or null>",
-      "repro": "<re-run command or null>",
-      "regression_of": null
-    }
-  ]
-}
+"runners": ["<runner1>", "<runner2>"], "commands": ["<cmd1>", "<cmd2>"],
+"errors": [ { "runner": "<runner>", "reason": "<error description>" } ],
+"totals": { "passed": 0, "failed": 0, "warned": 0 }
 ```
+
+Findings: category/source `api`; per the Step 4 severity map (fail→high, warn→medium); `evidence.tool` = the specific runner (Pact/Newman/Dredd/Hurl/Spectral/openapi-validator).
 
 `fail` if any contract violation or `error`-severity schema violation is found. `pass_with_warnings` if only `warn`-severity findings, no targets found, or all runners crashed. `pass` if all checks pass with zero violations.

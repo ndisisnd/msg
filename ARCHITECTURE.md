@@ -29,7 +29,7 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 
 | Script | Purpose |
 |--------|---------|
-| `test-tooling-detect.sh` | Discovers test runners and configs for the project |
+| `test-tooling-detect.sh` | Emits project tooling as JSON — test runners, mechanical runners (lint/format/typecheck), secret scanners, build tool, and bundle analyzer. Consumed at runtime by `test`, `review`, and `pre-merge` (replacing manual reads of `shared/refs/tooling-detection.md`, now maintainer docs only) |
 | `test-aggregate-verdict.sh` | Merges per-bucket test results into a single verdict |
 | `test-init-profile.sh` | Writes the test profile for a project |
 | `scan-n.prd` | Assigns the next available PRD number |
@@ -77,4 +77,4 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 
 ## Cook integration
 
-`cook` is an optional but recommended dependency. MSG skills call `Skill("cook", "<task summary>")` to load project-specific coding standards before generating code. Without cook, skills still work — they just skip the standards-loading step.
+`cook` is an optional but recommended dependency. MSG skills load project-specific coding standards from cook before generating code. Standalone skill runs call cook directly (`eng`/`plan-em` pass explicit `--<domain>` flags, e.g. `--flutter --dart`, for a cacheable, P0-guaranteed compile). On orchestrated paths, the orchestrator (`plan-em`, `review`, roadmap `eng --build`) compiles cook **once per stack** and injects the compiled standards payload into each subagent prompt, so leaf agents never re-invoke cook. Without cook, skills still work — they just skip the standards-loading step.

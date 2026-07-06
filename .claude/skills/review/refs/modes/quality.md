@@ -26,7 +26,7 @@ These checks are **Quality-mode only** — no other mode receives the rubric ame
 
 ## Sub-agent prompt amendment
 
-When Step 6 of `SKILL.md` spawns each Quality-mode `/cook --<flag>` sub-agent, the orchestrator appends the following clause verbatim to the agent's prompt:
+When Step 6 of `SKILL.md` spawns the Quality-mode subagent, the orchestrator appends the following clause verbatim to the agent's prompt:
 
 > In addition to your flag's standard checks, also flag any:
 > (a) dead code — unreachable, unused, or commented-out code blocks;
@@ -70,12 +70,9 @@ For each runner in `mechanical_runners[]`:
 
 ## Execution (semantic stage)
 
-**Inputs per sub-agent:**
-- The resolved diff
-- The subset of changed files that touch its domain
-- The rubric amendment above (Quality-mode only)
-- `uncovered_changes[]` — files or descriptions from Step 4 that fall outside the PRD's scope
-
-Spawn one `/cook --<flag>` Agent per flag in parallel, each receiving the inputs above.
-
-Collect `{ verdict, findings[] }` from each. Aggregate: mode verdict = worst across all agents AND Stage 0 findings.
+Shared contract: `_common.md`. One subagent for the whole mode (not one per
+flag), receiving the resolved diff, the changed files touching its domains, all
+assembled Quality flags, and the compiled standards payload — **plus** the
+Quality-only inputs: the rubric amendment (`#sub-agent-prompt-amendment`) and
+`uncovered_changes[]` from Step 4. Mode verdict = worst of the subagent's verdict
+AND Stage 0 findings.

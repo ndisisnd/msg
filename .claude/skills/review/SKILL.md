@@ -64,11 +64,13 @@ Run `rtk git branch --show-current` to determine the current branch. `review` is
 
 Run once at startup; never re-derive mid-run. Detection signals, runner mappings, and the authoritative `/cook` flag inventory all live in `refs/FLAG-LIST.md` — load it once here.
 
+**Tooling detection (script, not manual):** run the deterministic detector via Bash — `rtk .claude/scripts/test-tooling-detect.sh` — and read the JSON it prints to stdout. Take `mechanical_runners[]` and `secret_scanner` **directly from that JSON**; do **not** read `shared/refs/tooling-detection.md` at runtime (the script is authoritative for both — the ref is maintainer documentation only). If the script is unavailable or emits no runners, treat `mechanical_runners[]` as `[]` (Quality Stage 0 no-ops) and `secret_scanner` as `null` (Security Stage 0 emits a `warn`).
+
 Produce four outputs from this step:
 
 - **`active_domains[]`** — list of detected technology domains (used by Steps 4–6 for flag assembly). Signals: `refs/FLAG-LIST.md#domain-detection-review-step-2-fingerprint`.
-- **`mechanical_runners[]`** — list of detected lint/format/typecheck runners (used by Quality mode Stage 0). Signals and shape: `refs/../shared/refs/tooling-detection.md#mechanical-runner-detection`. Each entry has `{ name, command, expects_zero_exit, severity_on_fail }`. Empty list if nothing detected — Quality Stage 0 becomes a no-op.
-- **`secret_scanner`** — single object describing the highest-priority detected secret scanner (used by Security mode Stage 0), or `null` if none. Signals and shape: `refs/../shared/refs/tooling-detection.md#security-scanner-detection` (Secret scanners sub-table; `secret_scanner` = first entry with `type: "secret"`). When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
+- **`mechanical_runners[]`** — the `mechanical_runners` array from the detector JSON (lint/format/typecheck runners, used by Quality mode Stage 0). Each entry has `{ name, command, expects_zero_exit, severity_on_fail }`. Empty list if nothing detected — Quality Stage 0 becomes a no-op.
+- **`secret_scanner`** — the `secret_scanner` object from the detector JSON (highest-priority detected secret scanner, used by Security mode Stage 0), or `null` if none. When `null`, Security Stage 0 emits a `warn` finding rather than blocking.
 - **`flag_inventory`** — in-memory set of every valid flag token parsed from `refs/FLAG-LIST.md` (concerns + per-domain + sub-refs). Used by Step 4 to validate assembled flags.
 
 ### Step 3/7 — Locate PRD; bootstrap eval-set
@@ -122,7 +124,7 @@ Performance→ /cook --performance --database            (api/users.ts)
 ```
 If `surface.undetected_domain_note` is set, print it directly above the execution plan so the user sees the coverage gap before approving — it is not a mode, so it never appears as a row.
 
-Migration and A11y/i18n rows are added to the plan only when their trigger condition (`refs/modes/migration.md` / `refs/modes/a11y-i18n.md`) matches — omit the row entirely otherwise, e.g.:
+Migration and A11y/i18n rows are added to the plan only when their trigger condition (defined inline in Step 6) matches — omit the row entirely otherwise, e.g.:
 ```
 Migration  → /cook --supabase:migrations                (supabase/migrations/003_add_index.sql)
 A11y/i18n  → static scan (no /cook flags)                (components/Nav.tsx)
@@ -130,27 +132,35 @@ A11y/i18n  → static scan (no /cook flags)                (components/Nav.tsx)
 
 Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue without re-asking) / **Cancel** (exit, no findings). No further `AskUserQuestion` calls. Adjustments are not written back to the cache (`refs/cache.md`) — the cache always reflects the auto-derived Steps 2-4 output, never a manual override.
 
-### Step 6/7 — Run modes in order; fan out /cook per mode
+### Step 6/7 — Run modes in order; one subagent per mode
+
+**Compile standards once (before spawning any mode subagent):** the four cook-backed modes (Quality, Security, Performance, Migration) draw their standards from `/cook`. Call `/cook` **once per distinct stack this run** — pass the union of every cook-backed mode's assembled flags in a single invocation — and hold the compiled standards payload. Then, for each mode, inject the slice of that payload matching the mode's flags into that mode's **single** subagent prompt. Mode subagents do **not** call `/cook` themselves. The compiled payload names each rule's source flag, so per-rule attribution survives into aggregated findings. Shared cook-backed execution contract: `refs/modes/_common.md`.
+_Fallback:_ if this pre-compile step was skipped (review reached Step 6 with no precompiled payload), each cook-backed mode compiles `/cook` **once** for its own flag set — never once per flag.
+
+**Conditional-mode triggers (evaluated here — load the mode file only on a match):**
+
+- **Migration** (order 6) — runs only when the diff touches at least one migration file: `supabase/migrations/*.sql`, `**/migrations/*.sql`, `**/migrations/*.ts`, `prisma/migrations/**`, or `db/migrate/**`. On a match, load `refs/modes/migration.md` and run it; otherwise skip the mode entirely (no Stage 0, no subagent, omitted from output) and do **not** read `migration.md`.
+- **A11y/i18n** (order 7) — runs only when `active_domains[]` includes React, Next.js, or Flutter **and** the diff adds/modifies at least one UI file in that domain (`.tsx`/`.jsx` for React/Next.js; a `.dart` file containing a `Widget` build method for Flutter). On a match, load `refs/modes/a11y-i18n.md` and run it; otherwise skip the mode entirely (omitted from output) and do **not** read `a11y-i18n.md`.
 
 Order and per-mode stage layout:
 
 | Order | Mode | Stage 0 (mechanical, runs first) | Semantic stage |
 |-------|------|-----------------------------------|----------------|
-| 1 | Quality | Mechanical gate — lint / format / typecheck via `mechanical_runners[]`; any `block` short-circuits and skips the semantic stage. | `/cook --<flag>` semantic agents with rubric amendment. |
-| 2 | Coverage | — (no Stage 0) | Test-runner protocol against `eval_set`. |
-| 3 | Functional | — (no Stage 0) | Eval-set assertion protocol against the diff. |
-| 4 | Security | Secret scan — runs `secret_scanner` (diff-only by default, full-tree with `--full-secret-scan`); always proceeds to semantic stage regardless of verdict. | `/cook --<flag>` semantic agents for injection / auth / input-validation. |
-| 5 | Performance | — (no Stage 0) | `/cook --<flag>` semantic agents. |
-| 6 | Migration *(conditional — skipped unless diff touches a migration file)* | Static migration-safety scan (irreversible ops, missing defaults, non-concurrent indexes, missing down-migration); always proceeds to semantic stage regardless of verdict. | `/cook --<flag>` semantic agents, only if a Supabase/Database flag was assembled. |
-| 7 | A11y/i18n *(conditional — skipped unless a UI domain is active and diff touches a UI file)* | — (no Stage 0) | Static-only: missing accessibility attributes, hardcoded strings bypassing existing i18n. No `/cook` sub-agents — no matching concern shelf exists yet. |
+| 1 | Quality | Mechanical gate — lint / format / typecheck via `mechanical_runners[]`; any `block` short-circuits and skips the semantic stage. | One subagent (`refs/modes/_common.md`) with the Quality flags + rubric amendment. Flags: globals `--api-design --architecture --error-handling --debug` + active-domain flags touched by the diff. Details: `refs/modes/quality.md`. |
+| 2 | Coverage | — (no Stage 0) | Static-only: sibling-test check + assertion-reference protocol against `eval_set`. No `/cook`. `refs/modes/coverage.md`. |
+| 3 | Functional | — (no Stage 0) | Static-only: eval-set assertion protocol against the diff. No `/cook`. `refs/modes/functional.md`. |
+| 4 | Security | Secret scan — runs `secret_scanner` (diff-only by default, full-tree with `--full-secret-scan`); always proceeds to semantic stage regardless of verdict. | One subagent (`refs/modes/_common.md`) with the Security flags (injection / auth / input-validation). Flags: globals `--security --auth` + security-scoped domain sub-refs. Details: `refs/modes/security.md`. |
+| 5 | Performance | — (no Stage 0) | One subagent (`refs/modes/_common.md`) with the Performance flags. Flags: global `--performance` + active-domain flags touched by the diff (sub-ref flags when scope is narrow, e.g. `--database:indexes`). Checks: N+1 query patterns, inefficient loops, missing DB indexes, unbounded memory allocations, unnecessary synchronous operations. |
+| 6 | Migration *(conditional — see trigger above)* | Static migration-safety scan (irreversible ops, missing defaults, non-concurrent indexes, missing down-migration); always proceeds to semantic stage regardless of verdict. | One subagent (`refs/modes/_common.md`) with the Migration flags, only if a Supabase/Database flag was assembled. Details: `refs/modes/migration.md`. |
+| 7 | A11y/i18n *(conditional — see trigger above)* | — (no Stage 0) | Static-only: missing accessibility attributes, hardcoded strings bypassing existing i18n. No `/cook` sub-agents — no matching concern shelf exists yet. `refs/modes/a11y-i18n.md`. |
 
-Modes 6-7 are conditional: their trigger check runs first, and if it doesn't match, the mode is skipped entirely (no Stage 0, no sub-agents, omitted from output) rather than emitted as an empty result. Modes 1-5 always run.
+Modes 6-7 are conditional (triggers above): if the trigger doesn't match, the mode is skipped entirely (no Stage 0, no subagent, omitted from output) rather than emitted as an empty result. Modes 1-5 always run.
 
-For each mode: run Stage 0 first (if defined), then spawn all `/cook --<flag>` sub-agents in parallel (skip this if the mode is static-only or no flags were assembled); wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). Aggregate Stage 0 findings with semantic-stage findings into the mode output. On any mode-level `block`: stop pipeline immediately, skip remaining modes, go to Step 7. Mode details: `refs/modes/<mode>.md`.
+For each mode: run Stage 0 first (if defined), then spawn the mode's **single** semantic subagent (skip this if the mode is static-only or no flags were assembled); wait; collect `{ verdict, findings[] }` per sub-skill contract (`refs/schema.md`). Aggregate Stage 0 findings with the semantic finding into the mode output. On any mode-level `block`: stop pipeline immediately, skip remaining modes, go to Step 7.
 
-**Quality-mode only:** Before spawning Quality sub-agents, append the rubric amendment from `refs/modes/quality.md#sub-agent-prompt-amendment` to each agent's prompt. Also pass `uncovered_changes[]` (from Step 4) as an additional input to every Quality sub-agent. No other mode receives the rubric amendment or `uncovered_changes[]`.
+**Quality-mode only:** the Quality subagent's prompt gets the rubric amendment from `refs/modes/quality.md#sub-agent-prompt-amendment` appended, plus `uncovered_changes[]` (from Step 4) as an additional input. No other mode receives the rubric amendment or `uncovered_changes[]`.
 
-**Post-collection dedup (all modes):** After collecting all sub-agent outputs for a mode, apply a deduplication pass: collapse findings sharing `(file, line, category)` into a single entry, keeping the one with the highest severity (`block` > `warn` > `info`). Concatenate distinct `source` values from collapsed findings into a comma-separated string on the surviving finding (e.g. `"--api-design,--architecture"`).
+**Post-collection dedup (all modes):** After collecting the mode's subagent output, apply a deduplication pass: collapse findings sharing `(category, file, line, rule)` — the canonical dedup key (`refs/schema.md`, `../shared/refs/finding-schema.md`) — into a single entry, keeping the one with the highest severity (`blocker` > `high` > `medium` > `low`). Concatenate distinct `source` values from collapsed findings into a comma-separated string on the surviving finding (e.g. `"--api-design,--architecture"`).
 
 ### Step 7/7 — Aggregate and emit
 
@@ -174,14 +184,15 @@ Substitute the PRD number when a PRD is known; when it isn't, print the bare `/p
 
 ## References
 
-- `refs/FLAG-LIST.md` — domain detection signals + authoritative `/cook` flag inventory (single source of truth for `active_domains[]` detection and Step 4 flag validation). Mechanical-runner and secret-scanner detection are owned separately by `../shared/refs/tooling-detection.md`.
+- `refs/FLAG-LIST.md` — domain detection signals + authoritative `/cook` flag inventory (single source of truth for `active_domains[]` detection and Step 4 flag validation). Mechanical-runner and secret-scanner detection are consumed at runtime from `.claude/scripts/test-tooling-detect.sh` JSON (Step 2); `../shared/refs/tooling-detection.md` is retained only as maintainer documentation of the detection tables.
+- `refs/modes/_common.md` — shared cook-backed semantic-stage execution contract (one subagent per mode, injected standards payload, standalone fallback), referenced by the Quality/Security/Performance/Migration modes.
 - `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics (findings conform to the shared canonical finding object)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /test and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
 - `refs/modes/quality.md` — Quality mode: flags, orchestrator rubric (extends `/cook`'s flag coverage with orchestrator-owned checks), and sub-agent prompt amendment
 - `refs/modes/coverage.md` — Coverage mode: test-runner protocol
 - `refs/modes/functional.md` — Functional mode: eval-set assertion protocol
 - `refs/modes/security.md` — Security mode: flags and what it checks
-- `refs/modes/performance.md` — Performance mode: flags and what it checks
-- `refs/modes/migration.md` — Migration mode: trigger condition, static safety scan, flags (conditional — runs 6th)
+- Performance mode is folded into Step 6 (flags + checks in the mode table; execution via `refs/modes/_common.md`) — no separate mode file.
+- `refs/modes/migration.md` — Migration mode: trigger condition, static safety scan, flags (conditional — runs 6th, loaded only on trigger match)
 - `refs/modes/a11y-i18n.md` — A11y/i18n mode: trigger condition, static-only checks (conditional — runs 7th, no `/cook` flags)
 - `refs/cache.md` — surface/fingerprint cache: read/write paths, invalidation, interaction with Adjust

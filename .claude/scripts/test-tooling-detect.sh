@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
-# test-tooling-detect.sh — emit a single JSON fingerprint of detected runners
-# for /test. Replaces the LLM's manual priority-table walk over file / $PATH /
-# package.json signals so a missed signal can't silently skip a bucket.
+# test-tooling-detect.sh — emit a single JSON fingerprint of detected tooling.
+# Consumed by /test (runner buckets) and by /review + /pre-merge Step 2
+# (build_tool, mechanical_runners, security_scanners/secret_scanner,
+# bundle_analyzer). Replaces the LLM's manual priority-table walk over
+# file / $PATH / package.json signals so a missed signal can't silently skip a
+# check. The emitted shapes mirror shared/refs/tooling-detection.md (maintainer doc).
 #
 # What the script DOES:
 #   - File existence checks (configs, lockfiles, source trees)
@@ -82,6 +85,10 @@ py_signal() {
   grep -qE "^${1}" requirements*.txt 2>/dev/null && return 0
   [[ -f pyproject.toml ]] && grep -qE "$2" pyproject.toml
 }
+
+pyproject_has() { [[ -f pyproject.toml ]] && grep -qE "$1" pyproject.toml; }
+req_has()       { grep -qE "^[[:space:]]*${1}" requirements*.txt 2>/dev/null; }
+setupcfg_has()  { [[ -f setup.cfg ]] && grep -qE "$1" setup.cfg; }
 
 # ---------- package_manager ----------
 pm=null
@@ -256,6 +263,138 @@ elif [[ -f go.mod ]]; then
   cr='{"name":"Go","command":"go test -coverprofile=coverage.out ./...","report":"coverage.out"}'
 fi
 
+# run_prefix + pm name extracted from $pm for command templating
+run_prefix=$(jq -nr --argjson pm "$pm" '($pm.run_prefix // "npm")')
+pm_name=$(jq -nr --argjson pm "$pm" '($pm.name // "")')
+
+# ---------- build_tool ----------
+bt=null
+if   pkg_dep next; then
+  bt='{"name":"Next.js","command":"next build","output_dir":".next/"}'
+elif has_file 'astro.config.*' 3 || pkg_dep astro; then
+  bt='{"name":"Astro","command":"astro build","output_dir":"dist/"}'
+elif has_file 'svelte.config.*' 3 || pkg_dep '@sveltejs/kit'; then
+  bt='{"name":"SvelteKit","command":"vite build","output_dir":"build/"}'
+elif has_file 'vite.config.*' 3 || pkg_dep vite; then
+  bt='{"name":"Vite","command":"vite build","output_dir":"dist/"}'
+elif has_file 'tsup.config.*' 3 || pkg_dep tsup; then
+  bt='{"name":"tsup","command":"tsup","output_dir":"dist/"}'
+elif pkg_dep esbuild; then
+  bt=$(jq -nc --arg rp "$run_prefix" '{name:"esbuild", command:($rp+" run build"), output_dir:"dist/"}')
+elif has_file 'rollup.config.*' 3 || pkg_dep rollup; then
+  bt='{"name":"Rollup","command":"rollup -c","output_dir":"dist/"}'
+elif has_file 'webpack.config.*' 3 || pkg_dep webpack; then
+  bt='{"name":"Webpack","command":"npx webpack","output_dir":"dist/"}'
+elif pubspec_flutter; then
+  bt='{"name":"Flutter","command":"flutter build apk --debug","output_dir":"build/"}'
+elif has_file 'tsconfig.json' 3; then
+  bt='{"name":"TypeScript","command":"tsc --noEmit","output_dir":null}'
+fi
+# `build` script override — CI parity: prefer the package.json build script command.
+if [[ "$bt" != "null" ]] && pkg_script build; then
+  bt=$(jq -nc --argjson bt "$bt" --arg rp "$run_prefix" '$bt + {command:($rp+" run build")}')
+fi
+
+# ---------- mechanical_runners[] ----------
+mech='[]'
+mech_add() { mech=$(jq -c --argjson e "$1" '. + [$e]' <<<"$mech"); }
+mj() { # name command severity
+  jq -nc --arg n "$1" --arg c "$2" --arg s "$3" \
+    '{name:$n, command:$c, expects_zero_exit:true, severity_on_fail:$s}'
+}
+# JS/TS
+{ has_file 'biome.json' 3 || pkg_dep '@biomejs/biome'; } && \
+  mech_add "$(mj biome 'npx @biomejs/biome check <files>' warn)"
+{ has_file 'eslint.config.*' 3 || has_file '.eslintrc.*' 3; } && \
+  mech_add "$(mj eslint 'npx eslint <files>' warn)"
+{ has_file '.prettierrc*' 3 || has_file 'prettier.config.*' 3 || pkg_dep prettier; } && \
+  mech_add "$(mj prettier 'npx prettier --check <files>' warn)"
+{ pkg_dep oxlint || has_file '.oxlintrc.json' 3; } && \
+  mech_add "$(mj oxlint 'npx oxlint <files>' warn)"
+{ has_file '.stylelintrc*' 3 || has_file 'stylelint.config.*' 3 || pkg_dep stylelint; } && \
+  mech_add "$(mj stylelint 'npx stylelint <files>' warn)"
+has_file 'tsconfig.json' 3 && \
+  mech_add "$(mj tsc 'npx tsc --noEmit' block)"
+# Python
+{ pyproject_has '\[tool\.ruff' || has_file 'ruff.toml' 2 || has_file '.ruff.toml' 2; } && \
+  mech_add "$(mj ruff 'ruff check <files>' warn)"
+{ pyproject_has '\[tool\.black' || req_has black; } && \
+  mech_add "$(mj black 'black --check <files>' warn)"
+{ has_file '.flake8' 2 || setupcfg_has '\[flake8\]' || req_has flake8; } && \
+  mech_add "$(mj flake8 'flake8 <files>' warn)"
+{ has_file '.pylintrc' 2 || has_file 'pylintrc' 2 || req_has pylint; } && \
+  mech_add "$(mj pylint 'pylint <files>' warn)"
+{ pyproject_has '\[tool\.mypy' || has_file 'mypy.ini' 2 || req_has mypy; } && \
+  mech_add "$(mj mypy 'mypy <files>' block)"
+# Dart/Flutter
+if pubspec_flutter; then
+  has_file 'analysis_options.yaml' 3 && \
+    mech_add "$(mj 'dart analyze' 'dart analyze <files>' block)"
+  mech_add "$(mj 'dart format' 'dart format --output=none --set-exit-if-changed <files>' warn)"
+fi
+[[ "$(jq 'length' <<<"$mech")" == "0" ]] && mech=null
+
+# ---------- security_scanners[] ----------
+sec='[]'
+sec_add() { sec=$(jq -c --argjson e "$1" '. + [$e]' <<<"$sec"); }
+sj() { # name type command_diff command_full
+  jq -nc --arg n "$1" --arg t "$2" --arg d "$3" --arg f "$4" \
+    '{name:$n, type:$t, command_diff:(if $d=="" then null else $d end),
+      command_full:$f, severity_on_hit:"block"}'
+}
+# secret scanners (priority order)
+has_cmd gitleaks && \
+  sec_add "$(sj gitleaks secret 'gitleaks detect --no-git --source=<files>' 'gitleaks detect')"
+has_cmd trufflehog && \
+  sec_add "$(sj trufflehog secret 'trufflehog filesystem --no-update --json <files>' 'trufflehog filesystem --no-update --json .')"
+# SAST (`.semgrep.yml` project config wins over --config auto)
+if has_file '.semgrep.yml' 2; then
+  sec_add "$(sj 'semgrep (project config)' sast 'semgrep scan --config .semgrep.yml <files>' 'semgrep scan --config .semgrep.yml .')"
+elif has_cmd semgrep; then
+  sec_add "$(sj semgrep sast 'semgrep scan --config auto <files>' 'semgrep scan --config auto .')"
+fi
+# dependency scanners (full-tree; diff-scoping N/A → command_diff null)
+case "$pm_name" in
+  pnpm) sec_add "$(sj 'pnpm audit' dependency '' 'pnpm audit --json')";;
+  npm)  sec_add "$(sj 'npm audit'  dependency '' 'npm audit --json')";;
+  yarn) sec_add "$(sj 'yarn audit' dependency '' 'yarn audit --json')";;
+esac
+{ has_cmd pip-audit && { has_file 'requirements*.txt' 2 || [[ -f pyproject.toml ]]; }; } && \
+  sec_add "$(sj pip-audit dependency '' 'pip-audit --format=json')"
+has_cmd osv-scanner && \
+  sec_add "$(sj osv-scanner dependency '' 'osv-scanner --recursive --format json .')"
+has_cmd trivy && \
+  sec_add "$(sj 'trivy fs' dependency '' 'trivy fs --format json .')"
+has_cmd snyk && \
+  sec_add "$(sj snyk dependency '' 'snyk test --json')"
+# container scanners
+{ { has_file 'Dockerfile' 2 || has_file 'docker-compose*.yml' 2; } && has_cmd trivy; } && \
+  sec_add "$(sj 'trivy image' container '' 'trivy image --format json <image>')"
+if [[ "$(jq 'length' <<<"$sec")" == "0" ]]; then
+  sec=null; secret_scanner=null
+else
+  secret_scanner=$(jq -c 'map(select(.type=="secret")) | (.[0] // null)' <<<"$sec")
+fi
+
+# ---------- bundle_analyzer ----------
+bt_cmd=$(jq -nr --argjson bt "$bt" '($bt.command // "<build_tool.command>")')
+ba=null
+if   pkg_dep '@next/bundle-analyzer'; then
+  ba='{"name":"@next/bundle-analyzer","command":"ANALYZE=true next build","baseline_path":".next/analyze/"}'
+elif pkg_dep webpack-bundle-analyzer; then
+  ba='{"name":"webpack-bundle-analyzer","command":"webpack --json stats.json && webpack-bundle-analyzer stats.json --mode static --no-open","baseline_path":null}'
+elif pkg_dep rollup-plugin-visualizer; then
+  ba=$(jq -nc --arg c "$bt_cmd" '{name:"rollup-plugin-visualizer", command:$c, baseline_path:"stats.html"}')
+elif pkg_dep source-map-explorer; then
+  ba='{"name":"source-map-explorer","command":"source-map-explorer '"'"'build/static/js/*.js'"'"'","baseline_path":null}'
+elif pkg_dep size-limit || has_file '.size-limit.json' 2 || pkg_field size-limit; then
+  ba='{"name":"size-limit","command":"npx size-limit","baseline_path":".size-limit.json"}'
+elif pkg_dep bundlesize || has_file '.bundlesizerc' 2; then
+  ba='{"name":"bundlesize","command":"bundlesize","baseline_path":".bundlesizerc"}'
+elif pkg_dep vite-bundle-visualizer; then
+  ba='{"name":"vite-bundle-visualizer","command":"vite-bundle-visualizer","baseline_path":null}'
+fi
+
 # ---------- emit ----------
 jq -n \
   --argjson package_manager "$pm" \
@@ -268,6 +407,11 @@ jq -n \
   --argjson api_runner      "$api_runner" \
   --argjson mobile_runner   "$mr" \
   --argjson coverage_runner "$cr" \
+  --argjson build_tool          "$bt" \
+  --argjson mechanical_runners  "$mech" \
+  --argjson security_scanners   "$sec" \
+  --argjson secret_scanner      "$secret_scanner" \
+  --argjson bundle_analyzer     "$ba" \
   '{
     package_manager:  $package_manager,
     test_runner:      $test_runner,
@@ -278,5 +422,10 @@ jq -n \
     perf_runner:      $perf_runner,
     api_runner:       $api_runner,
     mobile_runner:    $mobile_runner,
-    coverage_runner:  $coverage_runner
+    coverage_runner:  $coverage_runner,
+    build_tool:          $build_tool,
+    mechanical_runners:  $mechanical_runners,
+    security_scanners:   $security_scanners,
+    secret_scanner:      $secret_scanner,
+    bundle_analyzer:     $bundle_analyzer
   }'

@@ -63,52 +63,11 @@ Do not ask the user about any of these files. Do not block on these checks. Proc
 
 ## Sub-PRD mode (`--sub`)
 
-A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) that captures additional changes or fixes to an existing parent PRD without opening a new top-level feature or cutting a new branch. It runs the **identical** six-step protocol in `refs/protocol-pm.md` — same interview, same population, same tune/eng handoffs — with exactly four deltas, all resolved before Step 1 emits:
-
-**D1 — Resolve the parent PRD (priority order).** Determine the parent before anything else. Try each in turn; stop at the first that resolves:
-1. **Explicit** — a PRD path or number passed with `--sub` (e.g. `/plan-pm --sub 2` or `/plan-pm --sub features/prd-2-habit-tracking/prd-2-habit-tracking.md`). Resolve it to the matching `features/prd-<parent-n>-*/` directory. If an explicit value is given but matches no such directory → hard-refuse: `Hard failure: --sub parent '<value>' does not match any features/prd-*/ PRD.` and stop.
-2. **Infer from branch** — run `git branch --show-current`; if it matches `feat/prd-<n>-<slug>`, that PRD is the parent (the user is typically already on the parent's branch when asking for follow-up work). Confirm the `features/prd-<n>-<slug>/` directory exists.
-3. **Pick from a list** — otherwise, `AskUserQuestion` listing open PRDs (glob `features/prd-*/prd-*.md`, exclude any that are themselves sub-PRDs — i.e. whose id contains a `.`). The user selects the parent. If no top-level PRDs exist at all, hard-refuse: `Hard failure: no parent PRD found for --sub — run /plan-pm to create a top-level PRD first.` and stop.
-
-Store the resolved parent as `parent_id` = `prd-<parent-n>-<parent-slug>`, and read its frontmatter (`feature`, `module`, `platform`) — needed for D3/D4.
-
-**D2 — Pre-seed intake (Step 1).** Skip the "target user or scope missing" clarifying question — the parent supplies both. Pre-seed the brief with `follow-up to prd-<parent-n>-<parent-slug>: <parent feature>` (parent `feature` from its frontmatter) and fold the user's stated follow-up changes into it. Epic detection still runs, but a sub-PRD is by definition a focused follow-up — it will almost never trip; do not force a split.
-
-**D3 — Number and place the sub-PRD (Step 4 Part 1 + 2).** Replace the top-level number resolver with the sub resolver:
-
-```bash
-S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd"; bash "$S" sub <parent-n>
-```
-
-Store the output as `m` (the minor). Derive `sub_slug` (kebab-case, ≤6 words) from the follow-up scope. Create the sub-PRD **nested inside the parent's folder**, using the full `refs/template-prd.md` structure (not a delta doc):
-
-```
-features/prd-<parent-n>-<parent-slug>/prd-<parent-n>.<m>-<sub_slug>/prd-<parent-n>.<m>-<sub_slug>.md
-```
-
-**D4 — Frontmatter (Step 4 Part 2).** Same fields as a top-level PRD, with:
-- `name`: `prd-<parent-n>.<m>-<sub_slug>`
-- `parent`: `prd-<parent-n>-<parent-slug>` — **new field, sub-PRD only.** This is the field `plan-em`/`eng --build` read to resolve the shared branch (a sub-PRD never gets its own branch).
-- `module` / `platform`: **default to the parent's values** (read in D1). Overridable only if the interview reveals the sub-PRD's scope genuinely differs — otherwise inherit unchanged.
-- `summary`: authored fresh for the sub-PRD's own follow-up scope (2–3 single-line sentences), exactly as a top-level PRD — do not inherit the parent's.
-- All other fields (`status: product`, `product-tuned: no`, `eng-tuned: no`, `reviewed: no`, `created`, `affects`, `depends_on`) exactly as a top-level PRD.
-
-**Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–6) → `plan-tune --product` → `plan-em` → `plan-tune --eng` → `eng --build`. Step 6's next-step prompt hands off exactly as for a top-level PRD, using the nested sub-PRD path.
-
-Everywhere the steps in `refs/protocol-pm.md` say `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`, substitute the nested sub-PRD path from D3 when in `--sub` mode.
+A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) capturing extra changes/fixes to an existing parent PRD, nested inside the parent's folder, sharing the parent's branch. It runs the **identical** six-step protocol in `refs/protocol-pm.md` with exactly four deltas (parent resolution, intake pre-seed, numbering/placement, frontmatter). When `--sub` is present — flag or natural-language trigger — read `refs/protocol-sub.md` first and apply its deltas before Step 1 emits; all other steps run unchanged.
 
 ## Roadmap mode (`--roadmap`)
 
-`--roadmap` is a distinct capability, not a variant of the PRD-authoring flow. It takes the **existing** done and open PRDs in `features/`, analyses them, and arranges them into an ordered set of **roadmap phases** (waves of whole PRDs) — then writes `roadmap/roadmap.md` and offers an interactive GUI view.
-
-It follows `refs/protocol-roadmap.md` end-to-end (its own six-step protocol) — **do not** run the § Step-by-step protocol below when `--roadmap` is set. Key differences from the default flow:
-
-- **No interview, no new PRD.** It reads PRDs; it does not author one. The Pre-run devkit reads and the Persona still apply.
-- **Analysis, not blind ingestion.** It flags **bloated** PRDs (≥2 unrelated feature clusters) and **overlapping/foldable** PRDs, and proposes `SPLIT` / `MERGE` / `FOLD` / `TRIM` ops. Reshaping PRD files is **approval-gated per op** (protocol Step 3) — nothing is rewritten silently, and a superseded PRD is marked `status: retired`, never deleted.
-- **Stable reruns.** A rerun keeps each PRD in its current phase unless it was reshaped, a new hard dependency forces it later, or huge overlap consolidates it (protocol Step 4). Prior phase names and order survive regeneration.
-- **Artifact + handoff.** The output is `roadmap/roadmap.md`. Step 6 offers the Roadmap GUI (the same `/msg --gui` board on its Roadmap tab) and the execution handoff `/eng --build roadmap=roadmap/roadmap.md` (the autonomous product-ops orchestrator).
-
-**Roadmap phase vs eng phase:** a roadmap phase orders whole PRDs; the pre-existing "phase" in PRD §7 / eng plan §6 orders work *inside* one PRD. They do not collide — the protocol always qualifies "roadmap phase".
+`--roadmap` is a **separate protocol** (`refs/protocol-roadmap.md`), not the six-step PRD flow: it runs no interview and writes no new PRD, instead analysing the existing PRDs in `features/` and arranging them into sequenced roadmap phases, then writing `roadmap/roadmap.md` and offering the GUI/execution handoff. When `--roadmap` is set, follow `refs/protocol-roadmap.md` end-to-end and **do not** run the § Step-by-step protocol below; the Pre-run devkit reads and Persona still apply. (A roadmap phase orders whole PRDs; a PRD §7 / eng-plan phase orders work inside one PRD — the protocol always qualifies "roadmap phase".)
 
 ## Step-by-step protocol
 
@@ -130,6 +89,7 @@ Each PRD carries four status fields in its YAML frontmatter. The owning skill is
 ## References
 
 - `refs/protocol-pm.md` — end-to-end six-step execution protocol + multi-PRD final summary; followed from § Step-by-step protocol
+- `refs/protocol-sub.md` — the four `--sub` deltas (parent resolution, intake pre-seed, numbering/placement, frontmatter) layered over the six-step protocol; read from § Sub-PRD mode when `--sub` is set
 - `refs/protocol-roadmap.md` — end-to-end `--roadmap` protocol: inventory → analyse for bloat/overlap → gated reshaping → stable phase sequencing → `roadmap/roadmap.md` → GUI/execution handoff; followed from § Roadmap mode
 - `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic PRD inventory (JSONL); call in Roadmap Step 1
 - `roadmap/roadmap.md` — the roadmap artifact written by `--roadmap`; read by `/msg --gui` (Roadmap tab) and `/eng --build roadmap=…`

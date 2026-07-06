@@ -10,22 +10,13 @@ Both sub-checks run if their respective runner is detected. Either sub-check alo
 
 ## Execution
 
-Reads `perf_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. `perf_runner` is a `{runtime, bundle}` pair (runtime: Lighthouse CI / Playwright+web-vitals; bundle: size-limit / bundlesize), each with name + command from the Step 1 fingerprint — this bucket does not re-detect.
 
 ### Step 1 — Guard
 
-If `perf_runner` is `null`: emit `pass_with_warnings` with note `"No performance budget runner detected — perf bucket skipped."` and return immediately.
+Per `_common.md`: if `perf_runner` is `null`, emit `pass_with_warnings` with note `"No performance budget runner detected — perf bucket skipped."` and return immediately.
 
-Recognised runners (detection order):
-
-| Sub-check | Runner | Detection signal | Default command |
-|-----------|--------|-----------------|-----------------|
-| Runtime | Lighthouse CI | `.lighthouserc.*` / `lighthouserc.js` / `lhci` in scripts or devDeps | `npx lhci autorun` |
-| Runtime | Playwright + web-vitals | `web-vitals` in deps + Playwright config | run via existing Playwright config with vitals collection |
-| Bundle | size-limit | `size-limit` in `package.json` (field or devDep) | `npx size-limit --json` |
-| Bundle | bundlesize | `bundlesize` in `package.json` (field or devDep) | `npx bundlesize` |
-
-Multiple runners may be active simultaneously (e.g. `lhci` for runtime + `size-limit` for bundle). Run all detected.
+Both sub-runners may be active simultaneously (e.g. `lhci` for runtime + `size-limit` for bundle). Run all detected.
 
 ### Step 2 — Resolve budgets / thresholds
 
@@ -96,7 +87,7 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 
 ## Error handling
 
-A bucket-level error never stops other buckets. All errors produce `pass_with_warnings` (not `fail`) so a broken runner does not falsely block a merge.
+Applies `_common.md`'s bucket-error rule (every error → `pass_with_warnings`, never `fail`) with these perf-specific cases:
 
 | Error condition | Verdict | Note in output |
 |----------------|---------|----------------|
@@ -114,44 +105,15 @@ A bucket-level error never stops other buckets. All errors produce `pass_with_wa
 
 ## Output
 
+Envelope + finding shape per `_common.md`. Bucket fields:
+
 ```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "perf",
-  "runners": ["<runtime_runner>", "<bundle_runner>"],
-  "errors": [
-    { "sub_check": "runtime" | "bundle", "target": "<url or entry>", "reason": "<error description>" }
-  ],
-  "thresholds": {
-    "runtime": { "lcp_ms": 2500, "cls": 0.1, "fid_ms": 200, "fcp_ms": 1800, "tti_ms": 3800, "score": 80 },
-    "bundle": "<from runner config>"
-  },
-  "totals": {
-    "runtime_checks": { "passed": 0, "failed": 0 },
-    "bundle_checks":  { "passed": 0, "failed": 0 }
-  },
-  "findings": [
-    {
-      "id": "perf-<n>",
-      "source": "perf",
-      "severity": "high" | "medium",
-      "category": "perf",
-      "file": "<page URL or bundle entry>",
-      "line": null,
-      "rule": "<metric or bundle-size>",
-      "message": "<observed vs budget>",
-      "evidence": {
-        "tool": "<runtime or bundle runner name>",
-        "file": "<Lighthouse HTML report path or null>",
-        "line": null,
-        "snippet": "<observed vs budget line>"
-      },
-      "suggestion": "<actionable fix or null>",
-      "repro": "<runner command>",
-      "regression_of": null
-    }
-  ]
-}
+"runners": ["<runtime_runner>", "<bundle_runner>"],
+"errors": [ { "sub_check": "runtime" | "bundle", "target": "<url or entry>", "reason": "<error description>" } ],
+"thresholds": { "runtime": { "lcp_ms": 2500, "cls": 0.1, "fid_ms": 200, "fcp_ms": 1800, "tti_ms": 3800, "score": 80 }, "bundle": "<from runner config>" },
+"totals": { "runtime_checks": { "passed": 0, "failed": 0 }, "bundle_checks": { "passed": 0, "failed": 0 } }
 ```
+
+Findings: category/source `perf`; `rule` = metric name or `"bundle-size"`, `evidence.file` = Lighthouse HTML report path (runtime) or null (bundle).
 
 `fail` if any runtime metric or bundle entry breaches its budget. `pass_with_warnings` if runner not found, build artifact missing, or no bundle budgets configured. `pass` if all checks are within budget.

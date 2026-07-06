@@ -26,6 +26,7 @@ local tests pass  →  /pre-merge  →  address blockers/highs  →  /pre-merge 
 - `/pre-merge --base <ref>` — diffs against a named ref (branch, tag, SHA)
 - `/pre-merge --prd <path>` — loads a PRD for acceptance-criteria context (repeatable)
 - `/pre-merge --prior-issues <path>` — loads a prior run JSON to mark regressions
+- `/pre-merge --test-json <path>` — loads the `/test` aggregate JSON; when it is clean and fresh (same HEAD), the integration and e2e buckets it already covered are skipped instead of re-run (`/ship` passes this automatically after a clean `/test`)
 
 Natural language triggers: "run pre-merge", "pre-push checks", "heavy checks before merging", "gate this before push", "run the merge gate", "final safety-net pass".
 
@@ -42,6 +43,7 @@ Natural language triggers: "run pre-merge", "pre-push checks", "heavy checks bef
 | base | git ref string | `--base` flag, default `origin/main` |
 | prd_paths | one or more `.md` paths | `--prd` flag (repeatable) |
 | prior_issues | JSON file matching output schema | `--prior-issues` flag, optional |
+| test_json | /test aggregate JSON (records covered buckets + HEAD) | `--test-json` flag, optional |
 | project_state | working tree at invocation | derived |
 
 ## Outputs
@@ -79,28 +81,56 @@ If `files_changed` is empty (clean tree vs base): emit refusal JSON with `verdic
 
 ### Step 2 — Detect tooling + load context
 
-Run the full fingerprint from `../shared/refs/tooling-detection.md` in parallel. Populate:
+Run the shared tooling-detect script once and read its JSON from stdout — do **not**
+manually walk `../shared/refs/tooling-detection.md` at runtime (that file is
+maintainer documentation for the script only):
+
+```
+rtk .claude/scripts/test-tooling-detect.sh
+```
+
+Parse the emitted JSON into `detected`. Pre-merge consumes these fields:
 
 ```
 detected = {
-  package_manager,   // shape: tooling-detection.md
-  test_runner,
-  e2e_runner,
-  build_tool,
-  mechanical_runners[],
-  security_scanners[],
-  bundle_analyzer
+  package_manager,      // { name, run_prefix }
+  test_runner,          // → integration bucket runner
+  e2e_runner,           // → e2e bucket runner
+  build_tool,           // → build bucket runner
+  mechanical_runners[], // available mechanical gates
+  security_scanners[],  // → security bucket runners
+  bundle_analyzer       // → bundle bucket runner
 }
 ```
 
+If the script exits non-zero or a field is `null`, treat that bucket as
+unsupported (Step 3 omits it). Do not fall back to reading tooling-detection.md.
+
 In parallel, also:
 - If `--prior-issues` set: load and validate against `refs/output-schema.md`; if schema mismatch, emit `verdict: "refused"`, `reason: "schema_mismatch"` and terminate
+- If `--test-json` set: load and evaluate the /test aggregate for the integration/e2e handoff (see Step 2a)
+
+### Step 2a — /test handoff via `--test-json` (optional)
+
+When `--test-json <path>` is supplied (e.g. `/ship` passes it automatically after a
+clean `/test`), pre-merge can skip the integration and e2e buckets that `/test`
+already ran, instead of re-executing them. This is the only behavior change gated
+on the flag — without it, Steps 3–5 run unchanged.
+
+1. Load the JSON at `<path>` (the /test aggregate). If it is missing or unparseable, ignore the flag and run all buckets normally.
+2. **Freshness:** read the commit/HEAD the test run recorded (`commit` / `head` field) and compare to current HEAD: `rtk git rev-parse HEAD`. Fresh ⟺ they are equal.
+3. **Cleanliness:** the test verdict must not be `fail`, and the covering bucket must itself be clean (no `blocker`/`high` finding whose `category` is `unit`/`integration` for the integration bucket, or `e2e` for the e2e bucket).
+4. For each of `integration` and `e2e` **individually**: if the test JSON covered that bucket AND it is fresh AND clean → mark it `covered_by_test_run` (Step 3 renders it as a skipped row; Step 5 does not fan it out; Step 7 emits a `skipped[]` record). Otherwise the bucket runs normally.
+
+**Stale (different HEAD) or dirty (failing) test JSON → the flag is ignored and both buckets run as usual.** The skip is per-bucket: a clean integration result still lets e2e run if e2e was not covered or not clean.
 
 ### Step 3 — Build check matrix
 
 From `detected`, compose one row per bucket. Buckets: `integration`, `e2e`, `build`, `security`, `bundle`. For each bucket, consult `refs/bucket-runners.md` to map detected tools to commands.
 
 **Omit a bucket** if no tooling supports it. Log each omission in the matrix as a grayed row: `(bucket) — skipped (no tooling detected)`.
+
+**Mark `covered_by_test_run` buckets** (from Step 2a): render `integration` and/or `e2e` as grayed rows — `integration — skipped (covered by /test run @ <short-sha>)` — and exclude them from the fan-out in Step 5.
 
 Estimate `est_seconds` from prior run logs in `.pre-merge/` if present; otherwise emit `~`.
 
@@ -136,7 +166,7 @@ On **Run**: proceed.
 
 ### Step 5 — Fan out subagents per bucket in parallel
 
-Spawn one subagent per matrix row using `Agent` calls in a single message (parallel). Each subagent:
+Spawn one subagent per **non-skipped** matrix row using `Agent` calls in a single message (parallel). Rows marked `covered_by_test_run` in Step 2a are not fanned out — they produce a `skipped[]` record in Step 7, not findings. Each subagent:
 1. Runs the assigned command via `rtk` (e.g. `rtk pnpm vitest run --coverage <files>`)
 2. Captures stdout/stderr to `.pre-merge/<timestamp>/<bucket>.log`
 3. Parses tool-specific output per `refs/bucket-runners.md`
@@ -158,7 +188,8 @@ Pass each subagent: the resolved `files_changed` list, the bucket name, and the 
 
 ### Step 7 — Emit JSON
 
-Build the final document per `refs/output-schema.md`.
+Build the final document per `refs/output-schema.md`. Populate `skipped[]` with one
+record per omitted bucket: `{ "bucket": "integration", "reason": "covered_by_test_run", "test_run": "<path>", "covered_head": "<sha>" }` for Step 2a skips, or `{ "bucket": ..., "reason": "no_tooling" | "user_removed" }` otherwise.
 
 Verdict logic:
 - `"fail"` — any blocker or high finding present
@@ -184,30 +215,15 @@ Three refusal shapes; shapes defined in `refs/refusal-patterns.md`:
 
 ## Sub-skill interface contract
 
-Each subagent spawned by Step 5 must return:
-```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail" | "refused",
-  "findings": [
-    {
-      "id": "<bucket>-<nnn>",
-      "source": "<bucket>",
-      "severity": "blocker" | "high" | "medium" | "low",
-      "category": "<bucket>",
-      "rule": "<tool rule-id / failing test / route>",
-      "message": "<short description>",
-      "file": "<path or null>",
-      "line": 0,
-      "evidence": { "file": "...", "line": 0, "tool": "...", "snippet": "..." },
-      "suggestion": "<actionable fix or null>",
-      "repro": "<rtk command to reproduce>",
-      "regression_of": null | "<prior_id>"
-    }
-  ]
-}
-```
+Each subagent spawned by Step 5 returns a single JSON object of the form
+`{ "verdict": ..., "findings": [ <finding>, ... ] }`. Each finding is the
+**canonical finding object** — the field set, types, severity/category enums, and
+dedup/regression keys are defined once in
+[`../shared/refs/finding-schema.md`](../shared/refs/finding-schema.md); pre-merge's
+bucket-specific notes and evidence extensions are in `refs/finding-schema.md`. Do
+not re-list the fields here.
 
-Pre-merge reads this object. It does not parse free-form text output from subagents.
+Pre-merge reads this object structurally. It does not parse free-form text output from subagents.
 
 ---
 
@@ -219,5 +235,6 @@ Pre-merge reads this object. It does not parse free-form text output from subage
 - `refs/severity-rubric.md` — how to grade findings using diff context, reachability, dev-only weighting
 - `refs/bucket-runners.md` — one section per bucket (integration, e2e, build, security, bundle) with detected-tool → command mapping
 - `refs/refusal-patterns.md` — the three refusal shapes and when each fires
-- `../shared/refs/tooling-detection.md` — shared fingerprint protocol; file-pattern → tool mapping for all runner types
+- `.claude/scripts/test-tooling-detect.sh` — runtime tooling fingerprint; Step 2 runs it and reads its JSON (runners, build tool, security scanners, bundle analyzer)
+- `../shared/refs/tooling-detection.md` — maintainer documentation for the detect script's file-pattern → tool mapping; **not** read at runtime
 - `scripts/resolve-diff.sh` — wrapper around `rtk git diff` that emits a structured summary (files, lines, hunks)

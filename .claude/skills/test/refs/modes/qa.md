@@ -6,23 +6,11 @@
 
 ## Execution
 
-Reads `qa_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. `qa_runner` (name, command, e.g. Playwright visual / Chromatic / Percy / BackstopJS / Loki) comes from the Step 1 fingerprint — this bucket does not re-detect.
 
 ### Step 1 — Guard
 
-If `qa_runner` is `null`: emit `pass_with_warnings` with note `"No visual testing runner detected — QA bucket skipped."` and return immediately.
-
-Recognised runners (detection order):
-
-| Runner | Detection signal | Default command |
-|--------|-----------------|-----------------|
-| Playwright visual | `playwright.config.*` + snapshot dirs (`__screenshots__`, `*.png` baselines) | `npx playwright test --update-snapshots=false` |
-| Chromatic | `chromatic` in `package.json` scripts or devDeps | `npx chromatic --exit-zero-on-changes=false` |
-| Percy | `@percy/cli` in devDeps or `.percy.yml` | `npx percy exec -- <e2e_runner.command>` |
-| BackstopJS | `backstop.json` or `backstopjs` in devDeps | `npx backstop test` |
-| Loki | `loki` in `package.json` scripts or devDeps | `npx loki test` |
-
-Use the first match found.
+Per `_common.md`: if `qa_runner` is `null`, emit `pass_with_warnings` with note `"No visual testing runner detected — QA bucket skipped."` and return immediately.
 
 ### Step 2 — Baseline check
 
@@ -61,35 +49,6 @@ Findings conform to the canonical finding object (`../../../shared/refs/finding-
 
 ## Output
 
-```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "qa",
-  "runner": "<qa_runner.name>",
-  "command": "<command executed>",
-  "totals": { "passed": 0, "failed": 0, "skipped": 0 },
-  "findings": [
-    {
-      "id": "qa-<n>",
-      "source": "qa",
-      "severity": "high" | "medium",
-      "category": "qa",
-      "file": "<spec or story file path, or null>",
-      "line": null,
-      "rule": "<snapshot or story name>",
-      "message": "<diff description>",
-      "evidence": {
-        "tool": "<qa_runner.name>",
-        "file": "<diff image path or report URL, or null>",
-        "line": null,
-        "snippet": "<diff description>"
-      },
-      "suggestion": null,
-      "repro": "<re-run command or null>",
-      "regression_of": null
-    }
-  ]
-}
-```
+Envelope + finding shape per `_common.md`. Bucket fields: `runner` (`qa_runner.name`), `command`, `totals: { passed, failed, skipped }`. Findings: category/source `qa`; `evidence.file` carries the diff image path or report URL.
 
 `fail` if any visual diff exceeds the configured threshold. `pass_with_warnings` if runner not found, no baselines, or runner crashed. `pass` if all snapshots match within threshold.

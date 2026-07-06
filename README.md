@@ -31,7 +31,7 @@ Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --
 
 | Skill | Description |
 |-------|-------------|
-| `/msg-init` | One-time project bootstrap — 7-step, three-phase interview (project basics, architecture, design system), then scaffolds `devkit/` (AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md) and root files. Idempotent. |
+| `/msg-init` | One-time project bootstrap — three-phase interview (project basics, architecture, design system) batched into ≤4 question prompts, then scaffolds `devkit/` (AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md) and root files. Idempotent. |
 | `/plan-pm` | Principal PM — interviews via 5 questions, then writes a structured PRD to `features/prd-[n]/`. Splits large epics. `--roadmap` analyses the existing PRDs (flagging bloat/overlap, proposing approval-gated split/merge/fold/trim) and sequences them into phases in `roadmap/roadmap.md`, viewable on the `/msg --gui` Roadmap tab. |
 | `/plan-tune` | Staff PM auditor — numbered, severity-tagged PRD audit (`--product`/`--eng`); applies all fixes inline. |
 | `/plan-em` | Engineering Manager — spins up specialist agents to write engineering sections into the PRD, then synthesises the output. |

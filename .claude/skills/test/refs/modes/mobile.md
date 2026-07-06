@@ -6,22 +6,13 @@
 
 ## Execution
 
-Reads `mobile_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. `mobile_runner` comes from the Step 1 fingerprint — this bucket does not re-detect. The fingerprint's `mobile_runner.name` is already `flutter` or `fvm flutter` (FVM preferred when detected), plus `patrol`/`maestro` booleans and `has_test_dir`/`has_integration_dir` flags.
 
 ### Step 1 — Guard
 
-If `mobile_runner` is `null`: emit `pass_with_warnings` with note `"No Flutter/Dart mobile runner detected — mobile bucket skipped."` and return immediately.
+Per `_common.md`: if `mobile_runner` is `null`, emit `pass_with_warnings` with note `"No Flutter/Dart mobile runner detected — mobile bucket skipped."` and return immediately.
 
-Detection signals (all require `pubspec.yaml` with a `flutter:` key):
-
-| Runner | Detection signal | Notes |
-|--------|-----------------|-------|
-| `flutter` | `flutter` binary in PATH | Primary runner |
-| `fvm flutter` | `fvm` binary in PATH AND `.fvm/flutter_sdk` directory present | Flutter Version Manager — preferred over bare `flutter` when both present |
-| Patrol | `patrol` in `pubspec.yaml` dependencies/dev_dependencies | Flutter-native integration testing framework |
-| Maestro | `maestro` binary in PATH OR `.maestro/` directory at project root | Cross-platform flow testing |
-
-Use `fvm flutter` over `flutter` when FVM is detected. Patrol and Maestro run **in addition to** the base flutter runner when detected.
+Patrol and Maestro run **in addition to** the base flutter runner when their fingerprint flag is set.
 
 ### Step 2 — Detect test surface
 
@@ -125,48 +116,15 @@ Record aggregate totals:
 
 ## Output
 
+Envelope + finding shape per `_common.md`. Bucket fields:
+
 ```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "mobile",
-  "runner": "flutter" | "fvm flutter",
-  "matrix": [
-    { "platform": "ios" | "android", "device": "<name>", "os": "<version>" }
-  ],
-  "errors": [
-    { "sub_check": "<widget|integration|patrol|maestro>", "platform": "<ios|android|null>", "reason": "<description>" }
-  ],
-  "totals": {
-    "widget":      { "passed": 0, "failed": 0, "skipped": 0 },
-    "integration": {
-      "ios":     { "passed": 0, "failed": 0 },
-      "android": { "passed": 0, "failed": 0 }
-    }
-  },
-  "findings": [
-    {
-      "id": "mobile-<n>",
-      "source": "mobile",
-      "severity": "high" | "medium",
-      "category": "mobile",
-      "file": "<dart test file path>",
-      "line": "<number or null>",
-      "rule": "<test name>",
-      "message": "<failure message>",
-      "evidence": {
-        "tool": "flutter" | "fvm flutter" | "patrol" | "maestro",
-        "file": "<screenshot or trace path, or null>",
-        "line": "<number or null>",
-        "snippet": "<failure message>",
-        "platform": "ios" | "android" | "widget",
-        "device": "<device name or null>"
-      },
-      "suggestion": null,
-      "repro": "<flutter test command to reproduce>",
-      "regression_of": null
-    }
-  ]
-}
+"runner": "flutter" | "fvm flutter",
+"matrix": [ { "platform": "ios" | "android", "device": "<name>", "os": "<version>" } ],
+"errors": [ { "sub_check": "<widget|integration|patrol|maestro>", "platform": "<ios|android|null>", "reason": "<description>" } ],
+"totals": { "widget": { "passed": 0, "failed": 0, "skipped": 0 }, "integration": { "ios": { "passed": 0, "failed": 0 }, "android": { "passed": 0, "failed": 0 } } }
 ```
+
+Findings: category/source `mobile`; `evidence.tool` = flutter/fvm flutter/patrol/maestro; `evidence.platform` + `evidence.device` carry the device matrix (never top-level fields).
 
 `fail` if any widget or integration test fails. `pass_with_warnings` if device matrix is incomplete, sub-checks skipped, or runner unavailable. `pass` if all active sub-checks pass on all available devices.

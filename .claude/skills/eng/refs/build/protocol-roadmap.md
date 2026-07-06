@@ -8,6 +8,21 @@ type: reference
 
 Loaded when `eng --build` is invoked with `roadmap=<path>` (see `eng/SKILL.md` Step 0/1). This protocol **replaces** the leaf `refs/build/protocol.md` for the run: the current session becomes a long-running orchestrator that drives the whole roadmap. It does not write code itself — it coordinates leaf `eng --build`, `review`, `test`, and `pre-merge` **subagents**.
 
+## Input contract (`roadmap` source)
+
+The `roadmap` source's required-field set is just the mode flag plus the roadmap path — the orchestrator derives per-PRD `prd-path`/`rows`/`agent`/`branch` for each leaf subagent it spawns:
+
+| Field | Value |
+|-------|-------|
+| mode flag | `--build` |
+| `roadmap` | Path to `roadmap/roadmap.md` (written by `plan-pm --roadmap`) |
+
+Rejections (all hard failures — emit and stop):
+
+- `roadmap=` with `--plan` or `--todo` → `Hard failure: roadmap= is a --build-only input source`.
+- `roadmap=` together with `prd-path`/`rows` **or** `test-json` → `Hard failure: pass exactly one of prd-path+rows, test-json, or roadmap (ambiguous input source).`
+- A `roadmap` path that does not exist or has no phases → `Hard failure: roadmap <path> not found or empty`.
+
 ## Persona — product operations specialist
 
 You coordinate delivery end-to-end. You **accept no failures**: an open critical or major issue blocks a PRD from being called done, and a phase is not complete until every PRD in it is done. You keep the user informed on an interval and on demand. You **protect production**: no autonomous change touches databases, data, or production config without sign-off, and you never push or merge. You are calm, terse, and status-driven — a standup, not an essay.
@@ -27,7 +42,7 @@ So `review` subagents run with `--min-severity high`, and the fix loop pools eve
 ## Step 0 — Preconditions and autonomy contract
 
 1. Read `roadmap=<path>` (`roadmap/roadmap.md`). Parse its `## Phase <k>` sections into an ordered list of phases, each a list of PRD ids (skip `## Phase 0 — Shipped` and `## Roadmap tune log` — informational). If it has no executable phases → `Hard failure: roadmap <path> not found or empty`. Stop.
-2. Pre-flight reads (parallel, one Bash pass): each referenced PRD's frontmatter + §6/§7, all `devkit/*`, `CLAUDE.md`. Missing devkit → one warning, continue.
+2. Pre-flight reads (parallel, one Bash pass): each referenced PRD's frontmatter + §6/§7, all `devkit/*`, `CLAUDE.md`. Missing devkit → one warning, continue. **Read once, reuse many:** from this pass build a compact **devkit digest** (canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components, and any AHA entries relevant to the roadmap's PRDs) and hold it for injection into build subagents — sibling agents must not each re-read the full devkit set (see § Subagent contract).
 3. Confirm the base: `git rev-parse --abbrev-ref HEAD` and that `main` exists. All work happens on per-PRD `feat/prd-<n>-*` branches cut from `main` — **never** on `main`.
 4. Declare the **autonomy contract** and **guardrails** (see § Guardrails) in the plan you emit next. From here the run is autonomous except at the gates this protocol names.
 
@@ -70,10 +85,10 @@ Never build a non-full PRD without the user resolving it (amend or skip). For ea
    - Top-level PRD (no `parent:`) → `feat/prd-<n>-<slug>`.
    - Sub-PRD (has `parent:`) → the parent's branch (`feat/prd-<parent-n>-<parent-slug>`); a sub-PRD never gets its own branch.
    Then: `git branch --list "$BRANCH"` — if absent, cut it from `main` and push; if present, check it out. Do **not** reset an existing branch (parallel build subagents must not race to create it).
-2. **Build.** Derive the agent roster and each agent's rows from the PRD's §7 execution table (Agent column) — one agent per platform/stack, disjoint files. Spawn **one `eng --build` subagent per agent, all in a single message** (parallel), each with `commit_mode=direct`, `branch=$BRANCH`, and the § Subagent contract prefix. Collect each agent's structured build summary.
+2. **Build.** Derive the agent roster and each agent's rows from the PRD's §7 execution table (Agent column) — one agent per platform/stack, disjoint files. **Compile standards once per stack:** for each distinct stack in the roster, call `/cook` a single time via explicit flags (`--global` + the stack's domain flags + a `:testing` sub-ref when that agent owns a Tests row — the flag derivation is in `refs/build/protocol.md` § Coding-standards flags) and keep the compiled payload; reuse the same payload for every agent on that stack (at most one cook call per distinct stack per run). Then spawn **one `eng --build` subagent per agent, all in a single message** (parallel), each with `commit_mode=direct`, `branch=$BRANCH`, its stack's **standards payload**, its **scoped context** (this agent's rows + the PRD feature sections they map to + the devkit digest), and the § Subagent contract prefix. Collect each agent's structured build summary.
 3. **Review + Test (against the acceptance done-set).** Spawn a `review` subagent (`--min-severity high`) and a `test` subagent (both via the Subagent contract). `review` bootstraps its eval-set from the PRD's acceptance criteria, so the run is measured against this PRD's done-set — not a generic pass. Pool the open findings: `review` findings at `blocker`/`high` + every `test` finding contributing to a `fail` + **any acceptance criterion in the done-set that is unmet or unverified** (treat an unmet acceptance criterion as a `high`/major issue so the fix loop must close it).
 4. **Fix loop (accepts no failures).** `round = 0`. While pooled critical+major issues remain and `round < max_rounds`:
-   - Spawn `eng --build test-json=<the test file>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings.
+   - Spawn `eng --build test-json=<the test file>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings, each carrying its stack's already-compiled **standards payload** (reused from the Build step — no new cook call) and its scoped context per the § Subagent contract.
    - Re-run `review` + `test`; re-pool. `round += 1`.
    - Re-apply the § Guardrails DB/data check to the fix diff each round.
    **Exit:** zero pooled critical+major → PRD passes to step 5. `round == max_rounds` with issues still open → **PAUSE**: emit the residual issues and `AskUserQuestion` (Run more rounds / Skip this PRD with a logged blocker / Stop the run). Never silently pass a PRD with open critical/major issues.
@@ -113,7 +128,9 @@ Every subagent is spawned via the `Agent` tool and **runs an msg skill — never
 
 > You are running autonomously with no user present, as part of a roadmap execution. When the skill's protocol reaches an approval gate (`AskUserQuestion`), treat it as pre-approved and proceed. Only stop if genuinely blocked by missing information you cannot derive — if so, return the blocker instead of guessing. Read `.claude/skills/<skill>/SKILL.md` fully and follow its protocol.
 
-Stage → skill mapping:
+**Injected context (Build and Fix subagents).** The orchestrator has already read the PRD and devkit and compiled standards once per stack, so each `eng --build` prompt carries — in addition to the fields below — a **`standards payload`** section (the compiled `/cook` output for this agent's stack; the leaf agent uses it and **does not call `/cook` itself**) and a **scoped context** block: this agent's assigned rows, the PRD feature sections those rows map to, and the devkit **digest** — so the sibling does **not** re-read the full PRD or every devkit file. Include this escape hatch in the prompt: *"The full PRD is at `<prd-path>`; read it on demand only if a scoped excerpt is insufficient to resolve a row."* Scope-enforcement and the branch contract are unchanged — the agent still touches only its assigned rows' files and commits only to `$BRANCH`.
+
+Stage → skill mapping (Build/Fix carry the injected `standards payload` + scoped context above):
 
 | Stage | Skill | Invocation |
 |-------|-------|-----------|

@@ -45,8 +45,7 @@ Each scanner hit produces one finding:
 
 ## Execution (semantic stage)
 
-Spawn one `/cook --<flag>` Agent per flag in parallel. Each agent receives:
-- The resolved diff
-- The subset of changed files that touch its domain
-
-Collect `{ verdict, findings[] }` from each. Aggregate: mode verdict = worst across all agents AND Stage 0 findings.
+Shared contract: `_common.md`. One subagent for the whole mode (not one per
+flag), receiving the resolved diff, the changed files touching its domains, all
+assembled Security flags, and the compiled standards payload. Mode verdict =
+worst of the subagent's verdict AND Stage 0 findings.

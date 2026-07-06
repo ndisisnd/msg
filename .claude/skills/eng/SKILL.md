@@ -14,7 +14,7 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent. Operates in one of three modes — `--plan`, `--todo`, `--build` — selected by the invocation flag. Each mode is a fully distinct protocol code path defined in its own ref file. This file holds the shared protocol spine and routes to the active mode; it never runs a mode's work itself.
+Platform-agnostic engineering agent with three modes — `--plan`, `--todo`, `--build` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
 
 ---
 
@@ -27,25 +27,23 @@ Read the invocation flag and load exactly one mode protocol:
 | `--plan` | `refs/plan/protocol.md` |
 | `--todo` | `refs/todo/protocol-todo.md` |
 | `--build` | `refs/build/protocol.md` |
-| `--build roadmap=<path>` | `refs/build/protocol-roadmap.md` |
+| `--build roadmap=<path>` | `refs/build/protocol-roadmap.md` (instead of `protocol.md`) |
 
-`--todo` sits strictly between `--plan` and `--build`: design doc → task breakdown → build. Exactly one mode flag (`--plan`, `--todo`, or `--build`) must be present. If zero mode flags or more than one mode flag is given, emit:
+Exactly one mode flag must be present. If zero or more than one is given, emit:
 
 ```
 Hard failure: exactly one mode flag required (--plan | --todo | --build). Got: <list>.
 ```
 
-Stop.
+Stop. `roadmap=<path>` (a `--build`-only field) loads `refs/build/protocol-roadmap.md` **instead of** `refs/build/protocol.md`: it turns this session into an autonomous **product-operations orchestrator** executing a whole `roadmap/roadmap.md` phase-by-phase, spawning `eng`/`review`/`test`/`pre-merge` subagents.
 
-**Roadmap orchestrator override:** when `--build` is invoked with a `roadmap=<path>` field, load `refs/build/protocol-roadmap.md` **instead of** `refs/build/protocol.md`. That protocol turns this session into an autonomous **product-operations orchestrator** that executes a whole `roadmap/roadmap.md` phase-by-phase by spawning `eng`/`review`/`test`/`pre-merge` subagents — it is a superset that itself invokes leaf `--build` runs. `roadmap=` is a `--build`-only source (Step 1); it is rejected on `--plan`/`--todo`.
-
-Otherwise read the active mode file **fully** before any other step. It defines the mode-specific input rules, the summary content, the work steps, and the output contract. The numbered steps below are the shared spine — they run for every mode and point to the active mode file where the path diverges.
+Otherwise read the active mode file **fully** first — it defines the mode-specific input rules, summary content, work steps, and output contract. The numbered steps below are the shared spine; they run for every mode and point to the active mode file where the path diverges.
 
 ---
 
 ## Step 1 — Input validation
 
-There are three input sources. The **PRD/exec-table source** is the default for every mode; the **`test-json` source** and the **`roadmap` source** are alternates available on `--build` only.
+Three input sources. The **PRD/exec-table source** is the default for every mode; **`test-json`** and **`roadmap`** are `--build`-only alternates.
 
 ### PRD/exec-table source (all modes)
 
@@ -55,8 +53,8 @@ Requires four fields. Hard-refuse if any is missing:
 |-------|-------|
 | mode flag | `--plan`, `--todo`, or `--build` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
-| `rows` | Semicolon-separated exec-table Feature identifiers assigned to this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
-| `agent` | This invocation's agent identity (e.g. `eng-backend`) — the name in the exec-table **Agent** column for the assigned rows. Used to name the `## Engineering — <agent>` heading and to confirm each `rows` identifier is owned by this agent. |
+| `rows` | Semicolon-separated exec-table Feature identifiers for this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
+| `agent` | This invocation's agent identity (e.g. `eng-backend`) — the exec-table **Agent** column value for the assigned rows; names the `## Engineering — <agent>` heading and confirms row ownership. |
 
 If any field is missing, emit:
 
@@ -64,96 +62,36 @@ If any field is missing, emit:
 Hard failure: missing required field(s): <list>. Provide the mode flag, prd-path, rows, and agent to continue.
 ```
 
-Stop. Do not proceed. The active mode file may add mode-specific input rules — apply those too.
+Stop. The active mode file may add mode-specific input rules — apply those too.
 
-### `test-json` source (`--build` only)
+### Alternate build sources (`--build` only)
 
-`--build` accepts `test-json=<path to msg-test/test-N.json>` as an **alternate to `prd-path`+`rows`** — a bug list written by `/test` Step 6 instead of an exec-table. This path exists on `--build` only: **`--plan` (and `--todo`) with `test-json` is rejected** (`Hard failure: test-json is a --build-only input source`) — proposing a design or a todo breakdown against a bug list is out of scope. When `test-json` is supplied to `--build`, the required-field set becomes:
+- **`test-json=<path>`** — build from a `/test` bug list instead of an exec-table. Required fields, rejections, path-validity failures, and the finding→issue-ticket projection live in `refs/build/protocol.md`.
+- **`roadmap=<path>`** — hand the whole roadmap to the orchestrator (`refs/build/protocol-roadmap.md`), which derives per-PRD fields for each leaf subagent. Required fields and rejections live in that file.
 
-| Field | Value |
-|-------|-------|
-| mode flag | `--build` |
-| `test-json` | Path to the `msg-test/test-N.json` file whose `issues[]` this build resolves |
-| `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see `refs/build/protocol.md`); must still exist before work starts |
-| `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
-
-Supplying **both `prd-path` and `test-json`** is a hard failure — ambiguous input source:
-
-```
-Hard failure: pass either prd-path+rows or test-json, not both (ambiguous input source).
-```
-
-A `test-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: test-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
-
-### `roadmap` source (`--build` only)
-
-`--build` accepts `roadmap=<path to roadmap/roadmap.md>` as an **alternate to `prd-path`+`rows`** — it hands the whole roadmap to the product-operations orchestrator (`refs/build/protocol-roadmap.md`) rather than building one agent's rows. When `roadmap=` is supplied, this SKILL routes to that protocol at Step 0 and the orchestrator owns everything downstream; the required-field set is just:
-
-| Field | Value |
-|-------|-------|
-| mode flag | `--build` |
-| `roadmap` | Path to `roadmap/roadmap.md` (written by `plan-pm --roadmap`) |
-
-Rejections (all hard failures, emit and stop):
-- `roadmap=` with `--plan` or `--todo` → `Hard failure: roadmap= is a --build-only input source`.
-- `roadmap=` together with `prd-path`/`rows` **or** `test-json` → `Hard failure: pass exactly one of prd-path+rows, test-json, or roadmap (ambiguous input source).`
-- A `roadmap` path that does not exist or has no phases → `Hard failure: roadmap <path> not found or empty`.
-
-`roadmap=` does **not** require the four PRD fields — the orchestrator derives per-PRD `prd-path`/`rows`/`agent`/`branch` for each leaf `eng --build` subagent it spawns.
-
-### Path derivation (PRD + test-json sources)
-
-Eng derives all *implementation* file paths from the codebase scan and the spec (exec-table or projected issue-tickets). `test-json`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
+`--plan`/`--todo` with either alternate is rejected, and passing more than one input source is a hard failure (ambiguous source) — exact messages in the mode refs.
 
 ---
 
 ## Step 2 — Pre-flight: read everything in one pass
 
-Before producing any output, read the PRD, all devkit files, and all relevant codebase files in parallel — a single consolidated scan.
+Before any output, read the spec, devkit, and relevant codebase files in one consolidated scan.
 
-**Spec source — PRD/exec-table (default) or `test-json` (build alternate):**
+**Orchestrated fast path (scoped context injected).** When an orchestrator (`plan-em` or the roadmap orchestrator) has injected **scoped excerpts** — the assigned rows, the relevant PRD feature sections, and a devkit **digest** — work from those directly; do **not** re-read the full PRD or every devkit file. The PRD path is always supplied as an **escape hatch**: read the full PRD (or a specific devkit file) on demand only when an excerpt is insufficient to resolve a row.
 
-- **PRD + exec-table:** Read the full PRD at `prd-path`. Locate the Execution Table. Select rows whose **Feature** column text exactly matches one of the assigned `rows` identifiers. A `rows` identifier that matches no Feature cell is a hard failure — emit it and stop. For each selected row, confirm its **Agent** column equals the `agent` field; if a matched row is owned by a different agent, that is a hard failure — emit it and stop.
-- **`test-json` (build only):** Read the `msg-test/test-N.json` file. Take its `issues[]` array — canonical finding objects — and **project each finding into an issue-ticket** per the shared mapping in `refs/todo/template-todo.md` (**Finding → issue-ticket projection**). Each projected ticket (keyed by the finding `id`, e.g. `unit-002`, `kind: "issue"`) **stands in for an exec-table row** — the rest of build mode walks one ticket model regardless of input source. There is no exec-table, no `rows` identifiers, and no `## Engineering —` / **Agent** ownership to confirm. If the file's `context.prd` is a real PRD path, read it for cross-reference as normal; if `context.prd` is `null` (an ad hoc branch run), **skip only that PRD cross-reference** — everything else in Step 2 proceeds unchanged.
+**Standalone path (default when nothing is injected).** Read the full PRD at `prd-path`, locate the Execution Table, and select rows whose **Feature** column text exactly matches one of the assigned `rows`. A `rows` identifier matching no Feature cell, or a matched row whose **Agent** column differs from the `agent` field, is a hard failure — emit it and stop. On the `test-json` source there is no exec-table, no `rows`, and no ownership to confirm — read the file and project its `issues[]` per `refs/build/protocol.md`.
 
-**Devkit files** (read in parallel with PRD):
+**Devkit files** (read in parallel with the PRD, unless a digest was injected): `devkit/AHA.md` (past learnings relevant to the rows), `devkit/GLOSSARY.md` (canonical terms; flag PRD deviations), `CLAUDE.md` at project root (tech-stack constraints on every file-path/approach decision), `devkit/ARCHITECTURE.md` (validate scope against system layers; flag conflicts as gaps), `devkit/DESIGN-SYSTEM.md` (reusable components). If `devkit/` does not exist, emit a single warning and continue; a missing individual file is a per-file warning, then continue.
 
-| File | How to apply |
-|------|-------------|
-| `devkit/AHA.md` | Surface past learnings relevant to the assigned rows |
-| `devkit/GLOSSARY.md` | Use canonical terms; flag PRD deviations |
-| `CLAUDE.md` (project root) | Apply tech stack constraints to all file path and approach decisions |
-| `devkit/ARCHITECTURE.md` | Validate scope against system layers; flag conflicts as gaps |
-| `devkit/DESIGN-SYSTEM.md` | Note reusable components in proposed changes |
+**Codebase scan** (in parallel): read files relevant to the assigned rows, matched by concern type (schema migration → migrations/schema; API contract → handlers, routes, OpenAPI; client mobile/web → screens/pages, components, services/clients; tests → existing test files; webhook → event emitters, queue handlers). For each, determine **Modify** (exists) or **Create** (does not), and note naming conventions, patterns, and constraints — they constrain the output. Eng derives all implementation paths from this scan and the spec; `test-json`'s `issues[].file` marks where a *symptom* was observed, not a path to blindly edit.
 
-If `devkit/` does not exist, emit a single warning and continue. Missing individual files: emit a per-file warning and continue.
-
-**Codebase scan** (read in parallel with PRD + devkit): Read files relevant to the assigned rows. Relevance is matched by concern type:
-
-| Concern type | What to scan |
-|-------------|-------------|
-| Schema migration | Existing migration files, schema definitions |
-| API contract | Existing API handlers, route files, OpenAPI specs |
-| Client implementation (mobile) | Existing screens, components, services |
-| Client implementation (web) | Existing pages, components, API clients |
-| Tests | Existing test files for the relevant feature area |
-| Webhook | Existing event emitters, queue handlers |
-
-For each scanned file, determine:
-- **Modify** — file exists and will be changed
-- **Create** — file does not exist and will be created
-
-Note existing naming conventions, patterns, and constraints. These constrain the mode output.
-
-Complete this entire pre-flight read before moving to Step 3. Do not emit output during this step.
+Complete pre-flight before Step 3; emit no output during it.
 
 ---
 
 ## Step 3 — Pre-run (1 of 2): Summary + approval gate
 
-Emit a **short summary** (3–4 lines maximum). The content of those lines is defined in the active mode file's "Summary content" section.
-
-Then ask:
+Emit a **short summary** (3–4 lines max) — content per the active mode file's "Summary content" section — then ask:
 
 ```
 AskUserQuestion:
@@ -164,65 +102,48 @@ AskUserQuestion:
     - I have a follow-up question
 ```
 
-**If "Yes, proceed":** continue to Step 4.
+- **Yes, proceed:** continue to Step 4.
+- **No, needs correction:** rewrite the summary once with the correction and re-ask; if still rejected, stop and ask the user to clarify scope.
+- **I have a follow-up question:** enter the interview (Step 3a), then re-present the summary.
 
-**If "No, needs correction":** rewrite the summary once incorporating the correction, re-ask. If still rejected, stop and ask the user to clarify the scope directly.
-
-**If "I have a follow-up question":** enter the user interview (Step 3a), then re-present the summary.
-
-Never proceed to Step 4 without an explicit "Yes, proceed."
+Never proceed to Step 4 without an explicit "Yes, proceed." *(Under an autonomy contract — e.g. an orchestrator running hands-off — treat this gate as pre-approved and proceed.)*
 
 ### Step 3a — User interview (on demand)
 
-Ask up to 3 focused questions, one at a time. Each question must:
-- Name the specific exec-table row or PRD section it concerns
-- Offer 3–4 concrete options via `AskUserQuestion` (no open-ended questions)
-
-If more than 3 ambiguities exist, surface them as a numbered list and ask which to prioritise. After the interview, resume from the point where the protocol paused — do not restart.
+Ask up to 3 focused questions, one at a time — each naming the specific row or PRD section it concerns, with 3–4 concrete `AskUserQuestion` options (never open-ended). If more than 3 ambiguities exist, list them and ask which to prioritise. Then resume where the protocol paused — do not restart.
 
 ---
 
-## Step 4 — Pre-run (2 of 2): Pull coding standards via /cook
+## Step 4 — Pre-run (2 of 2): Coding standards
 
-`/cook` is keyword-driven — it matches a short task summary, not a single platform word. Build that summary from two sources:
+Coding standards come from `/cook`, pulled via **explicit flags** (never a prose summary) so the call is cacheable and the P0 floor always loads. **Runs on `--build` only:** `--todo` pulls no standards (it writes no code), and `--plan` does not call `/cook` — its design doc is grounded in the `CLAUDE.md` + `devkit/ARCHITECTURE.md` stack constraints read in Step 2; standards are pulled later, at build time. On `--build`, resolve standards one of two ways:
 
-1. **Stack** — the concrete technology from `CLAUDE.md` and the PRD's `platform` frontmatter / Features & acceptance criteria (e.g. `Flutter/Dart` for mobile, `React/Next.js web`, `Node backend`, `Supabase/Postgres`). Use the real stack, not a generic bucket.
-2. **Concerns** — the concern keywords from the assigned rows: `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, plus `tests` where a Tests row is owned.
-
-Invoke `/cook` once with a summary combining both (e.g. `Flutter/Dart mobile — component, tests` or `React/Next.js web — api endpoint, component, tests`). If rows span multiple stacks, send one summary per stack. Read each result fully before producing any output. Eng has no hardcoded standards — `/cook` is the sole source of coding standards and must always be called.
-
-If `/cook` returns no coverage for a stack, do not substitute a different stack's standards. Surface the uncovered stack as a named gap (plan: §12 Findings; build: a warning in the build summary) and proceed using only `CLAUDE.md` and `devkit/ARCHITECTURE.md` conventions for that stack.
+- **Orchestrated (payload injected):** when the prompt carries a **`standards payload`** section (an orchestrator compiled it once for this stack and injected it), use it and **do not call `/cook`**. Default on orchestrated runs.
+- **Standalone (call cook yourself):** when no payload is injected, call `/cook` once with explicit flags — stack→flag table in `refs/build/protocol.md`. Always include `--global` (guarantees the P0 floor + 8 concern refs); an identical flag set repeats as a cook cache hit. Read fully; surface any uncovered stack as a named gap in the build summary.
 
 ---
 
 ## Step 5 — Run the active mode's work and emit output
 
-Follow the work steps and output contract in the active mode file. This is where the modes diverge:
+Follow the work steps and output contract in the active mode file, where the modes diverge:
 
-- `--plan` → emit a proposed changes document. No implementation files are written. Inline code snippets and pseudocode are permitted — and encouraged — to illustrate proposed changes within the plan document.
-- `--todo` → decompose the confirmed `## Engineering — <Agent>` section into per-feature `### F<n>` todo blocks under `## Todos — <Agent>`. No implementation files are written.
+- `--plan` → emit a proposed-changes document (no files written; inline snippets/pseudocode encouraged).
+- `--todo` → decompose the confirmed `## Engineering — <Agent>` section into per-feature `### F<n>` blocks under `## Todos — <Agent>` (no files written).
 - `--build` → write code to derived paths; emit a build summary.
 
 ---
 
 ## Step 6 — Scope enforcement (continuous)
 
-Throughout Steps 2–5, enforce strict scope:
-
-- Act only on what the assigned exec-table rows specify.
-- Do not propose or make additional refactors, unrelated file touches, or changes outside row scope.
-- If a row is ambiguous and cannot be resolved from the PRD, exec-table, or codebase scan → surface it as a named gap (plan / review) or block and ask (build). Never resolve ambiguity by assumption.
+Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec-table rows specify; make no additional refactors, unrelated file touches, or out-of-scope changes. A row that cannot be resolved from the PRD, exec-table, or codebase scan → surface it as a named gap (plan / review) or block and ask (build). Never resolve ambiguity by assumption.
 
 ---
 
 ## References
 
-- `refs/plan/protocol.md` — `--plan` mode: summary content, engineering section output contract, return-as-output rule.
-- `refs/plan/template-eng-plan.md` — plan-mode output format; §1–13 required sections, quality gates.
-- `refs/todo/protocol-todo.md` — `--todo` mode: reads the confirmed engineering section + F-ID feature table, decomposes each F-ID into tickets, writes `## Todos — <Agent>`.
-- `refs/todo/template-todo.md` — ticket schema (`id`/`title`/`objective`/`type`/`priority`/`files`/`depends-on`/`done-when`), `## Todos` structure, and per-`### F<n>` block rules.
-- `refs/build/protocol.md` — `--build` mode: the **branch contract** (`branch` is the feature branch your commits must land on; `commit_mode` `direct` (default, used by `ship`) commits straight to it, `sub-branch` cuts a PR), work steps, commit and PR contract.
-- `refs/build/protocol-exec.md` — how to write the Execution steps column: format, granularity, dependency notation, worked examples per concern type.
-- `refs/build/protocol-roadmap.md` — `--build roadmap=<path>` orchestrator: the product-operations specialist that executes `roadmap/roadmap.md` phase-by-phase, spawning `eng`/`review`/`test`/`pre-merge` subagents, fixing critical+major by default, guarding production, and never terminating mid-phase.
-- `.claude/scripts/eng-db-touch.sh` — production/data guardrail: flags a diff that touches migrations, schema, models/entities, seeds/fixtures, or env/production config; the orchestrator pauses for sign-off when it trips.
-- **Contract:** the `## Engineering — <Agent>` heading written by `--plan` is how `plan-em` detects that the engineering section is ready and how `--build` locates its spec. Do not rename this heading.
+- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule. `refs/plan/template-eng-plan.md` — §1–13 output format.
+- `refs/todo/protocol-todo.md` — `--todo`: decomposes each F-ID into tickets under `## Todos — <Agent>`. `refs/todo/template-todo.md` — ticket schema.
+- `refs/build/protocol.md` — `--build`: branch contract, `test-json` source + projection, coding-standards flag table, work steps, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format.
+- `refs/build/protocol-roadmap.md` — `--build roadmap=<path>` orchestrator: executes `roadmap/roadmap.md` phase-by-phase, spawning subagents and injecting per-stack standards.
+- `.claude/scripts/eng-db-touch.sh` — production/data guardrail; the orchestrator pauses for sign-off when it trips.
+- **Contract:** the `## Engineering — <Agent>` heading written by `--plan` is how `plan-em` detects the section is ready and how `--build` locates its spec. Do not rename it.

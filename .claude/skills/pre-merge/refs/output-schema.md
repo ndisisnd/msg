@@ -41,39 +41,36 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 
 ## issues[] entry shape
 
-Each item in `issues[]` is a finding per `refs/finding-schema.md`, which conforms
-to the shared canonical finding object in `../../shared/refs/finding-schema.md`:
-
-```json
-{
-  "id": "<prefix>-<nnn>",
-  "source": "<bucket>",
-  "severity": "blocker" | "high" | "medium" | "low",
-  "category": "integration" | "e2e" | "build" | "security" | "bundle",
-  "rule": "<tool rule-id / failing test / route — dedup + regression key>",
-  "message": "<short human-readable description>",
-  "file": "<path or null>",
-  "line": <integer or null>,
-  "evidence": {
-    "tool": "<tool name>",
-    "<bucket-specific fields>": "..."
-  },
-  "suggestion": "<actionable fix or null>",
-  "repro": "<rtk command to reproduce this finding>",
-  "regression_of": null | "<prior issue id>"
-}
-```
+Each item in `issues[]` is a **canonical finding object** — the field set, types,
+and enums are defined once in `../../shared/refs/finding-schema.md`, with pre-merge's
+bucket-specific notes and evidence extensions in `refs/finding-schema.md`. This file
+does not re-list the fields.
 
 ID prefixes: `int` (integration), `e2e`, `build`, `sec` (security), `bundle`.
 
 ## skipped[]
 
-Array of bucket names omitted from this run. Each entry:
+Array of buckets omitted from this run. Each entry:
 
 ```json
 {
   "bucket": "bundle",
-  "reason": "no_tooling" | "user_removed"
+  "reason": "no_tooling" | "user_removed" | "covered_by_test_run"
+}
+```
+
+- `no_tooling` — no detected tool supports the bucket (Step 3).
+- `user_removed` — the user dropped the bucket at the human gate (Step 4 Adjust).
+- `covered_by_test_run` — a clean, same-HEAD `/test` run (via `--test-json`) already
+  exercised this bucket, so pre-merge did not re-run it (Step 2a). Only `integration`
+  and `e2e` are eligible. These entries carry two extra keys:
+
+```json
+{
+  "bucket": "integration",
+  "reason": "covered_by_test_run",
+  "test_run": "<path to the /test aggregate JSON>",
+  "covered_head": "<HEAD sha the test run recorded, equal to current HEAD>"
 }
 ```
 

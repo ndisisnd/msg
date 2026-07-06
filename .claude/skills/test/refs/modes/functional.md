@@ -6,6 +6,8 @@
 
 ## Execution
 
+Bucket-error rule and output envelope: see `_common.md`. (This bucket has no detected runner — it drives `eval_set`, so it has no Step 1 runner guard.)
+
 Reads `eval_set` (list of `executable`-classed assertion objects) resolved in SKILL.md Step 2. If `eval_set` is empty, this bucket is skipped.
 
 Each assertion is verified by generating an ephemeral script, running it, and recording evidence.
@@ -41,36 +43,6 @@ For every `pass` or `fail` result, locate the satisfying or violating code in th
 
 ## Output
 
-Findings conform to the canonical finding object (`../../shared/refs/finding-schema.md`): `severity` is `blocker`/`high`/`medium`/`low`, the assertion text goes in the required `rule` field, and `evidence` is the nested object.
-
-```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "functional",
-  "evaluated": <number of assertions attempted>,
-  "passed": <number of assertions that passed with evidence>,
-  "findings": [
-    {
-      "id": "functional-<n>",
-      "source": "functional",
-      "severity": "high" | "medium",
-      "category": "functional",
-      "rule": "<assertion text>",
-      "message": "<script output summary or evidence description>",
-      "file": "<path or null>",
-      "line": <number or null>,
-      "evidence": {
-        "tool": "functional-harness",
-        "file": "<path or null>",
-        "line": <number or null>,
-        "snippet": "<script output line>"
-      },
-      "suggestion": "<what needs to change to make the assertion pass>",
-      "repro": "<script path under /tmp that reproduced the failure, or null>",
-      "regression_of": null
-    }
-  ]
-}
-```
+Envelope + finding shape per `_common.md` (`../../../shared/refs/finding-schema.md`): category/source `functional`, assertion text in the required `rule` field, `evidence.tool` = `"functional-harness"`. This bucket replaces `runner`/`totals` with `evaluated` (assertions attempted) and `passed` (assertions that passed with evidence).
 
 A failing assertion that attributes to the code under review is `high` (reachable, diff-adjacent); an evidence-less or harness-degraded failure is `medium`. `fail` (run verdict) if any assertion fails and the failure attributes to the code under review. `pass_with_warnings` if any harness errors occur. `pass` if all assertions pass with evidence.

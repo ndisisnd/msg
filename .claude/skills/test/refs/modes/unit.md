@@ -6,11 +6,11 @@
 
 ## Execution
 
-Reads `test_runner` from the Step 1 fingerprint — does not re-detect.
+Guard, bucket-error rule, and output envelope: see `_common.md`. The runner comes from the Step 1 fingerprint — this bucket does not re-detect.
 
 ### Step 1 — Guard
 
-If `test_runner` is `null`: emit `pass_with_warnings` with note `"No test runner detected — unit/integration bucket skipped."` and return immediately.
+Per `_common.md`: if `test_runner` is `null`, emit `pass_with_warnings` with note `"No test runner detected — unit/integration bucket skipped."` and return immediately.
 
 ### Step 2 — Scope
 
@@ -62,39 +62,6 @@ Recompute the bucket verdict after retries: `fail` only if at least one test is 
 
 ## Output
 
-```json
-{
-  "verdict": "pass" | "pass_with_warnings" | "fail",
-  "bucket": "unit",
-  "runner": "<test_runner.name>",
-  "command": "<command executed>",
-  "totals": { "passed": 0, "failed": 0, "skipped": 0, "flaky": 0 },
-  "findings": [
-    {
-      "id": "unit-<n>",
-      "source": "unit",
-      "severity": "high" | "medium",
-      "category": "unit",
-      "file": "<test file path or null>",
-      "line": <number or null>,
-      "rule": "<test description>",
-      "message": "<failure message>",
-      "evidence": {
-        "tool": "<test_runner.name>",
-        "file": "<test file path or null>",
-        "line": <number or null>,
-        "snippet": "<runner failure output line>",
-        "flaky": true,
-        "retries": 1
-      },
-      "suggestion": null,
-      "repro": "<re-run command or null>",
-      "regression_of": null
-    }
-  ]
-}
-```
-
-`totals.flaky` and `evidence.flaky`/`evidence.retries` are only populated when `--flaky <N>` was supplied; omit them otherwise rather than emitting zeros/`false` on every finding.
+Envelope + finding shape per `_common.md`. Bucket fields: `runner` (`test_runner.name`), `command`, `totals: { passed, failed, skipped, flaky }`. Findings: category/source `unit`; `totals.flaky` and `evidence.flaky`/`evidence.retries` are populated **only** under `--flaky` — omit otherwise, never zeros/`false` on every finding.
 
 `fail` if any test failed (non-crash) after exhausting retries (or immediately, when `--flaky` wasn't supplied). `pass_with_warnings` if runner not found, crashed, or all failures resolved as flaky. `pass` if all tests pass.

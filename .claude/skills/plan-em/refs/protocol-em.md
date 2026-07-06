@@ -82,11 +82,11 @@ Do not activate any agent until the user responds.
 
 **Step 3/5 — Identify agents and get approval**
 
-**3a — Fetch coding standards to confirm agent types**
+**3a — Compile coding standards (flags) to confirm agent types**
 
-Before proposing any roster, derive the platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` once per implied platform and read each result fully. The platforms `/cook` returns coverage for are the canonical agent identifiers — use them to name agents (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook` is the authority on what platforms are supported.
+Before proposing any roster, derive the platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — using the stack→flag derivation in `.claude/skills/eng/refs/build/protocol.md` (§ Coding-standards flags): `--global` (guarantees the P0 floor) plus the platform's domain flags (e.g. `--global --flutter --dart`). Read each result fully **and retain the compiled payload per stack** — this is the *compile-once, share-many* standards payload injected into the build subagents at Step 4, so cook is called **at most once per distinct stack per run** (a repeated identical flag set is a cook cache hit). A platform whose flags `/cook` accepts is covered; its flag names the canonical agent identifier (`eng-<platform>`). Do not derive agent names from the PRD alone; `/cook`'s flag set is the authority on what platforms are supported.
 
-If `/cook` returns no coverage for a platform implied by the PRD, surface it as a blocking gap: emit a warning, list the uncovered platform, and ask the user via `AskUserQuestion` how to proceed before continuing.
+If `/cook` has no flag for a platform implied by the PRD (it rejects the flag with the valid-flag list), surface it as a blocking gap: emit a warning, list the uncovered platform, and ask the user via `AskUserQuestion` how to proceed before continuing.
 
 **3b — Propose language-targeted roster and get approval**
 
@@ -159,6 +159,13 @@ Entries go under `## Entries`, most recent first. Write only when there is at le
 
 Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--todo` / `--build`), detailed in the mode blocks below. `--todo` agents run only after **all** `--plan` agents have written their `## Engineering — <Agent>` sections, and before **any** `--build` agent runs — the detection above enforces this ordering automatically.
 
+**Subagent context injection (compile/read once, share many).** plan-em has already read the full PRD and devkit (Step 1) and compiled the per-stack standards payloads (Step 3a). It passes each `eng` subagent only what that agent needs, so siblings do **not** each re-read the whole PRD, re-read every devkit file, or re-invoke `/cook`. Every agent-dispatch prompt below therefore includes, in addition to its numbered fields:
+
+- **Scoped context** — this agent's exec-table rows, the PRD **feature sections** those rows map to, and a **devkit digest** (canonical GLOSSARY terms, ARCHITECTURE constraints, and DESIGN-SYSTEM components relevant to the rows — distilled from the Step 1 pre-flight). Plus the **escape hatch**: *"The full PRD is at `<prd-path>`; read it (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve a row."*
+- **Standards payload** *(build mode only)* — the compiled `/cook` output for this agent's stack, retained from Step 3a. The build agent uses it and **does not call `/cook` itself**. (`--plan` and `--todo` agents pull no standards, so they receive no payload.)
+
+Scope-enforcement and the branch contract in the numbered fields are unchanged — the agent still acts only on its assigned rows and commits only to the resolved branch.
+
 **Plan mode (`$MODE = plan`):** Activate each approved agent as a parallel subagent via the `Agent` tool. Each agent runs the `eng` skill in `--plan` mode. For each agent, the prompt must include:
 
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
@@ -166,6 +173,7 @@ Each mode dispatches its agents to the `eng` skill with the matching flag (`--pl
 3. `prd-path`: the PRD file path
 4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
 5. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
+6. **Scoped context** (per § Subagent context injection): this agent's rows, the PRD feature sections they map to, the devkit digest, and the PRD-path escape hatch — so the agent works from these rather than re-reading the full PRD and every devkit file. (`--plan` agents pull no standards, so no payload is injected.)
 
 Each agent writes its engineering section directly to the PRD file. Emit a short progress note as each agent completes.
 
@@ -180,6 +188,7 @@ First, append the `## Todos` umbrella heading to the PRD **once** (if absent), i
 3. `prd-path`: the PRD file path (with engineering sections already appended)
 4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
 5. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
+6. **Scoped context** (per § Subagent context injection): this agent's rows, its confirmed `## Engineering — <Agent>` section plus the mapped feature-table sections, the devkit digest, and the PRD-path escape hatch. (`--todo` pulls no standards, so no payload is injected.)
 
 Each agent appends its own `## Todos — <Agent>` block (one `### F<n>` block per owned feature) under the `## Todos` umbrella. Emit a short progress note as each agent completes. When every agent has written its `## Todos —` block, the todo phase is complete and the next `plan-em` invocation will detect `$MODE = build`.
 
@@ -201,6 +210,7 @@ Build agents run in parallel and must not each try to create it (concurrent crea
 4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
 5. `branch`: `$BRANCH` (the feature branch resolved and created/checked-out above — the parent's branch for a sub-PRD)
 6. `agent`: this agent's name from the approved roster — the exact value in the exec-table **Agent** column for these rows (e.g. `backend-eng`)
+7. **Scoped context + standards payload** (per § Subagent context injection): this agent's rows, the mapped PRD feature sections, the devkit digest, the PRD-path escape hatch, **and** the compiled `/cook` **standards payload** for this agent's stack (retained from Step 3a). The build agent uses the injected payload and **does not call `/cook` itself**; cook is invoked at most once per distinct stack per run.
 
 Emit a short progress note as each agent completes.
 

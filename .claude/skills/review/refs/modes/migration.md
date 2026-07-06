@@ -50,9 +50,12 @@ Each hit produces one finding conforming to the canonical finding object (`../..
 
 ## Execution (semantic stage)
 
-Spawn one `/cook --<flag>` Agent per flag assembled above, in parallel. Each agent receives the resolved diff and the subset of changed files matching the trigger condition (migration files only — Migration mode does not review application code that merely *calls* a migrated schema).
-
-Collect `{ verdict, findings[] }` from each. Aggregate: mode verdict = worst across all agents AND Stage 0 findings.
+Shared contract: `_common.md`. One subagent for the whole mode (not one per
+flag), receiving the resolved diff, the migration files matching the trigger
+condition (migration files only — Migration mode does not review application code
+that merely *calls* a migrated schema), all assembled Migration flags, and the
+compiled standards payload. Mode verdict = worst of the subagent's verdict AND
+Stage 0 findings.
 
 ## Output
 

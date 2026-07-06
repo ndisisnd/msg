@@ -156,11 +156,11 @@ If in multi-PRD mode, skip the open questions loop and the next-step prompt enti
 
 **Open questions loop (if open questions count > 0) — single-PRD mode only**
 
-Ask the user: "Would you like to address the open questions now?" via `AskUserQuestion` (options: Yes / Skip all). If the user chooses Yes, iterate through each open question one at a time:
+Ask the user: "Would you like to address the open questions now?" via `AskUserQuestion` (options: Yes / Skip all). If the user chooses Yes, work through the open questions in **batches of up to 4 per `AskUserQuestion` call** (each question is one entry in the call, `multiSelect: true`), until every question has been presented:
 
-- Present the question text and a set of plausible answers as a `multiSelect` `AskUserQuestion`. Always include "Skip" as one option.
-- If the user selects "Skip" (or only "Skip"), record no answer for that question and move to the next.
-- If the user provides an answer, update the Open questions table row: write the answer into that row's `Answer` cell and set its `Status` to `Addressed`.
+- Each question entry presents the question text and a set of plausible answers. Always include "Skip" as one option.
+- For any question where the user selects "Skip" (or only "Skip"), record no answer and leave that row unchanged.
+- For any question the user answers, update the Open questions table row: write the answer into that row's `Answer` cell and set its `Status` to `Addressed`.
 
 After all questions have been presented (answered or skipped), proceed to the next-step prompt.
 
