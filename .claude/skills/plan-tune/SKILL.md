@@ -28,7 +28,7 @@ allowed_tools:
 - Natural language: "tune the PRD", "audit the PRD", "review the plan", "adversarial review of <PRD path>"
 - Context: a path to an existing PRD `.md` file, or invocation immediately after `plan-pm` or `plan-em` saved one
 
-**Flash mode:** `/plan-tune <path> --product|--eng --flash` — load `refs/flash.md` and follow it instead of `refs/tune-product.md` / `refs/tune-eng.md` (critical-only checks, 0 gates, auto-fix). **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+**Flash mode:** `/plan-tune <path> --product|--eng --flash` — load `refs/flash/mode-flash.md` and follow it instead of `refs/tune-product.md` / `refs/tune-eng.md` (critical-only checks, 0 gates, auto-fix). **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
 **Flags:**
 

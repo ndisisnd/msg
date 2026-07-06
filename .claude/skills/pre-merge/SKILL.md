@@ -27,7 +27,7 @@ local tests pass  →  /pre-merge  →  address blockers/highs  →  /pre-merge 
 - `/pre-merge --prd <path>` — loads a PRD for acceptance-criteria context (repeatable)
 - `/pre-merge --prior-issues <path>` — loads a prior run JSON to mark regressions
 - `/pre-merge --test-json <path>` — loads the `/test` aggregate JSON; when it is clean and fresh (same HEAD), the integration and e2e buckets it already covered are skipped instead of re-run (`/ship` passes this automatically after a clean `/test`)
-- `/pre-merge --flash` — flash mode: load `refs/flash.md` and follow it instead of the full bucket matrix. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+- `/pre-merge --flash` — flash mode: load `refs/flash/mode-flash.md` and follow it instead of the full bucket matrix. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
 Natural language triggers: "run pre-merge", "pre-push checks", "heavy checks before merging", "gate this before push", "run the merge gate", "final safety-net pass".
 

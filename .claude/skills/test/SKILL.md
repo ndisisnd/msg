@@ -59,7 +59,7 @@ When **no** mode flag is supplied, all applicable buckets run (existing default)
 
 **Execution flags:**
 
-- `--flash` — flash mode: load `refs/flash.md` and follow it instead of the default bucket dispatch. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+- `--flash` — flash mode: load `refs/flash/mode-flash.md` and follow it instead of the default bucket dispatch. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 - `--sequential` — opt out of the default parallel dispatch and run selected, non-skipped buckets **in order 1→10** in-process, continuing past a failing bucket (the pre-parallel behavior, useful for debugging one bucket at a time). Parallel subagent dispatch is the default; this flag is the only way back to sequential.
 - `--flaky <N>` — retry each failing unit/e2e test up to `N` times before counting it as a real failure; a test that passes on any retry is reclassified as flaky rather than a hard failure. No effect on other buckets. See `refs/modes/unit.md` Step 3b / `refs/modes/e2e.md` Step 3b.
 

@@ -5,7 +5,7 @@ description: pre-merge's --flash execution path — build + security buckets onl
 
 # pre-merge --flash
 
-Obeys `../../shared/refs/flash-floor.md`. The win is **2 buckets (build + security) vs 5**, and no confirmation gate.
+Obeys `../../../shared/refs/flash-floor.md`. The win is **2 buckets (build + security) vs 5**, and no confirmation gate.
 
 ## Buckets
 
@@ -19,7 +19,7 @@ Obeys `../../shared/refs/flash-floor.md`. The win is **2 buckets (build + securi
 
 ## Steps
 
-1. **Consume the verify-prelude (B4).** If a **fresh** `.claude/msg/cache/verify-prelude.json` exists (`../../shared/refs/verify-prelude.md`), take `diff` + `tooling` from it instead of re-resolving/re-detecting. Composes with `--test-json`: a fresh test aggregate still drives the integration/e2e skip records. No fresh prelude → self-setup exactly as comprehensive.
+1. **Consume the verify-prelude (B4).** If a **fresh** `.claude/msg/cache/verify-prelude.json` exists (`../../../shared/refs/verify-prelude.md`), take `diff` + `tooling` from it instead of re-resolving/re-detecting. Composes with `--test-json`: a fresh test aggregate still drives the integration/e2e skip records. No fresh prelude → self-setup exactly as comprehensive.
 2. **No gate.** Print the check matrix, then **auto-run** — skip the confirmation `AskUserQuestion`. (The safety-floor refusals below still fire and still stop the run.)
 3. **Run build + security** (+ bundle iff baseline). Bucket stdout capped; raw logs to `.pre-merge/<ts>/<bucket>.log`, path printed.
 4. **Emit** the single JSON document (`refs/output-schema.md`) with the two `skipped` records included. Verdict enum unchanged.

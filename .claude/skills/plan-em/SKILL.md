@@ -26,7 +26,7 @@ allowed_tools:
 - Natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents"
 - Context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-tune`
 
-**Flash mode:** `/plan-em <path> --flash` — load `refs/flash.md` and follow it instead of `refs/protocol-em.md` (1 generalist agent when ≤2 platforms, one merged gate, synth from agent returns). **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+**Flash mode:** `/plan-em <path> --flash` — load `refs/flash/mode-flash.md` and follow it instead of `refs/protocol-em.md` (1 generalist agent when ≤2 platforms, one merged gate, synth from agent returns). **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.

@@ -5,7 +5,7 @@ description: eng --plan --flash — compressed proposed-changes template, no app
 
 # eng --plan --flash
 
-Obeys `../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/plan/protocol.md` and `refs/plan/template-eng-plan.md`. Cook is already **not** called on the comprehensive `--plan` path (T1.3), so flash's only distinct work is the compressed template + no gate.
+Obeys `../../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/plan/protocol.md` and `refs/plan/template-eng-plan.md`. Cook is already **not** called on the comprehensive `--plan` path (T1.3), so flash's only distinct work is the compressed template + no gate.
 
 ## Compressed plan document — exactly 5 sections
 

@@ -5,7 +5,7 @@ description: eng --build --flash — one build agent for all rows (no per-platfo
 
 # eng --build --flash
 
-Obeys `../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/build/protocol.md`. The win is **no per-platform fan-out** (≤1 build agent regardless of platform count) — the input side is already slim via the B2 build slice.
+Obeys `../../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/build/protocol.md`. The win is **no per-platform fan-out** (≤1 build agent regardless of platform count) — the input side is already slim via the B2 build slice.
 
 ## Inputs — the build digest slice, not the full PRD
 

@@ -5,7 +5,7 @@ description: review's --flash execution path — mechanical gates plus ONE combi
 
 # review --flash
 
-Obeys `../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/modes/*` — a flash run reads this file and zero comprehensive mode files. The win is **1 semantic subagent vs ≤4**; the input side is already slim post-v2.
+Obeys `../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/modes/*` — a flash run reads this file and zero comprehensive mode files. The win is **1 semantic subagent vs ≤4**; the input side is already slim post-v2.
 
 ## Steps
 
@@ -26,11 +26,11 @@ Report only `high`+ by default. For each: `{severity, category, rule, message, f
 
 ## Compact schema — a projection, NOT a new schema
 
-The emitted finding is the subset `{severity, category, rule, message, file, line, suggestion}` of the canonical `../shared/refs/finding-schema.md`. Same field meanings, same severity enum, same dedup key `(category, file, line, rule)` — flash just omits the fields comprehensive carries for aggregation. Verdict = worst across the emitted set (`block > warn > pass`).
+The emitted finding is the subset `{severity, category, rule, message, file, line, suggestion}` of the canonical `../../../shared/refs/finding-schema.md`. Same field meanings, same severity enum, same dedup key `(category, file, line, rule)` — flash just omits the fields comprehensive carries for aggregation. Verdict = worst across the emitted set (`block > warn > pass`).
 
 ## Verify-prelude producer (B4)
 
-Flash review is still the prelude **producer** (`../shared/refs/verify-prelude.md`): after Steps 1-2 it writes a lite `.claude/msg/cache/verify-prelude.json` with the resolved `diff` + `tooling`, keyed on HEAD + base, so a following `test --flash` / `pre-merge --flash` consumes it. `eval_set_path` is `null` unless flash needed acceptance criteria — flash reads the PRD `eval` slice (`scan-prd-digest.py --slice eval`) **only** if the rubric requires PRD acceptance criteria; otherwise it skips eval-set derivation.
+Flash review is still the prelude **producer** (`../../../shared/refs/verify-prelude.md`): after Steps 1-2 it writes a lite `.claude/msg/cache/verify-prelude.json` with the resolved `diff` + `tooling`, keyed on HEAD + base, so a following `test --flash` / `pre-merge --flash` consumes it. `eval_set_path` is `null` unless flash needed acceptance criteria — flash reads the PRD `eval` slice (`scan-prd-digest.py --slice eval`) **only** if the rubric requires PRD acceptance criteria; otherwise it skips eval-set derivation.
 
 ## Safety floor
 

@@ -5,7 +5,7 @@ description: plan-tune --flash — critical-severity checks only, auto-fix all, 
 
 # plan-tune --flash
 
-Obeys `../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/tune-product.md` / `refs/tune-eng.md`. The win is **critical-only checks + zero gates** — inputs are already sliced.
+Obeys `../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/tune-product.md` / `refs/tune-eng.md`. The win is **critical-only checks + zero gates** — inputs are already sliced.
 
 ## Inputs — the digest slice
 

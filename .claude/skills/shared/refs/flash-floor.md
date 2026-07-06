@@ -1,11 +1,11 @@
 ---
 name: flash-floor
-description: The never-relaxed safety floor and common semantics every msg flash mode obeys. Referenced by each skill's refs/flash.md so no flash path re-states or re-implements them.
+description: The never-relaxed safety floor and common semantics every msg flash mode obeys. Referenced by each skill's refs/flash/mode-flash.md so no flash path re-states or re-implements them.
 ---
 
 # flash floor
 
-Every `--flash` mode loads its own `refs/flash.md` **instead of** the comprehensive refs and obeys this file. Flash trades execution count (subagents, buckets, gates, interview turns) for speed — **never** correctness or safety.
+Every `--flash` mode loads its own `refs/flash/mode-flash.md` **instead of** the comprehensive refs and obeys this file. Flash trades execution count (subagents, buckets, gates, interview turns) for speed — **never** correctness or safety.
 
 ## Safety floor — never relaxed, any skill, any mode
 

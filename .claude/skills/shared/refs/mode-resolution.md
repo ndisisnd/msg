@@ -30,4 +30,4 @@ per-run flag  >  forwarded mode (orchestrated)  >  local pref  >  global pref  >
 
 ## Applying the resolved mode
 
-Once resolved: `flash` → load the skill's `refs/flash.md` (or its documented flash path) instead of the comprehensive refs; `comprehensive` → the normal protocol. This is the same routing each skill's `--flash` handling already performs — mode resolution only decides *which* value feeds it.
+Once resolved: `flash` → load the skill's `refs/flash/mode-flash.md` (or its documented flash path) instead of the comprehensive refs; `comprehensive` → the normal protocol. This is the same routing each skill's `--flash` handling already performs — mode resolution only decides *which* value feeds it.

@@ -5,7 +5,7 @@ description: plan-em --flash — one generalist eng agent (≤2 platforms), one 
 
 # plan-em --flash
 
-Obeys `../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/protocol-em.md`. The win is **1 generalist agent + one merged gate + no synthesis re-read** — inputs are already sliced.
+Obeys `../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/protocol-em.md`. The win is **1 generalist agent + one merged gate + no synthesis re-read** — inputs are already sliced.
 
 ## Preflight-lite
 

@@ -25,10 +25,10 @@ Read the invocation flag and load exactly one mode protocol:
 | Flag | Read |
 |------|------|
 | `--plan` | `refs/plan/protocol.md` |
-| `--plan --flash` | `refs/plan/flash.md` (instead of `protocol.md` + `template-eng-plan.md`) |
+| `--plan --flash` | `refs/plan/flash/mode-flash.md` (instead of `protocol.md` + `template-eng-plan.md`) |
 | `--todo` | `refs/todo/protocol-todo.md` |
 | `--build` | `refs/build/protocol.md` |
-| `--build --flash` | `refs/build/flash.md` (instead of `protocol.md`) |
+| `--build --flash` | `refs/build/flash/mode-flash.md` (instead of `protocol.md`) |
 | `--build roadmap=<path>` | `refs/build/protocol-roadmap.md` (instead of `protocol.md`) |
 
 Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive); `flash` loads the flash variant of the active mode — that flash ref **only**, not the comprehensive one. Honored on `--plan`/`--build`; a no-op on `--todo`. Exactly one mode flag must be present. If zero or more than one is given, emit:

@@ -38,7 +38,7 @@ eng --build  →  /test  →  /review  →  [address findings]  →  /review (re
 
 ### Step 0 — Mode
 
-Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive). If it resolves to `flash`, read `refs/flash.md` and follow it — skip Steps 1-7. Otherwise run the comprehensive protocol below.
+Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive). If it resolves to `flash`, read `refs/flash/mode-flash.md` and follow it — skip Steps 1-7. Otherwise run the comprehensive protocol below.
 
 ## Inputs / Outputs
 
@@ -152,7 +152,7 @@ Options: **Proceed** / **Adjust** (update surface + `eval_set[]`, continue witho
 **Compile standards once (before spawning any mode subagent):** the four cook-backed modes (Quality, Security, Performance, Migration) draw their standards from `/cook`. Call `/cook` **once per distinct stack this run** — pass the union of every cook-backed mode's assembled flags in a single invocation — and hold the compiled standards payload. Then, for each mode, inject the slice of that payload matching the mode's flags into that mode's **single** subagent prompt. Mode subagents do **not** call `/cook` themselves. The compiled payload names each rule's source flag, so per-rule attribution survives into aggregated findings. Shared cook-backed execution contract: `refs/modes/_common.md`.
 _Fallback:_ if this pre-compile step was skipped (review reached Step 6 with no precompiled payload), each cook-backed mode compiles `/cook` **once** for its own flag set — never once per flag.
 
-_Mode propagation:_ the mode resolved at Step 0 is carried into every spawned subagent prompt (`../shared/refs/flash-floor.md`); a `flash` resolution routes to `refs/flash.md` (one combined agent) before this step, so comprehensive Step 6 always runs comprehensive subagents.
+_Mode propagation:_ the mode resolved at Step 0 is carried into every spawned subagent prompt (`../shared/refs/flash-floor.md`); a `flash` resolution routes to `refs/flash/mode-flash.md` (one combined agent) before this step, so comprehensive Step 6 always runs comprehensive subagents.
 
 **Conditional-mode triggers (evaluated here — load the mode file only on a match):**
 
