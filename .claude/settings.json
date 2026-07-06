@@ -4,7 +4,6 @@
       "WebSearch",
       "Bash(bash /Users/andychan/.claude/skills/agent-audit/scripts/run-evals.sh *)",
       "Bash(bash /Users/andychan/.claude/scripts/plan-tune-preflight.sh *)",
-      "Edit(/.claude/skills/improve/**)",
       "Bash(rtk find *)",
       "Bash(rtk ls *)",
       "Bash(rtk git diff *)",
