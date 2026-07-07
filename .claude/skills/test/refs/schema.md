@@ -4,7 +4,8 @@
 
 ```json
 {
-  "verdict": "pass" | "pass_with_warnings" | "fail" | "refused",
+  "verdict": "pass" | "pass_with_warnings" | "fail" | "skipped",
+  "head": "<git rev-parse HEAD at aggregation time>" | null,
   "parallel": true | false,
   "prd": "<path>" | null,
   "eval_set_path": "<path to eval_set.json consumed>" | null,
@@ -28,6 +29,7 @@ Skipped buckets (runner not detected, eval_set empty, mode-flag-excluded, or use
 ### Top-level fields
 
 - `verdict` — overall verdict across all completed buckets.
+- `head` — the git HEAD sha at aggregation time (stamped by `test-aggregate-verdict.sh`); pre-merge's `--test-json` freshness check compares it to its own HEAD. `null` outside a git repo.
 - `parallel` — `true` for the default parallel subagent dispatch; `false` only when `--sequential` was used.
 - `prd` — path to the PRD used for eval_set bootstrap, or `null` if not applicable.
 - `eval_set_path` — path to the `eval_set.json` consumed (from `--eval-set` flag or `null`).
@@ -75,7 +77,9 @@ say only how each bucket populates that canonical object.
 | `fail` | One or more tests or assertions failed | Fix failing tests before merging |
 | `pass_with_warnings` | No failures, but some buckets skipped or runners crashed | Review warnings; safe to proceed with awareness |
 | `pass` | All attempted tests and assertions passed | Proceed |
-| `refused` | User cancelled at the gate (Step 3) | No findings emitted |
+| `skipped` | User cancelled at the gate (Step 3) | No findings emitted |
+
+`skipped` is the canonical user-cancel verdict shared with `/pre-merge` (which reserves `refused` for error paths like `no_diff`) — see the verdict-normalization note in `../../shared/refs/finding-schema.md`.
 
 Overall verdict = worst across completed buckets (`fail` > `pass_with_warnings` > `pass`).
 

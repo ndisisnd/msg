@@ -18,14 +18,17 @@ cleanup() { rm -rf "${TMP_DIR}"; }
 trap cleanup EXIT
 
 # ── Parse args ────────────────────────────────────────────────────────────────
+WITH_COOK=0
 for arg in "$@"; do
   case "$arg" in
     --help|-h)
-      echo "Usage: install.sh"
+      echo "Usage: install.sh [--with-cook]"
       echo
       echo "  Installs the msg skills into ~/.claude/skills."
+      echo "  --with-cook   Also install the cook dependency (coding standards)."
       exit 0
       ;;
+    --with-cook) WITH_COOK=1 ;;
     *) die "Unknown flag: $arg" ;;
   esac
 done
@@ -78,6 +81,16 @@ fi
 
 # ── Ensure skill-bundled scripts stay executable ──────────────────────────────
 find "${SKILLS_DIR}" -type f -name '*.sh' -exec chmod +x {} + 2>/dev/null || true
+
+# ── Optional cook bootstrap ───────────────────────────────────────────────────
+if [[ "${WITH_COOK}" -eq 1 ]]; then
+  info "Installing cook..."
+  if bash -c "${COOK_INSTALL}"; then
+    success "Installed cook"
+  else
+    warn "cook install failed — msg works without it; retry later with: ${COOK_INSTALL}"
+  fi
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo

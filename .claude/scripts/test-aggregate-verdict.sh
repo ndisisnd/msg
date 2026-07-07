@@ -95,14 +95,20 @@ for i in "${!present_names[@]}"; do
 done
 buckets_obj=$(jq -nc "${slurp_args[@]}" "$filter")
 
+# HEAD sha at aggregation time — pre-merge's --test-json freshness check compares
+# this against its own HEAD to decide whether the run is reusable.
+HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
+
 jq -n \
   --arg verdict "$overall" \
+  --arg head "$HEAD_SHA" \
   --argjson parallel "$PARALLEL" \
   --arg prd "$PRD" \
   --arg eval_set_path "$EVAL_SET" \
   --argjson buckets "$buckets_obj" \
   '{
     verdict: $verdict,
+    head: (if $head == "" then null else $head end),
     parallel: $parallel,
     prd: (if $prd == "" then null else $prd end),
     eval_set_path: (if $eval_set_path == "" then null else $eval_set_path end),

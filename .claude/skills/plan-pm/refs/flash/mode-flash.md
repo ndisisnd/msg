@@ -21,10 +21,10 @@ Epic-split ask · the open-questions elicitation loop · AHA.md writeback · the
 ## Output — must stay digest-parseable
 
 Write the PRD from `refs/flash/template-flash.md`. It **must** retain, with the standard headings `scan-prd-digest.py` parses:
-- Frontmatter stamps (product-tuned/eng-tuned/reviewed, depends_on, affects, platform).
-- `## N.` product feature sections with stable **F-IDs** and **acceptance criteria** per feature.
-- The scope / out-of-scope table.
-- The **§9 ledger** section.
+- The full canonical frontmatter (`name`, `feature`, `summary`, `module`, `platform`, `status`, `created`, plus the stamps product-tuned/eng-tuned/reviewed, depends_on, affects).
+- The `## 6. Features & acceptance criteria` **table** with stable **F-IDs** — the digest reads features only from this table, never from prose sections.
+- The `## 2. Out-of-scope` section.
+- The `## 9. Plan tune findings` section (canonical heading — plan-tune appends here; never "Ledger").
 
 Any feature whose detail is unknown gets a `[USER: …]` placeholder — never a silent omission. One-line `entry → step → outcome` flows suffice for interactions.
 

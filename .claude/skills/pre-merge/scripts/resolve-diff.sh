@@ -10,8 +10,20 @@ BASE="${1:-origin/main}"
 
 # Fetch remote to ensure origin/main is up to date
 # Warn to stderr if fetch fails; set flag so caller knows base may be stale
-if ! git fetch --quiet origin 2>/dev/null; then
+if ! rtk git fetch --quiet origin 2>/dev/null; then
   echo "⚠️  Warning: git fetch failed — base ref may be stale" >&2
+fi
+
+# Verify the base ref actually resolves. Without this, a missing base (fresh
+# clone, renamed default branch, no upstream) yields empty diffs downstream and
+# the caller misreads "bad base" as "no changes to gate".
+if ! rtk git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null 2>&1; then
+  if command -v jq &>/dev/null; then
+    jq -n --arg base "$BASE" '{error: "bad_base", base: $base}'
+  else
+    printf '{"error": "bad_base", "base": "%s"}\n' "${BASE}"
+  fi
+  exit 0
 fi
 
 # Commit count ahead of base

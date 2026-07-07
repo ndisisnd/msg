@@ -189,7 +189,7 @@ If PRD known, write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json` **be
 
 **Apply `--min-severity` (if passed):** filter every mode's `findings[]` to drop entries below the given floor (`blocker > high > medium > low`), then emit the filtered JSON to stdout. Coverage's `gaps[]` and Functional's `n/a` entries are not findings and are never filtered.
 
-Omit unrun modes from output. Include `eval_set_path` in the top-level output (value derived in Step 3; `null` if PRD unknown).
+Omit unrun modes from output. Include `eval_set_path` in the top-level output **only when Functional (mode 3) actually ran and wrote `eval_set.json` this run** (value derived in Step 3); emit `null` if PRD unknown **or** an earlier mode's `block` stopped the pipeline before Functional wrote the file — never hand downstream a path to a file that was not written.
 
 **Sub-PRD next-step offer (printed, not a question):** after emitting the JSON and summary line, print one plain-text next-step line offering a follow-up sub-PRD for any additional changes surfaced by this review:
 

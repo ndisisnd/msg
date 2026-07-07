@@ -205,8 +205,10 @@ In an Eng tune, Dimension 5 fixes may target engineering section text (e.g., add
 - This is idempotent — running it again on unchanged content yields the identical table. Applies in both `--product` and `--eng`.
 
 **Frontmatter writeback (always run, even when no fixes were applied, including the no-findings path from Step 2/4):** Stamp the tune onto the PRD frontmatter via `Edit` so downstream skills (`plan-em`'s Step 2 gate, `/ship`, `/plan` sequencing) can trust it:
-- Product tune → set `product-tuned: <today's date YYYY-MM-DD>` (replacing `product-tuned: no`).
-- Eng tune → set `eng-tuned: <today's date YYYY-MM-DD>` (replacing `eng-tuned: no`).
+- Product tune → set `product-tuned: yes` (replacing `product-tuned: no`).
+- Eng tune → set `eng-tuned: yes` (replacing `eng-tuned: no`).
+
+The canonical value is the literal `yes` — every consumer (plan-em's Step 2 gate, the roadmap readiness gate, `/plan` sequencing, `--flash`) tests for `yes`, never a date.
 
 These are the canonical field names written by `plan-pm`'s `template-prd.md` and read by `plan-em`. Do not introduce a `tuned:` field.
 

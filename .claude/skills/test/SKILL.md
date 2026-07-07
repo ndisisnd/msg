@@ -312,7 +312,7 @@ If the script exits 1, the offending bucket wrote invalid JSON — fix that buck
 
 ### Step 6 — Persist non-clean issues + follow-up gate (conditional)
 
-**Trigger.** Runs immediately after Step 5's aggregation, and **only** when the aggregated overall `verdict` is `fail` or `pass_with_warnings`. A clean `pass` (or a `refused` run) ends at Step 5 — it writes no file and asks nothing. Skip this entire step in those cases.
+**Trigger.** Runs immediately after Step 5's aggregation, and **only** when the aggregated overall `verdict` is `fail` or `pass_with_warnings`. A clean `pass` (or a user-cancelled `skipped` run) ends at Step 5 — it writes no file and asks nothing. Skip this entire step in those cases.
 
 This step persists the run's issues as a durable, numbered ticket independent of any PRD, then offers one action. It is the only place `/test` writes to `msg-test/`.
 

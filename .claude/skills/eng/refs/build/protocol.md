@@ -133,8 +133,8 @@ In all cases the PRD's `## Engineering — <Agent Name>` section remains the aut
 
 5. **Full-suite gate.** After all feature groups are green, run the project's **full** test suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). The per-group runs only covered the files this agent wrote; this catches breakage in sibling code. Any new failure introduced by this agent's changes goes to Debug mode (`protocol-build-debug.md`, max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed (out of scope). If the project has no test or lint command, state that in the build summary and continue.
    *Caller override: orchestrators (e.g. `ship`) may suppress this gate and run a dedicated test stage instead. When suppressed, skip to step 6.*
-6. **Confirm before commit.** Emit a one-line change summary (files touched, tests added, full-suite result) and ask via `AskUserQuestion` whether to commit and open the PR. Proceed only on an explicit "Yes". This is the single human gate between writing code and publishing it.
-   *Caller override: when invoked with an autonomy contract (e.g. by `ship`), this gate is treated as pre-approved; proceed without prompting.*
+6. **Confirm before commit.** First, the **production guardrail (never skipped, in any mode or under any autonomy contract — `shared/refs/flash-floor.md`):** run `.claude/scripts/eng-db-touch.sh` (fall back to `$HOME/.claude/scripts/eng-db-touch.sh`) against the working diff. If it flags database/data/production-config files, or the change introduces a breaking change (removed/renamed public API, changed contract or schema), pause via `AskUserQuestion` and require explicit sign-off before committing — the caller-override pre-approval below does **not** cover this pause. Then emit a one-line change summary (files touched, tests added, full-suite result) and ask via `AskUserQuestion` whether to commit and open the PR. Proceed only on an explicit "Yes". This is the single human gate between writing code and publishing it.
+   *Caller override: when invoked with an autonomy contract (e.g. by `ship`), this gate is treated as pre-approved; proceed without prompting — except the production guardrail above, which always pauses when tripped.*
 7. **Commit (to the work branch).** On approval, commit with a conventional commit message referencing the feature and rows (e.g., `feat(streaks): add schema migration and API contract`). In `direct` mode this commit lands on `branch`; in `sub-branch` mode it lands on the sub-branch. Either way, the feature branch ends with your commits on it (directly in `direct` mode, or via the PR you open in `sub-branch` mode).
 8. **Open PR (`sub-branch` mode only).** In `sub-branch` mode, when all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`; link the PRD path in the PR description; never open a PR against `main`. **In `direct` mode, skip this step** — there is no sub-branch and no PR; the orchestrator reviews `branch` directly.
 
@@ -206,7 +206,7 @@ Emit a build summary after all rows are complete:
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
 ```
 
-**`test-json` source.** When the build was driven by `test-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `follow_up.status` — see `protocol-build-testjson.md`.
+**`test-json` source.** When the build was driven by `test-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `protocol-build-testjson.md`.
 
 **Constraints:**
 - Use the PRD's `## Engineering — <Agent Name>` section as the sole specification.

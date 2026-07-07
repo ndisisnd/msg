@@ -80,6 +80,8 @@ Run `scripts/resolve-diff.sh <base>` (default base = `origin/main`). This emits 
 - `lines_added` / `lines_removed` — totals from `--stat`
 - `commit_count` — number of commits ahead of base (`git rev-list --count <base>..HEAD`)
 
+If the script emits `{"error": "bad_base", ...}` (the base ref doesn't resolve — fresh clone, renamed default branch): emit refusal JSON with `verdict: "refused"`, `reason: "bad_base"`, name the unresolvable ref, and **terminate** — this is a setup error, not a clean tree; do not report it as `no_diff`.
+
 If `files_changed` is empty (clean tree vs base): emit refusal JSON with `verdict: "refused"`, `reason: "no_diff"` (shape: `refs/refusal-patterns.md#no_diff`) and **terminate**. Do not fingerprint. Do not gate.
 
 ### Step 2 — Detect tooling + load context
@@ -123,9 +125,9 @@ already ran, instead of re-executing them. This is the only behavior change gate
 on the flag — without it, Steps 3–5 run unchanged.
 
 1. Load the JSON at `<path>` (the /test aggregate). If it is missing or unparseable, ignore the flag and run all buckets normally.
-2. **Freshness:** read the commit/HEAD the test run recorded (`commit` / `head` field) and compare to current HEAD: `rtk git rev-parse HEAD`. Fresh ⟺ they are equal.
+2. **Freshness:** read the top-level `head` field the test run recorded (stamped by `test-aggregate-verdict.sh`) and compare to current HEAD: `rtk git rev-parse HEAD`. Fresh ⟺ they are equal. A missing/`null` `head` (older test JSON) → treat as stale.
 3. **Cleanliness:** the test verdict must not be `fail`, and the covering bucket must itself be clean (no `blocker`/`high` finding whose `category` is `unit`/`integration` for the integration bucket, or `e2e` for the e2e bucket).
-4. For each of `integration` and `e2e` **individually**: if the test JSON covered that bucket AND it is fresh AND clean → mark it `covered_by_test_run` (Step 3 renders it as a skipped row; Step 5 does not fan it out; Step 7 emits a `skipped[]` record). Otherwise the bucket runs normally.
+4. For each of `integration` and `e2e` **individually**: if the test JSON covered that bucket AND it is fresh AND clean → mark it `covered_by_test_run` (Step 3 renders it as a skipped row; Step 5 does not fan it out; Step 7 emits a `skipped[]` record). Otherwise the bucket runs normally. **Coverage keys:** `/test` has no `integration` bucket — integration coverage = the `unit` bucket present in `buckets` (the merged Unit/Integration bucket); e2e coverage = the `e2e` bucket present.
 
 **Stale (different HEAD) or dirty (failing) test JSON → the flag is ignored and both buckets run as usual.** The skip is per-bucket: a clean integration result still lets e2e run if e2e was not covered or not clean.
 

@@ -51,7 +51,7 @@ When the build was driven by `test-json`, swap the summary table's **`Row`** col
 
 ## Closing the loop
 
-On completion, `eng --build` **updates the `test-json` file's own `follow_up.status`** so the ticket reflects that it was acted on rather than sitting permanently `open`:
+On completion, `eng --build` **updates the `test-json` file's own `followUp.status`** (camelCase — the key `server.py`/the `--gui` board reads) so the ticket reflects that it was acted on rather than sitting permanently `open`:
 
 - every issue verified green → `"resolved"`
 - one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `"partially_resolved"`

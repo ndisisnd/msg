@@ -1,43 +1,51 @@
 ---
 name: plan-pm-flash-template
-description: Slim PRD skeleton for plan-pm --flash. Standard headings only, so scan-prd-digest.py parses every downstream slice.
+description: Slim PRD skeleton for plan-pm --flash. Canonical headings and frontmatter only, so scan-prd-digest.py parses every downstream slice.
 ---
 
 # Flash PRD template
 
-Fill and write to `features/prd-<n>-<slug>/prd-<n>-<slug>.md`. Headings are the ones the digest generator keys on — do not rename them.
+Fill and write to `features/prd-<n>-<slug>/prd-<n>-<slug>.md`. Headings and frontmatter fields are the ones the digest generator and plan-tune key on — do not rename or drop them.
 
 ```markdown
 ---
-prd: <n>-<slug>
+name: prd-<n>-<slug>
+feature: <short feature name>
+summary: <one-line plain-prose gist — no markdown, no line breaks>
+module: <primary module or domain>
 platform: <platform(s)>
+status: product
 depends_on: []
 affects: []
 product-tuned: no
 eng-tuned: no
 reviewed: no
+created: YYYY-MM-DD
 ---
 
-# PRD <n> — <title>
+# PRD-<n>: <title>
 
-## 1. <Feature title>   <!-- one `## N.` section per feature -->
-**F<n>.** <one-line intent>
-**Acceptance:**
-- <criterion 1>
-- <criterion 2>
-**Flow:** <entry → step → outcome>
+## 2. Out-of-scope
+- <item — one-line reason>
 
-## Out of scope
-- <item>
+## 4. Key user interactions
+- F<n>: <entry → step → outcome>   <!-- one-line flow per feature -->
 
-## Glossary
-- <term>: <definition>
-
-## Error cases
+## 5. Error cases
 - <case>: <expected behavior>
 
-## 9. Ledger
-<!-- audit findings + stamps appended here by plan-tune -->
+## 6. Features & acceptance criteria
+
+| ID | Feature | Acceptance criterion | Dependencies |
+|----|---------|----------------------|--------------|
+| F1 | <feature> | <observable user-goal outcome; `[USER: …]` if unknown> | — |
+
+## 9. Plan tune findings
+
+_Populated by plan-tune (/plan-tune) — audit findings table._
+
+## 10. Glossary
+- <term>: <definition>
 ```
 
-Rules: stable F-IDs, verbatim acceptance criteria, `[USER: …]` for any unknown — never omit. No narrative prose sections (Alternatives, DX, Risks) — flash PRDs carry contract only.
+Rules: stable F-IDs; verbatim acceptance criteria; `[USER: …]` for any unknown — never omit. Features live **only** in the §6 table — the digest reads features from that table, never from prose sections. No narrative prose sections (Alternatives, DX, Risks) — flash PRDs carry contract only.

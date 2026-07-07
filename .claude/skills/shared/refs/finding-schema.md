@@ -113,8 +113,10 @@ onto a shared three-state scale so callers can aggregate across gates:
 | `warn` | `warn` | `pass_with_warnings` | `pass_with_warnings` |
 | `pass` | `pass` | `pass` | `pass` |
 
-`/test` and `/pre-merge` additionally use `refused`/`skipped` for
-early-termination paths; those have no severity and carry no findings.
+`/test` and `/pre-merge` additionally use two early-termination verdicts, with
+one meaning each: `skipped` = the user cancelled at a gate; `refused` = the
+skill declined to run (error paths — e.g. pre-merge's `no_diff`,
+`schema_mismatch`). Both have no severity and carry no findings.
 
 ## Subagent return contract
 
