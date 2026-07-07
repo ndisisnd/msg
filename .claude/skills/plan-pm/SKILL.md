@@ -48,7 +48,7 @@ In multi-PRD mode, prefix each step emission with `[PRD N/K] ` (e.g., `[PRD 2/4]
 
 ## Pre-run — devkit reads
 
-Before emitting any step, stat-check and read the following files in parallel via `Bash`. These files are written to `devkit/` by `msg-init`; `CLAUDE.md` stays at project root.
+Before emitting any step, stat-check and read the following files in parallel via `Bash`. These files are written to `devkit/` by `/msg --init`; `CLAUDE.md` stays at project root.
 
 | File | How to apply |
 |------|-------------|
@@ -59,7 +59,7 @@ Before emitting any step, stat-check and read the following files in parallel vi
 | `devkit/DESIGN-SYSTEM.md` | Load the component registry; when populating User flow and Key user interactions, identify which components the proposed feature would impact or reuse and note them inline |
 | `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that may block or constrain proposed features; surface relevant entries in the Open questions section |
 
-**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg-init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without the file; do not create it.
+**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg --init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg --init to initialise the project first.` Proceed without the file; do not create it.
 
 Do not ask the user about any of these files. Do not block on these checks. Proceed to Step 1 immediately after.
 
@@ -101,4 +101,4 @@ Each PRD carries four status fields in its YAML frontmatter. The owning skill is
 - `refs/protocol-interview.md` — structured interview questions and format for Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 4
 - `.claude/scripts/scan-n.prd sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 4 Part 1 when in `--sub` mode (see § Sub-PRD mode)
-- `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md
+- `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md

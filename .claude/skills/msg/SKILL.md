@@ -1,6 +1,13 @@
 ---
 name: msg
-description: Root menu for msg skills
+description: >
+  Root menu for msg skills, plus harness modes. `--init` is the one-time
+  project bootstrap — use it when the user says "initialise project",
+  "bootstrap repo", "set up the framework", "start a new project", or asks
+  to set up project structure in an empty repo (scaffolds devkit/ and root
+  files via a three-phase interview; idempotent, never overwrites). Other
+  modes: `--gui` (local PRD board), `--set-mode` (harness-wide run mode),
+  `--help` (guided skill picker).
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -13,6 +20,7 @@ allowed_tools:
 ## Usage
 
 **Invoke**: `/msg` — two-step category → skill picker.
+**Invoke**: `/msg --init` — one-time project bootstrap (devkit/ + root files). Protocol: [`refs/protocol-init.md`](refs/protocol-init.md). `--init --flash` runs the zero-interview variant defined there.
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
 **Invoke**: `/msg --gui` (or `/msg gui`) — launch the local interactive PRD board (Kanban/List, editing, todos, prompt console, project docs).
 **Invoke**: `/msg --flash` — resolve to a skill in **≤1** grouped `AskUserQuestion` (or route directly from prose args, no question). `--gui --flash` is **interactive-only** — it never runs the static build; with `python3` missing it prints a one-line instruction instead. Safety floor (`../shared/refs/flash-floor.md`) never relaxed.
@@ -22,7 +30,7 @@ allowed_tools:
 
 | Category | Skill | Description |
 |----------|-------|-------------|
-| Planning | msg-init | One-time project bootstrap |
+| Planning | msg --init | One-time project bootstrap |
 | Planning | plan-pm | PM interview — PRD writer |
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
@@ -39,7 +47,7 @@ allowed_tools:
 ## End-to-end happy path
 
 ```
-/msg-init  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
+/msg --init  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
                                                                          ↓
                                                              /eng --build
                                                                          ↓
@@ -57,11 +65,23 @@ allowed_tools:
 Before running any picker, check the invocation:
 
 1. `--set-mode` → **Protocol: --set-mode**. Skip the picker.
-2. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
+2. `--init`, or a natural-language bootstrap request — "initialise project", "bootstrap repo",
+   "set up the framework", "start a new project" — → **Protocol: --init**. Skip the picker.
+3. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
    "show me the PRD board", "visualize my PRDs", "open kanban" — → **Protocol: --gui**. Skip
    the picker; do not call `AskUserQuestion`; go straight to rendering.
-3. `--help` → **Protocol: --help**.
-4. Otherwise → **Protocol: default**.
+4. `--help` → **Protocol: --help**.
+5. Otherwise → **Protocol: default**.
+
+---
+
+## Protocol: --init
+
+Dispatch to [`refs/protocol-init.md`](refs/protocol-init.md) and follow it end to end: scan the
+working directory (`refs/init/init-setup.sh`), run the batched three-phase interview (≤4
+`AskUserQuestion` calls; skipped entirely under `--flash`), then generate the missing devkit/ and
+root files deterministically via `refs/init/init.sh`. Idempotent — existing files are never
+overwritten. Do not run a picker.
 
 ---
 
@@ -171,7 +191,7 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 
 | Stage | Artifact | Output | Skill |
 |-------|----------|--------|-------|
-| Starting fresh | any | any | msg-init |
+| Starting fresh | any | any | msg --init |
 | Planning | Nothing yet / rough idea | A project spec | plan-pm |
 | Planning | Nothing yet / rough idea | An engineering plan | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |

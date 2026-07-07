@@ -140,7 +140,7 @@ For each qualifying learning, append one entry to `devkit/AHA.md` using the form
 **Note**: <Concrete action or warning for future runs>
 ```
 
-Entries go under `## Entries`, most recent first. If `devkit/AHA.md` does not exist, create it by copying the header from `.claude/skills/msg-init/refs/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
+Entries go under `## Entries`, most recent first. If `devkit/AHA.md` does not exist, create it by copying the header from `.claude/skills/msg/refs/init/templates/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
 
 Emit a completion summary in this format:
 

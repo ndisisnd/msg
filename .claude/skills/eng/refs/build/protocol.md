@@ -179,7 +179,7 @@ Append when any of the following occur:
 - A product or design decision surfaces mid-build that the PRD didn't anticipate and that would affect scope beyond the current row.
 - A debug escalation (3 failed cycles, see `protocol-build-debug.md`) leaves a row unresolved — log here in addition to AHA, since it blocks a decision rather than just recording a learning.
 
-**Format:** use the entry template in `.claude/skills/msg-init/refs/template-OPEN-QUESTIONS.md`, with these eng-specific values — `Status: open` (build agents never write `in-progress`/`resolved`) and `Raised by: eng-<agent name>`.
+**Format:** use the entry template in `.claude/skills/msg/refs/init/templates/template-OPEN-QUESTIONS.md`, with these eng-specific values — `Status: open` (build agents never write `in-progress`/`resolved`) and `Raised by: eng-<agent name>`.
 
 Append under the `## Open Questions` heading only — never write to `## Resolved` (that section is curated by humans or `plan-em`/`plan-tune`, not by build agents). `devkit/OPEN-QUESTIONS.md` is append-only, same as AHA.md. Reference any entries written during the run in the build summary.
 

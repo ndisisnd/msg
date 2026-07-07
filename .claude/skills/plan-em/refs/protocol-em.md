@@ -19,7 +19,7 @@ The five-step protocol plan-em runs end-to-end, after Step 0 (todo preference) r
 - Derive `n` = first numeric segment of that parent dir name (`prd-3-habit-tracking` → `n=3`; `prd-2.1-streak-freeze` → `n=2`, the parent's number for a sub-PRD).
 - On failure: refuse, emit the rule, produce no output.
 
-**1b. Mandatory pre-flight scan (devkit + PRD).** Devkit files live in `devkit/` (created by `msg-init`); `CLAUDE.md` is at project root. Read all, in order:
+**1b. Mandatory pre-flight scan (devkit + PRD).** Devkit files live in `devkit/` (created by `/msg --init`); `CLAUDE.md` is at project root. Read all, in order:
 
 | # | Source | Read for / action |
 |---|--------|-------------------|
@@ -40,8 +40,8 @@ G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/sc
 The `plan` slice returns `frontmatter` (incl. `platform`, `module`, `affects`, `depends_on`), `summary`, `features` (F-IDs + acceptance criteria verbatim), and `exec_table` — the inputs the roster and exec-table build consume (Steps 3–4). The generator re-parses the current PRD on every call → the slice is never stale and PRD prose stays canonical (see `.claude/skills/shared/refs/session-cache.md`). **Escape hatch:** if a pre-flight check needs prose the slice omits — User-flow narrative for a terminology/architecture-conflict finding, or a heading under the digest's `unparsed_sections` — read only that section's `prose_lines` range. Do **not** default to the whole PRD.
 
 **Absent-file rule.**
-- No `devkit/` → emit `devkit/ not found — run /msg-init to initialise the project first.` and **stop** (do not proceed to Step 2).
-- `devkit/` exists but a file missing → emit `<filename> not found — run /msg-init to initialise the project first.` Proceed without it; do not create it.
+- No `devkit/` → emit `devkit/ not found — run /msg --init to initialise the project first.` and **stop** (do not proceed to Step 2).
+- `devkit/` exists but a file missing → emit `<filename> not found — run /msg --init to initialise the project first.` Proceed without it; do not create it.
 
 **1c. Multi-PRD cross-reference.** Run `bash ls features/prd-*/prd-*.md`, excluding the input PRD's directory. For each prior PRD:
 1. **Fast scan via frontmatter first** — read `module`, `affects`, `depends_on`. Flag immediately if: input's `module` matches another's `module`; input appears in another's `affects`; or input's `depends_on` names a prior PRD.

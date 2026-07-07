@@ -15,7 +15,7 @@ Loaded from `SKILL.md` Step 0 **only on the first invocation** — when `.claude
 Determine whether the user already has their own todos / task-breakdown skill, and defer to it if so:
 
 - List skill directories in `.claude/skills/` (this project) and `~/.claude/skills/` (global).
-- A skill counts as a **pre-existing user task-breakdown skill** if it is **not** part of the msg skill set (`eng`, `msg`, `msg-init`, `plan-em`, `plan-pm`, `plan-tune`, `pre-merge`, `review`, `test`, `shared`) **and** its directory name contains `todo` or `task`, or its `SKILL.md` `description` mentions todo generation / task breakdown / task list.
+- A skill counts as a **pre-existing user task-breakdown skill** if it is **not** part of the msg skill set (`eng`, `msg`, `plan-em`, `plan-pm`, `plan-tune`, `pre-merge`, `review`, `test`, `shared`) **and** its directory name contains `todo` or `task`, or its `SKILL.md` `description` mentions todo generation / task breakdown / task list.
 - **Found** one → `todos: false` (defer to the user's own; msg does not add a competing todo layer).
 - **None found** → `todos: true` (msg owns the todo layer).
 

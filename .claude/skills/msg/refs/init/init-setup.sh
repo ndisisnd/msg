@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scans target directory for msg-init foundational files and stack hints.
+# Scans target directory for /msg --init foundational files and stack hints.
 #
 # Usage: init-setup.sh <target_dir>
 #

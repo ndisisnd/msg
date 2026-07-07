@@ -37,7 +37,7 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 
 ### 4. Devkit layer (scaffolded projects)
 
-`/msg-init` generates a `devkit/` directory in the target project. These files are consumed by all other skills before doing any work — they are never created by any skill except `msg-init`.
+`/msg --init` generates a `devkit/` directory in the target project. These files are consumed by all other skills before doing any work — they are never created by anything except `/msg --init`.
 
 | File | Role |
 |------|------|
@@ -70,8 +70,7 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 | `review` | Yes |
 | `test` | Yes |
 | `pre-merge` | Yes |
-| `msg-init` | Yes |
-| `msg` | Yes (interactive skill browser; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer — via `refs/gui/server.py`, bound to 127.0.0.1) |
+| `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
 
 ## Run modes

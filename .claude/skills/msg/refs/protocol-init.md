@@ -1,40 +1,35 @@
 ---
-name: msg-init
+name: msg-protocol-init
 description: >
-  One-time project bootstrap. Scans the working directory, runs a
-  three-phase interview (project basics, architecture, design system),
-  then creates a `devkit/` directory containing AHA.md, GLOSSARY.md,
-  ARCHITECTURE.md, DESIGN-SYSTEM.md, and OPEN-QUESTIONS.md, plus
-  root-level README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the
-  features/ directory. Idempotent — skips files that already exist;
-  never overwrites. All other msg skills read these files but never
-  create them.
-allowed_tools:
-  - AskUserQuestion
-  - Bash
-  - Read
-  - Write
+  Protocol for /msg --init — one-time project bootstrap. Scans the working
+  directory, runs a three-phase interview (project basics, architecture,
+  design system), then creates a `devkit/` directory containing AHA.md,
+  GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, and OPEN-QUESTIONS.md,
+  plus root-level README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the
+  features/ directory. Idempotent — skips files that already exist; never
+  overwrites. All other msg skills read these files but never create them.
+type: reference
 ---
 
-# msg-init
+# Protocol: --init
 
 ## Usage
 
-**Invoke**: `/msg-init` — optionally pass a one-line project brief as input.
+**Invoke**: `/msg --init` — optionally pass a one-line project brief as input.
 
-- Slash command `/msg-init`
+- Slash command `/msg --init`
 - Natural language: "initialise project", "bootstrap repo", "set up the framework", "start a new project", "init the msg framework"
 - Context: empty or near-empty repository where the user asks Claude to set up project structure
 - Hand-off from another msg skill (e.g. `plan-pm`) when `AHA.md` or `GLOSSARY.md` is missing
 
-**Flash mode:** `/msg-init --flash` — zero-interview bootstrap: run `init-setup.sh` then `init.sh` with auto-detected `PROJECT_NAME`/`PLATFORM`; script fallbacks fill the rest (unknowns → `[USER: …]`); **≤1** confirm `AskUserQuestion`. Idempotency + standard headings preserved. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+**Flash mode:** `/msg --init --flash` — zero-interview bootstrap: run `init-setup.sh` then `init.sh` with auto-detected `PROJECT_NAME`/`PLATFORM`; script fallbacks fill the rest (unknowns → `[USER: …]`); **≤1** confirm `AskUserQuestion`. Idempotency + standard headings preserved. **Step 0 — Mode:** resolve per `../../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
 **Hard refusals:**
 - Working directory is not a git repository: emit a warning and ask the user to confirm via `AskUserQuestion` before proceeding. Do not block — proceed if confirmed.
 
 ## What is devkit
 
-`devkit/` is a directory of agent-readable context files that lives at the root of every msg-initialised project. It is the single source of truth that all other msg skills read before doing any work — but only `msg-init` creates it.
+`devkit/` is a directory of agent-readable context files that lives at the root of every msg-initialised project. It is the single source of truth that all other msg skills read before doing any work — but only `/msg --init` creates it.
 
 | File | Purpose |
 |------|---------|
@@ -44,7 +39,7 @@ allowed_tools:
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
 
-**Convention**: `devkit/` files are written once by `msg-init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `msg-init`.
+**Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
 ## Inputs
 
@@ -61,15 +56,15 @@ allowed_tools:
 | Name | Format | Destination |
 |------|--------|-------------|
 | devkit/ | Directory — agent context files | `<cwd>/devkit/` |
-| devkit/AHA.md | Markdown from `refs/template-AHA.md` | `<cwd>/devkit/AHA.md` |
-| devkit/GLOSSARY.md | Markdown from `refs/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
-| devkit/ARCHITECTURE.md | Markdown from `refs/template-ARCHITECTURE.md`, customised with platform and architecture interview | `<cwd>/devkit/ARCHITECTURE.md` |
-| devkit/DESIGN-SYSTEM.md | Markdown from `refs/template-DESIGN-SYSTEM.md`, customised with design system interview | `<cwd>/devkit/DESIGN-SYSTEM.md` |
-| devkit/OPEN-QUESTIONS.md | Markdown from `refs/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
-| README.md | Markdown from `refs/template-README.md`, customised with project name | `<cwd>/README.md` |
-| .gitignore | Plain text from `refs/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
-| CLAUDE.md | Markdown from `refs/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
-| CHANGELOG.md | Markdown from `refs/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
+| devkit/AHA.md | Markdown from `refs/init/templates/template-AHA.md` | `<cwd>/devkit/AHA.md` |
+| devkit/GLOSSARY.md | Markdown from `refs/init/templates/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
+| devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with platform and architecture interview | `<cwd>/devkit/ARCHITECTURE.md` |
+| devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with design system interview | `<cwd>/devkit/DESIGN-SYSTEM.md` |
+| devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
+| README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
+| .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
+| CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
+| CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | features/ | Empty directory | `<cwd>/features/` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
 
@@ -84,7 +79,7 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 Run `init-setup.sh` via Bash:
 
 ```
-<skill_dir>/init-setup.sh "<cwd>"
+<msg_skill_dir>/refs/init/init-setup.sh "<cwd>"
 ```
 
 Parse the five `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, and `STACK_DEFAULT` in conversation context.
@@ -152,7 +147,7 @@ ARCH_DEPLOYMENT="<A5 answer>" \
 DS_LIBRARY="<D2 answer>" \
 DS_TOKENS="<D3 answer>" \
 DS_CONVENTIONS="<D4 answer>" \
-<skill_dir>/init.sh "<cwd>"
+<msg_skill_dir>/refs/init/init.sh "<cwd>"
 ```
 
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
@@ -171,14 +166,14 @@ Do not invoke another skill. The next slash command is the user's choice.
 
 ## References
 
-- `init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`
-- `init.sh` — deterministic template writer; called at Step 5 with all interview answers as env vars
-- `refs/template-AHA.md` — template for AHA.md (institutional knowledge log)
-- `refs/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
-- `refs/template-README.md` — template for README.md (project placeholder)
-- `refs/template-gitignore.md` — .gitignore content keyed by platform/stack
-- `refs/template-CLAUDE.md` — template for CLAUDE.md (Claude Code project instructions)
-- `refs/template-ARCHITECTURE.md` — template for ARCHITECTURE.md (architecture stub, populated from Step 3 interview)
-- `refs/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry, populated from Step 4 interview)
-- `refs/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)
-- `refs/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)
+- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`
+- `refs/init/init.sh` — deterministic template writer; called at Step 3 with all interview answers as env vars
+- `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
+- `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
+- `refs/init/templates/template-README.md` — template for README.md (project placeholder)
+- `refs/init/templates/template-gitignore.md` — .gitignore content keyed by platform/stack
+- `refs/init/templates/template-CLAUDE.md` — template for CLAUDE.md (Claude Code project instructions)
+- `refs/init/templates/template-ARCHITECTURE.md` — template for ARCHITECTURE.md (architecture stub, populated from Step 2 interview)
+- `refs/init/templates/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry, populated from Step 2 interview)
+- `refs/init/templates/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)
+- `refs/init/templates/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)

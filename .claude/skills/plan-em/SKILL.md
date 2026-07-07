@@ -80,7 +80,7 @@ Follow `refs/protocol-em.md` end-to-end. It defines the full five-step flow — 
 - `refs/protocol-em.md` — end-to-end five-step execution protocol; followed from § Step-by-step protocol
 - `refs/prefs-bootstrap.md` — Step 0 first-invocation todo-preference bootstrap (read only when `prefs.json` is missing/corrupt)
 - `refs/principles.md` — core operating principles; read before any other ref (shared)
-- `devkit/` — project-level agent context directory created by `msg-init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
+- `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (with the Todos column when `$TODOS = true`) before activating agents (shared)
 - `.claude/skills/plan-em/prefs.json` — persisted `todos` boolean resolved in Step 0; gates the entire todo layer (Todos column, todo phase, `## Todos` section)

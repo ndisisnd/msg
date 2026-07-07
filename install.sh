@@ -60,6 +60,15 @@ done
 
 success "Installed ${installed} skill(s)"
 
+# ── Remove retired skills (folded into other skills) ─────────────────────────
+# msg-init became /msg --init; a stale copy would leave two competing commands.
+for retired in msg-init; do
+  if [[ -d "${SKILLS_DIR}/${retired}" ]]; then
+    rm -rf "${SKILLS_DIR}/${retired}"
+    info "Removed retired skill: ${retired} (now /msg --init)"
+  fi
+done
+
 # ── Install scripts ───────────────────────────────────────────────────────────
 SRC_SCRIPTS="${TMP_DIR}/msg/.claude/scripts"
 if [[ -d "${SRC_SCRIPTS}" ]]; then
@@ -98,7 +107,7 @@ success "msg installed successfully"
 echo "  Skills: ${SKILLS_DIR}"
 echo
 echo "  Next steps:"
-echo "    • Run /msg-init in a project to scaffold devkit files"
+echo "    • Run /msg --init in a project to scaffold devkit files"
 echo "    • Run /msg to see the full menu of skills"
 echo
 echo "  Stay up to date: https://github.com/ndisisnd/msg"

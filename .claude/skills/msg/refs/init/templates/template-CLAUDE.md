@@ -41,7 +41,7 @@ This file is read by Claude Code on every session start. Keep it short, current,
 
 ## Working with msg skills
 
-- `/msg-init` — One-time project bootstrap (already run if you are reading this)
+- `/msg --init` — One-time project bootstrap (already run if you are reading this)
 - `/plan-pm` — Interview-driven PRD generation
 - `/plan-tune` — Adversarial audit of an existing PRD
 - `/plan-em` — Engineering plan generation from an approved PRD

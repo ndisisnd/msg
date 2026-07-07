@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deterministic template writer for msg-init.
+# Deterministic template writer for /msg --init.
 #
 # Usage: init.sh <target_dir>
 #
@@ -25,12 +25,12 @@
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REFS="$SCRIPT_DIR/refs"
+REFS="$SCRIPT_DIR/templates"
 TARGET="${1:-.}"
 
 # Fallbacks for missing env vars
 PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET")}"
-PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-Project bootstrapped with msg-init.}"
+PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-Project bootstrapped with /msg --init.}"
 PLATFORM="${PLATFORM:-Not specified — fill in later.}"
 LANGUAGE="${LANGUAGE:-Not specified — fill in later.}"
 TEAM_TYPE="${TEAM_TYPE:-Solo}"
@@ -226,7 +226,7 @@ fi
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
 
-printf '\nmsg-init complete — %d created, %d skipped, %d failed.\n\n' \
+printf '\nmsg --init complete — %d created, %d skipped, %d failed.\n\n' \
   "${#CREATED[@]}" "${#SKIPPED[@]}" "${#FAILED[@]}"
 
 printf '%-20s %-22s %s\n' "File" "Status" "Lines"

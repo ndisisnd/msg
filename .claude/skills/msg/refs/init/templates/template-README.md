@@ -1,6 +1,6 @@
 ---
 name: README Template
-description: Placeholder README.md created at project init; carries the project name and one-line description from the msg-init interview
+description: Placeholder README.md created at project init; carries the project name and one-line description from the /msg --init interview
 type: reference
 ---
 
@@ -17,7 +17,7 @@ The skill writes a README.md from this body, substituting `{{project_name}}` and
 
 ## Status
 
-Project bootstrapped with `msg-init`. PRDs live under `features/prd-[n]-[feature-slug]/`. See `devkit/ARCHITECTURE.md` for the high-level structure and `CLAUDE.md` for working conventions.
+Project bootstrapped with `/msg --init`. PRDs live under `features/prd-[n]-[feature-slug]/`. See `devkit/ARCHITECTURE.md` for the high-level structure and `CLAUDE.md` for working conventions.
 
 ## Getting started
 
