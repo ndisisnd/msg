@@ -70,8 +70,12 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 | `review` | Yes |
 | `test` | Yes |
 | `pre-merge` | Yes |
-| `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer — via `refs/gui/server.py`, bound to 127.0.0.1) |
+| `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer, run-report reader — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
+
+## Run reports
+
+`eng --build`, `review`, and `pre-merge` end every completed run by writing a `report-[n].md` (schema: `shared/refs/report-schema.md`) to the PRD's `features/prd-<n>-<slug>/reports/` folder, or `features/reports/` when no PRD is resolvable — `[n]` is the standard `max+1` counter per directory. The report carries GUI-parseable frontmatter (skill, PRD, branch, verdict, features, diff/test stats) and fixed sections covering work done, code changes, test results, **what the user can expect**, and **how to verify** the work — written for a human, derived from the PRD's acceptance criteria and the tests that ran. Writes are best-effort (a failed write never fails, blocks, or re-verdicts a run) and supplement — never replace — each skill's existing output contract (eng's build summary, review's findings JSON, pre-merge's final JSON emission). The `/msg --gui` **Reports** tab groups them by PRD and renders them read-only.
 
 ## Run modes
 

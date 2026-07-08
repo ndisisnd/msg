@@ -358,6 +358,70 @@ def collect_test_issues(skipped):
     return out
 
 
+# --------------------------------------------------------------------------- run reports
+
+def parse_report_file(path, skipped):
+    """One report-[n].md (shared/refs/report-schema.md) → Reports-tab payload entry."""
+    rel = os.path.relpath(path, root_path())
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except Exception as e:
+        skipped.append({"path": rel, "reason": "unreadable report: %s" % e})
+        return None
+    fm, body = parse_frontmatter(text)
+    if fm is None:
+        skipped.append({"path": rel, "reason": "missing/unparseable frontmatter"})
+        return None
+
+    def fm_int(key):
+        try:
+            return int(fm.get(key))
+        except (TypeError, ValueError):
+            return None
+
+    nm = re.search(r"report-(\d+)\.md$", path)
+    dm = re.search(r"([^/]+)/reports/[^/]+$", rel.replace(os.sep, "/"))
+    prd_id = dm.group(1) if dm and dm.group(1).startswith("prd-") else None
+    tm = re.search(r"^#\s+(.+?)\s*$", body, re.M)
+    prd = fm.get("prd")
+    return {
+        "file": rel,
+        "reportId": int(nm.group(1)) if nm else 0,
+        "skill": fm.get("skill"),
+        "prd": None if (not prd or prd == "none") else prd,
+        "prdId": prd_id,
+        "branch": fm.get("branch"),
+        "verdict": fm.get("verdict"),
+        "generated": fm.get("generated"),
+        "features": fm.get("features") or [],
+        "stats": {
+            "filesChanged": fm_int("files_changed"),
+            "linesAdded": fm_int("lines_added"),
+            "linesRemoved": fm_int("lines_removed"),
+            "testsPassed": fm_int("tests_passed"),
+            "testsFailed": fm_int("tests_failed"),
+        },
+        "title": tm.group(1).strip() if tm else ("%s report" % (fm.get("skill") or "run")),
+        "detail": body.strip(),
+    }
+
+
+def collect_reports(skipped):
+    out = []
+    pats = (
+        os.path.join(root_path(), "features", "prd-*", "reports", "report-*.md"),
+        os.path.join(root_path(), "features", "prd-*", "prd-*", "reports", "report-*.md"),
+        os.path.join(root_path(), "features", "reports", "report-*.md"),
+    )
+    for pat in pats:
+        for path in sorted(glob.glob(pat)):
+            r = parse_report_file(path, skipped)
+            if r:
+                out.append(r)
+    out.sort(key=lambda r: (str(r.get("generated") or ""), r.get("reportId") or 0), reverse=True)
+    return out
+
+
 # --------------------------------------------------------------------------- roadmap
 
 ROADMAP_REL = os.path.join("roadmap", "roadmap.md")
@@ -459,11 +523,13 @@ def build_data():
             elif skip and c == d:
                 skipped.append(skip)
     test_issues = collect_test_issues(skipped)
+    reports = collect_reports(skipped)
     return {
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "project": project_name(),
         "prds": prds,
         "testIssues": test_issues,
+        "reports": reports,
         "roadmap": build_roadmap(prds),
         "skipped": skipped,
     }

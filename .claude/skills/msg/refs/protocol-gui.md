@@ -107,7 +107,12 @@ Same read model as before — now implemented in `server.py`, re-run per request
 4. **Test issues** from `msg-test/test-*.json` via the shared **finding → issue-ticket
    projection** in `template-todo.md` (read-time view, never re-serialized). Absent
    `msg-test/` → `testIssues: []`.
-5. **Completion inference**, most-authoritative first:
+5. **Run reports** from `features/prd-*/reports/report-*.md` (one level of nested
+   `prd-*` sub-dirs included) and `features/reports/report-*.md` (the no-PRD fallback),
+   per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
+   → raw markdown `detail`, containing `prd-*` folder → `prdId`. Missing/unparseable
+   frontmatter → `skipped[]`. No reports → `reports: []`.
+6. **Completion inference**, most-authoritative first:
 
    | Signal | Bucket |
    |---|---|
@@ -173,6 +178,13 @@ is unchanged from the previous protocol revision, with these notes:
     "context": { "prd": "…", "branch": "…", "base": "main" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
     "tickets": [ { "kind": "issue", "id": "unit-002", "…": "projected per template-todo.md" } ] } ],
+  "reports": [ { "file": "features/prd-101-task-crud/reports/report-1.md", "reportId": 1,
+    "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
+    "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",
+    "generated": "2026-07-08T14:00:00Z", "features": ["F1"],
+    "stats": { "filesChanged": 3, "linesAdded": 120, "linesRemoved": 8,
+      "testsPassed": 6, "testsFailed": 0 },
+    "title": "Report 1 — eng — …", "detail": "<raw report markdown body>" } ],
   "skipped": [ { "path": "…", "reason": "…" } ]
 }
 ```
@@ -229,6 +241,18 @@ across every project (light + dark, responsive); it is **not** sourced from
   board renders it, never invents it, and never offers a toggle for it.
 - **PRD cross-link.** A `testIssues[]` entry whose `context.prd` matches an enumerated PRD
   also surfaces its tickets on that PRD's detail page, tagged `kind: "issue"`.
+
+## Reports tab (rendering)
+
+- **Own tab, read-only.** `reports[]` render under a dedicated **Reports** nav tab
+  (`#/reports`), grouped by `prdId` (unmapped reports group under "No PRD"), one card per
+  `report-[n].md` with skill, verdict pill, diff/test stat pills, branch, and timestamp.
+- **Detail page.** `#/reports/<file>` renders the report's raw markdown `detail` through
+  the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
+  `prdId` matches an enumerated PRD.
+- **Producers, not the GUI, write reports.** `eng --build`, `/review`, and `/pre-merge`
+  own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the board renders
+  them and never writes, renumbers, or toggles them.
 
 ## What this protocol never does
 - Never lets the GUI write outside `features/prd-*/` markdown: no repo-file writes from the

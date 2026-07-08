@@ -14,7 +14,7 @@ Obeys `../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/modes/*
 3. **Mechanical gates — identical to comprehensive.** Lint / format / typecheck (`mechanical_runners[]`) and the secret scan (`secret_scanner`) run with the **same** short-circuit behavior: any `block` stops the run before the semantic stage.
 4. **No confirm gate.** Skip the Step 5 `AskUserQuestion` entirely — auto-proceed. Print the surface as **one line**: `Flash review → 1 agent over <N> files (min-severity high).`
 5. **One combined semantic agent.** Spawn exactly **1** subagent with the distilled rubric below + the single injected cook payload the comprehensive path already compiles once (or none if no stack detected) — **0 per-mode cook fan-out**. Conditional-mode triggers (Migration, A11y/i18n) are the same static greps as SKILL.md Step 6; flash inherits them — a match just adds a bullet to the one agent's rubric, never a second subagent.
-6. **Emit.** Cap at **top 10** findings after dedup; `--min-severity high` is the default floor (overridable). Single stdout transit + one file write (`features/prd-<n>/review/review-<ts>.json` when PRD known). Findings use the compact projection below.
+6. **Emit.** Cap at **top 10** findings after dedup; `--min-severity high` is the default floor (overridable). Single stdout transit + two file writes: `features/prd-<n>/review/review-<ts>.json` (when PRD known) and the run report `report-[n].md` per `../../../shared/refs/report-schema.md` (PRD's `reports/` dir, else `features/reports/`; best-effort, never blocks the run). Findings use the compact projection below.
 
 ## Distilled rubric (~300 words, the one agent's prompt)
 

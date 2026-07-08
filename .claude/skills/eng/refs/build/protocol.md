@@ -204,12 +204,22 @@ Emit a build summary after all rows are complete:
 **Blocked rows:** <list any rows not completed and why>
 **AHA entries:** <list any entries written to devkit/AHA.md, or "None">
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
+**Report:** <path to the report-[n].md written below>
 ```
 
 **`test-json` source.** When the build was driven by `test-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `protocol-build-testjson.md`.
+
+### Run report — `report-[n].md`
+
+After emitting the build summary, write a run report per `../../../shared/refs/report-schema.md` — path resolution, `[n]` numbering, frontmatter keys, and the fixed section contract all live there; do not improvise fields. Build-mode specifics:
+
+- Directory: `features/prd-<n>-<slug>/reports/` derived from the `prd-path` input (create if absent).
+- Frontmatter: `skill: eng`; `prd` = `prd-path`; `branch` = the branch the commits landed on; `verdict` mapped from the full-suite gate (`pass` / `fail`, `n/a` when no test command); `features` = the assigned exec-table rows' feature ids; diff stats from `rtk git diff --numstat` over this agent's commits; test counts from the per-group and full-suite runs.
+- `## What to expect` / `## How to verify` are written for the human who will use the feature, in simple, non-technical language: derive the verification steps from the PRD acceptance criteria of the rows built and the tests written — say what to do and what they should see (exact command to copy-paste where unavoidable, user-visible behaviour to click through, expected result in plain words).
+- Best-effort: a failed report write never fails the build — record it under the build summary's **Warnings** instead.
 
 **Constraints:**
 - Use the PRD's `## Engineering — <Agent Name>` section as the sole specification.
 - Do not modify the PRD file.
 - Your commits must land on the feature branch (`branch`): directly in `direct` mode, or via a PR into it in `sub-branch` mode. Never commit to or open a PR against `main`.
-- Do not modify files outside the scope of the assigned exec-table rows — this also keeps parallel `direct`-mode agents file-disjoint on the shared branch.
+- Do not modify files outside the scope of the assigned exec-table rows — this also keeps parallel `direct`-mode agents file-disjoint on the shared branch. (Run artifacts are exempt: `devkit/AHA.md`, `devkit/OPEN-QUESTIONS.md`, and the run report under `features/…/reports/` — the report's max+1 numbering keeps parallel agents from colliding on a filename; on a collision, re-derive `n` and retry once.)

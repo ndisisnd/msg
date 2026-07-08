@@ -22,7 +22,7 @@ Obeys `../../../shared/refs/flash-floor.md`. The win is **2 buckets (build + sec
 1. **Consume the verify-prelude (B4).** If a **fresh** `.claude/msg/cache/verify-prelude.json` exists (`../../../shared/refs/verify-prelude.md`), take `diff` + `tooling` from it instead of re-resolving/re-detecting. Composes with `--test-json`: a fresh test aggregate still drives the integration/e2e skip records. No fresh prelude → self-setup exactly as comprehensive.
 2. **No gate.** Print the check matrix, then **auto-run** — skip the confirmation `AskUserQuestion`. (The safety-floor refusals below still fire and still stop the run.)
 3. **Run build + security** (+ bundle iff baseline). Bucket stdout capped; raw logs to `.pre-merge/<ts>/<bucket>.log`, path printed.
-4. **Emit** the single JSON document (`refs/output-schema.md`) with the two `skipped` records included. Verdict enum unchanged.
+4. **Emit** the single JSON document (`refs/output-schema.md`) with the two `skipped` records included. Verdict enum unchanged. Before the final JSON print, write the run report `report-[n].md` per `../../../shared/refs/report-schema.md` (first `--prd` path's `reports/` dir, else `features/reports/`; best-effort, never blocks the emission) — same as comprehensive Step 7.
 
 ## Safety floor — never relaxed
 

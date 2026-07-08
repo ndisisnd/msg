@@ -43,11 +43,12 @@
 "use strict";
 
 /* ---- Load inline data ----------------------------------------------------- */
-var DATA = { prds: [], testIssues: [], skipped: [], projectFiles: [] };
+var DATA = { prds: [], testIssues: [], reports: [], skipped: [], projectFiles: [] };
 try { DATA = JSON.parse(document.getElementById("prd-data").textContent) || DATA; }
-catch (e) { DATA = { prds: [], testIssues: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
+catch (e) { DATA = { prds: [], testIssues: [], reports: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
 var PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
 var TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+var REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
 var ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
 
 /* ---- Live-mode plumbing ---------------------------------------------------- */
@@ -73,6 +74,7 @@ function adoptData(d) {
   DATA = d || DATA;
   PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
   TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+  REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
   ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
 }
 function refreshData(rerender) {
@@ -418,6 +420,8 @@ function topbar(active, opts) {
   nav.appendChild(el('<a href="#/"' + (active === "board" ? ' class="active"' : "") + ">Board</a>"));
   if (ROADMAP && (ROADMAP.exists || LIVE))
     nav.appendChild(el('<a href="#/roadmap"' + (active === "roadmap" ? ' class="active"' : "") + ">Roadmap</a>"));
+  if (REPORTS.length || LIVE)
+    nav.appendChild(el('<a href="#/reports"' + (active === "reports" ? ' class="active"' : "") + ">Reports</a>"));
   if (showFiles) nav.appendChild(el('<a href="#/files"' + (active === "files" ? ' class="active"' : "") + ">Files</a>"));
   if (LIVE) nav.appendChild(el('<a href="#/prompts"' + (active === "prompts" ? ' class="active"' : "") + ">Prompts</a>"));
   bar.appendChild(nav);
@@ -1339,6 +1343,92 @@ function renderFiles(sel) {
 }
 
 /* ========================================================================= */
+/*  REPORTS PAGE — run reports written by eng --build / review / pre-merge    */
+/*  (report-[n].md per shared/refs/report-schema.md)                          */
+/* ========================================================================= */
+function findReport(file) {
+  return REPORTS.filter(function (r) { return r.file === file; })[0];
+}
+function reportVerdictPill(v) {
+  if (!v || v === "n/a") return '<span class="pill muted">n/a</span>';
+  var cls = v === "pass" ? "st-shipped" : (v === "fail" || v === "block") ? "dot iv-fail" : "dot iv-warn";
+  return '<span class="pill ' + cls + '">' + esc(v) + "</span>";
+}
+function reportStatsFrag(r) {
+  var s = r.stats || {}, bits = [];
+  if (s.filesChanged != null) bits.push(s.filesChanged + " files");
+  if (s.linesAdded != null || s.linesRemoved != null)
+    bits.push("+" + (s.linesAdded || 0) + "/−" + (s.linesRemoved || 0));
+  if (s.testsPassed != null || s.testsFailed != null)
+    bits.push((s.testsPassed || 0) + " passed" + (s.testsFailed ? " · " + s.testsFailed + " failed" : ""));
+  return bits.length ? '<span class="pill muted">' + esc(bits.join(" · ")) + "</span>" : "";
+}
+function reportCard(r) {
+  var c = el(
+    '<div class="card issue-file-card" tabindex="0" role="button">' +
+      '<div class="title"><span class="num">' + esc(r.skill || "run") + " · report-" + esc(r.reportId) + "</span>" +
+        esc(r.title || "") + "</div>" +
+      '<div class="meta">' +
+        reportVerdictPill(r.verdict) +
+        reportStatsFrag(r) +
+        (r.branch ? '<span class="pill muted">' + esc(r.branch) + "</span>" : "") +
+        (r.generated ? '<span class="pill muted">' + esc(r.generated) + "</span>" : "") +
+      "</div>" +
+    "</div>"
+  );
+  function go() { location.hash = "#/reports/" + encodeURIComponent(r.file); }
+  c.addEventListener("click", go);
+  c.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } });
+  return c;
+}
+function renderReports() {
+  root.innerHTML = "";
+  root.appendChild(topbar("reports", { title: "Run Reports", count: REPORTS.length }));
+  if (!REPORTS.length) {
+    root.appendChild(el('<div class="empty-state"><div class="big">No reports yet</div>' +
+      "<code>eng --build</code>, <code>/review</code> and <code>/pre-merge</code> write " +
+      "<code>report-[n].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
+    return;
+  }
+  var groups = {}, order = [];
+  REPORTS.forEach(function (r) {
+    var k = r.prdId || "_none";
+    if (!groups[k]) { groups[k] = []; order.push(k); }
+    groups[k].push(r);
+  });
+  order.forEach(function (k) {
+    var p = k === "_none" ? null : findPrd(k);
+    var label = k === "_none" ? "No PRD" : (p ? p.feature + " · " + k : k);
+    root.appendChild(el('<div class="section-title">' + esc(label) +
+      ' <span class="n" style="color:var(--text-faint)">' + groups[k].length + "</span></div>"));
+    var grid = el('<div class="issue-grid"></div>');
+    groups[k].forEach(function (r) { grid.appendChild(reportCard(r)); });
+    root.appendChild(grid);
+  });
+}
+function renderReportDetail(file) {
+  var r = findReport(file);
+  root.innerHTML = "";
+  root.appendChild(topbar("reports", { title: r ? (r.title || file) : "Report" }));
+  if (!r) {
+    root.appendChild(el('<div class="empty-state"><div class="big">Report not found</div>' + esc(file) + "</div>"));
+    return;
+  }
+  var head = el('<div class="meta" style="margin:8px 0 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center"></div>');
+  head.appendChild(el(reportVerdictPill(r.verdict)));
+  head.appendChild(el('<span class="pill muted">' + esc(r.skill || "run") + "</span>"));
+  if (r.branch) head.appendChild(el('<span class="pill muted">' + esc(r.branch) + "</span>"));
+  var stats = reportStatsFrag(r);
+  if (stats) head.appendChild(el(stats));
+  if (r.generated) head.appendChild(el('<span class="pill muted">' + esc(r.generated) + "</span>"));
+  var p = r.prdId ? findPrd(r.prdId) : null;
+  if (p) head.appendChild(el('<a class="pill muted" href="#/prd/' + encodeURIComponent(p.id) + '">↗ ' + esc(p.feature) + "</a>"));
+  root.appendChild(head);
+  root.appendChild(el('<div class="prose md">' + mdToHtml(r.detail || "") + "</div>"));
+  root.appendChild(el('<div class="file-path" style="margin-top:16px">' + esc(r.file) + "</div>"));
+}
+
+/* ========================================================================= */
 /*  PROMPTS PAGE — run Claude prompts against the project (live only)         */
 /* ========================================================================= */
 var jobsTimer = null;
@@ -1448,6 +1538,8 @@ function route() {
   var m;
   if ((m = h.match(/^#\/prd\/(.+)$/))) renderDetail(decodeURIComponent(m[1]));
   else if ((m = h.match(/^#\/issues\/(.+)$/))) renderIssueDetail(decodeURIComponent(m[1]));
+  else if ((m = h.match(/^#\/reports\/(.+)$/))) renderReportDetail(decodeURIComponent(m[1]));
+  else if (h === "#/reports") renderReports();
   else if ((m = h.match(/^#\/files\/(.+)$/))) renderFiles(decodeURIComponent(m[1]));
   else if (h === "#/files") renderFiles(null);
   else if (h === "#/prompts") renderPrompts();

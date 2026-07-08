@@ -8,6 +8,7 @@ description: >
 allowed_tools:
   - Bash
   - Read
+  - Write
   - Agent
   - AskUserQuestion
 ---
@@ -32,7 +33,7 @@ local tests pass  →  /pre-merge  →  address blockers/highs  →  /pre-merge 
 Natural language triggers: "run pre-merge", "pre-push checks", "heavy checks before merging", "gate this before push", "run the merge gate", "final safety-net pass".
 
 **Hard refusals:**
-- Does NOT modify source code or any file other than run artifacts under `.pre-merge/`
+- Does NOT modify source code or any file other than run artifacts under `.pre-merge/` and the run report under `features/…/reports/` (Step 7)
 - Does NOT invoke `git push`, `gh pr merge`, `git merge`, or any push/deploy action
 - Does NOT run without a non-empty diff against base
 - Does NOT grade a finding as blocker without quoted tool evidence
@@ -54,6 +55,7 @@ Natural language triggers: "run pre-merge", "pre-push checks", "heavy checks bef
 | check_matrix | table shown inline before gate | stdout |
 | findings_json | single JSON document per `refs/output-schema.md` | stdout (final emission) |
 | run_artifacts | raw tool logs per bucket | `.pre-merge/<timestamp>/<bucket>.log` |
+| run_report | `report-[n].md` per `../shared/refs/report-schema.md` | `features/prd-[n]/reports/` (first `--prd` path) or `features/reports/` |
 
 Schema, verdict semantics: `refs/output-schema.md`.
 Finding shape: `refs/finding-schema.md`.
@@ -204,6 +206,8 @@ Verdict logic:
 - `"pass"` — zero findings
 - `"refused"` / `"skipped"` — early termination paths
 
+**Run report (before the final emission):** write `report-[n].md` per `../shared/refs/report-schema.md` (path, numbering, frontmatter, and section contract live there) — to the `reports/` dir of the first `--prd` path's folder when supplied, else `features/reports/`. Pre-merge specifics: `skill: pre-merge`; `verdict` = the verdict computed above; diff stats from the Step 1 resolved diff; `tests_passed`/`tests_failed` from bucket outcomes where the runner output was parsed (else `0`). `## Test results` = one line per bucket (ran/skipped + outcome); `## How to verify` = how a human confirms the gate, in simple, non-technical language — the exact re-run command to copy-paste, which `.pre-merge/<timestamp>/<bucket>.log` to open, and plain-words repro steps for any blocker/high finding (what to do, what they should see). This file write is a run artifact, not prose; the printed JSON below remains the final stdout emission. Best-effort: a failed write never changes the verdict or blocks the emission. Skip the report on the early-termination paths (`refused` / `skipped`).
+
 Print the JSON as the **final emission**. Do not print prose after the JSON. Do not push, merge, or create the PR — that is the caller's responsibility.
 
 ---
@@ -239,6 +243,7 @@ Pre-merge reads this object structurally. It does not parse free-form text outpu
 - `refs/output-schema.md` — JSON schema for the final emission; field names, types, severity enum, refusal shape
 - `refs/finding-schema.md` — per-finding subagent return shape (conforms to the shared canonical schema)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /test (severity enum, dedup/regression keys, verdict normalization)
+- `../shared/refs/report-schema.md` — canonical run-report artifact (`report-[n].md`) written in Step 7; parsed by the `/msg --gui` Reports tab
 - `refs/severity-rubric.md` — how to grade findings using diff context, reachability, dev-only weighting
 - `refs/bucket-runners.md` — one section per bucket (integration, e2e, build, security, bundle) with detected-tool → command mapping
 - `refs/refusal-patterns.md` — the three refusal shapes and when each fires

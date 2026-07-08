@@ -47,6 +47,7 @@ Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded >
 | In | Diff | `git diff HEAD` / `git diff <branch>` / `gh pr diff <n>` |
 | In | PRD | Auto-discovered from `features/prd-*/prd-*.md` (most recent first) |
 | Out | Findings JSON | stdout always; `features/prd-[n]/review/review-<YYYYMMDD-HHmmss>.json` when PRD known |
+| Out | Run report | `features/prd-[n]/reports/report-[n].md` when PRD known; `features/reports/report-[n].md` otherwise (`../shared/refs/report-schema.md`) |
 
 Schema, sub-skill contract, verdict semantics: `refs/schema.md`.
 
@@ -185,6 +186,8 @@ Merge mode outputs into output schema (`refs/schema.md`). Overall verdict = wors
 
 If PRD known, write `features/prd-<n>/review/review-<YYYYMMDD-HHmmss>.json` **before** applying `--min-severity` — the run-directory artifact always keeps every finding regardless of the flag.
 
+**Run report:** immediately after the findings-JSON write, write `report-[n].md` per `../shared/refs/report-schema.md` (path, numbering, frontmatter, and section contract live there) — to `features/prd-<n>/reports/` when the PRD is known, else `features/reports/`. Review specifics: `skill: review`; `verdict` = the overall verdict; `features` = feature ids referenced by the eval-set/findings; diff stats from the Step 1 resolved diff; `tests_passed`/`tests_failed` = Functional-mode assertions confirmed vs failed (`0`/`0` when Functional didn't run). `## Test results` lists findings by severity per mode; `## How to verify` gives the re-check steps for the highest-severity findings in simple, non-technical language (what to do, what a clean result looks like in plain words) — built from the **full, unfiltered** finding set, unaffected by `--min-severity`. Best-effort: a failed report write never changes the verdict or blocks the emission.
+
 **Findings-count summary line:** emit before the JSON, always (this is the human-reading path — `stdout` is read directly by a person per the top-level Inputs/Outputs table): `Findings: <blocker> blocker, <high> high, <medium> medium, <low> low across <N> modes.` Counts are across the full, unfiltered finding set — the summary always reflects everything found, even when `--min-severity` trims what follows it.
 
 **Apply `--min-severity` (if passed):** filter every mode's `findings[]` to drop entries below the given floor (`blocker > high > medium > low`), then emit the filtered JSON to stdout. Coverage's `gaps[]` and Functional's `n/a` entries are not findings and are never filtered.
@@ -205,6 +208,7 @@ Substitute the PRD number when a PRD is known; when it isn't, print the bare `/p
 - `refs/modes/_common.md` — shared cook-backed semantic-stage execution contract (one subagent per mode, injected standards payload, standalone fallback), referenced by the Quality/Security/Performance/Migration modes.
 - `refs/schema.md` — sub-skill interface contract, output JSON schema, verdict semantics (findings conform to the shared canonical finding object)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /test and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
+- `../shared/refs/report-schema.md` — canonical run-report artifact (`report-[n].md`) written in Step 7; parsed by the `/msg --gui` Reports tab
 - `refs/modes/quality.md` — Quality mode: flags, orchestrator rubric (extends `/cook`'s flag coverage with orchestrator-owned checks), and sub-agent prompt amendment
 - `refs/modes/coverage.md` — Coverage mode: test-runner protocol
 - `refs/modes/functional.md` — Functional mode: eval-set assertion protocol

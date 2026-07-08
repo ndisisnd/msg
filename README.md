@@ -25,7 +25,9 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 ## 🗂️ Skills
 
-Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, browse project docs, and run Claude prompts — served on `127.0.0.1` only.
+Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, browse project docs, read run reports, and run Claude prompts — served on `127.0.0.1` only.
+
+**Run reports.** `eng --build`, `/review`, and `/pre-merge` each end a run by writing `report-[n].md` into the PRD's `features/prd-[n]/reports/` folder (`features/reports/` when no PRD applies) — a plain-language record of the work done (features, code changes, lines added/deleted, tests passed/failed) plus what you can expect and the exact steps to verify the feature works. The board renders them under a dedicated **Reports** tab, grouped by PRD. Schema: `.claude/skills/shared/refs/report-schema.md`.
 
 **Run modes.** Every skill runs in one of two modes: **comprehensive** (default — full fan-out, all gates) or **flash** (fewer subagents/buckets/gates/turns for a fast pass). Add `--flash`/`--comprehensive` per run, or set a durable default with `/msg --set-mode --flash|--comprehensive` (precedence: per-run flag > orchestrator-forwarded > local `pref.json` > global > comprehensive). The safety floor — DB/breaking-change pauses, branch isolation, never push/merge, secret scan, PRD §9 ledger — is **never relaxed in either mode**. See ARCHITECTURE.md § Run modes.
 
