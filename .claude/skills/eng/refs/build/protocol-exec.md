@@ -8,6 +8,8 @@ type: reference
 
 You are filling in the **Execution steps** column for every row in the Execution Table where the **Agent** column matches your agent name. Read this guide before writing a single step.
 
+Alongside Execution steps, populate the **Files** column on the same row: a comma/space-separated list of every repo-relative path the row creates or modifies — exactly the paths named in your Execution steps. This is what makes collision detection mechanical, so it must be complete.
+
 ## Step format
 
 Each execution step is one imperative sentence. Write steps as a numbered list inside the table cell.
@@ -96,12 +98,12 @@ Use `blocked by: <agent-name> <Feature — Concern>` as the notation. Do not lea
 
 PRD feature F2: Track streak. The following rows are assigned to `eng-backend`:
 
-| Feature | Execution steps | Agent |
-|---------|----------------|-------|
-| F2: Track streak — Schema migration | 1. Create migration `0043_add_streaks` — add `streaks` table: `id UUID PK`, `user_id FK`, `date DATE`, `count INT`<br>2. Add `Streak` ORM model with `user` relation<br>3. Add composite index on `(user_id, date)` — supports per-user daily lookup<br>4. Write rollback to drop `streaks` table | eng-backend |
+| Feature | Execution steps | Files | Agent |
+|---------|----------------|-------|-------|
+| F2: Track streak — Schema migration | 1. Create migration `0043_add_streaks` — add `streaks` table: `id UUID PK`, `user_id FK`, `date DATE`, `count INT`<br>2. Add `Streak` ORM model with `user` relation<br>3. Add composite index on `(user_id, date)` — supports per-user daily lookup<br>4. Write rollback to drop `streaks` table | migrations/0043_add_streaks.sql, src/models/streak.py | eng-backend |
 
 (The same shape repeats per concern — one imperative, file-anchored step per numbered line; API-contract, Tests, etc. follow the concern patterns above.)
 
 ## Quality gate
 
-Every row where your agent name appears in the **Agent** column must have its **Execution steps** filled in before you return your output. A row with a blank Execution steps cell is a hard failure.
+Every row where your agent name appears in the **Agent** column must have its **Execution steps** and **Files** filled in before you return your output. A row with a blank Execution steps cell is a hard failure; a row with a blank Files cell is an equally hard failure.

@@ -70,10 +70,10 @@ The 3–4 line summary covers:
 
 Standards are resolved at `SKILL.md` Step 4. **On orchestrated build runs the orchestrator injects a compiled `standards payload` and this agent does not call `/cook` at all** — use the injected payload. Only on a **standalone** build (a human runs `eng --build` directly, no payload injected) does this agent call `/cook` itself, via **explicit flags** (never a prose summary) so the call is cacheable and always loads the P0 floor.
 
-Derive the flags from the stack and the assigned rows' concerns:
+Identify the applicable **domains** from the stack, then scope each domain's refs to the assigned rows' work (their **Files** column + **concerns**):
 
-| Source | Flags |
-|--------|-------|
+| Source | Domain flag |
+|--------|-------------|
 | P0 floor — **always** | `--global` |
 | Flutter/Dart mobile | `--flutter --dart` |
 | React web | `--react` |
@@ -85,9 +85,26 @@ Derive the flags from the stack and the assigned rows' concerns:
 | Swift native | `--swift` |
 | macOS desktop | `--macos` |
 | CSS / styling | `--css` |
-| A **Tests** row is owned | add the stack's testing sub-ref: `--flutter:testing` / `--dart:testing` / `--react:testing` / `--nextjs:testing` / `--nodejs:testing` / `--typescript:testing` / `--graphql:testing` / `--swift:testing` |
 
-`--global` is mandatory on every call — it loads the **P0 universal floor** plus all 8 concern refs (architecture, api-design, auth, security, performance, error-handling, debug, cicd). Those concern refs already cover the row concerns `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, so no separate concern flags are added — only stack (domain) and tests (sub-ref) flags. Invoke `/cook` **once** with all applicable flags (e.g. `/cook --global --flutter --dart --flutter:testing`); if rows span multiple stacks, add each stack's domain flags to the **same** call. A repeated identical flag set is a cook **cache hit** (script-only run, no index scan). Read the result fully. If `/cook` returns no coverage for a stack, do not substitute another stack's standards — surface the uncovered stack as a named gap in the build summary and proceed using only `CLAUDE.md` and `devkit/ARCHITECTURE.md` conventions for that stack.
+**`--global` is mandatory and unscoped.** It loads the **P0 universal floor** plus all 8 concern refs (architecture, api-design, auth, security, performance, error-handling, debug, cicd). Those concern refs already cover the row concerns `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, so no separate concern flags are added. Emit `--global` **whole** on every call — do **not** scope its concern refs (concern-ref scoping is out of this scope).
+
+**Scope every DOMAIN flag to the refs the work needs — do NOT emit the bare domain flag by default.** A **bare** domain flag (`--macos`, `--react`) loads the domain's `SKILL.md` **plus every** `refs/*.md` — the full shelf, most of which a given diff never touches. Cook already supports **sub-ref flags** (`--macos:windows-and-scenes` → just `standards/macos/refs/windows-and-scenes.md`); use them to compile only the refs in scope. Derive the scoped set per in-scope domain:
+
+1. **Enumerate the domain's refs.** List `<cook>/standards/<domain>/refs/` (or read the domain's `_INDEX.md` ref table). This is the full candidate set — **never hardcode a ref list**; shelves change.
+2. **Keep by default; drop only on a PROVABLE exclusion.** Start from *every* ref. **Never under-load: missing a relevant standard is worse than loading an extra one.** Drop a ref **only** when the PRD/devkit **provably excludes its subject** — e.g. `distribution.md` when `CLAUDE.md` defers distribution; `localization.md` when there is no i18n in scope; `sandbox-and-tcc.md` when the app declares no entitlements/sandbox. Weigh each ref against the assigned rows' **Files** column, the row **concerns**, and the devkit's provable exclusions. On **any** uncertainty, **keep** the ref.
+3. **Always keep the domain `SKILL.md` floor.** The domain `SKILL.md` is the platform-correctness P0/P1 baseline (not a ref) and is never "provably excluded." Emit the bare `--<domain>` flag to anchor it so the platform floor never under-loads; the sub-ref flags below narrow only the *refs*.
+4. **Emit `--<domain>:<ref>` for each KEPT ref.** The sub-ref flags name exactly the refs in scope; the provably-excluded refs are simply not requested. (Testing stays on the same mechanism — see below.)
+5. **Whole-domain fallback.** If you cannot confidently scope a domain — the diff's ref footprint is unclear, or the `SKILL.md`'s in-scope P0 isn't confidently covered by the kept refs — **fall back to the bare `--<domain>` flag alone** (full shelf). A safe over-load beats an unsafe under-load.
+
+**Tests sub-ref (unchanged).** If a **Tests** row is owned, add the stack's testing sub-ref alongside the scoped refs: `--flutter:testing` / `--dart:testing` / `--react:testing` / `--nextjs:testing` / `--nodejs:testing` / `--typescript:testing` / `--graphql:testing` / `--swift:testing`.
+
+Invoke `/cook` **once** with `--global` + every applicable domain's scoped flag set. Example (macOS build whose PRD defers distribution, declares no entitlements, and has no i18n — so `distribution` / `sandbox-and-tcc` / `localization` are provably excluded):
+
+```
+/cook --global --macos --macos:architecture-and-state --macos:windows-and-scenes --macos:performance-accessibility --macos:hig-conventions --macos:testing
+```
+
+If rows span multiple stacks, add each stack's scoped flags to the **same** call. A repeated identical flag set is a cook **cache hit** (script-only run, no index scan). Read the result fully. If `/cook` returns no coverage for a stack, do not substitute another stack's standards — surface the uncovered stack as a named gap in the build summary and proceed using only `CLAUDE.md` and `devkit/ARCHITECTURE.md` conventions for that stack.
 
 ---
 

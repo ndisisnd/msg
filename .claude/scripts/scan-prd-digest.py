@@ -149,6 +149,7 @@ def build(prd_path):
             _, rows = md_table(block)
             d["exec_table"] = [{"feature": pick(r, "feature"),
                                 "steps": pick(r, "execution steps", "steps", "execution"),
+                                "files": pick(r, "files", "file"),
                                 "agent": pick(r, "agent", "owner")} for r in rows]
             d["exec_table_prose_lines"] = f"{s}-{e}"; KNOWN.add(title)
         elif low.startswith("engineering"):
