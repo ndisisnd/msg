@@ -187,7 +187,7 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 
 Each agent writes its engineering section directly to the PRD. Emit a short progress note per completion.
 
-**Bootstrap the development eval_set (plan mode only).** After all plan-mode agents wrote their sections — so the PRD now carries the full feature list, engineering sections, and exec table — invoke `/test --prd <prd-path>` **once** (via `Skill`, resolved PRD path from Step 1). This bootstraps an `eval_set` of functional assertions under `$PRD_DIR/`, before the build phase begins; downstream `eng --build` agents and `/review` consume it via `/test --eval-set <path>` rather than re-deriving it. Emit a one-line note with the assertion count (e.g. `Eval-set: 12 executable assertions bootstrapped.`). If `/test` reports zero executable assertions, note it and continue — a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
+**Preview the development eval_set (plan mode only).** After all plan-mode agents wrote their sections — so the PRD now carries the full feature list, engineering sections, and exec table — invoke `/test --prd <prd-path>` **once** (via `Skill`, resolved PRD path from Step 1). This derives a preview `eval_set` of functional assertions **in memory** from the PRD's acceptance criteria and reports its size; it does **not** persist an `eval_set.json` — only `/review`'s Functional mode writes that file (its shape is owned by `/review`; see `.claude/skills/review/refs/modes/functional.md`). So this step surfaces an early assertion count, but downstream `eng --build` agents and `/review` do **not** consume a file from here — `/review` bootstraps and persists the canonical `eval_set.json`, and `/test --eval-set <path>` later consumes that. Emit a one-line note with the assertion count (e.g. `Eval-set preview: 12 executable assertions.`). If `/test` reports zero executable assertions, note it and continue — a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
 
 **Todo mode (`$MODE = todo` — only when `$TODOS = true`).** Confirmed `## Engineering — <Agent>` sections now exist; break each F-ID's scope into an executable todo checklist before any build agent runs.
 
@@ -212,7 +212,9 @@ Each agent appends its own `## Todos — <Agent>` block (one `### F<n>` block pe
 
 **Idempotent create-or-checkout.** Check `git branch --list "$BRANCH"`:
 - Does **not** exist (common for a top-level PRD's first build) → cut it from `main` and push it.
-- **Already exists** (common for a sub-PRD, whose parent branch is present) → check it out; do **not** re-create or reset.
+- **Already exists** — before reusing it, check whether it has already merged to `main`: run `git branch --merged main` and test whether `$BRANCH` appears in the output.
+  - **Not yet merged** (common for a sub-PRD whose parent branch is still in flight) → check it out; do **not** re-create or reset.
+  - **Already merged** (the parent's feature branch has shipped) → do **not** reuse it — committing new work onto a shipped branch would merge it to `main` a second time. Cut a **fresh** branch instead, named from this PRD's own id/slug (for a sub-PRD use the sub-PRD's own id, e.g. `feat/prd-2.1-streak-freeze`), from `main`, and push it. Set `$BRANCH` to that fresh name for the build agents.
 
 Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."

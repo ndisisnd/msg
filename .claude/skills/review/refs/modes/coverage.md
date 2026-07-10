@@ -34,27 +34,46 @@ An `intent`/`negative` assertion with no match in any reachable test file is an 
 
 ### Step 3 — Classify gaps and emit verdict
 
-| Condition | Verdict |
-|-----------|---------|
-| One or more critical source files have no sibling test file | `block` |
-| All critical files have test files, but some eval_set assertions are unmatched | `warn` |
-| Non-critical files lack test files (no critical gaps, no assertion gaps) | `warn` |
-| All changed files have test coverage and all eval_set assertions are referenced | `pass` |
+| Condition | Verdict | `sub-verdict` |
+|-----------|---------|---------------|
+| One or more critical source files have no sibling test file | `block` | `convention` |
+| All critical files have test files, but some eval_set assertions are unmatched | `warn` | — |
+| Non-critical files lack test files (no critical gaps, no assertion gaps) | `warn` | — |
+| All changed files have test coverage and all eval_set assertions are referenced | `pass` | — |
+
+**Why the `block` here is `sub-verdict: convention`, not `behavior`.** Coverage is
+static-only (Step 0 note) — it never executes a test, so it can never observe that
+behaviour is *wrong*, only that a dedicated sibling test file is *absent*. A critical
+file that is exercised indirectly (through a consumer's test file) still trips this
+`block` because no file matches the sibling-name patterns in Step 1 — yet every
+functional/security/a11y check may have passed clean. Tagging the block
+`sub-verdict: convention` tells a reader "add a dedicated test file," not "something is
+broken." The `sub-verdict: behavior` value is reserved for a genuine behavioural
+coverage failure (a test that ran and disproved required behaviour); Coverage mode
+does not execute tests, so it never emits `behavior` — that signal is owned by `/test`.
+`sub-verdict` is present **only** on a `block` verdict; `warn`/`pass` omit it.
 
 ## Output
 
 ```json
 {
   "verdict": "pass" | "warn" | "block",
+  "sub-verdict": "convention" | "behavior",
   "gaps": [
     {
       "assertion": "<eval_set entry, or null for file-level gaps>",
       "file": "<changed source file>",
       "lines": "<changed line range, or null>",
+      "sub-verdict": "convention" | "behavior" | null,
       "note": "<reason: 'no sibling test file' | 'assertion not referenced in tests' | 'non-critical file has no sibling test'>"
     }
   ]
 }
 ```
 
-`block` if one or more critical changed files have no sibling test file. `warn` for non-critical missing tests or unmatched assertions. `pass` if all changed files have test coverage and all eval_set assertions are referenced in tests.
+- Top-level `sub-verdict` is present **only** when `verdict` is `block`; omit it (or set `null`) for `warn`/`pass`.
+- A missing-sibling-test `block` sets both the top-level and the per-gap `sub-verdict` to `convention` — the critical file may be tested indirectly through a consumer's test file; the block means "add a dedicated test file," not "behaviour is broken."
+- `sub-verdict: behavior` is reserved for a block raised by a test that ran and disproved required behaviour. Coverage is static-only and never executes tests, so it never emits `behavior`; that signal is owned by `/test`.
+- Per-gap `sub-verdict` is `null` on any gap that is not itself the cause of a `block` (assertion gaps, non-critical missing-test gaps).
+
+`block` if one or more critical changed files have no sibling test file (always `sub-verdict: convention`). `warn` for non-critical missing tests or unmatched assertions. `pass` if all changed files have test coverage and all eval_set assertions are referenced in tests.

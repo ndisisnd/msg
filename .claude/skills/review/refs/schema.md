@@ -69,7 +69,7 @@ After collecting all sub-agent outputs for a mode, `/review` applies a deduplica
   },
   "modes": {
     "quality":     { "verdict": "...", "findings": [] },
-    "coverage":    { "verdict": "...", "gaps": [] },
+    "coverage":    { "verdict": "...", "sub-verdict": "convention" | "behavior", "gaps": [] },
     "functional":  { "verdict": "...", "evaluated": 0, "n_a": 0, "findings": [] },
     "security":    { "verdict": "...", "findings": [] },
     "performance": { "verdict": "...", "findings": [] },
@@ -100,6 +100,14 @@ Unrun modes (pipeline stopped by `block`) are **omitted** from the `modes` objec
 - `n_a` — count of assertions emitted as `n/a`. Includes: (a) non-applicable assertions (assertion concerns a surface untouched by the diff) and (b) applicable executable assertions deferred to `/test`.
 - `deferred_note` — present only when every applicable assertion is `n/a` (i.e. `evaluated == 0`). Value: `"all assertions deferred to /test"`. Verdict is `warn` in this case (never `pass`).
 - Each finding gains an `applicable: bool` field. Applicable executable assertions deferred to `/test` emit findings with `applicable: true`, verdict `n/a`, and `message` containing the `/test --eval-set <path>` referral.
+
+### Coverage mode fields
+
+- `gaps` — Coverage emits `gaps[]` (shape defined in `refs/modes/coverage.md`), a review-local shape, **not** the canonical finding object. Each gap carries `assertion`/`file`/`lines`/`note` plus a `sub-verdict`.
+- `sub-verdict` — disambiguates *what kind* of `block` Coverage raised, so a reader does not misread a missing-test-file block as "behaviour is broken." Values:
+  - `convention` — a required convention is violated: a critical file has **no dedicated sibling test file**. The file may still be tested indirectly through a consumer's test file, and every functional/security/a11y check may have passed clean. The signal is "add a dedicated test file," not "something is broken." This is the **only** `sub-verdict` Coverage mode emits, because Coverage is static-only and never executes a test.
+  - `behavior` — behaviour is genuinely wrong: a test ran and disproved required behaviour. **Reserved** — Coverage never executes tests, so it never emits `behavior`; the value exists so the field's meaning is consistent with `/test`, which owns behavioural verification.
+  - Present at both the mode top level and per-gap **only** on a `block` verdict. On `warn`/`pass` the top-level `sub-verdict` is omitted (or `null`); per-gap `sub-verdict` is `null` on any gap that is not the cause of the block (assertion gaps, non-critical missing-test gaps).
 
 ### Mandatory evidence rule (Functional)
 

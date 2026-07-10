@@ -82,7 +82,10 @@ Derive the flags from the stack and the assigned rows' concerns:
 | TypeScript | `--typescript` |
 | Supabase / Postgres | `--supabase --database` |
 | GraphQL | `--graphql` |
-| A **Tests** row is owned | add the stack's testing sub-ref: `--flutter:testing` / `--dart:testing` / `--react:testing` / `--nextjs:testing` / `--nodejs:testing` / `--typescript:testing` / `--graphql:testing` |
+| Swift native | `--swift` |
+| macOS desktop | `--macos` |
+| CSS / styling | `--css` |
+| A **Tests** row is owned | add the stack's testing sub-ref: `--flutter:testing` / `--dart:testing` / `--react:testing` / `--nextjs:testing` / `--nodejs:testing` / `--typescript:testing` / `--graphql:testing` / `--swift:testing` |
 
 `--global` is mandatory on every call — it loads the **P0 universal floor** plus all 8 concern refs (architecture, api-design, auth, security, performance, error-handling, debug, cicd). Those concern refs already cover the row concerns `migration`, `schema`, `auth`, `api`, `endpoint`, `webhook`, `hook`, `component`, so no separate concern flags are added — only stack (domain) and tests (sub-ref) flags. Invoke `/cook` **once** with all applicable flags (e.g. `/cook --global --flutter --dart --flutter:testing`); if rows span multiple stacks, add each stack's domain flags to the **same** call. A repeated identical flag set is a cook **cache hit** (script-only run, no index scan). Read the result fully. If `/cook` returns no coverage for a stack, do not substitute another stack's standards — surface the uncovered stack as a named gap in the build summary and proceed using only `CLAUDE.md` and `devkit/ARCHITECTURE.md` conventions for that stack.
 
@@ -204,14 +207,14 @@ Emit a build summary after all rows are complete:
 **Blocked rows:** <list any rows not completed and why>
 **AHA entries:** <list any entries written to devkit/AHA.md, or "None">
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
-**Report:** <path to the report-[n].md written below>
+**Report:** <path to the report-[n].md if the file was written, else "inline — the build summary above is the report of record">
 ```
 
 **`test-json` source.** When the build was driven by `test-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `protocol-build-testjson.md`.
 
 ### Run report — `report-[n].md`
 
-After emitting the build summary, write a run report per `../../../shared/refs/report-schema.md` — path resolution, `[n]` numbering, frontmatter keys, and the fixed section contract all live there; do not improvise fields. Build-mode specifics:
+The inline build summary above is always emitted and is the **report of record** for the orchestrator — a `report-[n].md` file only *supplements* it (per `../../../shared/refs/report-schema.md`, which never lets the file replace the summary). After emitting the build summary, **best-effort** write that supplementary run report per the schema — path resolution, `[n]` numbering, frontmatter keys, and the fixed section contract all live there; do not improvise fields. The write is optional, not required: if the file cannot be written — sandbox / subagent write policy, or an IO failure — the inline build summary stands as the sanctioned fallback; note the skipped report under the build summary's **Warnings** and continue. Never fail or block the build over the report file. Build-mode specifics:
 
 - Directory: `features/prd-<n>-<slug>/reports/` derived from the `prd-path` input (create if absent).
 - Frontmatter: `skill: eng`; `prd` = `prd-path`; `branch` = the branch the commits landed on; `verdict` mapped from the full-suite gate (`pass` / `fail`, `n/a` when no test command); `features` = the assigned exec-table rows' feature ids; diff stats from `rtk git diff --numstat` over this agent's commits; test counts from the per-group and full-suite runs.

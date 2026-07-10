@@ -98,7 +98,7 @@ def build(prd_path):
         "source_hash": sha256(text),
         "frontmatter": {k: fm.get(k) for k in
                         ("name","feature","module","platform","status",
-                         "product-tuned","eng-tuned","reviewed","depends_on","affects","created")},
+                         "product-tuned","eng-tuned","reviewed","parent","depends_on","affects","created")},
         "summary": fm.get("summary"),
         "features": [], "out_of_scope": [], "key_interactions": [],
         "error_cases": [], "glossary": {}, "open_questions": [],
