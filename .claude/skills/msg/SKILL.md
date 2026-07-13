@@ -31,7 +31,8 @@ allowed_tools:
 | Category | Skill | Description |
 |----------|-------|-------------|
 | Planning | msg --init | One-time project bootstrap |
-| Planning | plan-pm | PM interview — PRD writer |
+| Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door) |
+| Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
@@ -46,7 +47,7 @@ allowed_tools:
 ## End-to-end happy path
 
 ```
-/msg --init  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
+/msg --init  →  /intake  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
                                                                          ↓
                                                              /eng --build
                                                                          ↓
@@ -119,18 +120,20 @@ Call `AskUserQuestion` with one question:
 - **Header**: `Category`
 - **multiSelect**: `false`
 - **Options**:
-  - `label`: `Planning`, `description`: `Bootstrap, spec writing, PRD audit, engineering planning`
+  - `label`: `Planning`, `description`: `Bootstrap, idea capture, spec writing, PRD audit, engineering planning`
   - `label`: `Build & Ship`, `description`: `Implement code and run the CI gate`
   - `label`: `Delivery`, `description`: `Task lists, commits`
 
 **Step 2 — Skill**
 
-`AskUserQuestion` allows 2-4 options per question. Every category has 4 or fewer rows, so call it directly:
+`AskUserQuestion` allows 2–4 options per question.
 
 - **Question**: `Which skill?`
 - **Header**: `Skill`
 - **multiSelect**: `false`
-- **Options**: all rows in the selected category, in table order (`label` = Skill, `description` = Description)
+- **Options**: the rows in the selected category, in table order (`label` = Skill, `description` = Description).
+
+**Paging (Planning has 5 rows).** When a category has more than 4 rows (Planning: msg --init · intake · plan-pm · plan-tune · plan-em), present the first 4 in table order plus a final `More…` option; if the user picks `More…`, re-ask with the remaining rows. Every other category has ≤4 rows and is asked in one call.
 
 **Step 3 — Emit**
 
@@ -190,6 +193,7 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Stage | Artifact | Output | Skill |
 |-------|----------|--------|-------|
 | Starting fresh | any | any | msg --init |
+| Planning | A rough idea or notes | any | intake |
 | Planning | Nothing yet / rough idea | A project spec | plan-pm |
 | Planning | Nothing yet / rough idea | An engineering plan | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |

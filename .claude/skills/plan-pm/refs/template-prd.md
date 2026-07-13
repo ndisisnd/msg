@@ -94,7 +94,7 @@ Feature: Set daily goal
 
 ## 4. Key user interactions
 
-Bulleted list of the core actions a user can take within this feature. Each item is a single sentence starting with "User can …". Derived from Q5 of the interview.
+Bulleted list of the core actions a user can take within this feature. Each item is a single sentence starting with "User can …". Drafted autonomously from the intake row's `idea` + `goal`.
 
 **Worked example:**
 - User can add a new habit by entering a name and target frequency.
@@ -107,7 +107,7 @@ Format, rules, and examples: see `refs/template-error.md`.
 
 ## 6. Features & acceptance criteria
 
-Every feature confirmed in the interview (Q1) gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs (see `refs/principles.md`). Derive each acceptance criterion from the feature's Q5 key interaction and its Q4 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from Q3); use `—` if none.
+Every drafted feature gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs (see `refs/principles.md`). Derive each acceptance criterion from the feature's §4 key interaction and its §5 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from the Step 2 prior-PRD scan + intake grade); use `—` if none.
 
 **Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §7 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built.
 
@@ -140,7 +140,7 @@ Skeleton the eng stage will fill:
 
 ## 8. Open questions
 
-Table of unresolved questions that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity surfaced during the interview. `Status` is derived from the `Answer` cell: `Addressed` when an answer is present, `Open` when the `Answer` cell is empty. An empty table (no open questions) is acceptable. `plan-tune` recomputes `Status` and keeps this table normalized.
+Table of unresolved questions that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity the autonomous draft could not resolve (batched back in the Step 4 open-questions pause). `Status` is derived from the `Answer` cell: `Addressed` when an answer is present, `Open` when the `Answer` cell is empty. An empty table (no open questions) is acceptable. `plan-tune` recomputes `Status` and keeps this table normalized.
 
 | # | Question | Answer | Status |
 |---|----------|--------|--------|

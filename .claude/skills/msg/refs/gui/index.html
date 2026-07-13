@@ -50,6 +50,7 @@ var PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
 var GATE_ISSUES = Array.isArray(DATA.gateIssues) ? DATA.gateIssues : [];
 var REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
 var ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
+var INTAKE = DATA.intake || { exists: false, rows: [] };
 
 /* ---- Live-mode plumbing ---------------------------------------------------- */
 var TOKEN = "__API_TOKEN__";
@@ -76,6 +77,7 @@ function adoptData(d) {
   GATE_ISSUES = Array.isArray(DATA.gateIssues) ? DATA.gateIssues : [];
   REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
   ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
+  INTAKE = DATA.intake || { exists: false, rows: [] };
 }
 function refreshData(rerender) {
   if (!LIVE) { if (rerender) route(); return Promise.resolve(); }
@@ -420,6 +422,8 @@ function topbar(active, opts) {
   var showFiles = LIVE || (DATA.projectFiles && DATA.projectFiles.length);
   var nav = el('<nav class="nav"></nav>');
   nav.appendChild(el('<a href="#/"' + (active === "board" ? ' class="active"' : "") + ">Board</a>"));
+  if (INTAKE && (INTAKE.exists || LIVE))
+    nav.appendChild(el('<a href="#/intake"' + (active === "intake" ? ' class="active"' : "") + ">Intake</a>"));
   if (ROADMAP && (ROADMAP.exists || LIVE))
     nav.appendChild(el('<a href="#/roadmap"' + (active === "roadmap" ? ' class="active"' : "") + ">Roadmap</a>"));
   if (REPORTS.length || LIVE)
@@ -719,6 +723,117 @@ function renderRoadmap() {
     var cb = el('<div class="column-body' + (cards.length ? "" : " empty") + '"></div>');
     cards.forEach(function (c) { cb.appendChild(roadmapCard(c)); });
     col.appendChild(cb);
+    wrap.appendChild(col);
+  });
+  root.appendChild(wrap);
+}
+
+/* ========================================================================= */
+/*  INTAKE TAB (H2)                                                            */
+/* ========================================================================= */
+// Backlog board over root INTAKE.md — one card per row, three grade chips from
+// the rubric cell (C:/T:/S:), lanes backlog / in-progress / completed, each card
+// cross-linking to its mapped PRD. Status cell edits are the GUI's one new write
+// path (H5): drag a card between lanes (LIVE) or use its per-card status buttons.
+var INTAKE_LANES = [
+  { key: "backlog",     label: "Backlog" },
+  { key: "in-progress", label: "In progress" },
+  { key: "completed",   label: "Completed" }
+];
+
+function setIntakeStatus(row, status) {
+  if (!row || row.status === status) return;
+  api("intake/status", { num: String(row.num), status: status })
+    .then(function () { toast("Intake #" + row.num + " → " + status); return refreshData(true); })
+    .catch(function (e) { toast("Save failed: " + e.message, true); });
+}
+
+function gradeChips(g) {
+  g = g || {};
+  var out = "";
+  if (g.complexity) out += '<span class="chip grade-c" title="Complexity">C:' + esc(g.complexity) + "</span>";
+  if (g.token)      out += '<span class="chip grade-t" title="Token cost">T:' + esc(g.token) + "</span>";
+  if (g.sequence)   out += '<span class="chip grade-s" title="Sequencing">S:' + esc(g.sequence) + "</span>";
+  return out;
+}
+
+function intakeCard(row) {
+  var typeCls = row.type === "bug" ? "bug" : "feature";
+  var card = el(
+    '<div class="card intake-card"' + (LIVE ? ' draggable="true"' : "") + ">" +
+      '<div class="title">' +
+        '<span class="num">#' + esc(row.num) + "</span> " +
+        '<span class="pill intake-type ' + typeCls + '">' + esc(row.type) + "</span> " +
+        esc(row.idea || "(untitled)") + "</div>" +
+      (row.goal ? '<div class="intake-goal">' + esc(row.goal) + "</div>" : "") +
+      '<div class="meta">' + gradeChips(row.grade) +
+        (row.date ? '<span class="pill muted">' + esc(row.date) + "</span>" : "") +
+      "</div>" +
+    "</div>"
+  );
+  // Cross-link to the mapped PRD card when the row has been planned.
+  if (row.prd) {
+    var link = el('<div class="intake-prd">↗ <a href="#/prd/' + encodeURIComponent(row.prd) + '">' +
+      esc(row.prdFeature ? (row.prd + " · " + row.prdFeature) : row.prd) + "</a>" +
+      (row.prdKnown ? "" : ' <span class="pill muted">unmapped</span>') + "</div>");
+    link.addEventListener("click", function (e) { e.stopPropagation(); });
+    card.appendChild(link);
+  }
+  if (LIVE) {
+    // Per-card status buttons (accessible alternative to drag).
+    var btns = el('<div class="intake-actions"></div>');
+    INTAKE_LANES.forEach(function (ln) {
+      if (ln.key === row.status) return;
+      var b = el('<button class="btn ghost tiny">→ ' + esc(ln.label) + "</button>");
+      b.addEventListener("click", function (e) { e.stopPropagation(); setIntakeStatus(row, ln.key); });
+      btns.appendChild(b);
+    });
+    card.appendChild(btns);
+    card.addEventListener("dragstart", function (e) {
+      e.dataTransfer.setData("text/msg-intake", String(row.num));
+      e.dataTransfer.effectAllowed = "move";
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend", function () { card.classList.remove("dragging"); });
+  }
+  return card;
+}
+
+function renderIntake() {
+  root.innerHTML = "";
+  var rows = (INTAKE && INTAKE.rows) || [];
+  root.appendChild(topbar("intake", {
+    title: (DATA.project || "Intake") + " — Backlog",
+    count: rows.length + " idea" + (rows.length === 1 ? "" : "s")
+  }));
+
+  if (!INTAKE || !INTAKE.exists) {
+    root.appendChild(el('<div class="empty-state"><div class="big">No backlog yet</div>' +
+      'Nothing at <code>INTAKE.md</code>. Run <code>/intake</code> to capture your first idea, ' +
+      'or <code>/msg --init</code> to scaffold the ledger.</div>'));
+    return;
+  }
+  if (rows.length === 0) {
+    root.appendChild(el('<div class="empty-state"><div class="big">Ledger is empty</div>' +
+      'Run <code>/intake</code> to log a feature idea or bug.</div>'));
+    return;
+  }
+
+  var byNum = {};
+  rows.forEach(function (r) { byNum[String(r.num)] = r; });
+  var wrap = el('<div class="kanban intake-lanes"></div>');
+  INTAKE_LANES.forEach(function (ln) {
+    var inLane = rows.filter(function (r) { return r.status === ln.key; });
+    var col = el('<div class="column col-intake-' + ln.key + '"></div>');
+    col.appendChild(el('<div class="column-head">' + esc(ln.label) +
+      ' <span class="n">' + inLane.length + "</span></div>"));
+    var cb = el('<div class="column-body' + (inLane.length ? "" : " empty") + '"></div>');
+    inLane.forEach(function (r) { cb.appendChild(intakeCard(r)); });
+    col.appendChild(cb);
+    if (LIVE) makeDropTarget(col, function (num) {
+      var r = byNum[String(num)];
+      if (r && r.status !== ln.key) setIntakeStatus(r, ln.key);
+    }, "text/msg-intake");
     wrap.appendChild(col);
   });
   root.appendChild(wrap);
@@ -1569,6 +1684,7 @@ function route() {
   else if (h === "#/files") renderFiles(null);
   else if (h === "#/prompts") renderPrompts();
   else if (h === "#/roadmap") renderRoadmap();
+  else if (h === "#/intake") renderIntake();
   else renderList();
 }
 window.addEventListener("hashchange", route);

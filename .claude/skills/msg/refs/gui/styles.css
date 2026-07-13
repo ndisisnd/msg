@@ -729,3 +729,19 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
 /* Phase whose PRDs have all shipped. */
 .roadmap-lanes .column.phase-done .column-head { color: var(--st-shipped, var(--text-muted)); }
 .column-head .phase-check { color: var(--st-shipped, var(--text-muted)); font-weight: 700; }
+
+/* ---- Intake tab (H2) --------------------------------------------------------- */
+.intake-card .intake-goal { color: var(--text-muted); font-size: var(--fs-sm); margin: 4px 0 6px; }
+.intake-card .meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.pill.intake-type { text-transform: uppercase; letter-spacing: .04em; font-size: var(--fs-xs); }
+.pill.intake-type.feature { color: var(--accent); border-color: var(--accent); }
+.pill.intake-type.bug { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
+/* Grade chips carry the rubric cell (C:/T:/S:) — colour-cued but never numeric. */
+.chip.grade-c { border-color: var(--accent); color: var(--accent); }
+.chip.grade-t { border-color: var(--border-strong); }
+.chip.grade-s { border-color: var(--border-strong); font-style: italic; }
+.intake-prd { margin-top: 6px; font-size: var(--fs-sm); }
+.intake-prd a { color: var(--accent); text-decoration: none; }
+.intake-prd a:hover { text-decoration: underline; }
+.intake-actions { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.btn.tiny { padding: 2px 8px; font-size: var(--fs-xs); }

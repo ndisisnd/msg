@@ -50,14 +50,19 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | `devkit/ARCHITECTURE.md` | System constraints, layers, integration points — scopes what agents may touch |
 | `devkit/DESIGN-SYSTEM.md` | Component registry — which UI components exist and what needs data ingestion |
 | `devkit/OPEN-QUESTIONS.md` | Unresolved decisions — build agents write here when they hit ambiguity |
+| `devkit/PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` and `/post-merge` |
+
+The root `INTAKE.md` backlog ledger is **not** a devkit file — it is scaffolded by `/msg --init` at the repo root (D13) but, unlike the read-only devkit docs, it is a living ledger written by `intake` (rows), `plan-pm` (status/prd mapping), and `post-merge --production` (completed status).
 
 ## Skill pipelines
 
 ```
-Planning:   plan-pm → plan-tune --product → plan-em → plan-tune --eng
+Planning:   intake → plan-pm → plan-tune --product → plan-em → plan-tune --eng
 Execution:  eng --plan → eng --build → pre-merge → post-merge --staging → (human) → post-merge --production
 Roadmap:    plan-pm --roadmap → (approve reshaping) → roadmap/roadmap.md → eng --build roadmap= (orchestrated execution)
 ```
+
+The planning pipeline starts at `intake`, the graded backlog front door: it captures every feature idea and bug as a row in the root `INTAKE.md` ledger (chronological table `# | date | type | idea | goal | grade | status | prd`), owning the requirements interview (flesh-out, adjacent-idea suggestion, hybrid/XL splitting) and grading each idea in a single-turn banded judgment (complexity / token-cost / sequencing — bands only). `plan-pm` then consumes a graded row and drafts the PRD autonomously; the row's `status` walks `backlog` (intake) → `in-progress` (plan-pm, which also fills the `prd` mapping) → `completed` (`post-merge --production`), giving the harness a living ledger connecting "things we want" to "PRDs that shipped."
 
 Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
 
@@ -67,7 +72,8 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 
 | Skill | Standalone |
 |-------|------------|
-| `plan-pm` | Yes |
+| `intake` | Yes (idea/bug capture + interview + grading into the root `INTAKE.md` backlog — the planning front door) |
+| `plan-pm` | Yes (autonomous PRD writer — consumes a graded intake row; interview lives in `intake`) |
 | `plan-tune` | Yes (`--product` / `--eng`) |
 | `plan-em` | Yes |
 | `eng` | Yes (`--plan` / `--build` / `--build --loop`) |

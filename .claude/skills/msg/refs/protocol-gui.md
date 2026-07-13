@@ -2,7 +2,8 @@
 
 Build and serve a **local-only** GUI over `features/prd-*/`: a Kanban/Table board of PRDs
 → per-PRD detail page (rendered PRD body + a TODOs section with its own Kanban/Table
-toggle and a side panel), a **Roadmap** view (phases-as-lanes over `roadmap/roadmap.md`,
+toggle and a side panel), an **Intake** view (a backlog board over root `INTAKE.md`, shown
+when that file exists), a **Roadmap** view (phases-as-lanes over `roadmap/roadmap.md`,
 shown when that file exists), a **Files** view over the project's docs (README, CLAUDE.md,
 `devkit/`), and — in interactive mode — a **Prompts** console that runs Claude against the
 project. The surface lives in `refs/gui/` (`index.html`, `styles.css`, `server.py`); this
@@ -61,6 +62,13 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   field on that ticket's block under `## Todos` (additive: a field the todo schema tolerates
   and `--build` ignores). **Issue-tickets are never toggleable** — their done-state is
   `followUp.status`, owned by `eng --build`; the GUI only renders it.
+- **Set an intake row's status** — `POST /api/intake/status {num, status}` rewrites the
+  `status` cell of the row whose `#` equals `num` in the root `INTAKE.md` table (`status` ∈
+  `backlog | in-progress | completed`, D14). This is the **only new write path in v2** (H5):
+  the server edits that one cell in place, preserving every other cell and row verbatim — the
+  same in-place-markdown model as the PRD-board writes. The Intake tab's lane drag and its
+  per-card status buttons both call it. **No other INTAKE.md cell is writable** — `idea`,
+  `goal`, `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`, never the GUI.
 - **Run a prompt** — `POST /api/prompt {prompt}` starts a background job via the runner
   template; `GET /api/jobs` returns status + output tails and the GUI polls while a run is
   live, then refreshes board data. Quick actions prefill skill invocations (`/plan-pm …`,
@@ -87,9 +95,11 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   and the custom header forces a CORS preflight the server never grants.
 - All paths are resolved and confined to `--root`; reads are extension-allowlisted
   (`.md .json .txt .yaml .yml .toml`, ≤2 MB) and skip `.git`/`node_modules`/`.env*`;
-  **writes are restricted to `features/prd-*/` markdown** — the server cannot write
-  anywhere else, and never writes `msg-gate/gate-*.json` (the finding→ticket projection
-  stays read-time; `followUp.status` is written solely by `eng --build`).
+  **writes are restricted to `features/prd-*/` markdown plus the single root
+  `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
+  writes no other INTAKE.md cell, and never writes `msg-gate/gate-*.json` (the
+  finding→ticket projection stays read-time; `followUp.status` is written solely by
+  `eng --build`).
 
 ## Step 2 — Data model (what the server parses)
 
@@ -112,7 +122,14 @@ Same read model as before — now implemented in `server.py`, re-run per request
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
    → raw markdown `detail`, containing `prd-*` folder → `prdId`. Missing/unparseable
    frontmatter → `skipped[]`. No reports → `reports: []`.
-6. **Completion inference (H1 ladder)**, most-authoritative first:
+6. **Intake ledger** from root `INTAKE.md` (H2) via `build_intake`: the ledger table is
+   located by its header row (must carry `#` / `idea` / `status` columns), then each data
+   row is parsed into `{num, date, type, idea, goal, grade, gradeRaw, status, prd, prdKnown,
+   prdPath, prdFeature}`. The `grade` cell (`C:L T:$$ S:next`) is split into
+   `{complexity, token, sequence}` for the three chips. A row's `prd` cell is cross-referenced
+   against the live PRD set so a card links to its mapped PRD. Absent `INTAKE.md` →
+   `intake: {exists: false, rows: []}`; a present-but-empty table → `rows: []`.
+7. **Completion inference (H1 ladder)**, most-authoritative first:
 
    | Signal | Bucket |
    |---|---|
@@ -254,6 +271,24 @@ across every project (light + dark, responsive); it is **not** sourced from
 - **PRD cross-link.** A `gateIssues[]` entry whose `context.prd` matches an enumerated PRD
   also surfaces its tickets on that PRD's detail page, tagged `kind: "issue"`.
 
+## Intake tab (rendering, H2)
+
+- **Own tab, front-door.** The **Intake** nav tab (`#/intake`) appears whenever `INTAKE.md`
+  exists (or in interactive mode). It renders a backlog board over `intake.rows` — one card
+  per ledger row.
+- **Three lanes = the D14 lifecycle.** Columns `Backlog · In progress · Completed`, reusing
+  the Kanban column/card components. A card sits in the lane matching its `status` cell.
+- **Grade chips.** Each card shows the rubric cell as three small pills — `C:<band>`,
+  `T:<band>`, `S:<band>` — rendered from the parsed `grade` object (never numeric; the bands
+  are the whole point). A `type` pill (`feature`/`bug`) and the capture `date` sit alongside.
+- **PRD cross-link.** When a row's `prd` cell is set, the card links to that PRD's detail page
+  (`#/prd/<id>`); an unresolved mapping is tagged `unmapped`.
+- **Status is the only editable cell (H5).** In live mode a card is draggable between lanes,
+  and carries per-lane status buttons (an accessible alternative to drag); both `POST
+  /api/intake/status {num, status}`. Nothing else on the card is editable — `idea`, `goal`,
+  `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`. Static mode renders the
+  board read-only (no drag, no buttons).
+
 ## Reports tab (rendering)
 
 - **Own tab, read-only.** `reports[]` render under a dedicated **Reports** nav tab
@@ -271,9 +306,10 @@ across every project (light + dark, responsive); it is **not** sourced from
   Reports tab surfaces a prominent badge on the card and a callout banner on the detail page.
 
 ## What this protocol never does
-- Never lets the GUI write outside `features/prd-*/` markdown: no repo-file writes from the
-  Files view, no writes to `msg-gate/gate-*.json` (`followUp.status` belongs to
-  `eng --build`), no generated output written into the repo.
+- Never lets the GUI write outside `features/prd-*/` markdown **and the one root `INTAKE.md`
+  status-cell carve-out (H5)**: no repo-file writes from the Files view, no writes to
+  `msg-gate/gate-*.json` (`followUp.status` belongs to `eng --build`), no writes to any
+  INTAKE.md cell other than `status`, no generated output written into the repo.
 - Never invents issue done-state, and never fabricates todo done-state — a todo is `done`
   only when its ticket block carries `- **done:** true` (the toggle's own field).
 - Never binds to anything but `127.0.0.1`, and never serves without the per-run token

@@ -25,7 +25,7 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 ## 🗂️ Skills
 
-Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, browse project docs, read run reports, and run Claude prompts — served on `127.0.0.1` only.
+Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, work the `INTAKE.md` backlog on an Intake tab (grade chips, lane drag), browse project docs, read run reports, and run Claude prompts — served on `127.0.0.1` only.
 
 **Run reports.** `eng --build`, `/pre-merge`, and `/post-merge` each end a run by writing `report-[n].md` into the PRD's `features/prd-[n]/reports/` folder (`features/reports/` when no PRD applies) — a plain-language record of the work done (features, code changes, lines added/deleted, tests passed/failed) plus what you can expect and the exact steps to verify the feature works. Post-merge's staging report carries the human test script; its production report renders release-style with any no-rollback platform flagged `IRREVERSIBLE`. The board renders them under a dedicated **Reports** tab, grouped by PRD. Schema: `.claude/skills/shared/refs/report-schema.md`.
 
@@ -35,8 +35,9 @@ Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --
 
 | Skill | Description |
 |-------|-------------|
-| `/msg --init` | One-time project bootstrap — three-phase interview (project basics, architecture, design system) batched into ≤4 question prompts, then scaffolds `devkit/` (AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md) and root files. Idempotent. |
-| `/plan-pm` | Principal PM — interviews via 5 questions, then writes a structured PRD to `features/prd-[n]/`. Splits large epics. `--roadmap` analyses the existing PRDs (flagging bloat/overlap, proposing approval-gated split/merge/fold/trim) and sequences them into phases in `roadmap/roadmap.md`, viewable on the `/msg --gui` Roadmap tab. |
+| `/msg --init` | One-time project bootstrap — three-phase interview (project basics, architecture, design system) batched into ≤4 question prompts, then scaffolds `devkit/` (AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md), the root `INTAKE.md` backlog ledger, and root files. Idempotent. |
+| `/intake` | The planning front door — captures feature ideas and bugs as graded rows in the root `INTAKE.md` ledger. Owns the requirements interview: fleshes out thin ideas, suggests adjacent ones, splits compound/hybrid asks and XL ideas into discrete rows, and grades each in a single-turn banded judgment (complexity `C:` / token-cost `T:` / sequencing `S:` — bands only, never fake-precise numbers). Feeds `plan-pm`. |
+| `/plan-pm` | Principal PM — the **autonomous PRD writer**. Consumes a graded intake row and drafts the full PRD solo (edge cases, feature/acceptance table, user flows, error handling) to `features/prd-[n]/`, pausing only for batched open questions and breaking/critical touches. Stamps the intake row `in-progress` + its `prd` mapping. `--roadmap` analyses the existing PRDs (flagging bloat/overlap, proposing approval-gated split/merge/fold/trim, reading the intake `S:` grades) and sequences them into phases in `roadmap/roadmap.md`, viewable on the `/msg --gui` Roadmap tab. |
 | `/plan-tune` | Staff PM auditor — numbered, severity-tagged PRD audit (`--product`/`--eng`); applies all fixes inline. |
 | `/plan-em` | Engineering Manager — spins up specialist agents to write engineering sections into the PRD, then synthesises the output. |
 

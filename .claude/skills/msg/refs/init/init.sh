@@ -122,10 +122,13 @@ fi
 
 # ── Root-level templates (fenced ## Template body blocks) ─────────────────────
 # README.md and CLAUDE.md stay at project root; .gitignore and CHANGELOG.md too.
+# INTAKE.md is the root backlog ledger (D13 — repo root, not devkit); the block
+# has no placeholders, so apply_subs is a harmless no-op.
 
 for pair in \
   "README.md:template-README.md" \
-  "CLAUDE.md:template-CLAUDE.md"
+  "CLAUDE.md:template-CLAUDE.md" \
+  "INTAKE.md:TEMPLATE-INTAKE.md"
 do
   f="${pair%%:*}"; t="${pair##*:}"
   content=$(extract_body "$REFS/$t" | apply_subs)

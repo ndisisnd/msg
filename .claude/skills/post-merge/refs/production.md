@@ -89,6 +89,18 @@ command; capture logs. A deploy failure emits a `post-merge` finding
 (`refs/output-schema.md`) and is reported — the merge already happened, so this
 is surfaced, not silently swallowed.
 
+## Step 7 — Stamp the intake ledger `completed` (D14/F4)
+
+After the release merges, close the loop for each shipped PRD. Read `INTAKE.md`
+(repo root); for every shipped PRD, find the row whose `prd` cell matches this
+PRD's id (`prd-<n>-<slug>`, as stamped by `plan-pm` at F4) and set that row's
+`status` cell to `completed` via `Bash` — edit only that row's status cell,
+preserving every other row verbatim. This is the terminal lifecycle transition
+(`backlog` → `in-progress` → `completed`), and it makes the `/msg --gui` Intake
+tab render the idea as shipped. Missing `INTAKE.md`, or a PRD whose `prd` cell
+matches no row → **skip that PRD with a one-line note** in the run report (an
+unmapped or no-intake-ancestor PRD is not an error).
+
 ## Run report
 
 Write `report-[n].md` (`skill: post-merge`, production flavor) — release-style:

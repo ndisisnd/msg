@@ -50,7 +50,7 @@ is accepted and discarded, and the gates below fire unchanged.
 - Does NOT run `--production` without staging-green **and** a `staging-signoff:` stamp in the PRD frontmatter.
 - Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals.
 - Does NOT run when `post-merge-protection.sh --verify` reports the branch unprotected — refuses with the bootstrap instruction.
-- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, and its run report.
+- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), and its run report.
 
 ## Inputs / Outputs
 
@@ -103,6 +103,7 @@ Loads `refs/production.md`. The gates here never relax.
 | 4 | **Open release PR** — `gh pr create --base main --head staging`, release-style body: PRDs, linked reports, per-platform rollback notes from `PLATFORMS.md` `rollback_possible` (iOS flagged `IRREVERSIBLE`) | `refs/production.md` |
 | 5 | **Merge on green CI + human review** — branch protection enforces both; post-merge checks then `gh pr merge --merge`; red/pending/unreviewed → refuse | `refs/production.md` |
 | 6 | **Production deploy** — run each platform's `production_deploy_cmd` from `devkit/PLATFORMS.md` | `refs/deploy.md` |
+| 7 | **Stamp intake `completed`** — for each shipped PRD, set its mapped `INTAKE.md` row's `status` to `completed` (D14); unmapped / no `INTAKE.md` → skip with a note | `refs/production.md` |
 
 Then write the run report (`skill: post-merge`, production flavor — release-style, iOS `IRREVERSIBLE` surfaced).
 

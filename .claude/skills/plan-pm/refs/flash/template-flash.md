@@ -21,6 +21,7 @@ product-tuned: no
 eng-tuned: no
 reviewed: no
 created: YYYY-MM-DD
+intake: #<n>   # source INTAKE.md row; omit only when there is no intake ancestor
 ---
 
 # PRD-<n>: <title>

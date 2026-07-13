@@ -1,138 +1,129 @@
 ---
 name: Plan Protocol
-description: End-to-end six-step execution protocol for plan-pm — intake through summary, plus the multi-PRD final summary
+description: End-to-end five-step autonomous protocol for plan-pm — resolve a graded intake row, scan prior PRDs, draft the full PRD solo, pause only for batched open questions + breaking/critical touches, stamp the intake lifecycle, terminate.
 type: reference
 ---
 
 # Plan Protocol
 
-The six-step execution protocol plan-pm follows end-to-end. Emit progress per § Progress emission in SKILL.md. In `--sub` mode, substitute the nested sub-PRD path (§ Sub-PRD mode, delta D3) everywhere the steps say `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`.
+The five-step protocol plan-pm follows end-to-end. Emit progress per § Progress
+emission in SKILL.md. In `--sub` mode, substitute the nested sub-PRD path
+(§ Sub-PRD mode, delta D3) everywhere the steps say
+`features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`.
 
-## Step-by-step protocol
+**Autonomy contract (F3).** The interview is gone — it moved to `/intake`, which
+delivers a graded, fleshed-out row (`idea`, `goal`, `type`, `grade`). plan-pm drafts
+the **full PRD solo** — edge cases, feature/acceptance table, user flows, error
+handling — with **no per-section gates**. It pauses for **exactly two** things:
+batched open questions the draft couldn't resolve (Step 4), and breaking/critical
+touches (Step 4 safety pause). Nothing else.
 
-**Step 1/6 — Intake**
+## Step 1/5 — Resolve the idea (entry paths)
 
-Receive the product idea or brief. Check that a target user and scope are stated or inferable. If neither is present, run one `AskUserQuestion` (3–4 options + Other) to fix the gap. Hold the clarified brief in conversation context. Produce no file in this step.
+Determine what to plan. Three entry paths:
 
-**Epic detection (end of Step 1)**
+1. **No args** → read `INTAKE.md` (repo root). List every **non-`completed`** row
+   (`# · type · idea · grade · status`). If the ledger is missing or empty, emit
+   `No backlog rows — run /intake to capture an idea first.` and offer to hand off to
+   `/intake` (recommend, do not invoke). Otherwise `AskUserQuestion` (single-select, up
+   to 4 rows per call; page if more) — "Which idea should I plan?" — and take the pick.
+2. **Intake row reference** (`#n`) **or explicit idea text that matches a row** → resolve
+   it against `INTAKE.md` and plan it directly, no picker.
+3. **Direct prose with NO matching intake row** → offer **one bounce**: `AskUserQuestion`
+   "Log this through `/intake` first so it's graded in the backlog?" — **Yes** hands off to
+   `/intake` (recommend it, then resume on the new row); **No, plan it now** proceeds
+   directly but **notes the ledger gap** (a PRD with no intake ancestor — plan-tune check 3
+   will skip intent-fidelity with a note).
 
-After confirming the brief, assess whether the idea is a large epic warranting multiple PRDs. An epic is indicated by any of:
-- 3+ distinct user-facing capabilities that could each stand alone as a releasable feature
-- Brief explicitly mentions phases, modules, or multiple standalone workstreams
-- Scope spans multiple system layers that would each require a separate eng sprint
+Hold the resolved row in context: `idea`, `goal`, `type`, `grade`, and its `#`
+(for the Step 5 stamp). A `--sub` invocation pre-seeds from the parent instead
+(§ Sub-PRD mode, D2). Produce no file in this step.
 
-If epic detected:
+## Step 2/5 — Scan prior PRDs for overlap + breaking surface
 
-1. Derive a breakdown of 2–5 sub-features, each mappable to a standalone PRD.
-2. Emit a breakdown table inline:
-
-   | PRD | Feature | Scope |
-   |-----|---------|-------|
-   | PRD-? | \<name\> | \<one-line scope\> |
-
-   (Use `?` as the placeholder; actual numbers are assigned when each PRD is initialized in Step 4.)
-
-3. Ask via `AskUserQuestion`:
-   > "This looks like a large epic. Would you like to break it into multiple PRDs?"
-   - Options: `Yes, break it down` / `No, keep as one PRD`
-
-4. **If Yes**: enter **multi-PRD mode**. Store the ordered breakdown list in context. Emit:
-   > "Running plan-pm for each sub-feature sequentially. Starting with 1 of N..."
-   Then proceed to Step 2 for the first item. After Step 6 for each item, loop back to Step 2 for the next — **skip the open questions loop and the next-step prompt** in Step 6 for every iteration. When all items are complete, emit the final summary (see § Multi-PRD final summary) and terminate.
-
-5. **If No**: continue as single-PRD. Proceed to Step 2.
-
-**Step 2/6 — Scan prior PRDs for overlap**
-
-List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and proceed. Otherwise, for each prior PRD:
+List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and
+proceed. Otherwise, for each prior PRD:
 1. Read its YAML frontmatter (`module`, `affects`, `depends_on`) first for a fast signal.
-2. If the new brief's domain matches a prior PRD's `module`, or the prior PRD's `affects` list references the new feature area, flag it and read its features section in full.
-3. Classify each flagged relationship and hold in context for Step 4 frontmatter population:
-   - **Dependency** (`depends_on`): the new PRD requires a prior PRD's output to function (e.g., relies on an auth system, schema, or API that prior PRD owns). Record the prior PRD's ID.
-   - **Affects** (`affects`): the new PRD modifies scope, contracts, or module ownership that a prior PRD also touches. Record the prior PRD's ID.
-4. Record each overlapping PRD by ID in the Open questions section of the new PRD.
+2. If the new idea's domain matches a prior PRD's `module`, or the prior PRD's `affects`
+   references the new area, flag it and read its features section in full.
+3. Classify and hold for Step 3 frontmatter:
+   - **Dependency** (`depends_on`): the new PRD requires a prior PRD's output. Record its ID.
+   - **Affects** (`affects`): the new PRD modifies scope/contracts a prior PRD also touches. Record its ID.
+4. **Breaking-surface flag:** if the new idea would **break a shipped PRD's contract**
+   (redefine an F-ID's acceptance criterion another PRD depends on, or overlap a shipped
+   feature), mark it — this arms the Step 4 safety pause.
 
-Proceed immediately to Step 3.
+The intake `grade` cell's `S:blocked-by-#n`/`prd-<n>` is a second dependency signal — reconcile it with the scan.
 
-**Step 3/6 — Interview**
+## Step 3/5 — Autonomous draft (pre-flight + populate)
 
-Run the structured interview defined in `refs/protocol-interview.md`. Platform is detected by the pre-flight script inside the protocol — do not ask the user. Run 5 questions total, one at a time. Capture every answer in conversation context.
-
-**Step 4/6 — Pre-flight run and initialize template**
-
-**Part 1 — Pre-flight run**
-
-Run the next-PRD-number resolver to get the next PRD number — it ships with this skill in the global scripts dir, so resolve it there when the current project has no vendored copy:
+**Part 1 — Pre-flight.** Resolve the next PRD number (ships in the global scripts dir; resolve there when the project has no vendored copy):
 
 ```bash
 S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd"; bash "$S" prd
 ```
 
-Store the output as `n`. Store the platform detected in Step 3's interview protocol as `platform`.
+Store as `n`. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
 
-Derive `feature_slug`: a kebab-case, max-6-word label for the feature from Q1. Use only lowercase letters and hyphens. Example: `cosmetic-ui-fixes`, `user-auth-flow`.
+```bash
+bash -c '[[ -f devkit/ARCHITECTURE.md ]] || exit 0; for e in "Expo:\bExpo\b" "Flutter:\bFlutter\b" "React Native:\bReact Native\b" "iOS:\biOS\b" "Android:\bAndroid\b" "Desktop:\b(Electron|Tauri)\b" "Web:\b(web app|web application|web frontend|web client|browser|SPA|PWA)\b" "Backend:\b(REST API|GraphQL|microservice|server-side|backend|API server)\b"; do grep -qiE "${e#*:}" devkit/ARCHITECTURE.md && echo "${e%%:*}"; done'
+```
 
-**Part 2 — Initialize template**
+Empty output → `platform: TBD` and record it as an open question. Derive `feature_slug`:
+kebab-case, ≤6 words, lowercase + hyphens, from the intake `idea`.
 
-Create `features/` if absent. Create `features/prd-[n]-[feature_slug]/`.
+**Part 2 — Initialize template.** Create `features/` and `features/prd-[n]-[feature_slug]/`
+if absent. Write `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from
+`refs/template-prd.md` with frontmatter:
+- `name`: `prd-[n]-[feature_slug]` · `feature`: short name from the `idea`
+- `summary`: 2–3 sentence single-line plain-prose gist (core objective + headline features), reconciled in Part 3
+- `module`: primary domain inferred from the idea · `platform`: detected above
+- `affects` / `depends_on`: prior-PRD IDs from Step 2 (`[]` if none)
+- `status: product` · `product-tuned: no` · `eng-tuned: no` · `reviewed: no` · `created`: today `YYYY-MM-DD`
+- **`intake: #<n>`** — the source intake row `#` (omit only on the no-intake-ancestor path from Step 1.3)
 
-Write `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from `refs/template-prd.md` with the following substitutions in the frontmatter:
-- `name`: `prd-[n]-[feature_slug]`
-- `feature`: short feature name from Q1
-- `summary`: 2–3 sentence plain-prose gist on a single line — the core product objective plus the headline features, derived from the Q1 brief and confirmed feature list. No markdown, no line breaks (it is a single YAML value read by the `/msg --gui` detail page). Reconcile in Step 5 if §1/§6 shift during population.
-- `module`: primary module or domain inferred from Q1 answers (e.g., `auth`, `payments`, `notifications`, `onboarding`). Use one lowercase word or hyphenated phrase. If ambiguous, use the broadest domain name that covers the feature.
-- `affects`: list of prior PRD IDs classified as **Affects** in Step 2 (e.g., `[prd-1-user-auth, prd-3-payment-flow]`). Empty list `[]` if none.
-- `depends_on`: list of prior PRD IDs classified as **Dependency** in Step 2 (e.g., `[prd-2-onboarding-flow]`). Empty list `[]` if none.
-- `platform`: `platform` stored in Part 1
-- `status`: `product`
-- `product-tuned`: `no`
-- `eng-tuned`: `no`
-- `reviewed`: `no`
-- `created`: today's date in `YYYY-MM-DD`
+**Part 3 — Populate every section solo.** Read `refs/principles.md` first and apply it
+throughout. Draft each section from the intake `idea` + `goal` + prior-PRD context —
+autonomously, no interview, no per-section gate. Canonical order per `refs/template-prd.md`:
 
-All section bodies remain as placeholders. This initialized file is the artifact of this step.
+| Section | Autonomous source |
+|---------|-------------------|
+| 1. Product objective | One paragraph from the intake `goal` — the user/business outcome that defines success. No feature list, no implementation |
+| 2. Out-of-scope | Boundaries the draft draws around the idea; non-targeted platforms auto-added |
+| 3. User flow | One ASCII user-visible flow per feature; dependencies (Step 2) as preconditions. No engineering detail |
+| 4. Key user interactions | The core actions the feature must support, derived from the idea + goal |
+| 5. Error cases | Draft the concrete, triggerable error/edge cases per feature (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format from `refs/template-error.md`. Genuinely unresolvable ones → Step 4 open questions |
+| 6. Features & acceptance criteria | Derive the feature set from the idea; assign F-IDs (`refs/template-feature-table.md`); one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
+| 7. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
+| 8. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
+| 9. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder — plan-tune owns it |
+| 10. Glossary | GLOSSARY.md cross-reference; add new terms from this PRD |
+| 11. Todos | Leave the `_Populated by /todo …_` placeholder |
 
-**Step 5/6 — Populate sections**
+Carry every F-ID into §6 unchanged — plan-em keys §7 on them. Reconcile the frontmatter
+`summary` against the finalized §1 + §6 (single-line, plain prose). Components and files
+are engineering detail → §7 (plan-em), never the User flow.
 
-Read `refs/principles.md` first. Apply every principle throughout.
+## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 
-Populate each section in `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from the interview answers, in the canonical order defined by `refs/template-prd.md`:
+**Open questions.** Batch everything the draft couldn't resolve into **one**
+`AskUserQuestion` (≤4 questions per call, `multiSelect` where apt; each entry offers plausible
+answers + "Skip"). Apply every answer **autonomously** — write it into the relevant section and
+mark its §8 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
+entirely.
 
-| Section | Source |
-|---------|--------|
-| 1. Product objective | One paragraph stating the user/business goal from the Q1 brief; the outcome that defines success. No feature list, no implementation |
-| 2. Out-of-scope | Q2 answers; non-targeted platforms auto-added |
-| 3. User flow | Q3 dependencies as flow preconditions; one ASCII flow per feature. User-visible flow only — no engineering detail |
-| 4. Key user interactions | Q5 answers |
-| 5. Error cases | Q4 answers; format from `refs/template-error.md` |
-| 6. Features & acceptance criteria | Confirmed Q1 feature list with its F-IDs from `refs/template-feature-table.md`; one user-goal acceptance criterion per feature derived from its Q5 interaction + Q4 error cases; Dependencies column from Q3. Keep free of engineering detail (no APIs, schemas, components, files) |
-| 7. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder from the template — plan-em owns the engineering breakdown |
-| 8. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries, written as `\| # \| Question \| Answer \| Status \|` rows (Status = `Open` when unanswered) |
-| 9. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder from the template — plan-tune owns it |
-| 10. Glossary | GLOSSARY.md cross-reference; add any new terms from this PRD |
-| 11. Todos | Leave the `_Populated by /todo …_` placeholder from the template |
+**Breaking-change / critical-cut safety pause (never relaxed).** If Step 2 flagged a
+breaking surface — the draft would **break a shipped PRD's contract**, or cut into
+**DB / data / production-config** territory — pause via `AskUserQuestion` before finalizing:
+name the exact contract/surface at risk and ask how to proceed (proceed with the break
+documented / rescope to avoid it / stop). This is a safety-floor gate, distinct from the
+open-questions batch; it fires even when there are no open questions.
 
-Q1 (confirmed feature list) informs all sections — use it as the scope anchor throughout. Carry every F-ID assigned during the interview (`refs/template-feature-table.md`) into §6 unchanged; downstream `plan-em` keys its execution table (§7) on these IDs.
+## Step 5/5 — Stamp the intake lifecycle, then terminate
 
-**Frontmatter `summary` reconciliation:** the `summary` set in Step 4 was drafted from the Q1 brief. After §1 Product objective and §6 features are finalized here, re-read the `summary` and adjust it so it stays a faithful 2–3 sentence gist of the finalized objective + headline features. Keep it single-line, plain prose.
-
-Platform is captured only in the frontmatter `platform` field (set from Step 3 detection). Do not write a "Target platform" body section — it no longer exists in the template.
-
-**Engineering detail placement:** components (from `devkit/DESIGN-SYSTEM.md`) and files touched (from `devkit/ARCHITECTURE.md`) are engineering detail and belong in §7 Feature execution table, which `plan-em` populates. Do not attach them to the User flow section. In this step, leave §7 as the template placeholder.
-
-The populated file is the artifact of this step.
-
-**Step 6/6 — Summary and next steps**
-
-**AHA.md update (conditional)**
-
-Before emitting the completion summary, identify learnings from this run worth capturing. A learning qualifies if any of:
-- A feature was constrained or invalidated by a CLAUDE.md rule
-- Overlap with a prior PRD was found and recorded in the Open questions section
-- Intake required clarification because target user or scope was missing
-- An interview answer revealed an assumption that significantly narrowed scope
-
-For each qualifying learning, append one entry to `devkit/AHA.md` using the format:
+**AHA.md update (conditional).** Append a learning to `devkit/AHA.md` when this run
+surfaced one (a CLAUDE.md rule invalidated a feature; prior-PRD overlap recorded; a safety
+pause fired). Format:
 
 ```
 ### [YYYY-MM-DD] <Summary title>
@@ -140,64 +131,27 @@ For each qualifying learning, append one entry to `devkit/AHA.md` using the form
 **Note**: <Concrete action or warning for future runs>
 ```
 
-Entries go under `## Entries`, most recent first. If `devkit/AHA.md` does not exist, create it by copying the header from `.claude/skills/msg/refs/init/templates/template-AHA.md`. Write only when there is at least one qualifying learning — do not create an empty entry.
+Under `## Entries`, most recent first. Create `devkit/AHA.md` from
+`.claude/skills/msg/refs/init/templates/template-AHA.md` if absent. Write only on a real learning.
 
-Emit a completion summary in this format:
+**Intake lifecycle stamp (F4).** Unless this PRD had no intake ancestor (Step 1.3), stamp the
+source row in `INTAKE.md` via `Bash` — set its `status` cell to `in-progress` and its `prd`
+cell to `prd-[n]-[feature_slug]`. This is plan-pm's write to the ledger; edit only that row's
+two cells, preserving every other row verbatim. Missing `INTAKE.md` → skip with a one-line note.
+
+**Completion summary + follow-up ask.** Emit:
 
 ```
 PRD generated for <feature>. There are <value> open questions.
 ```
 
-**Multi-PRD mode: skip to next PRD**
+Then **one** final `AskUserQuestion` (single-select) — "Anything to follow up on this PRD?":
+- **No, done** — terminate.
+- **Yes** — capture the follow-up (batched, ≤4), apply it autonomously, then terminate.
 
-If in multi-PRD mode, skip the open questions loop and the next-step prompt entirely. Emit `PRD-[n] complete ([current]/[total]).` then:
-- If more items remain: start Step 2 for the next sub-feature in the breakdown list.
-- If this was the last item: emit the final summary (see § Multi-PRD final summary) and terminate.
+On termination, **recommend** (never invoke) `plan-tune --product` on this PRD as the next step:
+`Next: run /plan-tune --product on features/prd-[n]-[feature_slug]/… to certify the contract.`
 
-**Open questions loop (if open questions count > 0) — single-PRD mode only**
-
-Ask the user: "Would you like to address the open questions now?" via `AskUserQuestion` (options: Yes / Skip all). If the user chooses Yes, work through the open questions in **batches of up to 4 per `AskUserQuestion` call** (each question is one entry in the call, `multiSelect: true`), until every question has been presented:
-
-- Each question entry presents the question text and a set of plausible answers. Always include "Skip" as one option.
-- For any question where the user selects "Skip" (or only "Skip"), record no answer and leave that row unchanged.
-- For any question the user answers, update the Open questions table row: write the answer into that row's `Answer` cell and set its `Status` to `Addressed`.
-
-After all questions have been presented (answered or skipped), proceed to the next-step prompt.
-
-**Next-step prompt — single-PRD mode only**
-
-Ask via `AskUserQuestion` (single-select):
-
-> What would you like to do next?
-
-Options:
-- Tune the plan — run `plan-tune --product` on this PRD
-- Plan the eng execution — run `plan-em` on this PRD
-- Terminate the session
-
-Based on the user's selection:
-- **Tune the plan** → invoke `Skill("plan-tune", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md --product")`. Do not terminate until plan-tune completes. On completion, update `product-tuned: yes` in the PRD frontmatter via `Bash`.
-- **Plan the eng execution** → invoke `Skill("plan-em", "features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md")`. Do not terminate until plan-em completes. On completion, update `status: eng` in the PRD frontmatter via `Bash`.
-- **Terminate the session** → terminate immediately with no further action.
-
-## Multi-PRD final summary
-
-After all sub-feature PRDs are generated in multi-PRD mode, emit:
-
-```
-All [N] PRDs complete.
-```
-
-Followed by a summary table:
-
-| PRD | Feature | File |
-|-----|---------|------|
-| PRD-[n] | \<feature name\> | `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` |
-
-Then emit:
-
-```
-Run `/plan-tune` or `/plan-em` on any PRD to continue.
-```
-
-Terminate. Do not ask a follow-up question.
+**Multi-PRD note.** There is no multi-PRD loop in v2 — compound asks are split into discrete
+rows at `/intake` (hybrid-ask detection + the XL-split gate), so plan-pm always plans exactly one
+row per run. To plan another backlog row, run `/plan-pm` again.
