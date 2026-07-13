@@ -132,15 +132,17 @@ function crossLinkedIssues(p) {
 }
 
 /* ---- Completion buckets ------------------------------------------------------- */
+// v2 completion ladder (H1): product → planned → building → gated → staged → shipped.
 var BUCKETS = [
   { key: "product",  label: "Product" },
-  { key: "eng",      label: "Engineering" },
+  { key: "planned",  label: "Planned" },
   { key: "building", label: "Building" },
-  { key: "review",   label: "Review" },
+  { key: "gated",    label: "Gated" },
+  { key: "staged",   label: "Staged" },
   { key: "shipped",  label: "Shipped" }
 ];
 var BUCKET_ORDER = BUCKETS.reduce(function (m, b, i) { m[b.key] = i; return m; }, {});
-function bucketOf(p) { return BUCKET_ORDER[p.completion] != null ? p.completion : "eng"; }
+function bucketOf(p) { return BUCKET_ORDER[p.completion] != null ? p.completion : "planned"; }
 function bucketLabel(k) { var b = BUCKETS.filter(function (x) { return x.key === k; })[0]; return b ? b.label : k; }
 
 /* ---- Helpers -------------------------------------------------------------------- */
@@ -1353,7 +1355,7 @@ function renderFiles(sel) {
 }
 
 /* ========================================================================= */
-/*  REPORTS PAGE — run reports written by eng --build / review / pre-merge    */
+/*  REPORTS PAGE — run reports written by eng --build / pre-merge / post-merge */
 /*  (report-[n].md per shared/refs/report-schema.md)                          */
 /* ========================================================================= */
 function findReport(file) {
@@ -1373,6 +1375,12 @@ function reportStatsFrag(r) {
     bits.push((s.testsPassed || 0) + " passed" + (s.testsFailed ? " · " + s.testsFailed + " failed" : ""));
   return bits.length ? '<span class="pill muted">' + esc(bits.join(" · ")) + "</span>" : "";
 }
+// H4 — a production post-merge report carries the literal token IRREVERSIBLE in
+// its body when a no-rollback platform (iOS) ships; surface it prominently.
+function reportIrreversible(r) { return /\bIRREVERSIBLE\b/.test(String(r && r.detail || "")); }
+function irreversibleBadge() {
+  return '<span class="pill irreversible" title="A shipped platform cannot be rolled back">⚠ IRREVERSIBLE</span>';
+}
 function reportCard(r) {
   var c = el(
     '<div class="card issue-file-card" tabindex="0" role="button">' +
@@ -1380,6 +1388,7 @@ function reportCard(r) {
         esc(r.title || "") + "</div>" +
       '<div class="meta">' +
         reportVerdictPill(r.verdict) +
+        (reportIrreversible(r) ? irreversibleBadge() : "") +
         reportStatsFrag(r) +
         (r.branch ? '<span class="pill muted">' + esc(r.branch) + "</span>" : "") +
         (r.generated ? '<span class="pill muted">' + esc(r.generated) + "</span>" : "") +
@@ -1396,7 +1405,7 @@ function renderReports() {
   root.appendChild(topbar("reports", { title: "Run Reports", count: REPORTS.length }));
   if (!REPORTS.length) {
     root.appendChild(el('<div class="empty-state"><div class="big">No reports yet</div>' +
-      "<code>eng --build</code> and <code>/pre-merge</code> write " +
+      "<code>eng --build</code>, <code>/pre-merge</code> and <code>/post-merge</code> write " +
       "<code>report-[n].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
     return;
   }
@@ -1434,6 +1443,12 @@ function renderReportDetail(file) {
   var p = r.prdId ? findPrd(r.prdId) : null;
   if (p) head.appendChild(el('<a class="pill muted" href="#/prd/' + encodeURIComponent(p.id) + '">↗ ' + esc(p.feature) + "</a>"));
   root.appendChild(head);
+  // H4 — release-style: a prominent callout when a production report ships a
+  // no-rollback (IRREVERSIBLE) platform.
+  if (reportIrreversible(r)) {
+    root.appendChild(el('<div class="callout-irreversible">⚠ <strong>IRREVERSIBLE release</strong> — a shipped platform ' +
+      '(e.g. iOS) cannot be rolled back once live. Review the rollback notes below before relying on this.</div>'));
+  }
   root.appendChild(el('<div class="prose md">' + mdToHtml(r.detail || "") + "</div>"));
   root.appendChild(el('<div class="file-path" style="margin-top:16px">' + esc(r.file) + "</div>"));
 }

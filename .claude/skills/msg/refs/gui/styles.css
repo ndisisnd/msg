@@ -28,6 +28,7 @@
   --st-eng:      #c07c22;  --st-eng-bg:      #faf1e0;  --st-eng-col:      #fbf6ea;
   --st-building: #337ea9;  --st-building-bg: #e7f1f8;  --st-building-col: #f0f6fa;
   --st-review:   #cb612e;  --st-review-bg:   #fbeee4;  --st-review-col:   #fcf4ec;
+  --st-staged:   #2f8a8a;  --st-staged-bg:   #e2f2f1;  --st-staged-col:   #eef7f6;
   --st-shipped:  #448361;  --st-shipped-bg:  #e7f3ec;  --st-shipped-col:  #f0f8f3;
   /* Todo buckets */
   --st-open:     #73726e;  --st-open-bg:     #efedea;  --st-open-col:     #f5f4f0;
@@ -104,6 +105,7 @@
   --st-eng:      #d3a45a;  --st-eng-bg:      #3a3020;  --st-eng-col:      #2a2620;
   --st-building: #7fb5d6;  --st-building-bg: #22303c;  --st-building-col: #212729;
   --st-review:   #dd9270;  --st-review-bg:   #3c2b20;  --st-review-col:   #2b2521;
+  --st-staged:   #6cc4bf;  --st-staged-bg:   #1f3634;  --st-staged-col:   #202927;
   --st-shipped:  #7fc59e;  --st-shipped-bg:  #22362b;  --st-shipped-col:  #212923;
   --st-open:     #a5a29b;  --st-open-bg:     #2a2a27;  --st-open-col:     #242422;
   --st-done:     #7fc59e;  --st-done-bg:     #22362b;  --st-done-col:     #212923;
@@ -250,11 +252,25 @@ select.mini-select {
 
 .pill.st-product  { background: var(--st-product-bg);  color: var(--st-product); }
 .pill.st-eng      { background: var(--st-eng-bg);      color: var(--st-eng); }
+.pill.st-planned  { background: var(--st-eng-bg);      color: var(--st-eng); }
 .pill.st-building { background: var(--st-building-bg); color: var(--st-building); }
 .pill.st-review   { background: var(--st-review-bg);   color: var(--st-review); }
+.pill.st-gated    { background: var(--st-review-bg);   color: var(--st-review); }
+.pill.st-staged   { background: var(--st-staged-bg);   color: var(--st-staged); }
 .pill.st-shipped  { background: var(--st-shipped-bg);  color: var(--st-shipped); }
 .pill.st-open     { background: var(--st-open-bg);     color: var(--st-open); }
 .pill.st-done     { background: var(--st-done-bg);     color: var(--st-done); }
+
+/* H4 — no-rollback (IRREVERSIBLE) production release: a loud badge + banner. */
+.pill.irreversible { background: var(--st-review-bg); color: var(--st-review); font-weight: 700; border: 1px solid var(--st-review); }
+.callout-irreversible {
+  display: flex; align-items: center; gap: 8px;
+  margin: 4px 0 18px; padding: 12px 14px;
+  border: 1px solid var(--st-review); border-left-width: 4px; border-radius: var(--radius-lg);
+  background: var(--st-review-bg); color: var(--st-review);
+  font-size: var(--fs-sm);
+}
+.callout-irreversible strong { color: var(--st-review); }
 
 .progress {
   display: inline-flex; align-items: center; gap: 6px;
@@ -278,8 +294,11 @@ select.mini-select {
 }
 .column.col-product  { --col-wash: var(--st-product-col);  --col-hue: var(--st-product);  --col-hue-bg: var(--st-product-bg); }
 .column.col-eng      { --col-wash: var(--st-eng-col);      --col-hue: var(--st-eng);      --col-hue-bg: var(--st-eng-bg); }
+.column.col-planned  { --col-wash: var(--st-eng-col);      --col-hue: var(--st-eng);      --col-hue-bg: var(--st-eng-bg); }
 .column.col-building { --col-wash: var(--st-building-col); --col-hue: var(--st-building); --col-hue-bg: var(--st-building-bg); }
 .column.col-review   { --col-wash: var(--st-review-col);   --col-hue: var(--st-review);   --col-hue-bg: var(--st-review-bg); }
+.column.col-gated    { --col-wash: var(--st-review-col);   --col-hue: var(--st-review);   --col-hue-bg: var(--st-review-bg); }
+.column.col-staged   { --col-wash: var(--st-staged-col);   --col-hue: var(--st-staged);   --col-hue-bg: var(--st-staged-bg); }
 .column.col-shipped  { --col-wash: var(--st-shipped-col);  --col-hue: var(--st-shipped);  --col-hue-bg: var(--st-shipped-bg); }
 .column.col-open     { --col-wash: var(--st-open-col);     --col-hue: var(--st-open);     --col-hue-bg: var(--st-open-bg); }
 .column.col-done     { --col-wash: var(--st-done-col);     --col-hue: var(--st-done);     --col-hue-bg: var(--st-done-bg); }

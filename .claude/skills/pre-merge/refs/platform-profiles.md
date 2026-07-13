@@ -11,7 +11,7 @@ selection and thresholds vary by profile; the **safety floor never does**.
 
 ## Read + fallback
 
-1. Read `devkit/PLATFORMS.md`. Parse the pipe table (`platform | rollback_possible | tolerance | preview_kind | preview_deploy_cmd | required_buckets`).
+1. Read `devkit/PLATFORMS.md`. Parse the pipe table (`platform | rollback_possible | tolerance | preview_kind | preview_deploy_cmd | staging_deploy_cmd | production_deploy_cmd | required_buckets`). Pre-merge only consumes the strictness/preview columns; `staging_deploy_cmd` / `production_deploy_cmd` are `/post-merge`'s (ignore them here).
 2. **Missing file** → fall back to the `standard` profile and emit a warning: `"No devkit/PLATFORMS.md — using the standard profile. Run /msg --init to scaffold per-platform tolerance."` Continue; do not refuse.
 3. **Multiple rows** (multi-platform repo): resolve the **union** of every row's `required_buckets`, and take the **strictest** `tolerance` present (`strict` > `standard` > `lenient`) for threshold purposes. Each row's `preview_kind` / `preview_deploy_cmd` is carried per-platform into Step 8 (a strict platform still gets its artifact preview even alongside a lenient web row).
 

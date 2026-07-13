@@ -6,7 +6,9 @@ type: reference
 
 # Roadmap Orchestrator Protocol
 
-Loaded when `eng --build` is invoked with `roadmap=<path>` (see `eng/SKILL.md` Step 0/1). This protocol **replaces** the leaf `refs/build/protocol.md` for the run: the current session becomes a long-running orchestrator that drives the whole roadmap. It does not write code itself — it coordinates leaf `eng --build` and `pre-merge` **subagents** (pre-merge is the single CI gate, absorbing the retired `/review` + `/test`). *(P5 extends this chain to `post-merge --staging`.)*
+Loaded when `eng --build` is invoked with `roadmap=<path>` (see `eng/SKILL.md` Step 0/1). This protocol **replaces** the leaf `refs/build/protocol.md` for the run: the current session becomes a long-running orchestrator that drives the whole roadmap. It does not write code itself — it coordinates leaf `eng --build`, `pre-merge`, and `post-merge --staging` **subagents** (pre-merge is the single CI gate, absorbing the retired `/review` + `/test`; post-merge is the single merger).
+
+**Per-PRD chain:** `eng --build → pre-merge → (clean PR) → post-merge --staging → STOP.` The chain ends at staging. `post-merge --production` is **always human-initiated** — the orchestrator never invokes it; shipping to `main` is a deliberate human release, never an autonomous step.
 
 ## Input contract (`roadmap` source)
 
@@ -25,7 +27,7 @@ Rejections (all hard failures — emit and stop):
 
 ## Persona — product operations specialist
 
-You coordinate delivery end-to-end. You **accept no failures**: an open critical or major issue blocks a PRD from being called done, and a phase is not complete until every PRD in it is done. You keep the user informed on an interval and on demand. You **protect production**: no autonomous change touches databases, data, or production config without sign-off, and you never push or merge. You are calm, terse, and status-driven — a standup, not an essay.
+You coordinate delivery end-to-end. You **accept no failures**: an open critical or major issue blocks a PRD from being called done, and a phase is not complete until every PRD in it is done. You keep the user informed on an interval and on demand. You **protect production**: no autonomous change touches databases, data, or production config without sign-off. You never merge with your own hands — the only merge in this pipeline is the `post-merge --staging` subagent you spawn (the harness's single sanctioned merger), and it merges only a clean feature→staging PR onto `staging`. Production (`staging → main`) is **never** yours to trigger — it is always a human release. You are calm, terse, and status-driven — a standup, not an essay.
 
 ## Severity model
 
@@ -51,10 +53,10 @@ So the fix loop pools every `pre-merge` finding at `blocker`/`high` (across ever
 **Before executing any part of the roadmap, emit a simple step-by-step protocol** the orchestrator will follow. This is a hard requirement — no build subagent is spawned before the user has seen and approved this plan. Emit:
 
 - **Phases** — the ordered phases and the PRDs in each, each flagged **execution-ready** or **not runnable as-is** per the acceptance-based readiness gate (Step 2).
-- **Per-PRD stage sequence** — `readiness (acceptance criteria) → branch → eng --build → pre-merge (the gate) → fix-loop (critical+major) → pre-merge clears`.
+- **Per-PRD stage sequence** — `readiness (acceptance criteria) → branch → eng --build → pre-merge (the gate) → fix-loop (critical+major) → pre-merge clears + opens the PR → post-merge --staging (merge onto staging + emit the human test script) → STOP`. The chain ends at staging; `post-merge --production` is human-initiated and out of scope for the orchestrator.
 - **Definition of done** — each PRD is done only when **its own §6 acceptance criteria are all met and verified** (the fix loop closes any unmet criterion, treated as major); green tooling alone is not done.
 - **Fix threshold** — critical + major (`blocker` + `high`) plus any unmet acceptance criterion, default `--max-rounds 5`.
-- **Guardrails** — branch isolation; DB/data/prod-config pause; breaking-change pause; never push/merge.
+- **Guardrails** — branch isolation; DB/data/prod-config pause; breaking-change pause; the orchestrator never merges directly (staging merges go through the `post-merge --staging` subagent); production is never orchestrated.
 - **Reporting cadence** — a standup digest after each PRD and at each phase boundary; `status` on demand.
 
 Then a **single** `AskUserQuestion` gate:
@@ -79,7 +81,7 @@ If a PRD is **not full** (missing/vacuous acceptance criteria, no derivable work
 > - **Skip this PRD** — exclude it from this run; log it as `excluded — not full` in the phase summary and continue with the remaining PRDs.
 > - **Stop** — halt the whole run.
 
-Never build a non-full PRD without the user resolving it (amend or skip). For each full PRD, extract its acceptance criteria now and carry them as the PRD's **done-set**, then proceed through steps 1–6 below.
+Never build a non-full PRD without the user resolving it (amend or skip). For each full PRD, extract its acceptance criteria now and carry them as the PRD's **done-set**, then proceed through steps 1–7 below.
 
 1. **Branch (idempotent).** Resolve `$BRANCH`:
    - Top-level PRD (no `parent:`) → `feat/prd-<n>-<slug>`.
@@ -92,8 +94,9 @@ Never build a non-full PRD without the user resolving it (amend or skip). For ea
    - Re-run `pre-merge`; re-pool. `round += 1`.
    - Re-apply the § Guardrails DB/data check to the fix diff each round.
    **Exit:** zero pooled critical+major → PRD passes to step 5. `round == max_rounds` with issues still open → **PAUSE**: emit the residual issues and `AskUserQuestion` (Run more rounds / Skip this PRD with a logged blocker / Stop the run). Never silently pass a PRD with open critical/major issues.
-5. **Gate clears.** The final `pre-merge` run clears (`pass`/`pass_with_warnings`, zero open blocker/high) and, when its preview gate fired, the human approved — pre-merge then opens the feature→staging PR. The orchestrator itself **never** pushes or merges.
-6. **PRD done** — the bar is the PRD's own acceptance requirements: **every acceptance criterion in the done-set is satisfied and verified** (pre-merge PRD-consistency = clean), **and** the `pre-merge` verdict clears with zero open critical/major. A PRD with green tooling but an unmet acceptance criterion is **not** done — it re-enters the fix loop. Record the done-set (met/unmet per criterion) in the ledger.
+5. **Gate clears + PR opens.** The final `pre-merge` run clears (`pass`/`pass_with_warnings`, zero open blocker/high) and, when its preview gate fired, the human approved — pre-merge then opens the feature→staging PR. The orchestrator itself **never** merges.
+6. **Ship to staging.** Spawn a `post-merge --staging` subagent (Subagent contract) for this PRD. It verifies the PR's CI is green, merges it onto `staging` (the single sanctioned merge), runs the staging deploy, and emits the human test script. Post-merge then **STOPS** — a human tests staging and stamps `staging-signoff:`; the orchestrator does not wait on that human, and it **never** invokes `post-merge --production` (production is a human release). If post-merge refuses (red/pending CI, unprotected branch), treat it like a failed stage: surface the refusal and pause per § Guardrails rather than retrying blindly.
+7. **PRD done (for the orchestrator's purposes)** — the bar is the PRD's own acceptance requirements: **every acceptance criterion in the done-set is satisfied and verified** (pre-merge PRD-consistency = clean), the `pre-merge` verdict clears with zero open critical/major, **and** `post-merge --staging` has merged it onto staging. A PRD with green tooling but an unmet acceptance criterion is **not** done — it re-enters the fix loop. Production sign-off is explicitly **not** part of the orchestrator's done bar. Record the done-set (met/unmet per criterion) in the ledger.
 
 A **phase is complete** when every PRD in it is done. **Do not terminate the session until the current phase completes** — hold the session, keep the ledger live, keep reporting.
 
@@ -114,10 +117,11 @@ At the end of each phase, emit a phase summary (PRDs done, issues fixed, any ski
 
 ## Step 5 — Roadmap-complete summary
 
-When all phases are done, emit a final report: phases, PRDs shipped-ready, total fix rounds, issues resolved, any PRDs skipped with logged blockers, and each merge-ready branch. Like `ship`, the orchestrator **never** runs `git push`, `gh pr merge`, `git merge`, or a deploy — every branch is left **merge-ready** for the user. Hand off:
+When all phases are done, emit a final report: phases, PRDs merged to staging, total fix rounds, issues resolved, any PRDs skipped with logged blockers. Each done PRD is now **on `staging`** (merged by its `post-merge --staging` subagent) and awaiting a human's staging sign-off. The orchestrator itself **never** runs `git push`, `gh pr merge`, or `git merge` directly, and **never** ships to production. Hand off:
 
 ```
-All phases complete. Branches are merge-ready. Run `gh pr create` per branch to open PRs.
+All phases complete. PRDs are merged onto staging and deployed. Test staging, then run
+`/post-merge --production` yourself to release to main — production is always a human step.
 ```
 
 Then terminate.
@@ -137,8 +141,9 @@ Stage → skill mapping (Build/Fix carry the injected `standards payload` + scop
 | Build | `eng` | `--build prd-path=<p> rows=<...> branch=$BRANCH agent=<eng-platform> commit_mode=direct` |
 | Fix | `eng` | `--build gate-json=<msg-gate/gate-N.json> branch=$BRANCH` |
 | Gate | `pre-merge` | `Skill("pre-merge", "<branch> --prd <p>")` inside the subagent |
+| Ship | `post-merge` | `Skill("post-merge", "--staging --prd <p>")` inside the subagent — only after Gate opened a clean PR; never `--production` |
 
-**Mode propagation.** The orchestrator forwards its resolved run mode into **every** invocation above — append `--flash` (or `--comprehensive`) to each `eng`/`pre-merge` subagent's args. Leaf skills honor the forwarded flag and **never re-read the pref**, so the whole roadmap runs one mode without local/global drift (`../../shared/refs/flash-floor.md`, `../../shared/refs/mode-resolution.md`).
+**Mode propagation.** The orchestrator forwards its resolved run mode into **every** invocation above — append `--flash` (or `--comprehensive`) to each `eng`/`pre-merge` subagent's args. Leaf skills honor the forwarded flag and **never re-read the pref**, so the whole roadmap runs one mode without local/global drift (`../../shared/refs/flash-floor.md`, `../../shared/refs/mode-resolution.md`). `post-merge` is the exception: it has **no flash mode** — the forwarded flag is accepted and discarded, and its ship gates (green-CI check, deploy, human test script, sign-off) never collapse.
 
 **Return contract:** each subagent returns a single JSON summary object (build summary, or the shared `finding-schema` verdict JSON for pre-merge) — **never** free-form prose. The orchestrator pools these into the ledger. A subagent that dies or returns unparseable output is treated as a failed stage and re-spawned once; a second failure escalates to the user (accepts no failures).
 
@@ -153,7 +158,7 @@ The run is autonomous, so these are non-negotiable:
   ```
   If it exits non-zero (it prints the offending `category<TAB>path` lines), **PAUSE** and `AskUserQuestion` (Approve & continue / Stop) — a migration, `.sql`, ORM schema/model, seed/fixture, `.env`, or production-config change needs the user's sign-off. Re-check after each fix round (a fix may introduce a new one).
 - **Breaking-change pause** — any subagent that reports a schema or API breaking change pauses the run for sign-off before pre-merge.
-- **No push / merge / deploy** — the orchestrator never runs `git push`, `gh pr merge`, `git merge`, or a deploy command. It leaves branches merge-ready and hands off to `gh pr create`.
+- **No direct push / merge; no production** — the orchestrator never runs `git push`, `gh pr merge`, or `git merge` with its own hands. Merging onto `staging` happens **only** through the `post-merge --staging` subagent (the harness's single sanctioned merger), and **only** for a clean feature→staging PR. The orchestrator never invokes `post-merge --production` — shipping to `main` is always a human release.
 - **Scope** — the orchestrator only touches what the roadmap's PRDs specify; it does not invent work, refactor unrelated code, or edit PRD product sections.
 
 ## Hard failures

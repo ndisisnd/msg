@@ -37,6 +37,7 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | `changelog-gate.py` | Validates CHANGELOG.md format |
 | `eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
 | `eng-commit-cap.sh` | A5 small-commit cap — blocks a staged diff over 500 changed LOC (300 with `--breaking`); `--oversize-reason` escape hatch |
+| `post-merge-protection.sh` | Branch-protection `--bootstrap` (sets required status checks + no-force-push on `staging`/`main`, plus ≥1 required review on `main`) and `--verify` (machine `PROTECTED`/`UNPROTECTED` lines; `NO_GH`/`NO_REMOTE` when degraded). Run by `/post-merge` Step 1; offered by `/msg --init` |
 
 ### 4. Devkit layer (scaffolded projects)
 
@@ -54,13 +55,13 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 
 ```
 Planning:   plan-pm → plan-tune --product → plan-em → plan-tune --eng
-Execution:  eng --plan → eng --build → pre-merge (CI gate: PR feature→staging)
+Execution:  eng --plan → eng --build → pre-merge → post-merge --staging → (human) → post-merge --production
 Roadmap:    plan-pm --roadmap → (approve reshaping) → roadmap/roadmap.md → eng --build roadmap= (orchestrated execution)
 ```
 
 Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
 
-The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roadmap` analyses the existing PRDs — flagging bloat/overlap and proposing `SPLIT`/`MERGE`/`FOLD`/`TRIM` ops, applied only on per-op approval — then sequences them into phases in `roadmap/roadmap.md` (viewable on the `/msg --gui` Roadmap tab). `eng --build roadmap=roadmap/roadmap.md` turns the current session into a **product-operations orchestrator** that executes the roadmap phase-by-phase, spawning `eng`/`pre-merge` subagents (pre-merge is the single CI gate, absorbing the retired `/review` + `/test`), fixing critical+major (`blocker`+`high`) by default, and looping until each phase is clean. It stays within the standing convention's spirit — it emits a plan and asks **once** before executing, then runs autonomously behind guardrails: all work on `feat/prd-<n>-*` branches, a pause for sign-off on any database/data/production-config touch (`eng-db-touch.sh`), and it never pushes or merges (branches are left merge-ready).
+The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roadmap` analyses the existing PRDs — flagging bloat/overlap and proposing `SPLIT`/`MERGE`/`FOLD`/`TRIM` ops, applied only on per-op approval — then sequences them into phases in `roadmap/roadmap.md` (viewable on the `/msg --gui` Roadmap tab). `eng --build roadmap=roadmap/roadmap.md` turns the current session into a **product-operations orchestrator** that executes the roadmap phase-by-phase, spawning `eng`, `pre-merge`, and `post-merge --staging` subagents (pre-merge is the single CI gate; post-merge is the single merger), fixing critical+major (`blocker`+`high`) by default, and looping until each phase is clean. Its per-PRD chain is `eng --build → pre-merge → (clean PR) → post-merge --staging → STOP` — the chain ends at staging. It stays within the standing convention's spirit — it emits a plan and asks **once** before executing, then runs autonomously behind guardrails: all work on `feat/prd-<n>-*` branches, a pause for sign-off on any database/data/production-config touch (`eng-db-touch.sh`), and it never merges with its own hands (staging merges go through the `post-merge --staging` subagent) and **never** ships to production — `post-merge --production` is always a human release.
 
 ## Skill inventory
 
@@ -71,12 +72,13 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 | `plan-em` | Yes |
 | `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
 | `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`) |
+| `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; no flash mode) |
 | `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer, run-report reader — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
 
 ## Run reports
 
-`eng --build` and `pre-merge` end every completed run by writing a `report-[n].md` (schema: `shared/refs/report-schema.md`) to the PRD's `features/prd-<n>-<slug>/reports/` folder, or `features/reports/` when no PRD is resolvable — `[n]` is the standard `max+1` counter per directory. The report carries GUI-parseable frontmatter (skill, PRD, branch, verdict, features, diff/test stats) and fixed sections covering work done, code changes, test results, **what the user can expect**, and **how to verify** the work — written for a human, derived from the PRD's acceptance criteria and the tests that ran. Writes are best-effort (a failed write never fails, blocks, or re-verdicts a run) and supplement — never replace — each skill's existing output contract (eng's build summary, pre-merge's final JSON emission). The `/msg --gui` **Reports** tab groups them by PRD and renders them read-only.
+`eng --build`, `pre-merge`, and `post-merge` end every completed run by writing a `report-[n].md` (schema: `shared/refs/report-schema.md`) to the PRD's `features/prd-<n>-<slug>/reports/` folder, or `features/reports/` when no PRD is resolvable — `[n]` is the standard `max+1` counter per directory. The report carries GUI-parseable frontmatter (skill, PRD, branch, verdict, features, diff/test stats) and fixed sections covering work done, code changes, test results, **what the user can expect**, and **how to verify** the work — written for a human, derived from the PRD's acceptance criteria and the tests that ran. Post-merge's staging report carries the human test script in `## How to verify`; its production report renders release-style, flagging any no-rollback platform (iOS) `IRREVERSIBLE`. Writes are best-effort (a failed write never fails, blocks, or re-verdicts a run) and supplement — never replace — each skill's existing output contract (eng's build summary, pre-merge's final JSON emission, post-merge's merge/deploy summary). The `/msg --gui` **Reports** tab groups them by PRD and renders them read-only.
 
 ## Run modes
 
@@ -84,10 +86,10 @@ Every user-facing skill resolves a run mode at Step 0: **comprehensive** (defaul
 
 - **Precedence** (`shared/refs/mode-resolution.md`): per-run flag (`--flash`/`--comprehensive`, not persisted) > orchestrator-forwarded mode > local `.claude/msg/pref.json` > global `~/.claude/msg/pref.json` > `comprehensive`. A missing/corrupt/unknown pref silently resolves `comprehensive` — never a hard failure.
 - **Pref file** — `.claude/msg/pref.json` (`{"mode": "flash"|"comprehensive"}`), written by `/msg --set-mode` at a chosen scope. It sits beside `cache/` and is **not** gitignored (only `.claude/msg/cache/` is); `install.sh` never creates or writes it (pref is user-created).
-- **What flash changes** — execution count and interactivity, **not** correctness: pre-merge flash runs mechanical + unit/int + security only (the floor intact), one generalist eng agent (≤2 platforms), collapsed interviews/gates. Each skill loads a small `refs/flash/mode-flash.md` (plan-pm: `refs/flash/mode-flash.md`) **instead of** its comprehensive refs.
+- **What flash changes** — execution count and interactivity, **not** correctness: pre-merge flash runs mechanical + unit/int + security only (the floor intact), one generalist eng agent (≤2 platforms), collapsed interviews/gates. Each skill loads a small `refs/flash/mode-flash.md` (plan-pm: `refs/flash/mode-flash.md`) **instead of** its comprehensive refs. `post-merge` is the exception with **no flash mode** — its ship gates (green-CI check, deploy, human test script, sign-off, production double-confirm) never collapse; a forwarded `--flash` is accepted and discarded.
 - **Reuses the v2 substrate, never a leaner copy** — flash consumes the PRD-digest slices (`scan-prd-digest.py`), the shared verify prelude (`shared/refs/verify-prelude.md`), flag-based injected cook, and the session cache (`shared/refs/session-cache.md`).
 - **Propagation** — in-repo orchestrators (`plan-em`, roadmap `eng --build`) forward the resolved mode into every `Skill(...)`/`Agent(...)` handoff as an explicit flag; a leaf skill never re-reads the pref mid-pipeline, so a run can't drift between local and global. (`plan`/`ship` are global-only — their propagation is a tracked follow-up in the global-skills repo.)
-- **Safety floor** — DB/data/prod-config pauses, breaking-change pauses, branch isolation, never push/merge, secret scan, frontmatter stamps, F-ID stability, PRD §9 ledger, gate-fail ticket, pre-merge refusals are **never relaxed in either mode** (`shared/refs/flash-floor.md`).
+- **Safety floor (v2)** — write powers are scoped per skill rather than blanket-forbidden: eng commits to `feat/prd-<n>-*` feature branches only; pre-merge opens exactly one feature→staging PR (+ the D7 sync-merge commit) and never merges; **post-merge is the only merger** — staging via a green-CI PR merge, production via the double-confirmed staging→main release — and nothing reaches `main` any other way. DB/data/prod-config pauses, breaking-change pauses, branch isolation, secret scan, frontmatter stamps, F-ID stability, PRD §9 ledger, gate-fail ticket, pre-merge refusals, and the human gates (preview approval, staging sign-off, production double-confirm) are **never relaxed in any mode**; `post-merge` has no flash mode at all (`shared/refs/flash-floor.md`).
 
 ## Cook integration
 

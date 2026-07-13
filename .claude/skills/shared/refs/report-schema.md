@@ -6,7 +6,7 @@ type: reference
 
 # Run report — `report-[n].md`
 
-The canonical post-run report artifact. Written by `eng --build` and `pre-merge` as the last action of a completed run (`post-merge` joins in P5). It records what the run did (features worked on, code changed, tests passed/failed) and, most importantly, **what the user can expect and how they can verify the work** — in plain language, for a human. The `/msg --gui` Reports tab parses it mechanically, so the frontmatter keys and `##` headings below are a contract: keep them verbatim.
+The canonical post-run report artifact. Written by `eng --build`, `pre-merge`, and `post-merge` as the last action of a completed run. It records what the run did (features worked on, code changed, tests passed/failed) and, most importantly, **what the user can expect and how they can verify the work** — in plain language, for a human. The `/msg --gui` Reports tab parses it mechanically, so the frontmatter keys and `##` headings below are a contract: keep them verbatim.
 
 The report **supplements** each skill's existing output contract (build summary, findings JSON, final emission) — it never replaces or reorders it.
 
@@ -31,7 +31,7 @@ Flat `key: value` pairs (plus `[a, b]` lists) — the GUI's frontmatter parser r
 
 ```markdown
 ---
-skill: eng | pre-merge
+skill: eng | pre-merge | post-merge
 prd: features/prd-101-task-crud/prd-101-task-crud.md   # or none
 branch: feat/prd-101-task-crud                          # or none
 verdict: pass | pass_with_warnings | warn | fail | block | n/a
@@ -55,6 +55,11 @@ Per-skill field sources:
 | `features` | assigned exec-table row ids | feature ids from `--prd` context, or `[]` |
 | diff stats | `git diff --numstat` over this agent's commits | resolved diff (`resolve-diff.sh` / prelude) |
 | test counts | per-group + full-suite results | unit-int / bucket outcomes when parsed; else `0` |
+
+**post-merge fields (H4).** `prd` = the shipped PRD; `branch` = the merged feature branch (`--staging`) or `staging` (`--production`); `verdict` = `pass` on a clean merge/deploy, `fail` if a production deploy errored, `n/a` on an early refusal; diff/test stats are `0`/`none` (post-merge changes no source and runs no test buckets — it merges and deploys). Two flavors:
+
+- **Staging report** — its `## How to verify` section carries the **human test script verbatim** (`post-merge/refs/human-test-script.md`), so the GUI surfaces exactly what the human should poke at on the deployed staging environment.
+- **Production report** — release-style: `## Work done` lists the PRDs shipped + platforms deployed; `## What to expect` carries the per-platform rollback notes and keeps the literal token **`IRREVERSIBLE`** for any no-rollback platform (iOS), which the GUI renders as a prominent callout.
 
 ## Body — fixed section contract
 

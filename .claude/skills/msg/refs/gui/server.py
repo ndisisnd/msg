@@ -43,7 +43,8 @@ ARGS = None
 TOKEN = secrets.token_hex(16)
 READ_EXTS = {".md", ".markdown", ".json", ".txt", ".yaml", ".yml", ".toml"}
 DENY_PARTS = {".git", "node_modules", ".env", "__pycache__", ".venv", "venv"}
-BUCKETS = ("product", "eng", "building", "review", "shipped")
+# v2 completion buckets (H1 ladder) — left→right pipeline order.
+BUCKETS = ("product", "planned", "building", "gated", "staged", "shipped")
 META_KEYS = {"completion", "status", "module", "platform", "feature"}
 
 JOBS = []          # [{id, prompt, status, output, started, finished, reported}]
@@ -232,29 +233,72 @@ def run_cmd(argv, timeout=3):
         return 1, ""
 
 
+_GH_READY = None
+
+
+def gh_ready():
+    """gh installed AND a git remote configured — gates the PR-state ladder rungs.
+    Cached across requests (availability is stable); without it the ladder degrades
+    silently down to the frontmatter/branch rungs so the board never errors."""
+    global _GH_READY
+    if _GH_READY is None:
+        code, _ = run_cmd(["gh", "--version"])
+        rcode, rout = run_cmd(["git", "remote"])
+        _GH_READY = (code == 0) and (rcode == 0 and bool(rout.strip()))
+    return _GH_READY
+
+
 def infer_completion(fm, num, slug):
-    """Frontmatter `completion:` override wins; otherwise observable git/gh signals;
-    otherwise the frontmatter status fallback — same ladder as protocol-gui.md Step 2."""
+    """H1 completion ladder (msg-v2 Part H1), most-authoritative first:
+        frontmatter completion override
+          -> PR staging->main MERGED          = shipped (production)
+          -> staging-signoff: stamp present   = staged (human-approved)
+          -> PR feature->staging MERGED       = staged
+          -> PR feature->staging OPEN         = gated (pre-merge passed)
+          -> branch feat/prd-<n>-* exists     = building (in build)
+          -> status: eng                      = planned
+          -> else                             = product
+    The PR-state rungs come from `gh pr list` when gh + a remote exist; otherwise
+    they are skipped and the ladder falls through (never blocks the board)."""
     override = (fm.get("completion") or "").strip().lower()
     if override in BUCKETS:
         return override, "frontmatter completion override"
+
+    prd_id = "prd-%s%s" % (num, ("-" + slug) if slug else "")
+    have_gh = gh_ready()
+
+    # Rung 1 — production: a merged staging->main release PR that names this PRD.
+    if have_gh:
+        code, out = run_cmd(["gh", "pr", "list", "--base", "main", "--state", "merged",
+                             "--search", prd_id, "--json", "number", "--limit", "1"], timeout=5)
+        if code == 0 and out and out != "[]":
+            return "shipped", "staging->main PR merged (references %s)" % prd_id
+
+    # Rung 2 — staged, human-approved: the sign-off stamp (frontmatter, always readable).
+    if (fm.get("staging-signoff") or "").strip():
+        return "staged", "staging-signoff stamp present - human-approved"
+
+    # Rungs 3-5 — feature->staging PR state (gh) then branch existence (git).
     branch = None
     code, out = run_cmd(["git", "branch", "--list", "feat/prd-%s-*" % num])
     if code == 0 and out:
         branch = out.splitlines()[0].lstrip("* ").strip()
+    if branch and have_gh:
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", "staging",
+                             "--state", "merged", "--json", "number", "--limit", "1"], timeout=4)
+        if code == 0 and out and out != "[]":
+            return "staged", "feature->staging PR for %s merged" % branch
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", "staging",
+                             "--state", "open", "--json", "number", "--limit", "1"], timeout=4)
+        if code == 0 and out and out != "[]":
+            return "gated", "feature->staging PR for %s open (pre-merge passed)" % branch
     if branch:
-        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--state", "merged",
-                             "--json", "number", "--limit", "1"], timeout=4)
-        if code == 0 and out and out != "[]":
-            return "shipped", "PR for %s merged" % branch
-        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--state", "open",
-                             "--json", "number", "--limit", "1"], timeout=4)
-        if code == 0 and out and out != "[]":
-            return "review", "open PR for %s" % branch
         return "building", "branch %s exists" % branch
+
+    # Rungs 6-7 — frontmatter fallback.
     status = (fm.get("status") or "").strip().lower()
     if status in ("eng", "engineering"):
-        return "eng", "frontmatter status: %s" % status
+        return "planned", "frontmatter status: %s" % status
     return "product", "frontmatter status: %s" % (status or "absent")
 
 

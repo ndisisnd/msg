@@ -36,6 +36,7 @@ allowed_tools:
 | Planning | plan-em | Engineering plan generator |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, preview, opens PR feature→staging |
+| Build & Ship | post-merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 
 > **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
@@ -50,6 +51,10 @@ allowed_tools:
                                                              /eng --build
                                                                          ↓
                                              /pre-merge  (CI gate: opens PR feature→staging)
+                                                                         ↓
+                              /post-merge --staging  (merge on green CI, deploy, human test)
+                                                                         ↓
+                                             (human)  /post-merge --production  (release to main)
 ```
 
 ---
@@ -198,6 +203,7 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Reviewing | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | A PRD or spec | A project spec | plan-tune |
 | Reviewing | Code or a diff | An engineering plan | eng |
+| Wrapping up | Code or a diff | Working code or test results | post-merge --staging |
 | Wrapping up | Code or a diff | A commit or task list | kermit |
 
 **Step 3 — Emit**

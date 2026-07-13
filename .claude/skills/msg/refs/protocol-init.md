@@ -38,7 +38,7 @@ type: reference
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
-| `PLATFORMS.md` | Per-platform pre-merge tolerance profiles — read by `/pre-merge` Step 0 to pick the strictness profile + bucket set |
+| `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
@@ -166,13 +166,34 @@ DS_CONVENTIONS="<D4 answer>" \
 
 `init.sh` exits non-zero and marks failures in the manifest if any write fails. If the script exits non-zero, surface its stderr and stop. Do not retry — the user re-runs or fixes manually.
 
-**Step 5/5 — Emit manifest and suggest next step**
+**Step 5/5 — Emit manifest, offer branch-protection bootstrap, suggest next step**
 
-Print the manifest from `init.sh` stdout verbatim. Then emit a one-line next-step suggestion:
+Print the manifest from `init.sh` stdout verbatim.
+
+**Branch-protection bootstrap (C3 — offer only when a GitHub remote exists).**
+Check for a GitHub remote:
+
+```bash
+git remote -v 2>/dev/null | grep -qi github.com && command -v gh >/dev/null 2>&1 && echo HAS_GH_REMOTE
+```
+
+If `HAS_GH_REMOTE` prints, the v2 ship pipeline (`/post-merge`) needs branch
+protection on `staging` and `main` — green-CI-required on both, plus ≥1 human
+review on `main` (D11). Offer it via **one** `AskUserQuestion`:
+
+> header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (required for `/post-merge`)"
+> - **Yes, bootstrap it** — run `bash .claude/scripts/post-merge-protection.sh --bootstrap` (resolve locally-first, else `$HOME/.claude/scripts/…`); it's idempotent. Print each `BOOTSTRAPPED`/`BOOTSTRAP_FAILED` line.
+> - **Skip** — note that `/post-merge` will refuse until protection is set; the user can re-run the script later.
+
+No GitHub remote (or no `gh`) → skip this offer silently; `staging`/`main` and
+protection are set up when the user first pushes and runs the script. Never a
+hard failure.
+
+Then emit a one-line next-step suggestion:
 
 > Next: run `/plan-pm` to draft the first PRD.
 
-Do not invoke another skill. The next slash command is the user's choice.
+Do not invoke another skill (the bootstrap script is not a skill). The next slash command is the user's choice.
 
 ## References
 
@@ -187,4 +208,5 @@ Do not invoke another skill. The next slash command is the user's choice.
 - `refs/init/templates/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry, populated from Step 2 interview)
 - `refs/init/templates/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)
 - `refs/init/templates/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)
-- `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform pre-merge tolerance profiles; assembled from the P1 interview answer)
+- `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform tolerance profiles + staging/production deploy commands; assembled from the P1 interview answer)
+- `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)

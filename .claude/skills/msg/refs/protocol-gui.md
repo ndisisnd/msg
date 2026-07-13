@@ -112,19 +112,26 @@ Same read model as before — now implemented in `server.py`, re-run per request
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
    → raw markdown `detail`, containing `prd-*` folder → `prdId`. Missing/unparseable
    frontmatter → `skipped[]`. No reports → `reports: []`.
-6. **Completion inference**, most-authoritative first:
+6. **Completion inference (H1 ladder)**, most-authoritative first:
 
    | Signal | Bucket |
    |---|---|
    | frontmatter `completion:` override (written by the GUI) | that bucket, verbatim |
-   | PR for `feat/prd-<n>-*` merged | `shipped` |
-   | open PR for the branch | `review` |
-   | `feat/prd-<n>-*` branch exists | `building` |
-   | frontmatter `status: eng`/`engineering` | `eng` |
+   | PR `staging → main` MERGED (references this PRD) | `shipped` (production) |
+   | `staging-signoff:` stamp present in the frontmatter | `staged` (human-approved) |
+   | PR `feature → staging` MERGED | `staged` |
+   | PR `feature → staging` OPEN | `gated` (pre-merge passed) |
+   | `feat/prd-<n>-*` branch exists | `building` (in build) |
+   | frontmatter `status: eng`/`engineering` | `planned` |
    | anything else | `product` |
 
-   `git`/`gh` unavailable or slow → silently fall through to the frontmatter rungs; record
-   the winning rung as a human string in `completionSource`. Never block the board.
+   The PR-state rungs come from `gh pr list --json` and need `gh` + a git remote; the
+   `staging-signoff:` rung is read straight from frontmatter. When `gh`/a remote is
+   unavailable (or slow), the PR rungs are skipped and the ladder falls through **silently
+   down-ladder** to the stamp/branch/frontmatter rungs — never an error. Record the winning
+   rung as a human string in `completionSource`. Board columns render the six v2 buckets
+   `product · planned · building · gated · staged · shipped`; a card can now visibly sit in
+   `gated`, `staged`, or `shipped`.
 
 ## Step 3 — Data contract
 
@@ -255,9 +262,13 @@ across every project (light + dark, responsive); it is **not** sourced from
 - **Detail page.** `#/reports/<file>` renders the report's raw markdown `detail` through
   the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
   `prdId` matches an enumerated PRD.
-- **Producers, not the GUI, write reports.** `eng --build` and `/pre-merge`
-  own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the board renders
-  them and never writes, renumbers, or toggles them.
+- **Producers, not the GUI, write reports.** `eng --build`, `/pre-merge`, and
+  `/post-merge` own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the
+  board renders them and never writes, renumbers, or toggles them. Post-merge reports join
+  the per-PRD grouping by their `skill: post-merge` frontmatter — staging reports carry the
+  human test script in `## How to verify`; production reports render release-style, and when
+  the body contains the literal token `IRREVERSIBLE` (a no-rollback platform like iOS) the
+  Reports tab surfaces a prominent badge on the card and a callout banner on the detail page.
 
 ## What this protocol never does
 - Never lets the GUI write outside `features/prd-*/` markdown: no repo-file writes from the

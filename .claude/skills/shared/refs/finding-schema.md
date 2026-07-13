@@ -18,7 +18,8 @@ enums, `title` vs `message`, string vs nested evidence, `rule`/`category` presen
 in some and absent in others).
 
 > **v2 note:** the producers `/review` and `/test` are retired — their stages are
-> now pre-merge gate stages. `post-merge` joins this schema in P5.
+> now pre-merge gate stages. `post-merge` is a producer too — it emits findings on
+> refusals and deploy failures (`source: post-merge`).
 
 ## Canonical finding object
 
@@ -49,7 +50,7 @@ in some and absent in others).
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | string | yes | `<prefix>-<zero-padded 3-digit index>`, e.g. `sec-001`, `quality-003`, `unit-002`. Prefix names the producing bucket/mode. |
-| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:preview`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). eng's per-ticket pair-review emits `pair-review`. After dedup may be a comma-separated list of merged sources. |
+| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:preview`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). eng's per-ticket pair-review emits `pair-review`. `post-merge` emits `post-merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. |
 | `severity` | enum | yes | `blocker` / `high` / `medium` / `low`. See "Severity enum" below. |
 | `category` | enum | yes | See "Category enum" below. Never omit — dedup and regression keys depend on it. |
 | `rule` | string | yes | **The dedup/regression key.** Tool rule-id (`stripe-access-token`, semgrep check id), failing test name, or the verbatim assertion text. Never null — synthesize a stable slug from the finding if the tool gives no id. |
@@ -102,7 +103,7 @@ results are NOT findings — route them to `totals`/`evaluated`, never `findings
 `integration`, `e2e`, `build`, `security`, `bundle`, `unit`, `functional`, `qa`,
 `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`, `contract`, `architecture`,
 `error-handling`, `debug`, `dead-code`, `duplication`, `readability`, `naming`,
-`complexity`, `scope-creep`, `performance`, `other`.
+`complexity`, `scope-creep`, `performance`, `deploy`, `other`.
 
 A bucket-based stage (a pre-merge platform bucket) sets `category` to its bucket
 name. A semantic stage (security, migration, PRD-consistency) or eng's pair-review
@@ -122,7 +123,10 @@ onto a shared three-state scale so callers can aggregate:
 Pre-merge additionally uses two early-termination verdicts, with one meaning
 each: `skipped` = the user cancelled at a gate; `refused` = the skill declined to
 run (error paths — e.g. `no_diff`, `no_staging`, `schema_mismatch`). Both have no
-severity and carry no findings. *(`post-merge` joins this table in P5.)*
+severity and carry no findings. `post-merge` uses the same four-verdict scale
+(`pass`/`fail`/`refused`/`skipped`) — `fail` when a production deploy errors
+(carries a `deploy` finding), `refused` on a blocked precondition/gate, `skipped`
+when a human cancels a ship gate (`post-merge/refs/output-schema.md`).
 
 ## Subagent return contract
 
