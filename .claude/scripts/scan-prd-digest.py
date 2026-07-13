@@ -188,8 +188,8 @@ SLICES = {
                 "glossary","key_interactions"],
     # plan-em: what to build and for which platform.
     "plan":    ["frontmatter","summary","features","exec_table"],
-    # plan-tune --eng: eng-plan integrity.
-    "eng-audit":["frontmatter","features","engineering","open_questions"],
+    # plan-tune --eng: eng-plan integrity (exec_table + todos feed checks 4/5).
+    "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
     "build":   ["frontmatter","features","exec_table","engineering"],
     # review / test eval bootstrap: derive assertions.

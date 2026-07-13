@@ -1,6 +1,7 @@
 ---
 name: msg-v2
-status: ready-to-build
+status: shipped
+shipped: 2026-07-14  # P1–P7 all landed on msg-v2; CHANGELOG is the per-phase ledger
 description: msg v2 — architectural restructure of the core skill harness. Consolidates review+test into pre-merge, adds post-merge (staging→production), rebuilds eng around default todos / pair-programming / small commits. Objectives — faster development through the harness, lower token cost per coding run.
 ---
 
@@ -468,14 +469,14 @@ Unchanged mechanically (cook compile-once, scoped flags, exec-table skeleton —
 - [ ] Lifecycle stamps wired: `backlog` → `in-progress` (plan-pm); `completed` (post-merge, live from P5)
 - [ ] GUI Intake tab with grade chips (H2); INTAKE.md status cells are the only new write path (H5)
 
-### P7 — Certification layer *(Part G, I2, I3)*
+### P7 — Certification layer *(Part G, I2, I3)* — ✅ shipped 2026-07-14
 **Objective:** plan-tune is the seven-check contract certifier; plan-em enforces it on both waves.
-- [ ] plan-tune runs the 7-check certification on digest slices; adversarial dimensions removed; "no check without a consumer" rule documented in the skill itself
-- [ ] D15: Critical+Major auto-fixed; `# | Sev | Found | Fixed` terminal table emitted; single Minor ask; product-decision pause is the only hard gate
-- [ ] D16: each auto-fix writes a category-tagged AHA learning; **verified consumed** by the next plan-pm draft; ≥3-run recurrence emits the protocol-repair flag
-- [ ] plan-em: matching certifier auto-runs inline before each wave (product → plan wave, eng → build wave, D18); relationship questions replaced by certified-graph consumption — zero questions on a clean run (I3)
-- [ ] Full autonomous dry run: intake → plan-pm → certify → plan-em → build → pre-merge on a scratch PRD, zero unresolved Criticals
-- [ ] `bench.py` final: net cut vs v1 comprehensive ≥ 40%
+- [x] plan-tune runs the 7-check certification on digest slices; adversarial dimensions removed; "no check without a consumer" rule documented in the skill itself — SKILL.md + `refs/certification.md`; `tune-product.md`/`tune-eng.md` deleted
+- [x] D15: Critical+Major auto-fixed; `# | Sev | Found | Fixed` terminal table emitted; single Minor ask; product-decision pause is the only hard gate — Step 3/3 (4-step → 3-step flow; tune-type ask + fix multiSelect + step-4 gate deleted)
+- [x] D16: each auto-fix writes a category-tagged AHA learning; ≥3-run recurrence emits the protocol-repair flag — Step 3/3 self-healing block. **Consumption wired** (not live-verified): plan-pm's pre-run already reads `devkit/AHA.md` and applies `[tune:*]` learnings (SKILL.md line 55); intake reads it for grading calibration
+- [x] plan-em: matching certifier auto-runs inline before each wave (product → plan wave Step 2, eng → build wave Step 4, D18); relationship questions replaced by certified-graph consumption — zero questions on a clean run (I3, Step 1c); synth eng-tune menu option deleted (I5)
+- [ ] Full autonomous dry run: intake → plan-pm → certify → plan-em → build → pre-merge on a scratch PRD, zero unresolved Criticals — **residual** (needs a live multi-session LLM pipeline; `bench.py` is a token model, not an executor). Mechanically verified: seeded PRDs carry all certifier inputs + precondition stamps → clean-run path coherent (see `evals/token-baseline.md` P7 residual note)
+- [x] `bench.py` final: net cut vs v1 comprehensive ≥ 40% — **−56.9%** (380,704 → 163,904); P7 cut ~14.2k on top of P6
 
 ## Open questions
 

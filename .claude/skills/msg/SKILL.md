@@ -33,8 +33,8 @@ allowed_tools:
 | Planning | msg --init | One-time project bootstrap |
 | Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door) |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
-| Planning | plan-tune | PRD auditor — product/eng |
-| Planning | plan-em | Engineering plan generator |
+| Planning | plan-tune | PRD contract certifier — seven consumer-bound checks, product/eng |
+| Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, preview, opens PR feature→staging |
 | Build & Ship | post-merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |

@@ -16,9 +16,9 @@ Read the digest **`plan` slice** (`scan-prd-digest.py --slice plan`) + ARCHITECT
 - **≤2 platforms → exactly 1 generalist eng agent** covering all rows.
 - **>2 platforms → per-platform roster preserved** (comprehensive fan-out).
 
-## Gates — one merged gate
+## Gates — roster approval only
 
-Merge the tune gate + roster approval + relationship-flag confirmation into **one** `AskUserQuestion` (≤1 on the happy path). The tune gate is **auto-skipped** when frontmatter shows `product-tuned: yes`.
+**Roster approval is the single gate** (≤1 `AskUserQuestion` on the happy path). The certification precondition is **not** a question — flash still runs it (safety floor, never collapsed): if `product-tuned: yes` with no unresolved Criticals, it's already certified and skipped; otherwise run `plan-tune --product --flash` inline before the plan wave (and `plan-tune --eng --flash` before the build wave). Relationship confirmation is gone — flash consumes the certified graph silently and asks only on a genuine conflict (I3), which is rare enough not to count against the happy-path gate budget.
 
 ## Synthesis — from agent returns only
 
