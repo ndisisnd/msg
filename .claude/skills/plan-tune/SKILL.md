@@ -22,13 +22,11 @@ allowed_tools:
 
 ## Usage
 
-**Invoke**: `/plan-tune [prd-path] [--product | --eng] [--flash]`
+**Invoke**: `/plan-tune [prd-path] [--product | --eng]`
 
 - Slash command: `/plan-tune`
 - Natural language: "tune the PRD", "certify the PRD", "run the contract certifier", "check the PRD before plan-em"
 - Context: a path to an existing PRD `.md` file, or invocation immediately after `plan-pm` or `plan-em` saved one
-
-**Flash mode:** `/plan-tune <path> --product|--eng --flash` — load `refs/flash/mode-flash.md` and follow it instead of `refs/certification.md` (critical-only subset of the seven checks, 0 gates, auto-fix). **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
 **Flags:**
 
@@ -214,4 +212,3 @@ When `plan-em` invoked this tune inline as a certification precondition (D18), i
 ## References
 
 - `refs/certification.md` — the seven-check certification (G1), consumers, severity rubric, findings-table schema, the auto-fix terminal table (D15), and the self-healing AHA loop (D16). The whole certifier definition.
-- `refs/flash/mode-flash.md` — flash mode: critical-only subset of the seven checks, zero gates, auto-fix (loaded instead of `refs/certification.md` when `--flash` is active).
