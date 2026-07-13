@@ -1,18 +1,25 @@
 ---
 name: finding-schema
-description: Canonical finding object shared by /review, /test, and /pre-merge. One severity enum, one field set, one evidence shape. The single source of truth for finding interoperability across the review → test → pre-merge pipeline.
+description: Canonical finding object emitted by pre-merge's gate stages and eng's pair-review / fail-ticket loop. One severity enum, one field set, one evidence shape. The single source of truth for finding interoperability across the gate.
 ---
 
 # Finding Schema
 
-The single canonical finding shape emitted by every gate in the pipeline
-(`/review` → `/test` → `/pre-merge`). All three skills conform to this object so
-that `ship`/`preflight` can merge, dedup, and regression-match findings
-mechanically — without per-skill translation.
+The single canonical finding shape emitted across the harness — every pre-merge
+gate stage (mechanical, unit-int, regression, platform buckets, security,
+migration, PRD-consistency, preview), eng's per-ticket pair-review, and the
+`msg-gate/gate-<n>.json` fail-ticket that `eng --build gate-json=` consumes. Every
+producer conforms to this object so downstream consumers (the `/msg --gui` board,
+`eng --build`'s gate-json read, the roadmap orchestrator) can merge, dedup, and
+regression-match findings mechanically — without per-producer translation.
 
-Replaces the three divergent shapes that previously drifted apart (disjoint
-severity enums, `title` vs `message`, string vs nested evidence, `rule`/`category`
-present in some and absent in others).
+Replaces the divergent shapes that previously drifted apart (disjoint severity
+enums, `title` vs `message`, string vs nested evidence, `rule`/`category` present
+in some and absent in others).
+
+> **v2 note:** the producers `/review` and `/test` are retired — their stages are
+> now pre-merge gate stages. `post-merge` is a producer too — it emits findings on
+> refusals and deploy failures (`source: post-merge`).
 
 ## Canonical finding object
 
@@ -43,14 +50,14 @@ present in some and absent in others).
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | string | yes | `<prefix>-<zero-padded 3-digit index>`, e.g. `sec-001`, `quality-003`, `unit-002`. Prefix names the producing bucket/mode. |
-| `source` | string | yes | The producer: a `/cook --<flag>` (review semantic agent), a `lint:`/`format:`/`typecheck:`/`secrets:` runner (review mechanical stage), or the bucket name (`/test`, `/pre-merge`). After dedup may be a comma-separated list of merged sources. |
+| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:preview`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). eng's per-ticket pair-review emits `pair-review`. `post-merge` emits `post-merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. |
 | `severity` | enum | yes | `blocker` / `high` / `medium` / `low`. See "Severity enum" below. |
 | `category` | enum | yes | See "Category enum" below. Never omit — dedup and regression keys depend on it. |
 | `rule` | string | yes | **The dedup/regression key.** Tool rule-id (`stripe-access-token`, semgrep check id), failing test name, or the verbatim assertion text. Never null — synthesize a stable slug from the finding if the tool gives no id. |
 | `message` | string | yes | One sentence: what went wrong + where. (Formerly `title` in pre-merge.) Keep ≤ 80 chars for the headline; detail goes in `evidence.snippet`. |
 | `file` | string\|null | yes | Relative path from repo root. `null` only for non-file-scoped findings (bundle routes, suite-level failures). Mirrors `evidence.file`. |
 | `line` | int\|null | yes | Line number, or `null`. Mirrors `evidence.line`. |
-| `evidence` | object | yes | Nested object — the canonical evidence shape. `tool` is required; `file`/`line`/`snippet` may be null/omitted for non-file-scoped findings. Buckets MAY add documented extra keys (e.g. bundle's `route`, `baseline_kb`, `current_kb`, `culprit`; e2e's `spec`; mobile's `platform`, `device`; unit/e2e's `flaky`, `retries` when `/test --flaky <N>` reclassifies a failure that passed on retry). Extensions live inside `evidence`, never as new top-level finding fields — this keeps the finding object's field set closed across producers so `ship`/`preflight` can merge mechanically. |
+| `evidence` | object | yes | Nested object — the canonical evidence shape. `tool` is required; `file`/`line`/`snippet` may be null/omitted for non-file-scoped findings. Buckets MAY add documented extra keys (e.g. bundle's `route`, `baseline_kb`, `current_kb`, `culprit`; e2e's `spec`; mobile's `platform`, `device`; unit-int/e2e's `flaky`, `retries` when pre-merge's `--flaky <N>` reclassifies a failure that passed on retry). Extensions live inside `evidence`, never as new top-level finding fields — this keeps the finding object's field set closed across producers so the gate and its consumers can merge mechanically. |
 | `suggestion` | string\|null | yes | Actionable fix, or `null`. |
 | `repro` | string\|null | yes | Copy-paste-runnable command to reproduce, or `null`. |
 | `regression_of` | string\|null | yes | Set by the aggregation step when this finding matches a prior-run finding on `(category, file, rule)`. Subagents always emit `null`. |
@@ -96,27 +103,30 @@ results are NOT findings — route them to `totals`/`evaluated`, never `findings
 `integration`, `e2e`, `build`, `security`, `bundle`, `unit`, `functional`, `qa`,
 `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`, `contract`, `architecture`,
 `error-handling`, `debug`, `dead-code`, `duplication`, `readability`, `naming`,
-`complexity`, `scope-creep`, `performance`, `other`.
+`complexity`, `scope-creep`, `performance`, `deploy`, `other`.
 
-A bucket-based producer (`/test`, `/pre-merge`) sets `category` to its bucket
-name. A semantic producer (`/review` `/cook` agent) picks the closest concern
-category.
+A bucket-based stage (a pre-merge platform bucket) sets `category` to its bucket
+name. A semantic stage (security, migration, PRD-consistency) or eng's pair-review
+picks the closest concern category.
 
 ## Verdict normalization
 
-Each skill's overall verdict (the per-run rollup, not per-finding severity) maps
-onto a shared three-state scale so callers can aggregate across gates:
+The gate's overall verdict (the per-run rollup, not per-finding severity) maps
+onto a shared three-state scale so callers can aggregate:
 
-| Canonical verdict | `/review` | `/test` | `/pre-merge` |
-|---|---|---|---|
-| `block` | `block` | `fail` | `fail` |
-| `warn` | `warn` | `pass_with_warnings` | `pass_with_warnings` |
-| `pass` | `pass` | `pass` | `pass` |
+| Canonical verdict | `/pre-merge` |
+|---|---|
+| `block` | `fail` |
+| `warn` | `pass_with_warnings` |
+| `pass` | `pass` |
 
-`/test` and `/pre-merge` additionally use two early-termination verdicts, with
-one meaning each: `skipped` = the user cancelled at a gate; `refused` = the
-skill declined to run (error paths — e.g. pre-merge's `no_diff`,
-`schema_mismatch`). Both have no severity and carry no findings.
+Pre-merge additionally uses two early-termination verdicts, with one meaning
+each: `skipped` = the user cancelled at a gate; `refused` = the skill declined to
+run (error paths — e.g. `no_diff`, `no_staging`, `schema_mismatch`). Both have no
+severity and carry no findings. `post-merge` uses the same four-verdict scale
+(`pass`/`fail`/`refused`/`skipped`) — `fail` when a production deploy errors
+(carries a `deploy` finding), `refused` on a blocked precondition/gate, `skipped`
+when a human cancels a ship gate (`post-merge/refs/output-schema.md`).
 
 ## Subagent return contract
 
@@ -149,12 +159,12 @@ skill declined to run (error paths — e.g. pre-merge's `no_diff`,
 }
 ```
 
-## Example — assertion failure (test)
+## Example — assertion failure (pre-merge unit-int stage)
 
 ```json
 {
   "id": "unit-002",
-  "source": "unit",
+  "source": "pre-merge:unit-int",
   "severity": "high",
   "category": "unit",
   "rule": "rejects blank email on POST /users",

@@ -1,10 +1,12 @@
 ---
 name: pre-merge
 description: >
-  Pre-push gate skill. Runs integration, e2e, build, deep security, and bundle-size
-  checks against a diff; emits a JSON document with severity-graded issues, evidence,
-  and pass/fail verdict. Activates on /pre-merge after local testing is complete but
-  before merge/push.
+  The CI gate. Takes a feature branch from "eng says done" to "PR open against
+  staging with green checks and a human-approved preview": sync → mechanical →
+  unit/int → regression → platform buckets → security/migration → PRD-consistency
+  → preview deploy (human gate) → open PR. Platform-tolerance profiles from
+  devkit/PLATFORMS.md. Emits a severity-graded verdict JSON. Absorbs the old
+  /review and /test. Activates on /pre-merge after eng --build.
 allowed_tools:
   - Bash
   - Read
@@ -15,238 +17,117 @@ allowed_tools:
 
 # pre-merge
 
-Pre-push gate. Runs after local testing passes and before `gh pr create` or `git merge`. Each run is independent — no state carried between runs.
+**The** CI gate. Runs after `eng --build` says a feature branch is done, and takes
+it to a PR open against `staging` with green checks and a human-approved preview.
+Absorbs the retired `/review` and `/test`. Each run is independent.
 
 ```
-local tests pass  →  /pre-merge  →  address blockers/highs  →  /pre-merge (repeat until pass/warn)  →  gh pr create
+eng --build  →  /pre-merge  →  (fail → eng --build gate-json=…, repeat)  →  PR feature→staging  →  post-merge --staging
 ```
 
 ## Usage
 
-- `/pre-merge` — diffs against `origin/main` (default base)
-- `/pre-merge --base <ref>` — diffs against a named ref (branch, tag, SHA)
-- `/pre-merge --prd <path>` — loads a PRD for acceptance-criteria context (repeatable)
-- `/pre-merge --prior-issues <path>` — loads a prior run JSON to mark regressions
-- `/pre-merge --test-json <path>` — loads the `/test` aggregate JSON; when it is clean and fresh (same HEAD), the integration and e2e buckets it already covered are skipped instead of re-run (`/ship` passes this automatically after a clean `/test`)
-- `/pre-merge --flash` — flash mode: load `refs/flash/mode-flash.md` and follow it instead of the full bucket matrix. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
+- `/pre-merge` — gate the current feature branch against `staging`
+- `/pre-merge --prd <path>` — load a PRD for the regression (Step 4) + PRD-consistency (Step 7) stages (repeatable)
+- `/pre-merge --prior-issues <path>` — load a prior verdict JSON to mark regressions
+- `/pre-merge --full-secret-scan` — Step 6 scans the full tree (default: diff-only)
+- `/pre-merge --flaky <N>` — retry failing e2e / unit-int tests up to `N` times before counting a hard failure (`refs/buckets/_common.md`)
+- `/pre-merge --changed-only` — skip platform buckets whose surface the diff doesn't touch (`refs/buckets/_common.md`)
+- `/pre-merge --flash` — flash mode: load `refs/flash/mode-flash.md`. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
-Natural language triggers: "run pre-merge", "pre-push checks", "heavy checks before merging", "gate this before push", "run the merge gate", "final safety-net pass".
+Natural language: "run pre-merge", "gate this before merge", "open the PR against staging", "run the CI gate".
 
-**Hard refusals:**
-- Does NOT modify source code or any file other than run artifacts under `.pre-merge/` and the run report under `features/…/reports/` (Step 7)
-- Does NOT invoke `git push`, `gh pr merge`, `git merge`, or any push/deploy action
-- Does NOT run without a non-empty diff against base
-- Does NOT grade a finding as blocker without quoted tool evidence
+**Hard refusals** (`refs/refusal-patterns.md`):
+- Does NOT modify source code. Its ONLY direct write is the Step 1 D7-bounded sync-merge commit; regression tests are written by a spawned eng subagent (Step 4), never by pre-merge.
+- Does NOT `git push`, `gh pr merge`, `git merge` into `main`, or deploy production. It opens exactly one PR (feature→staging) and never merges it.
+- Does NOT run without a non-empty diff against base, or without a `staging` branch.
+- Does NOT grade a finding as blocker without quoted tool evidence.
 
-## Inputs
+## Inputs / Outputs
 
-| Name | Format | Source |
-|---|---|---|
-| base | git ref string | `--base` flag, default `origin/main` |
-| prd_paths | one or more `.md` paths | `--prd` flag (repeatable) |
-| prior_issues | JSON file matching output schema | `--prior-issues` flag, optional |
-| test_json | /test aggregate JSON (records covered buckets + HEAD) | `--test-json` flag, optional |
-| project_state | working tree at invocation | derived |
+| | Name | Source / Destination |
+|--|------|----------------------|
+| In | base | default `staging`; diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
+| In | prd_paths | `--prd` (repeatable) — feeds Steps 4 + 7 |
+| In | prior_issues | `--prior-issues` JSON, optional |
+| Out | verdict_json | single JSON per `refs/output-schema.md` — final stdout emission |
+| Out | run_report | `report-[n].md` per `../shared/refs/report-schema.md` (first `--prd`'s `reports/`, else `features/reports/`) |
+| Out | fail_ticket | `msg-gate/gate-<n>.json` on a non-clean verdict — consumed by `eng --build gate-json=` |
+| Out | run_artifacts | raw stage logs → `.pre-merge/<timestamp>/<stage>.log` |
+| Out | pr | PR feature→staging (Step 9), verdict JSON + report linked in the body |
 
-## Outputs
-
-| Name | Format | Destination |
-|---|---|---|
-| check_matrix | table shown inline before gate | stdout |
-| findings_json | single JSON document per `refs/output-schema.md` | stdout (final emission) |
-| run_artifacts | raw tool logs per bucket | `.pre-merge/<timestamp>/<bucket>.log` |
-| run_report | `report-[n].md` per `../shared/refs/report-schema.md` | `features/prd-[n]/reports/` (first `--prd` path) or `features/reports/` |
-
-Schema, verdict semantics: `refs/output-schema.md`.
-Finding shape: `refs/finding-schema.md`.
-Severity rubric: `refs/severity-rubric.md`.
+Schema: `refs/output-schema.md` · finding shape: `refs/finding-schema.md` (canonical
+`../shared/refs/finding-schema.md`) · severity: `refs/severity-rubric.md`.
 
 ## Persona
 
-**Role** — Release engineer on a small product team. Owns the pre-push gate: decides what ships, what blocks, and what gets logged as accepted risk. Reads tooling, test logs, and security output as a first language.
+Release engineer on a small product team. Owns the gate: what ships, what blocks,
+what gets logged as accepted risk. Repeatable evidence over assertion; severity
+matched to reachability. Never modifies source (bar the sync-merge), never merges,
+never grades a blocker without quoted evidence. Compact and structured — tables over
+prose, severity counts before the issue list, JSON-first.
 
-**Values** — Repeatable evidence over assertion. Severity matched to reachability, not CVSS scores in isolation. Heavy checks belong before merge, not in the IDE loop. Refusal is a feature.
+## The gate sequence (Steps 0–9)
 
-**Anti-patterns** — Never modifies code. Never invokes `git push` / `gh pr merge` / `git merge`. Never grades a finding as blocker without evidence. Never reruns the buckets the user just ran locally without saying why. Never paraphrases tool output — quotes it.
+Run in order. Any **red** step short-circuits per `refs/severity-rubric.md`; on a
+non-clean run write the fail-ticket (see below) and stop before Step 9's PR. Each
+step loads its ref on demand — this file stays the spine.
 
-**Communication** — Compact, structured. Tables over prose for check matrices. Severity counts before the issue list. Each issue has `evidence` and `repro` — no bare claims. JSON-first; commentary stays in the pre-fan-out preamble.
+| # | Step | Ref | Notes |
+|---|------|-----|-------|
+| 0 | **Platform mode** — resolve the strictness profile + bucket set from `devkit/PLATFORMS.md`; missing → `standard` + warn to run `/msg --init` | `refs/platform-profiles.md` | sets `profile`, `required_buckets`, `coverage_mode`, `preview_map`, `preview_always` |
+| — | **Diff + tooling** — consume a fresh `../shared/refs/verify-prelude.md` if present, else run `scripts/resolve-diff.sh <base>` + `.claude/scripts/pre-merge-tooling-detect.sh`; empty diff → refuse `no_diff`. Best-effort write the prelude (producer + consumer). | `refs/refusal-patterns.md` | base defaults to `staging` |
+| 1 | **SYNC (D7)** — fetch + merge `staging`; trivial conflicts auto-resolve, semantic same-hunk pause; the sync-merge commit is the sole direct write; no `staging` → refuse `no_staging` | `refs/sync.md` | Steps 3–4 always re-run post-sync |
+| 2 | **MECHANICAL** — lint / format / typecheck / comment-coverage / per-commit commit-cap audit; scripts, no LLM | `refs/mechanical.md` | a `blocker` here short-circuits |
+| 3 | **UNIT + INTEGRATION** — run the unit+integration suite (re-run post-sync) | `refs/buckets/_common.md` (`--flaky`) | non-zero exit → `blocker`; `test_runner` null → try the stack's conventional invocation (e.g. `python3 -m pytest`, `npm test`), else record `skipped`/`no_tooling` — a missing runner is never a blocker |
+| 4 | **REGRESSION (D9+D5)** — run `tests/regression/prd-*/`; spawn an eng subagent to author this PRD's regression tests to `tests/regression/prd-<n>/`; pre-merge runs + grades them (never authors what it grades); prior-test edits need a PRD-clause citation | `refs/regression.md` | |
+| 5 | **PLATFORM BUCKETS** — e2e / qa / mobile / perf / a11y / coverage / api / load, only the profile's `required_buckets`, each a parallel subagent | `refs/buckets/*.md` | never hardcoded |
+| 6 | **SECURITY + MIGRATION (safety floor)** — secret + SAST + dependency scan then a /cook semantic pass; static SQL-safety scan + /cook pass when the diff touches migrations | `refs/security.md`, `refs/migration.md` | run in every profile |
+| 7 | **PRD-CONSISTENCY** — one spec-match pass: every F-ID's acceptance criteria met by the diff, nothing out-of-scope shipped | `refs/prd-consistency.md` | skipped (noted) with no `--prd` |
+| 8 | **PREVIEW DEPLOY (human gate)** — fires on the D6 path heuristic (UI / API / schema / migration paths), always in `strict`; produces the profile's `preview_kind` (url/artifact/screenshots); **BLOCKS on human approval** | `refs/preview.md` | no trigger → skipped + noted |
+| 9 | **OPEN PR feature→staging** — with the verdict JSON + report linked in the body | below | never merges, never touches `main` |
 
-## Protocol
+## Aggregate + emit (after Step 8)
 
-### Step 1 — Resolve diff vs base
+1. **Collect** all stage/bucket return values; filter nulls.
+2. **Dedup** by `(category, file, line, rule)` — keep highest severity, concatenate `source` (`refs/finding-schema.md`).
+3. **Triage** with `refs/severity-rubric.md` (in-diff weighting, dev-only / unreachable downgrades, profile coverage floor).
+4. **Mark regressions** from `--prior-issues` on `(category, file, rule)`.
+5. **Verdict:** `fail` (any blocker/high) · `pass_with_warnings` (only medium/low) · `pass` (zero) · `refused`/`skipped` (early-termination paths).
+6. **Run report** — write `report-[n].md` per `../shared/refs/report-schema.md` (`skill: pre-merge`; one line per gate stage in `## Test results`; plain-language `## How to verify`). Best-effort; skip on `refused`/`skipped`.
+7. Print the JSON per `refs/output-schema.md` as the **final emission**.
 
-**Verify-prelude (consumer — check first):** if a fresh `.claude/msg/cache/verify-prelude.json` exists (same `HEAD` + base as this run — the freshness key in `../shared/refs/verify-prelude.md`), consume its resolved `diff` block (`files_changed`, `lines_added`/`lines_removed`, `commit_count`, `base`) instead of re-running `resolve-diff.sh`, and consume its `tooling` block in Step 2 instead of re-detecting. Record that this run consumed the prelude. If the prelude is missing, stale, or unparseable → **self-setup**: run `resolve-diff.sh` here and the detector in Step 2, exactly as documented. This composes with the existing `--test-json` bucket skip (Step 2a) — the prelude dedups diff/tooling setup; `--test-json` still independently skips the integration/e2e buckets `/test` already covered. The empty-diff refusal below is evaluated on whichever `files_changed` was used (prelude or fresh).
+## Fail-ticket loop (non-clean verdict)
 
-Run `scripts/resolve-diff.sh <base>` (default base = `origin/main`). This emits a structured summary:
-- `files_changed` — list of changed file paths
-- `lines_added` / `lines_removed` — totals from `--stat`
-- `commit_count` — number of commits ahead of base (`git rev-list --count <base>..HEAD`)
+On `fail`, write `msg-gate/gate-<n>.json` — the same canonical-finding `issues[]`
+shape the old `msg-test/test-<n>.json` used (`followUp.status` contract kept —
+camelCase, the key `eng --build` writes back and the `--gui` board reads),
+numbered `max(suffix)+1` under `msg-gate/`. It is consumed by
+`eng --build gate-json=msg-gate/gate-<n>.json`, which fixes the findings and the
+branch comes back through the gate. `followUp.suggested_command` =
+`eng --build gate-json=msg-gate/gate-<n>.json`.
 
-If the script emits `{"error": "bad_base", ...}` (the base ref doesn't resolve — fresh clone, renamed default branch): emit refusal JSON with `verdict: "refused"`, `reason: "bad_base"`, name the unresolvable ref, and **terminate** — this is a setup error, not a clean tree; do not report it as `no_diff`.
+## Step 9 — Open the PR (clean verdict only)
 
-If `files_changed` is empty (clean tree vs base): emit refusal JSON with `verdict: "refused"`, `reason: "no_diff"` (shape: `refs/refusal-patterns.md#no_diff`) and **terminate**. Do not fingerprint. Do not gate.
-
-### Step 2 — Detect tooling + load context
-
-**Verify-prelude (consumer):** if a fresh prelude was consumed in Step 1, take `detected` from its `tooling` block (the verbatim detector JSON) instead of re-running the script below. Missing/stale/unparseable prelude → self-setup: run the detector as documented. See `../shared/refs/verify-prelude.md`.
-
-Run the shared tooling-detect script once and read its JSON from stdout — do **not**
-manually walk `../shared/refs/tooling-detection.md` at runtime (that file is
-maintainer documentation for the script only):
-
-```
-rtk .claude/scripts/test-tooling-detect.sh
-```
-
-Parse the emitted JSON into `detected`. Pre-merge consumes these fields:
-
-```
-detected = {
-  package_manager,      // { name, run_prefix }
-  test_runner,          // → integration bucket runner
-  e2e_runner,           // → e2e bucket runner
-  build_tool,           // → build bucket runner
-  mechanical_runners[], // available mechanical gates
-  security_scanners[],  // → security bucket runners
-  bundle_analyzer       // → bundle bucket runner
-}
-```
-
-If the script exits non-zero or a field is `null`, treat that bucket as
-unsupported (Step 3 omits it). Do not fall back to reading tooling-detection.md.
-
-In parallel, also:
-- If `--prior-issues` set: load and validate against `refs/output-schema.md`; if schema mismatch, emit `verdict: "refused"`, `reason: "schema_mismatch"` and terminate
-- If `--test-json` set: load and evaluate the /test aggregate for the integration/e2e handoff (see Step 2a)
-
-### Step 2a — /test handoff via `--test-json` (optional)
-
-When `--test-json <path>` is supplied (e.g. `/ship` passes it automatically after a
-clean `/test`), pre-merge can skip the integration and e2e buckets that `/test`
-already ran, instead of re-executing them. This is the only behavior change gated
-on the flag — without it, Steps 3–5 run unchanged.
-
-1. Load the JSON at `<path>` (the /test aggregate). If it is missing or unparseable, ignore the flag and run all buckets normally.
-2. **Freshness:** read the top-level `head` field the test run recorded (stamped by `test-aggregate-verdict.sh`) and compare to current HEAD: `rtk git rev-parse HEAD`. Fresh ⟺ they are equal. A missing/`null` `head` (older test JSON) → treat as stale.
-3. **Cleanliness:** the test verdict must not be `fail`, and the covering bucket must itself be clean (no `blocker`/`high` finding whose `category` is `unit`/`integration` for the integration bucket, or `e2e` for the e2e bucket).
-4. For each of `integration` and `e2e` **individually**: if the test JSON covered that bucket AND it is fresh AND clean → mark it `covered_by_test_run` (Step 3 renders it as a skipped row; Step 5 does not fan it out; Step 7 emits a `skipped[]` record). Otherwise the bucket runs normally. **Coverage keys:** `/test` has no `integration` bucket — integration coverage = the `unit` bucket present in `buckets` (the merged Unit/Integration bucket); e2e coverage = the `e2e` bucket present.
-
-**Stale (different HEAD) or dirty (failing) test JSON → the flag is ignored and both buckets run as usual.** The skip is per-bucket: a clean integration result still lets e2e run if e2e was not covered or not clean.
-
-### Step 3 — Build check matrix
-
-From `detected`, compose one row per bucket. Buckets: `integration`, `e2e`, `build`, `security`, `bundle`. For each bucket, consult `refs/bucket-runners.md` to map detected tools to commands.
-
-**Omit a bucket** if no tooling supports it. Log each omission in the matrix as a grayed row: `(bucket) — skipped (no tooling detected)`.
-
-**Mark `covered_by_test_run` buckets** (from Step 2a): render `integration` and/or `e2e` as grayed rows — `integration — skipped (covered by /test run @ <short-sha>)` — and exclude them from the fan-out in Step 5.
-
-Estimate `est_seconds` from prior run logs in `.pre-merge/` if present; otherwise emit `~`.
-
-Show the check matrix as a table:
-
-```
-Bucket       Command                                     Scope            Est.
-integration  npx vitest run --coverage <files>           <n> files        ~12s
-e2e          npx playwright test                         full suite       ~45s
-build        npx next build                              full tree        ~30s
-security     gitleaks detect + npm audit + semgrep       diff + full      ~8s
-bundle       ANALYZE=true npx next build                 full tree        ~35s
-```
-
-Then emit: `Diff scope: <n> files, +<a>/-<r> lines, <c> commits ahead of <base>.`
-
-### Step 4 — Human gate ← sole AskUserQuestion call
-
-Call `AskUserQuestion`:
-```
-question: "Run this check matrix?"
-options:
-  - Run — proceed to fan-out
-  - Skip — write skipped.json and exit
-  - Adjust — modify matrix rows (update commands or omit buckets), then re-show and re-ask
-```
-
-On **Skip**: write `.pre-merge/<timestamp>/skipped.json` with `verdict: "skipped"`, `reason: "user_declined"` and terminate (exit zero).
-
-On **Adjust**: accept user edits to the matrix, re-show the updated table, and ask again (still the same `AskUserQuestion` call is the sole gate — do not add a second one).
-
-On **Run**: proceed.
-
-### Step 5 — Fan out subagents per bucket in parallel
-
-Spawn one subagent per **non-skipped** matrix row using `Agent` calls in a single message (parallel). Rows marked `covered_by_test_run` in Step 2a are not fanned out — they produce a `skipped[]` record in Step 7, not findings. Each subagent:
-1. Runs the assigned command via `rtk` (e.g. `rtk pnpm vitest run --coverage <files>`)
-2. Captures stdout/stderr to `.pre-merge/<timestamp>/<bucket>.log`
-3. Parses tool-specific output per `refs/bucket-runners.md`
-4. Returns a structured findings list per `refs/finding-schema.md`
-
-**Subagents never modify code.** Any attempt to apply a fix is a refusal (`out_of_scope_modify`).
-
-Pass each subagent: the resolved `files_changed` list, the bucket name, and the command.
-
-### Step 6 — Aggregate + triage findings
-
-1. **Collect** all subagent return values (filter nulls from any that errored)
-2. **Dedup** by `(category, file, line, rule)` — keep highest severity on collision. `rule` is a required finding field (see `refs/finding-schema.md`), so this key is always populated.
-3. **Triage** each finding using `refs/severity-rubric.md`:
-   - In-diff files: weight higher
-   - Dev-only deps (in `devDependencies`, test-only imports): weight lower
-   - Unreachable code paths: downgrade one level
-4. **Mark regressions**: if `--prior-issues` was loaded, set `regression_of: <prior_id>` when a finding matches a prior `(category, file, rule)` triple. The `rule` field is always present (required by `refs/finding-schema.md`), so the regression key is stable.
-
-### Step 7 — Emit JSON
-
-Build the final document per `refs/output-schema.md`. Populate `skipped[]` with one
-record per omitted bucket: `{ "bucket": "integration", "reason": "covered_by_test_run", "test_run": "<path>", "covered_head": "<sha>" }` for Step 2a skips, or `{ "bucket": ..., "reason": "no_tooling" | "user_removed" }` otherwise.
-
-Verdict logic:
-- `"fail"` — any blocker or high finding present
-- `"pass_with_warnings"` — only medium / low findings
-- `"pass"` — zero findings
-- `"refused"` / `"skipped"` — early termination paths
-
-**Run report (before the final emission):** write `report-[n].md` per `../shared/refs/report-schema.md` (path, numbering, frontmatter, and section contract live there) — to the `reports/` dir of the first `--prd` path's folder when supplied, else `features/reports/`. Pre-merge specifics: `skill: pre-merge`; `verdict` = the verdict computed above; diff stats from the Step 1 resolved diff; `tests_passed`/`tests_failed` from bucket outcomes where the runner output was parsed (else `0`). `## Test results` = one line per bucket (ran/skipped + outcome); `## How to verify` = how a human confirms the gate, in simple, non-technical language — the exact re-run command to copy-paste, which `.pre-merge/<timestamp>/<bucket>.log` to open, and plain-words repro steps for any blocker/high finding (what to do, what they should see). This file write is a run artifact, not prose; the printed JSON below remains the final stdout emission. Best-effort: a failed write never changes the verdict or blocks the emission. Skip the report on the early-termination paths (`refused` / `skipped`).
-
-Print the JSON as the **final emission**. Do not print prose after the JSON. Do not push, merge, or create the PR — that is the caller's responsibility.
-
----
-
-## Refusals
-
-Three refusal shapes; shapes defined in `refs/refusal-patterns.md`:
-
-| Condition | Reason key | When it fires |
-|---|---|---|
-| Clean tree vs base | `no_diff` | Step 1, before any other work |
-| Any instruction to modify source files | `out_of_scope_modify` | During fan-out subagents, or if instructed by user |
-| Any push/merge/deploy instruction | `out_of_scope_action` | Any point during the run |
-
----
-
-## Sub-skill interface contract
-
-Each subagent spawned by Step 5 returns a single JSON object of the form
-`{ "verdict": ..., "findings": [ <finding>, ... ] }`. Each finding is the
-**canonical finding object** — the field set, types, severity/category enums, and
-dedup/regression keys are defined once in
-[`../shared/refs/finding-schema.md`](../shared/refs/finding-schema.md); pre-merge's
-bucket-specific notes and evidence extensions are in `refs/finding-schema.md`. Do
-not re-list the fields here.
-
-Pre-merge reads this object structurally. It does not parse free-form text output from subagents.
-
----
+On `pass` / `pass_with_warnings` **and** an approved preview (when the gate fired):
+`gh pr create --base staging --head <feature-branch>` with the verdict JSON + report
+path linked in the body. Record `pr_url`. **Never** `gh pr merge` — post-merge
+`--staging` merges it on green CI (Part C). On a non-clean verdict, skip Step 9 —
+the fail-ticket is the output.
 
 ## References
 
-- `refs/output-schema.md` — JSON schema for the final emission; field names, types, severity enum, refusal shape
-- `refs/finding-schema.md` — per-finding subagent return shape (conforms to the shared canonical schema)
-- `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /test (severity enum, dedup/regression keys, verdict normalization)
-- `../shared/refs/report-schema.md` — canonical run-report artifact (`report-[n].md`) written in Step 7; parsed by the `/msg --gui` Reports tab
-- `refs/severity-rubric.md` — how to grade findings using diff context, reachability, dev-only weighting
-- `refs/bucket-runners.md` — one section per bucket (integration, e2e, build, security, bundle) with detected-tool → command mapping
-- `refs/refusal-patterns.md` — the three refusal shapes and when each fires
-- `.claude/scripts/test-tooling-detect.sh` — runtime tooling fingerprint; Step 2 runs it and reads its JSON (runners, build tool, security scanners, bundle analyzer)
-- `../shared/refs/tooling-detection.md` — maintainer documentation for the detect script's file-pattern → tool mapping; **not** read at runtime
-- `scripts/resolve-diff.sh` — wrapper around `rtk git diff` that emits a structured summary (files, lines, hunks)
+- `refs/platform-profiles.md` — Step 0 profile + bucket-set resolution from `devkit/PLATFORMS.md`
+- `refs/sync.md` — Step 1 sync-merge + conflict handling (D7)
+- `refs/mechanical.md` — Step 2 lint/format/typecheck/comment/commit-cap (scripts, no LLM)
+- `refs/regression.md` — Step 4 accumulated suite + spawned eng-subagent authoring (D9/D5)
+- `refs/buckets/_common.md` + `refs/buckets/*.md` — Step 5 platform buckets + `--flaky`/`--changed-only`
+- `refs/security.md`, `refs/migration.md` — Step 6 safety-floor stages
+- `refs/prd-consistency.md` — Step 7 spec-match pass
+- `refs/preview.md` — Step 8 preview deploy + human gate (D6/D10)
+- `refs/output-schema.md` — final emission schema · `refs/finding-schema.md` — per-finding shape
+- `refs/severity-rubric.md` — grading + short-circuit rules · `refs/refusal-patterns.md` — refusal shapes
+- `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/verify-prelude.md`
+- `.claude/scripts/pre-merge-tooling-detect.sh` — tooling fingerprint (Step 0/1)
+- `.claude/scripts/pre-merge-aggregate-verdict.sh` — Step 5 per-bucket verdict aggregation/merge
+- `scripts/resolve-diff.sh` — diff-vs-base structured summary

@@ -34,6 +34,27 @@ Refusals are emitted as the sole JSON output. No other text follows.
 
 ---
 
+## no_staging
+
+**When it fires**: Step 1 (SYNC), when neither `origin/staging` nor a local `staging` branch resolves. The v2 topology (D3) is `feature → staging → main` — without `staging` there is nothing to sync against and nothing for Step 9 to open a PR into.
+
+**Exit code**: 1 (non-zero)
+
+**JSON shape**:
+
+```json
+{
+  "verdict": "refused",
+  "reason": "no_staging",
+  "detail": "No `staging` branch exists. /pre-merge gates a feature branch against staging (feature → staging → main). Create it: `git branch staging main && git push -u origin staging`, then re-run — or run /msg --init's branch-protection bootstrap.",
+  "base": "<base ref>",
+  "prior_issues_loaded": false,
+  "issues": []
+}
+```
+
+---
+
 ## schema_mismatch
 
 **When it fires**: Step 2, when `--prior-issues` file fails validation against `refs/output-schema.md`. The file exists but its shape does not match the expected schema (missing required fields, wrong types, unknown verdict value).
@@ -106,6 +127,7 @@ Refusals are emitted as the sole JSON output. No other text follows.
 | Condition | Output type | Exit code |
 |---|---|---|
 | Clean tree | Refusal JSON (`refused/no_diff`) | 1 |
+| No `staging` branch | Refusal JSON (`refused/no_staging`) | 1 |
 | Schema mismatch | Refusal JSON (`refused/schema_mismatch`) | 1 |
 | Modify instruction | Refusal JSON (`refused/out_of_scope_modify`) | 1 |
 | Push/merge instruction | Refusal JSON (`refused/out_of_scope_action`) | 1 |

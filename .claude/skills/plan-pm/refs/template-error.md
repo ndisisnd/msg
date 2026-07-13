@@ -18,7 +18,7 @@ Table form. One row per error state. Every row requires a user-visible message o
 - Trigger is a concrete condition, not a category. "Network timeout on save" not "network error."
 - User-visible behavior names the exact UI element (toast, banner, inline error) and the copy.
 - Never "gracefully handle" — name the specific behavior.
-- At least two rows. Derived from Q4 of the interview.
+- At least two rows. Drafted autonomously per feature (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries).
 
 ## Example
 

@@ -81,7 +81,7 @@ Reshaping is destructive to PRD files, so it happens only on `Apply`. Never hard
 
 **On `Apply`:**
 
-- **SPLIT** — for each child cluster: allocate a number via `scan-n.prd prd`, derive a kebab-case `feature_slug`, create `features/prd-<n>-<slug>/prd-<n>-<slug>.md` from `refs/template-prd.md`, and move the cluster's §6 features (and their §7 exec-table rows, if `plan-em` already ran) into it. Carry `module`/`platform` from the parent; recompute `depends_on`/`affects` for each child. Mark the original PRD `status: retired` and prepend a `## Retired` banner: `Split into prd-<a>-…, prd-<b>-… on <date>.` By default **carry the existing §6 clusters verbatim** into the children — a full re-interview is opt-in (offer it only if the user picks `Modify`).
+- **SPLIT** — for each child cluster: allocate a number via `scan-n.prd prd`, derive a kebab-case `feature_slug`, create `features/prd-<n>-<slug>/prd-<n>-<slug>.md` from `refs/template-prd.md`, and move the cluster's §6 features (and their §7 exec-table rows, if `plan-em` already ran) into it. Carry `module`/`platform` from the parent; recompute `depends_on`/`affects` for each child. Mark the original PRD `status: retired` and prepend a `## Retired` banner: `Split into prd-<a>-…, prd-<b>-… on <date>.` By default **carry the existing §6 clusters verbatim** into the children — a full re-draft of a child (re-run `plan-pm` on it) is opt-in (offer it only if the user picks `Modify`).
 - **MERGE / FOLD** — append the source PRD's §6 features into the target's §6, union `depends_on`/`affects`, and reconcile duplicate F-IDs (renumber source F-IDs to avoid collision). Mark the source `status: retired` with a banner pointing to the target.
 - **TRIM** — move the out-of-scope cluster to the target PRD's **§2 Out-of-scope** with a note, or (user's choice) spin it out as its own PRD via the SPLIT path.
 
@@ -95,6 +95,8 @@ Build a dependency DAG over the working set (**full, non-retired PRDs only** —
 
 - **Hard edges** from `depends_on` — B must ship after A.
 - **Soft edges** from `affects` — prefer ordering A before B, but not a hard constraint.
+
+**Intake sequencing grades as an input.** When `INTAKE.md` exists (repo root), read each row's `grade` cell `S:` band and map it onto the PRD the row planned (via the row's `prd` cell). `S:now` biases a PRD toward the earliest phase its hard deps allow; `S:next`/`S:later` bias it toward later phases; `S:blocked-by-#n`/`blocked-by-prd-<n>` contributes a **soft edge** (a hard edge only if it also appears in `depends_on`). These grades are triage hints layered on top of the DAG — the `depends_on` hard edges always win a conflict; the intake `S:` band only orders PRDs the DAG leaves otherwise-free.
 
 Layer PRDs into roadmap phases by topological order:
 

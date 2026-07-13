@@ -2,7 +2,8 @@
 
 Build and serve a **local-only** GUI over `features/prd-*/`: a Kanban/Table board of PRDs
 → per-PRD detail page (rendered PRD body + a TODOs section with its own Kanban/Table
-toggle and a side panel), a **Roadmap** view (phases-as-lanes over `roadmap/roadmap.md`,
+toggle and a side panel), an **Intake** view (a backlog board over root `INTAKE.md`, shown
+when that file exists), a **Roadmap** view (phases-as-lanes over `roadmap/roadmap.md`,
 shown when that file exists), a **Files** view over the project's docs (README, CLAUDE.md,
 `devkit/`), and — in interactive mode — a **Prompts** console that runs Claude against the
 project. The surface lives in `refs/gui/` (`index.html`, `styles.css`, `server.py`); this
@@ -61,10 +62,17 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   field on that ticket's block under `## Todos` (additive: a field the todo schema tolerates
   and `--build` ignores). **Issue-tickets are never toggleable** — their done-state is
   `followUp.status`, owned by `eng --build`; the GUI only renders it.
+- **Set an intake row's status** — `POST /api/intake/status {num, status}` rewrites the
+  `status` cell of the row whose `#` equals `num` in the root `INTAKE.md` table (`status` ∈
+  `backlog | in-progress | completed`, D14). This is the **only new write path in v2** (H5):
+  the server edits that one cell in place, preserving every other cell and row verbatim — the
+  same in-place-markdown model as the PRD-board writes. The Intake tab's lane drag and its
+  per-card status buttons both call it. **No other INTAKE.md cell is writable** — `idea`,
+  `goal`, `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`, never the GUI.
 - **Run a prompt** — `POST /api/prompt {prompt}` starts a background job via the runner
   template; `GET /api/jobs` returns status + output tails and the GUI polls while a run is
   live, then refreshes board data. Quick actions prefill skill invocations (`/plan-pm …`,
-  `/eng --todo …`); todo/issue side panels offer "Ask Claude about this" with context
+  `/eng --build …`); todo/issue side panels offer "Ask Claude about this" with context
   prefilled.
 - **View project docs** — `GET /api/files` lists root `*.md` (README, CLAUDE.md, CHANGELOG…)
   and `devkit/*.md`, grouped; `GET /api/file?path=…` returns one file, rendered as markdown
@@ -87,9 +95,11 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   and the custom header forces a CORS preflight the server never grants.
 - All paths are resolved and confined to `--root`; reads are extension-allowlisted
   (`.md .json .txt .yaml .yml .toml`, ≤2 MB) and skip `.git`/`node_modules`/`.env*`;
-  **writes are restricted to `features/prd-*/` markdown** — the server cannot write
-  anywhere else, and never writes `msg-test/test-*.json` (the finding→ticket projection
-  stays read-time; `followUp.status` is written solely by `eng --build`).
+  **writes are restricted to `features/prd-*/` markdown plus the single root
+  `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
+  writes no other INTAKE.md cell, and never writes `msg-gate/gate-*.json` (the
+  finding→ticket projection stays read-time; `followUp.status` is written solely by
+  `eng --build`).
 
 ## Step 2 — Data model (what the server parses)
 
@@ -101,30 +111,44 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `## 6. Features & acceptance criteria`), falling back to `## Execution Table` (legacy)
    or `## N. Feature execution table` (new).
 3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 11. Todos`) → tickets per
-   `.claude/skills/eng/refs/todo/template-todo.md` (`**<id> — <title>**` + labelled field
+   `.claude/skills/eng/refs/plan/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
-4. **Test issues** from `msg-test/test-*.json` via the shared **finding → issue-ticket
-   projection** in `template-todo.md` (read-time view, never re-serialized). Absent
-   `msg-test/` → `testIssues: []`.
+4. **Gate issues** from `msg-gate/gate-*.json` via the shared **finding → issue-ticket
+   projection** in `eng/refs/build/protocol-build-gatejson.md` (read-time view, never
+   re-serialized). Absent `msg-gate/` → `gateIssues: []`.
 5. **Run reports** from `features/prd-*/reports/report-*.md` (one level of nested
    `prd-*` sub-dirs included) and `features/reports/report-*.md` (the no-PRD fallback),
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
    → raw markdown `detail`, containing `prd-*` folder → `prdId`. Missing/unparseable
    frontmatter → `skipped[]`. No reports → `reports: []`.
-6. **Completion inference**, most-authoritative first:
+6. **Intake ledger** from root `INTAKE.md` (H2) via `build_intake`: the ledger table is
+   located by its header row (must carry `#` / `idea` / `status` columns), then each data
+   row is parsed into `{num, date, type, idea, goal, grade, gradeRaw, status, prd, prdKnown,
+   prdPath, prdFeature}`. The `grade` cell (`C:L T:$$ S:next`) is split into
+   `{complexity, token, sequence}` for the three chips. A row's `prd` cell is cross-referenced
+   against the live PRD set so a card links to its mapped PRD. Absent `INTAKE.md` →
+   `intake: {exists: false, rows: []}`; a present-but-empty table → `rows: []`.
+7. **Completion inference (H1 ladder)**, most-authoritative first:
 
    | Signal | Bucket |
    |---|---|
    | frontmatter `completion:` override (written by the GUI) | that bucket, verbatim |
-   | PR for `feat/prd-<n>-*` merged | `shipped` |
-   | open PR for the branch | `review` |
-   | `feat/prd-<n>-*` branch exists | `building` |
-   | frontmatter `status: eng`/`engineering` | `eng` |
+   | PR `staging → main` MERGED (references this PRD) | `shipped` (production) |
+   | `staging-signoff:` stamp present in the frontmatter | `staged` (human-approved) |
+   | PR `feature → staging` MERGED | `staged` |
+   | PR `feature → staging` OPEN | `gated` (pre-merge passed) |
+   | `feat/prd-<n>-*` branch exists | `building` (in build) |
+   | frontmatter `status: eng`/`engineering` | `planned` |
    | anything else | `product` |
 
-   `git`/`gh` unavailable or slow → silently fall through to the frontmatter rungs; record
-   the winning rung as a human string in `completionSource`. Never block the board.
+   The PR-state rungs come from `gh pr list --json` and need `gh` + a git remote; the
+   `staging-signoff:` rung is read straight from frontmatter. When `gh`/a remote is
+   unavailable (or slow), the PR rungs are skipped and the ladder falls through **silently
+   down-ladder** to the stamp/branch/frontmatter rungs — never an error. Record the winning
+   rung as a human string in `completionSource`. Board columns render the six v2 buckets
+   `product · planned · building · gated · staged · shipped`; a card can now visibly sit in
+   `gated`, `staged`, or `shipped`.
 
 ## Step 3 — Data contract
 
@@ -174,10 +198,10 @@ is unchanged from the previous protocol revision, with these notes:
       "objective": "…", "type": "code", "priority": "P0",
       "files": [ { "path": "src/x.ts", "action": "add" } ], "dependsOn": [], "doneWhen": "…",
       "done": false } ] } ] } ],
-  "testIssues": [ { "file": "msg-test/test-1.json", "runId": 1, "verdict": "fail",
-    "context": { "prd": "…", "branch": "…", "base": "main" },
+  "gateIssues": [ { "file": "msg-gate/gate-1.json", "runId": 1, "verdict": "fail",
+    "context": { "prd": "…", "branch": "…", "base": "staging" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "…": "projected per template-todo.md" } ] } ],
+    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per protocol-build-gatejson.md" } ] } ],
   "reports": [ { "file": "features/prd-101-task-crud/reports/report-1.md", "reportId": 1,
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",
@@ -222,7 +246,7 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 ### Error cases
 - `python3` missing / ports busy → surface it, don't fail silently (error case 1).
-- Malformed PRD frontmatter or unparseable `msg-test/*.json` → `skipped[]`, flagged in the
+- Malformed PRD frontmatter or unparseable `msg-gate/*.json` → `skipped[]`, flagged in the
   board header; the rest still render (error case 2).
 - Browser won't open → print the `127.0.0.1` URL (error case 3).
 - `claude` CLI missing → Prompts runs fail with a visible error in the run's output; the
@@ -230,17 +254,40 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 ---
 
-## Test Issues surface + PRD cross-link (rendering)
+## Gate Issues surface + PRD cross-link (rendering)
 
-- **A distinct surface, not a PRD column.** `testIssues[]` render in their own grouping on
-  the board — one card per `msg-test/test-<n>.json` (runId, verdict pill, summary counts,
+- **A distinct surface, not a PRD column.** `gateIssues[]` render in their own grouping on
+  the board — one card per `msg-gate/gate-<n>.json` (runId, verdict pill, summary counts,
   `followUp.status`).
 - **Every ticket is tagged by `kind`.** Issue-tickets get a 🐞 tag, a `severity` pill, and
   `repro`/`evidence.snippet` in the side panel.
+- **Per-issue gate-step badge.** Each issue-ticket shows the originating gate step parsed
+  from the finding's `source` field (`pre-merge:mechanical` → `mechanical`,
+  `pre-merge:bucket:e2e` → `bucket:e2e`); the raw `source` is surfaced as `Gate step` in
+  the side panel.
 - **Real done-state for issues.** `followUp.status` is written back by `eng --build`; the
-  board renders it, never invents it, and never offers a toggle for it.
-- **PRD cross-link.** A `testIssues[]` entry whose `context.prd` matches an enumerated PRD
+  board renders it, never invents it, and never offers a toggle for it. The
+  suggested-command deep-link is `eng --build gate-json=msg-gate/gate-<n>.json`.
+- **PRD cross-link.** A `gateIssues[]` entry whose `context.prd` matches an enumerated PRD
   also surfaces its tickets on that PRD's detail page, tagged `kind: "issue"`.
+
+## Intake tab (rendering, H2)
+
+- **Own tab, front-door.** The **Intake** nav tab (`#/intake`) appears whenever `INTAKE.md`
+  exists (or in interactive mode). It renders a backlog board over `intake.rows` — one card
+  per ledger row.
+- **Three lanes = the D14 lifecycle.** Columns `Backlog · In progress · Completed`, reusing
+  the Kanban column/card components. A card sits in the lane matching its `status` cell.
+- **Grade chips.** Each card shows the rubric cell as three small pills — `C:<band>`,
+  `T:<band>`, `S:<band>` — rendered from the parsed `grade` object (never numeric; the bands
+  are the whole point). A `type` pill (`feature`/`bug`) and the capture `date` sit alongside.
+- **PRD cross-link.** When a row's `prd` cell is set, the card links to that PRD's detail page
+  (`#/prd/<id>`); an unresolved mapping is tagged `unmapped`.
+- **Status is the only editable cell (H5).** In live mode a card is draggable between lanes,
+  and carries per-lane status buttons (an accessible alternative to drag); both `POST
+  /api/intake/status {num, status}`. Nothing else on the card is editable — `idea`, `goal`,
+  `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`. Static mode renders the
+  board read-only (no drag, no buttons).
 
 ## Reports tab (rendering)
 
@@ -250,14 +297,19 @@ across every project (light + dark, responsive); it is **not** sourced from
 - **Detail page.** `#/reports/<file>` renders the report's raw markdown `detail` through
   the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
   `prdId` matches an enumerated PRD.
-- **Producers, not the GUI, write reports.** `eng --build`, `/review`, and `/pre-merge`
-  own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the board renders
-  them and never writes, renumbers, or toggles them.
+- **Producers, not the GUI, write reports.** `eng --build`, `/pre-merge`, and
+  `/post-merge` own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the
+  board renders them and never writes, renumbers, or toggles them. Post-merge reports join
+  the per-PRD grouping by their `skill: post-merge` frontmatter — staging reports carry the
+  human test script in `## How to verify`; production reports render release-style, and when
+  the body contains the literal token `IRREVERSIBLE` (a no-rollback platform like iOS) the
+  Reports tab surfaces a prominent badge on the card and a callout banner on the detail page.
 
 ## What this protocol never does
-- Never lets the GUI write outside `features/prd-*/` markdown: no repo-file writes from the
-  Files view, no writes to `msg-test/test-*.json` (`followUp.status` belongs to
-  `eng --build`), no generated output written into the repo.
+- Never lets the GUI write outside `features/prd-*/` markdown **and the one root `INTAKE.md`
+  status-cell carve-out (H5)**: no repo-file writes from the Files view, no writes to
+  `msg-gate/gate-*.json` (`followUp.status` belongs to `eng --build`), no writes to any
+  INTAKE.md cell other than `status`, no generated output written into the repo.
 - Never invents issue done-state, and never fabricates todo done-state — a todo is `done`
   only when its ticket block carries `- **done:** true` (the toggle's own field).
 - Never binds to anything but `127.0.0.1`, and never serves without the per-run token

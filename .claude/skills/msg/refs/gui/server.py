@@ -13,13 +13,15 @@ JSON API that turns the board into a lightweight Linear/Jira-style tool:
   POST /api/prd/save          {path, body}        rewrite a PRD body (frontmatter kept)
   POST /api/prd/meta          {path, key, value}  set a frontmatter key (status, completion, …)
   POST /api/todo/toggle       {prd, id, done}     set a ticket's `done:` field in ## Todos
+  POST /api/intake/status     {num, status}       set an INTAKE.md row's status cell (H5)
   POST /api/prompt            {prompt}            run a Claude prompt against the project
   GET  /api/jobs              prompt runs + tails of their output
 
 Security posture: binds 127.0.0.1 only; every /api call requires the per-run
 X-Msg-Token header (injected into the served HTML); Host header must be local;
 all file paths are resolved and confined to the project root; reads are
-extension-allowlisted; writes are restricted to features/prd-*/ markdown.
+extension-allowlisted; writes are restricted to features/prd-*/ markdown plus
+the single root INTAKE.md status-cell carve-out (H5) — nothing else is writable.
 
 Stdlib only. Python 3.9+.
 """
@@ -43,8 +45,13 @@ ARGS = None
 TOKEN = secrets.token_hex(16)
 READ_EXTS = {".md", ".markdown", ".json", ".txt", ".yaml", ".yml", ".toml"}
 DENY_PARTS = {".git", "node_modules", ".env", "__pycache__", ".venv", "venv"}
-BUCKETS = ("product", "eng", "building", "review", "shipped")
+# v2 completion buckets (H1 ladder) — left→right pipeline order.
+BUCKETS = ("product", "planned", "building", "gated", "staged", "shipped")
 META_KEYS = {"completion", "status", "module", "platform", "feature"}
+# Intake ledger (F2/H2) — root INTAKE.md; the GUI's only new write path is a row's
+# status cell (H5). Lifecycle: backlog → in-progress → completed (D14).
+INTAKE_REL = "INTAKE.md"
+INTAKE_STATUSES = ("backlog", "in-progress", "completed")
 
 JOBS = []          # [{id, prompt, status, output, started, finished, reported}]
 JOBS_LOCK = threading.Lock()
@@ -232,29 +239,72 @@ def run_cmd(argv, timeout=3):
         return 1, ""
 
 
+_GH_READY = None
+
+
+def gh_ready():
+    """gh installed AND a git remote configured — gates the PR-state ladder rungs.
+    Cached across requests (availability is stable); without it the ladder degrades
+    silently down to the frontmatter/branch rungs so the board never errors."""
+    global _GH_READY
+    if _GH_READY is None:
+        code, _ = run_cmd(["gh", "--version"])
+        rcode, rout = run_cmd(["git", "remote"])
+        _GH_READY = (code == 0) and (rcode == 0 and bool(rout.strip()))
+    return _GH_READY
+
+
 def infer_completion(fm, num, slug):
-    """Frontmatter `completion:` override wins; otherwise observable git/gh signals;
-    otherwise the frontmatter status fallback — same ladder as protocol-gui.md Step 2."""
+    """H1 completion ladder (msg-v2 Part H1), most-authoritative first:
+        frontmatter completion override
+          -> PR staging->main MERGED          = shipped (production)
+          -> staging-signoff: stamp present   = staged (human-approved)
+          -> PR feature->staging MERGED       = staged
+          -> PR feature->staging OPEN         = gated (pre-merge passed)
+          -> branch feat/prd-<n>-* exists     = building (in build)
+          -> status: eng                      = planned
+          -> else                             = product
+    The PR-state rungs come from `gh pr list` when gh + a remote exist; otherwise
+    they are skipped and the ladder falls through (never blocks the board)."""
     override = (fm.get("completion") or "").strip().lower()
     if override in BUCKETS:
         return override, "frontmatter completion override"
+
+    prd_id = "prd-%s%s" % (num, ("-" + slug) if slug else "")
+    have_gh = gh_ready()
+
+    # Rung 1 — production: a merged staging->main release PR that names this PRD.
+    if have_gh:
+        code, out = run_cmd(["gh", "pr", "list", "--base", "main", "--state", "merged",
+                             "--search", prd_id, "--json", "number", "--limit", "1"], timeout=5)
+        if code == 0 and out and out != "[]":
+            return "shipped", "staging->main PR merged (references %s)" % prd_id
+
+    # Rung 2 — staged, human-approved: the sign-off stamp (frontmatter, always readable).
+    if (fm.get("staging-signoff") or "").strip():
+        return "staged", "staging-signoff stamp present - human-approved"
+
+    # Rungs 3-5 — feature->staging PR state (gh) then branch existence (git).
     branch = None
     code, out = run_cmd(["git", "branch", "--list", "feat/prd-%s-*" % num])
     if code == 0 and out:
         branch = out.splitlines()[0].lstrip("* ").strip()
+    if branch and have_gh:
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", "staging",
+                             "--state", "merged", "--json", "number", "--limit", "1"], timeout=4)
+        if code == 0 and out and out != "[]":
+            return "staged", "feature->staging PR for %s merged" % branch
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", "staging",
+                             "--state", "open", "--json", "number", "--limit", "1"], timeout=4)
+        if code == 0 and out and out != "[]":
+            return "gated", "feature->staging PR for %s open (pre-merge passed)" % branch
     if branch:
-        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--state", "merged",
-                             "--json", "number", "--limit", "1"], timeout=4)
-        if code == 0 and out and out != "[]":
-            return "shipped", "PR for %s merged" % branch
-        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--state", "open",
-                             "--json", "number", "--limit", "1"], timeout=4)
-        if code == 0 and out and out != "[]":
-            return "review", "open PR for %s" % branch
         return "building", "branch %s exists" % branch
+
+    # Rungs 6-7 — frontmatter fallback.
     status = (fm.get("status") or "").strip().lower()
     if status in ("eng", "engineering"):
-        return "eng", "frontmatter status: %s" % status
+        return "planned", "frontmatter status: %s" % status
     return "product", "frontmatter status: %s" % (status or "absent")
 
 
@@ -309,7 +359,7 @@ SEV_PRIO = {"blocker": "P0", "high": "P1", "medium": "P2", "low": "P2"}
 
 
 def project_finding(f):
-    """Canonical finding → issue-ticket (template-todo.md 'Finding → issue-ticket projection')."""
+    """Canonical finding → issue-ticket (eng/refs/build/protocol-build-gatejson.md 'Finding → issue-ticket projection')."""
     msg = f.get("message") or f.get("title") or f.get("id") or "finding"
     suggestion = f.get("suggestion")
     repro = f.get("repro")
@@ -327,6 +377,7 @@ def project_finding(f):
                     else "the finding no longer reproduces",
         "severity": f.get("severity"),
         "category": f.get("category"),
+        "source": f.get("source"),
         "rule": f.get("rule"),
         "repro": repro,
         "evidence": {"snippet": ev.get("snippet")},
@@ -336,16 +387,16 @@ def project_finding(f):
     }
 
 
-def collect_test_issues(skipped):
+def collect_gate_issues(skipped):
     out = []
-    for path in sorted(glob.glob(os.path.join(root_path(), "msg-test", "test-*.json"))):
+    for path in sorted(glob.glob(os.path.join(root_path(), "msg-gate", "gate-*.json"))):
         rel = os.path.relpath(path, root_path())
         try:
             doc = json.load(open(path, encoding="utf-8"))
         except Exception as e:
             skipped.append({"path": rel, "reason": "unparseable JSON: %s" % e})
             continue
-        nm = re.search(r"test-(\d+)\.json$", path)
+        nm = re.search(r"gate-(\d+)\.json$", path)
         out.append({
             "file": rel,
             "runId": int(nm.group(1)) if nm else rel,
@@ -478,6 +529,147 @@ def build_roadmap(prds):
     return {"exists": True, "phases": phases, "tuneLog": tune_log}
 
 
+# --------------------------------------------------------------------------- intake ledger
+
+INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd")
+GRADE_RE = {
+    "complexity": re.compile(r"\bC:\s*(\S+)"),
+    "token": re.compile(r"\bT:\s*(\S+)"),
+    "sequence": re.compile(r"\bS:\s*(\S+)"),
+}
+
+
+def _split_md_row(row):
+    return [c.strip() for c in row.strip().strip("|").split("|")]
+
+
+def parse_grade(cell):
+    """Split a `C:L T:$$ S:next` grade cell into its three chips (missing → null)."""
+    out = {}
+    for k, rx in GRADE_RE.items():
+        m = rx.search(cell or "")
+        out[k] = m.group(1) if m else None
+    return out
+
+
+def build_intake(prds):
+    """Parse the root INTAKE.md ledger table into rows for the Intake tab (H2).
+    Each row carries its parsed grade chips and, when its `prd` cell maps to a
+    live PRD, a cross-link. Absent/empty ledger → a valid empty payload."""
+    full = confine(INTAKE_REL)
+    if not full or not os.path.isfile(full):
+        return {"exists": False, "rows": [], "path": INTAKE_REL}
+    try:
+        text = open(full, encoding="utf-8", errors="replace").read()
+    except Exception:
+        return {"exists": False, "rows": [], "path": INTAKE_REL}
+    by_id = {p["id"]: p for p in prds}
+    lines = text.splitlines()
+    # Find the header row (contains the # / idea / status columns), then skip its
+    # separator line; every subsequent pipe row is data until the table ends.
+    hdr_idx = -1
+    for i, ln in enumerate(lines):
+        if "|" in ln and re.search(r"\bstatus\b", ln, re.I) and re.search(r"\bidea\b", ln, re.I):
+            hdr_idx = i
+            break
+    if hdr_idx < 0:
+        return {"exists": True, "rows": [], "path": INTAKE_REL}
+    cols = [c.lower() for c in _split_md_row(lines[hdr_idx])]
+
+    def col(name):
+        for j, c in enumerate(cols):
+            if c == name or c.startswith(name):
+                return j
+        return -1
+
+    ci = {k: col(k) for k in ("#", "date", "type", "idea", "goal", "grade", "status", "prd")}
+    rows = []
+    for ln in lines[hdr_idx + 1:]:
+        if "|" not in ln:
+            if ln.strip() == "":
+                continue
+            break  # table ended at a non-pipe, non-blank line
+        if re.match(r"^\s*\|?[\s:|-]+\|?\s*$", ln):
+            continue  # separator row
+        cells = _split_md_row(ln)
+
+        def get(key):
+            j = ci[key]
+            return cells[j] if 0 <= j < len(cells) else ""
+        num = get("#")
+        idea = get("idea")
+        if not num and not idea:
+            continue
+        prd_cell = get("prd")
+        live = None
+        if prd_cell:
+            # tolerate an exact id, or a bare `prd-<n>` prefix match
+            live = by_id.get(prd_cell)
+            if not live:
+                for pid, p in by_id.items():
+                    if pid == prd_cell or pid.startswith(prd_cell + "-") or prd_cell.startswith(pid):
+                        live = p
+                        break
+        status = (get("status") or "backlog").lower()
+        if status not in INTAKE_STATUSES:
+            status = "backlog"
+        rows.append({
+            "num": num,
+            "date": get("date"),
+            "type": (get("type") or "feature").lower(),
+            "idea": idea,
+            "goal": get("goal"),
+            "grade": parse_grade(get("grade")),
+            "gradeRaw": get("grade"),
+            "status": status,
+            "prd": prd_cell,
+            "prdKnown": live is not None,
+            "prdPath": (live or {}).get("path"),
+            "prdFeature": (live or {}).get("feature"),
+        })
+    return {"exists": True, "rows": rows, "path": INTAKE_REL}
+
+
+def set_intake_status(num, status):
+    """The GUI's one new write path (H5): rewrite a single INTAKE.md row's status
+    cell in place. Only the status cell of the row whose `#` equals `num` changes;
+    every other cell and row is preserved verbatim."""
+    if status not in INTAKE_STATUSES:
+        return "invalid intake status: %s" % status
+    full = confine(INTAKE_REL)
+    if not full or not os.path.isfile(full):
+        return "INTAKE.md not found at repo root"
+    text = open(full, encoding="utf-8").read()
+    lines = text.splitlines(keepends=True)
+    hdr_idx = -1
+    for i, ln in enumerate(lines):
+        if "|" in ln and re.search(r"\bstatus\b", ln, re.I) and re.search(r"\bidea\b", ln, re.I):
+            hdr_idx = i
+            break
+    if hdr_idx < 0:
+        return "no ledger table found in INTAKE.md"
+    cols = [c.lower() for c in _split_md_row(lines[hdr_idx])]
+    num_idx = next((j for j, c in enumerate(cols) if c == "#" or c.startswith("num")), 0)
+    st_idx = next((j for j, c in enumerate(cols) if c.startswith("status")), -1)
+    if st_idx < 0:
+        return "no status column in INTAKE.md table"
+    for i in range(hdr_idx + 1, len(lines)):
+        raw = lines[i]
+        if "|" not in raw:
+            if raw.strip() == "":
+                continue
+            break
+        if re.match(r"^\s*\|?[\s:|-]+\|?\s*$", raw):
+            continue
+        cells = _split_md_row(raw)
+        if num_idx < len(cells) and cells[num_idx] == str(num) and st_idx < len(cells):
+            cells[st_idx] = status
+            lines[i] = "| " + " | ".join(cells) + " |\n"
+            open(full, "w", encoding="utf-8").write("".join(lines))
+            return None
+    return "intake row #%s not found" % num
+
+
 # --------------------------------------------------------------------------- data + files
 
 def read_h1(rel_or_abs):
@@ -522,15 +714,16 @@ def build_data():
                 prds.append(prd)
             elif skip and c == d:
                 skipped.append(skip)
-    test_issues = collect_test_issues(skipped)
+    gate_issues = collect_gate_issues(skipped)
     reports = collect_reports(skipped)
     return {
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "project": project_name(),
         "prds": prds,
-        "testIssues": test_issues,
+        "gateIssues": gate_issues,
         "reports": reports,
         "roadmap": build_roadmap(prds),
+        "intake": build_intake(prds),
         "skipped": skipped,
     }
 
@@ -821,6 +1014,9 @@ class Handler(BaseHTTPRequestHandler):
             return self._err(e) if e else self._json({"ok": True})
         if u.path == "/api/todo/toggle":
             e = toggle_todo(str(b.get("prd") or ""), str(b.get("id") or ""), bool(b.get("done")))
+            return self._err(e) if e else self._json({"ok": True})
+        if u.path == "/api/intake/status":
+            e = set_intake_status(str(b.get("num") or ""), str(b.get("status") or ""))
             return self._err(e) if e else self._json({"ok": True})
         if u.path == "/api/prompt":
             prompt = str(b.get("prompt") or "").strip()

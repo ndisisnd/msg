@@ -43,13 +43,14 @@
 "use strict";
 
 /* ---- Load inline data ----------------------------------------------------- */
-var DATA = { prds: [], testIssues: [], reports: [], skipped: [], projectFiles: [] };
+var DATA = { prds: [], gateIssues: [], reports: [], skipped: [], projectFiles: [] };
 try { DATA = JSON.parse(document.getElementById("prd-data").textContent) || DATA; }
-catch (e) { DATA = { prds: [], testIssues: [], reports: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
+catch (e) { DATA = { prds: [], gateIssues: [], reports: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
 var PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
-var TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+var GATE_ISSUES = Array.isArray(DATA.gateIssues) ? DATA.gateIssues : [];
 var REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
 var ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
+var INTAKE = DATA.intake || { exists: false, rows: [] };
 
 /* ---- Live-mode plumbing ---------------------------------------------------- */
 var TOKEN = "__API_TOKEN__";
@@ -73,9 +74,10 @@ function api(path, body) {
 function adoptData(d) {
   DATA = d || DATA;
   PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
-  TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+  GATE_ISSUES = Array.isArray(DATA.gateIssues) ? DATA.gateIssues : [];
   REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
   ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
+  INTAKE = DATA.intake || { exists: false, rows: [] };
 }
 function refreshData(rerender) {
   if (!LIVE) { if (rerender) route(); return Promise.resolve(); }
@@ -111,7 +113,7 @@ initTheme();
 
 /* ---- Test-issue helpers ------------------------------------------------------ */
 function findIssueFile(runId) {
-  return TEST_ISSUES.filter(function (t) { return String(t.runId) === String(runId); })[0];
+  return GATE_ISSUES.filter(function (t) { return String(t.runId) === String(runId); })[0];
 }
 // Per-ticket done-state is honest, not invented: derived only from the file's
 // followUp.status (resolved → done; open/partially_resolved → open).
@@ -119,12 +121,12 @@ function issueFollowStatus(tf) { return (tf && tf.followUp && tf.followUp.status
 function ticketDone(tf) { return issueFollowStatus(tf) === "resolved"; }
 function crossLinkedIssues(p) {
   var out = [];
-  TEST_ISSUES.forEach(function (tf) {
+  GATE_ISSUES.forEach(function (tf) {
     var prd = tf.context && tf.context.prd;
     if (!prd) return;
     if (String(prd).indexOf(p.id) >= 0 || (p.path && String(prd).indexOf(p.path) >= 0)) {
       (tf.tickets || []).forEach(function (t) {
-        out.push(Object.assign({ _fid: null, _feature: "test " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
+        out.push(Object.assign({ _fid: null, _feature: "gate " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
       });
     }
   });
@@ -132,15 +134,17 @@ function crossLinkedIssues(p) {
 }
 
 /* ---- Completion buckets ------------------------------------------------------- */
+// v2 completion ladder (H1): product → planned → building → gated → staged → shipped.
 var BUCKETS = [
   { key: "product",  label: "Product" },
-  { key: "eng",      label: "Engineering" },
+  { key: "planned",  label: "Planned" },
   { key: "building", label: "Building" },
-  { key: "review",   label: "Review" },
+  { key: "gated",    label: "Gated" },
+  { key: "staged",   label: "Staged" },
   { key: "shipped",  label: "Shipped" }
 ];
 var BUCKET_ORDER = BUCKETS.reduce(function (m, b, i) { m[b.key] = i; return m; }, {});
-function bucketOf(p) { return BUCKET_ORDER[p.completion] != null ? p.completion : "eng"; }
+function bucketOf(p) { return BUCKET_ORDER[p.completion] != null ? p.completion : "planned"; }
 function bucketLabel(k) { var b = BUCKETS.filter(function (x) { return x.key === k; })[0]; return b ? b.label : k; }
 
 /* ---- Helpers -------------------------------------------------------------------- */
@@ -418,6 +422,8 @@ function topbar(active, opts) {
   var showFiles = LIVE || (DATA.projectFiles && DATA.projectFiles.length);
   var nav = el('<nav class="nav"></nav>');
   nav.appendChild(el('<a href="#/"' + (active === "board" ? ' class="active"' : "") + ">Board</a>"));
+  if (INTAKE && (INTAKE.exists || LIVE))
+    nav.appendChild(el('<a href="#/intake"' + (active === "intake" ? ' class="active"' : "") + ">Intake</a>"));
   if (ROADMAP && (ROADMAP.exists || LIVE))
     nav.appendChild(el('<a href="#/roadmap"' + (active === "roadmap" ? ' class="active"' : "") + ">Roadmap</a>"));
   if (REPORTS.length || LIVE)
@@ -481,7 +487,7 @@ function renderList() {
   renderTestIssuesSection(root);
 }
 
-/* ---- Test Issues surface ---------------------------------------------------- */
+/* ---- Gate Issues surface ---------------------------------------------------- */
 function issueVerdictPill(v) {
   var cls = v === "fail" ? "iv-fail" : "iv-warn";
   return '<span class="pill dot ' + cls + '">' + esc(v || "?") + "</span>";
@@ -507,7 +513,7 @@ function issueFileCard(tf) {
   if (s.warnings) counts.push(s.warnings + " warning" + (s.warnings === 1 ? "" : "s"));
   var c = el(
     '<div class="card issue-file-card" tabindex="0" role="button">' +
-      '<div class="title"><span class="num">test-' + esc(tf.runId) + "</span>" +
+      '<div class="title"><span class="num">gate-' + esc(tf.runId) + "</span>" +
         esc((tf.context && tf.context.branch) || tf.file || "") + "</div>" +
       '<div class="meta">' +
         issueVerdictPill(tf.verdict) +
@@ -523,11 +529,11 @@ function issueFileCard(tf) {
   return c;
 }
 function renderTestIssuesSection(container) {
-  if (!TEST_ISSUES.length) return;
-  container.appendChild(el('<div class="section-title">🐞 Test Issues ' +
-    '<span class="n" style="color:var(--text-faint)">' + TEST_ISSUES.length + "</span></div>"));
+  if (!GATE_ISSUES.length) return;
+  container.appendChild(el('<div class="section-title">🐞 Gate Issues ' +
+    '<span class="n" style="color:var(--text-faint)">' + GATE_ISSUES.length + "</span></div>"));
   var grid = el('<div class="issue-grid"></div>');
-  TEST_ISSUES.forEach(function (tf) { grid.appendChild(issueFileCard(tf)); });
+  GATE_ISSUES.forEach(function (tf) { grid.appendChild(issueFileCard(tf)); });
   container.appendChild(grid);
 }
 
@@ -717,6 +723,117 @@ function renderRoadmap() {
     var cb = el('<div class="column-body' + (cards.length ? "" : " empty") + '"></div>');
     cards.forEach(function (c) { cb.appendChild(roadmapCard(c)); });
     col.appendChild(cb);
+    wrap.appendChild(col);
+  });
+  root.appendChild(wrap);
+}
+
+/* ========================================================================= */
+/*  INTAKE TAB (H2)                                                            */
+/* ========================================================================= */
+// Backlog board over root INTAKE.md — one card per row, three grade chips from
+// the rubric cell (C:/T:/S:), lanes backlog / in-progress / completed, each card
+// cross-linking to its mapped PRD. Status cell edits are the GUI's one new write
+// path (H5): drag a card between lanes (LIVE) or use its per-card status buttons.
+var INTAKE_LANES = [
+  { key: "backlog",     label: "Backlog" },
+  { key: "in-progress", label: "In progress" },
+  { key: "completed",   label: "Completed" }
+];
+
+function setIntakeStatus(row, status) {
+  if (!row || row.status === status) return;
+  api("intake/status", { num: String(row.num), status: status })
+    .then(function () { toast("Intake #" + row.num + " → " + status); return refreshData(true); })
+    .catch(function (e) { toast("Save failed: " + e.message, true); });
+}
+
+function gradeChips(g) {
+  g = g || {};
+  var out = "";
+  if (g.complexity) out += '<span class="chip grade-c" title="Complexity">C:' + esc(g.complexity) + "</span>";
+  if (g.token)      out += '<span class="chip grade-t" title="Token cost">T:' + esc(g.token) + "</span>";
+  if (g.sequence)   out += '<span class="chip grade-s" title="Sequencing">S:' + esc(g.sequence) + "</span>";
+  return out;
+}
+
+function intakeCard(row) {
+  var typeCls = row.type === "bug" ? "bug" : "feature";
+  var card = el(
+    '<div class="card intake-card"' + (LIVE ? ' draggable="true"' : "") + ">" +
+      '<div class="title">' +
+        '<span class="num">#' + esc(row.num) + "</span> " +
+        '<span class="pill intake-type ' + typeCls + '">' + esc(row.type) + "</span> " +
+        esc(row.idea || "(untitled)") + "</div>" +
+      (row.goal ? '<div class="intake-goal">' + esc(row.goal) + "</div>" : "") +
+      '<div class="meta">' + gradeChips(row.grade) +
+        (row.date ? '<span class="pill muted">' + esc(row.date) + "</span>" : "") +
+      "</div>" +
+    "</div>"
+  );
+  // Cross-link to the mapped PRD card when the row has been planned.
+  if (row.prd) {
+    var link = el('<div class="intake-prd">↗ <a href="#/prd/' + encodeURIComponent(row.prd) + '">' +
+      esc(row.prdFeature ? (row.prd + " · " + row.prdFeature) : row.prd) + "</a>" +
+      (row.prdKnown ? "" : ' <span class="pill muted">unmapped</span>') + "</div>");
+    link.addEventListener("click", function (e) { e.stopPropagation(); });
+    card.appendChild(link);
+  }
+  if (LIVE) {
+    // Per-card status buttons (accessible alternative to drag).
+    var btns = el('<div class="intake-actions"></div>');
+    INTAKE_LANES.forEach(function (ln) {
+      if (ln.key === row.status) return;
+      var b = el('<button class="btn ghost tiny">→ ' + esc(ln.label) + "</button>");
+      b.addEventListener("click", function (e) { e.stopPropagation(); setIntakeStatus(row, ln.key); });
+      btns.appendChild(b);
+    });
+    card.appendChild(btns);
+    card.addEventListener("dragstart", function (e) {
+      e.dataTransfer.setData("text/msg-intake", String(row.num));
+      e.dataTransfer.effectAllowed = "move";
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend", function () { card.classList.remove("dragging"); });
+  }
+  return card;
+}
+
+function renderIntake() {
+  root.innerHTML = "";
+  var rows = (INTAKE && INTAKE.rows) || [];
+  root.appendChild(topbar("intake", {
+    title: (DATA.project || "Intake") + " — Backlog",
+    count: rows.length + " idea" + (rows.length === 1 ? "" : "s")
+  }));
+
+  if (!INTAKE || !INTAKE.exists) {
+    root.appendChild(el('<div class="empty-state"><div class="big">No backlog yet</div>' +
+      'Nothing at <code>INTAKE.md</code>. Run <code>/intake</code> to capture your first idea, ' +
+      'or <code>/msg --init</code> to scaffold the ledger.</div>'));
+    return;
+  }
+  if (rows.length === 0) {
+    root.appendChild(el('<div class="empty-state"><div class="big">Ledger is empty</div>' +
+      'Run <code>/intake</code> to log a feature idea or bug.</div>'));
+    return;
+  }
+
+  var byNum = {};
+  rows.forEach(function (r) { byNum[String(r.num)] = r; });
+  var wrap = el('<div class="kanban intake-lanes"></div>');
+  INTAKE_LANES.forEach(function (ln) {
+    var inLane = rows.filter(function (r) { return r.status === ln.key; });
+    var col = el('<div class="column col-intake-' + ln.key + '"></div>');
+    col.appendChild(el('<div class="column-head">' + esc(ln.label) +
+      ' <span class="n">' + inLane.length + "</span></div>"));
+    var cb = el('<div class="column-body' + (inLane.length ? "" : " empty") + '"></div>');
+    inLane.forEach(function (r) { cb.appendChild(intakeCard(r)); });
+    col.appendChild(cb);
+    if (LIVE) makeDropTarget(col, function (num) {
+      var r = byNum[String(num)];
+      if (r && r.status !== ln.key) setIntakeStatus(r, ln.key);
+    }, "text/msg-intake");
     wrap.appendChild(col);
   });
   root.appendChild(wrap);
@@ -994,7 +1111,7 @@ function renderDetail(id) {
   root.appendChild(el('<div class="section-title">Todos' + (xIssues.length ? " &amp; issues" : "") + "</div>"));
   if (combined.length === 0) {
     root.appendChild(el('<div class="empty-state">No todos for this PRD. ' +
-      '<span class="prose dim">(Run <code>plan-em</code> with the todo layer enabled to generate them.)</span></div>'));
+      '<span class="prose dim">(Run <code>eng --plan</code> — it writes the todo tickets in the same pass as the engineering section.)</span></div>'));
     return;
   }
 
@@ -1020,11 +1137,11 @@ function renderIssueDetail(runId) {
   root.innerHTML = "";
   if (!tf) {
     root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a></div>'));
-    root.appendChild(el('<div class="empty-state"><div class="big">Test issue not found</div>test-' + esc(runId) + "</div>"));
+    root.appendChild(el('<div class="empty-state"><div class="big">Gate issue not found</div>gate-' + esc(runId) + "</div>"));
     return;
   }
 
-  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 test-' +
+  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 gate-' +
     esc(tf.runId) + "</span></div>"));
 
   var ctx = tf.context || {};
@@ -1035,7 +1152,7 @@ function renderIssueDetail(runId) {
   if (s.warnings) counts.push(s.warnings + " warning" + (s.warnings === 1 ? "" : "s"));
 
   var head = el('<div class="detail-head"></div>');
-  var h2 = el('<h2><span class="num">test-' + esc(tf.runId) + "</span><span>Test issues</span></h2>");
+  var h2 = el('<h2><span class="num">gate-' + esc(tf.runId) + "</span><span>Gate issues</span></h2>");
   h2.appendChild(el(issueVerdictPill(tf.verdict)));
   head.appendChild(h2);
   head.appendChild(el('<div class="meta">' +
@@ -1048,7 +1165,7 @@ function renderIssueDetail(runId) {
     ? '<div class="subtitle" style="margin-top:8px">PRD: ' + esc(ctx.prd) +
       (findPrdByCtx(ctx.prd) ? ' — also shown on <a class="xlink" href="#/prd/' + esc(findPrdByCtx(ctx.prd).id) + '">PRD-' + esc(findPrdByCtx(ctx.prd).num) + "</a>" : "") + "</div>"
     : '<div class="subtitle" style="margin-top:8px">No PRD (ad hoc branch run)</div>'));
-  head.appendChild(el('<div class="subtitle">Fix: <code>/eng --build test-json=' + esc(tf.file) + "</code></div>"));
+  head.appendChild(el('<div class="subtitle">Fix: <code>/eng --build gate-json=' + esc(tf.file) + "</code></div>"));
   root.appendChild(head);
 
   root.appendChild(el('<div class="section-title">Issues</div>'));
@@ -1064,7 +1181,7 @@ function renderIssueDetail(runId) {
   if (LIVE) {
     var fix = el('<button class="btn ghost">🔧 Fix with Claude</button>');
     fix.addEventListener("click", function () {
-      state.draft = "/eng --build test-json=" + tf.file;
+      state.draft = "/eng --build gate-json=" + tf.file;
       location.hash = "#/prompts";
     });
     toolbar.appendChild(fix);
@@ -1108,6 +1225,14 @@ function sevPill(t) {
   if (!isIssue(t) || !t.severity) return "";
   return '<span class="pill sev-' + esc(t.severity) + '">' + esc(t.severity) + "</span>";
 }
+// Originating gate step, parsed from the finding's `source` (e.g. pre-merge:mechanical → "mechanical",
+// pre-merge:bucket:e2e → "bucket:e2e"). After dedup `source` may be comma-joined — show the first.
+function srcBadge(t) {
+  if (!isIssue(t) || !t.source) return "";
+  var step = String(t.source).split(",")[0].trim().replace(/^pre-merge:/, "");
+  if (!step) return "";
+  return '<span class="pill muted">' + esc(step) + "</span>";
+}
 function kindTag(t) {
   if (!isIssue(t)) return "";
   return '<span class="pill kind-issue">🐞 ' + (t.flaky ? "Flaky" : "Bug") + "</span>";
@@ -1124,6 +1249,7 @@ function todoCard(owner, t) {
       '<div class="meta">' +
         kindTag(t) +
         sevPill(t) +
+        srcBadge(t) +
         (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + "</span>" : "") +
         (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + "</span>" : "") +
         ((t.dependsOn && t.dependsOn.length) ? '<span class="pill muted">⛓ ' + esc(t.dependsOn.join(", ")) + "</span>" : "") +
@@ -1224,9 +1350,10 @@ function openPanel(t, owner) {
   var files = ticketFiles(t);
   var snippet = t.evidence && t.evidence.snippet;
   document.getElementById("panel-body").innerHTML =
-    field(isIssue(t) ? "Test run" : "Feature", t._feature) +
+    field(isIssue(t) ? "Gate run" : "Feature", t._feature) +
     field("Ticket", t.id) +
-    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky test issue" : "🐞 Bug / Test issue") : "") +
+    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky gate issue" : "🐞 Bug / Gate issue") : "") +
+    (isIssue(t) && t.source ? field("Gate step", String(t.source).replace(/^pre-merge:/, "")) : "") +
     field("Objective", t.objective) +
     fieldHtml("Type", typePill(t)) +              // Edit 6 — tag form, not text
     fieldHtml("Priority", prioPill(t)) +
@@ -1248,7 +1375,7 @@ function openPanel(t, owner) {
     ask.addEventListener("click", function () {
       closePanel();
       state.draft = isIssue(t)
-        ? "About test issue " + (t.id || "") + " in " + ((t._issueFile && t._issueFile.file) || "") +
+        ? "About gate issue " + (t.id || "") + " in " + ((t._issueFile && t._issueFile.file) || "") +
           " (\"" + (t.title || "") + "\"): "
         : "About ticket " + (t.id || "") + " in " + ((owner && owner.path) || "") +
           " (\"" + (t.title || t.objective || "") + "\"): ";
@@ -1264,7 +1391,7 @@ function openPanel(t, owner) {
       var fix = el('<button class="btn">🔧 Fix with Claude</button>');
       fix.addEventListener("click", function () {
         closePanel();
-        state.draft = "/eng --build test-json=" + t._issueFile.file;
+        state.draft = "/eng --build gate-json=" + t._issueFile.file;
         location.hash = "#/prompts";
       });
       actions.appendChild(fix);
@@ -1343,7 +1470,7 @@ function renderFiles(sel) {
 }
 
 /* ========================================================================= */
-/*  REPORTS PAGE — run reports written by eng --build / review / pre-merge    */
+/*  REPORTS PAGE — run reports written by eng --build / pre-merge / post-merge */
 /*  (report-[n].md per shared/refs/report-schema.md)                          */
 /* ========================================================================= */
 function findReport(file) {
@@ -1363,6 +1490,12 @@ function reportStatsFrag(r) {
     bits.push((s.testsPassed || 0) + " passed" + (s.testsFailed ? " · " + s.testsFailed + " failed" : ""));
   return bits.length ? '<span class="pill muted">' + esc(bits.join(" · ")) + "</span>" : "";
 }
+// H4 — a production post-merge report carries the literal token IRREVERSIBLE in
+// its body when a no-rollback platform (iOS) ships; surface it prominently.
+function reportIrreversible(r) { return /\bIRREVERSIBLE\b/.test(String(r && r.detail || "")); }
+function irreversibleBadge() {
+  return '<span class="pill irreversible" title="A shipped platform cannot be rolled back">⚠ IRREVERSIBLE</span>';
+}
 function reportCard(r) {
   var c = el(
     '<div class="card issue-file-card" tabindex="0" role="button">' +
@@ -1370,6 +1503,7 @@ function reportCard(r) {
         esc(r.title || "") + "</div>" +
       '<div class="meta">' +
         reportVerdictPill(r.verdict) +
+        (reportIrreversible(r) ? irreversibleBadge() : "") +
         reportStatsFrag(r) +
         (r.branch ? '<span class="pill muted">' + esc(r.branch) + "</span>" : "") +
         (r.generated ? '<span class="pill muted">' + esc(r.generated) + "</span>" : "") +
@@ -1386,7 +1520,7 @@ function renderReports() {
   root.appendChild(topbar("reports", { title: "Run Reports", count: REPORTS.length }));
   if (!REPORTS.length) {
     root.appendChild(el('<div class="empty-state"><div class="big">No reports yet</div>' +
-      "<code>eng --build</code>, <code>/review</code> and <code>/pre-merge</code> write " +
+      "<code>eng --build</code>, <code>/pre-merge</code> and <code>/post-merge</code> write " +
       "<code>report-[n].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
     return;
   }
@@ -1424,6 +1558,12 @@ function renderReportDetail(file) {
   var p = r.prdId ? findPrd(r.prdId) : null;
   if (p) head.appendChild(el('<a class="pill muted" href="#/prd/' + encodeURIComponent(p.id) + '">↗ ' + esc(p.feature) + "</a>"));
   root.appendChild(head);
+  // H4 — release-style: a prominent callout when a production report ships a
+  // no-rollback (IRREVERSIBLE) platform.
+  if (reportIrreversible(r)) {
+    root.appendChild(el('<div class="callout-irreversible">⚠ <strong>IRREVERSIBLE release</strong> — a shipped platform ' +
+      '(e.g. iOS) cannot be rolled back once live. Review the rollback notes below before relying on this.</div>'));
+  }
   root.appendChild(el('<div class="prose md">' + mdToHtml(r.detail || "") + "</div>"));
   root.appendChild(el('<div class="file-path" style="margin-top:16px">' + esc(r.file) + "</div>"));
 }
@@ -1435,7 +1575,7 @@ var jobsTimer = null;
 var seenJobDone = {};
 var QUICK_PROMPTS = [
   ["Generate a PRD", "/plan-pm "],
-  ["Break a PRD into todos", "/eng --todo "],
+  ["Write eng plan + todos", "/eng --plan "],
   ["Tune a PRD", "/plan-tune "],
   ["Ask about the project", "Looking at this project's PRDs and docs: "]
 ];
@@ -1544,6 +1684,7 @@ function route() {
   else if (h === "#/files") renderFiles(null);
   else if (h === "#/prompts") renderPrompts();
   else if (h === "#/roadmap") renderRoadmap();
+  else if (h === "#/intake") renderIntake();
   else renderList();
 }
 window.addEventListener("hashchange", route);

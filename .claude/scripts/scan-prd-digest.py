@@ -98,7 +98,7 @@ def build(prd_path):
         "source_hash": sha256(text),
         "frontmatter": {k: fm.get(k) for k in
                         ("name","feature","module","platform","status",
-                         "product-tuned","eng-tuned","reviewed","depends_on","affects","created")},
+                         "product-tuned","eng-tuned","reviewed","parent","depends_on","affects","created")},
         "summary": fm.get("summary"),
         "features": [], "out_of_scope": [], "key_interactions": [],
         "error_cases": [], "glossary": {}, "open_questions": [],
@@ -149,6 +149,7 @@ def build(prd_path):
             _, rows = md_table(block)
             d["exec_table"] = [{"feature": pick(r, "feature"),
                                 "steps": pick(r, "execution steps", "steps", "execution"),
+                                "files": pick(r, "files", "file"),
                                 "agent": pick(r, "agent", "owner")} for r in rows]
             d["exec_table_prose_lines"] = f"{s}-{e}"; KNOWN.add(title)
         elif low.startswith("engineering"):
@@ -187,8 +188,8 @@ SLICES = {
                 "glossary","key_interactions"],
     # plan-em: what to build and for which platform.
     "plan":    ["frontmatter","summary","features","exec_table"],
-    # plan-tune --eng: eng-plan integrity.
-    "eng-audit":["frontmatter","features","engineering","open_questions"],
+    # plan-tune --eng: eng-plan integrity (exec_table + todos feed checks 4/5).
+    "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
     "build":   ["frontmatter","features","exec_table","engineering"],
     # review / test eval bootstrap: derive assertions.

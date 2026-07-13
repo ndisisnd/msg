@@ -16,17 +16,17 @@ Read the digest **`plan` slice** (`scan-prd-digest.py --slice plan`) + ARCHITECT
 - **≤2 platforms → exactly 1 generalist eng agent** covering all rows.
 - **>2 platforms → per-platform roster preserved** (comprehensive fan-out).
 
-## Gates — one merged gate
+## Gates — roster approval only
 
-Merge the tune gate + roster approval + relationship-flag confirmation into **one** `AskUserQuestion` (≤1 on the happy path). The tune gate is **auto-skipped** when frontmatter shows `product-tuned: yes`.
+**Roster approval is the single gate** (≤1 `AskUserQuestion` on the happy path). The certification precondition is **not** a question — flash still runs it (safety floor, never collapsed): if `product-tuned: yes` with no unresolved Criticals, it's already certified and skipped; otherwise run `plan-tune --product --flash` inline before the plan wave (and `plan-tune --eng --flash` before the build wave). Relationship confirmation is gone — flash consumes the certified graph silently and asks only on a genuine conflict (I3), which is rare enough not to count against the happy-path gate budget.
 
 ## Synthesis — from agent returns only
 
-Synthesize the engineering sections from the **agent returns**, with **0 PRD/synth-slice reads at synthesis** (comprehensive reads the `synth` slice; flash goes further and reads nothing). Write the `## Engineering — <agent>` sections + exec table directly.
+Synthesize the engineering sections from the **agent returns**, with **0 PRD/synth-slice reads at synthesis** (comprehensive reads the `synth` slice; flash goes further and reads nothing). Write the `## Engineering — <agent>` sections + exec table directly. The exec table carries the **Todos** column (always present); create the `## Todos` umbrella once and each `eng --plan` agent writes its `## Todos — <agent>` tickets in the same pass (schema in `eng/refs/plan/template-todo.md`).
 
 ## Skipped vs comprehensive
 
-`/test --prd` · AHA.md writeback · the full-PRD synthesis re-read.
+AHA.md writeback · the full-PRD synthesis re-read.
 
 ## Safety floor — unchanged
 

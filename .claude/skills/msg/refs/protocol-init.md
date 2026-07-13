@@ -38,6 +38,7 @@ type: reference
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
+| `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
@@ -61,10 +62,12 @@ type: reference
 | devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with platform and architecture interview | `<cwd>/devkit/ARCHITECTURE.md` |
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with design system interview | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
+| devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform selected at the interview (P1 answer) | `<cwd>/devkit/PLATFORMS.md` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
+| INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `post-merge`). Table header + status-lifecycle + grade-cell doc | `<cwd>/INTAKE.md` |
 | features/ | Empty directory | `<cwd>/features/` |
 | Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
 
@@ -110,13 +113,20 @@ Skip Q2 when `STACK_HINTS` has exactly one entry — in that case set `PLATFORM 
 | A2 | What external services or APIs will your system depend on? (e.g. Stripe, Auth0, S3) | Free text or "None" | `ARCH_EXTERNAL` |
 | A3 | What data stores will you use? | 4 options + Other (multiSelect): PostgreSQL, MySQL / MariaDB, MongoDB / DynamoDB, Redis | `ARCH_DATA_STORES` |
 
-**Call 3 — Architecture + UI gate** (A4, A5, D1):
+**Call 3 — Architecture + platforms + UI gate** (A4, A5, P1, D1):
 
 | Q | Question | Format | Holds as |
 |---|----------|--------|----------|
 | A4 | Authentication approach? | 4 options + Other: JWT / stateless sessions, OAuth 2.0 / SSO, API keys, None / not applicable | `ARCH_AUTH` |
 | A5 | Deployment pipeline? (e.g. GitHub Actions → AWS ECS, Vercel, manual) | 4 options + Other: GitHub Actions, Vercel / Netlify, AWS / GCP / Azure, Not decided yet | `ARCH_DEPLOYMENT` |
+| P1 | Which platforms does this project ship to? (drives `/pre-merge` tolerance profiles in `devkit/PLATFORMS.md`) | 4 options (multiSelect) + Other: Web, iOS, Android, macOS | `PLATFORMS_SHIPPED` |
 | D1 | Does this project include a UI layer? | 2 options: Yes, No | (gates Call 4) |
+
+P1 is the one v2 interview addition. Map the selected labels to the space-separated
+platform keys `PLATFORMS` passes to `init.sh` (Web→`web`, iOS→`ios`, Android→`android`,
+macOS→`macos`); an `Other` platform is recorded but has no baked default row — note it
+so the user adds a row by hand. If P1 is skipped/empty, `init.sh` scaffolds all four
+default rows for the user to prune.
 
 **Call 4 — Design system** (D2, D3, D4) — **only if D1 = "Yes"**:
 
@@ -144,6 +154,7 @@ ARCH_EXTERNAL="<A2 answer>" \
 ARCH_DATA_STORES="<A3 answer>" \
 ARCH_AUTH="<A4 answer>" \
 ARCH_DEPLOYMENT="<A5 answer>" \
+PLATFORMS="<P1 platform keys, space-separated — e.g. web ios>" \
 DS_LIBRARY="<D2 answer>" \
 DS_TOKENS="<D3 answer>" \
 DS_CONVENTIONS="<D4 answer>" \
@@ -156,13 +167,34 @@ DS_CONVENTIONS="<D4 answer>" \
 
 `init.sh` exits non-zero and marks failures in the manifest if any write fails. If the script exits non-zero, surface its stderr and stop. Do not retry — the user re-runs or fixes manually.
 
-**Step 5/5 — Emit manifest and suggest next step**
+**Step 5/5 — Emit manifest, offer branch-protection bootstrap, suggest next step**
 
-Print the manifest from `init.sh` stdout verbatim. Then emit a one-line next-step suggestion:
+Print the manifest from `init.sh` stdout verbatim.
+
+**Branch-protection bootstrap (C3 — offer only when a GitHub remote exists).**
+Check for a GitHub remote:
+
+```bash
+git remote -v 2>/dev/null | grep -qi github.com && command -v gh >/dev/null 2>&1 && echo HAS_GH_REMOTE
+```
+
+If `HAS_GH_REMOTE` prints, the v2 ship pipeline (`/post-merge`) needs branch
+protection on `staging` and `main` — green-CI-required on both, plus ≥1 human
+review on `main` (D11). Offer it via **one** `AskUserQuestion`:
+
+> header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (required for `/post-merge`)"
+> - **Yes, bootstrap it** — run `bash .claude/scripts/post-merge-protection.sh --bootstrap` (resolve locally-first, else `$HOME/.claude/scripts/…`); it's idempotent. Print each `BOOTSTRAPPED`/`BOOTSTRAP_FAILED` line.
+> - **Skip** — note that `/post-merge` will refuse until protection is set; the user can re-run the script later.
+
+No GitHub remote (or no `gh`) → skip this offer silently; `staging`/`main` and
+protection are set up when the user first pushes and runs the script. Never a
+hard failure.
+
+Then emit a one-line next-step suggestion:
 
 > Next: run `/plan-pm` to draft the first PRD.
 
-Do not invoke another skill. The next slash command is the user's choice.
+Do not invoke another skill (the bootstrap script is not a skill). The next slash command is the user's choice.
 
 ## References
 
@@ -177,3 +209,6 @@ Do not invoke another skill. The next slash command is the user's choice.
 - `refs/init/templates/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry, populated from Step 2 interview)
 - `refs/init/templates/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)
 - `refs/init/templates/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)
+- `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform tolerance profiles + staging/production deploy commands; assembled from the P1 interview answer)
+- `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
+- `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)
