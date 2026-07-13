@@ -117,4 +117,4 @@ Then write the run report (`skill: post-merge`, production flavor — release-st
 - `refs/refusal-patterns.md` — refusal shapes (red CI, missing sign-off, unconfirmed, unprotected)
 - `refs/output-schema.md` — finding/verdict emission on refusal or deploy failure
 - `.claude/scripts/post-merge-protection.sh` — `--verify` / `--bootstrap` (C3 / D11)
-- `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/flash-floor.md`
+- `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`
