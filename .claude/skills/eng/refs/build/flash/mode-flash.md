@@ -21,10 +21,10 @@ The slice returns this feature's acceptance criteria (verbatim), its exec-table 
 
 1. **One cook compile, injected once.** Derive flags from eng's concern-keyword table (T1.3), compile `/cook` **once** (flag-based, cacheable, P0-guaranteed), inject the payload into the single build agent's prompt. **Not** per-row, **not** a `cook --flash` (which doesn't exist).
 2. **≤1 build agent for all rows** — no per-platform fan-out. Orchestrators forwarding `mode: flash` respect this (they spawn one, not one-per-platform).
-3. **Impl + tests written together**; run the full suite **once** before commit (skip the verify-red pre-step).
+3. **Impl + tests written together**; run the **unit + integration** suite **once** before commit (skip the verify-red pre-step). Heavier buckets (e2e / visual / perf / a11y / coverage) are pre-merge's job, never run in the build loop.
 4. **Single commit gate** — fires once at the end (`kermit`-style), not per-row.
 5. **Debug capped at 2 cycles** — if the suite is still red after 2 fix attempts, stop and write the failure ticket rather than looping.
 
 ## Safety floor — unchanged
 
-Branch contract (`feat/prd-<n>-*`), scope enforcement, AHA.md / OPEN-QUESTIONS.md logging, DB-touch + breaking-change pauses, no push/merge — all identical to comprehensive (`flash-floor.md`). The full suite runs at least once before the commit gate fires.
+Branch contract (`feat/prd-<n>-*`), scope enforcement, AHA.md / OPEN-QUESTIONS.md logging, DB-touch + breaking-change pauses, no push/merge — all identical to comprehensive (`flash-floor.md`). The unit + integration suite runs at least once before the commit gate fires.

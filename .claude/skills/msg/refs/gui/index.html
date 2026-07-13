@@ -994,7 +994,7 @@ function renderDetail(id) {
   root.appendChild(el('<div class="section-title">Todos' + (xIssues.length ? " &amp; issues" : "") + "</div>"));
   if (combined.length === 0) {
     root.appendChild(el('<div class="empty-state">No todos for this PRD. ' +
-      '<span class="prose dim">(Run <code>plan-em</code> with the todo layer enabled to generate them.)</span></div>'));
+      '<span class="prose dim">(Run <code>eng --plan</code> — it writes the todo tickets in the same pass as the engineering section.)</span></div>'));
     return;
   }
 
@@ -1435,7 +1435,7 @@ var jobsTimer = null;
 var seenJobDone = {};
 var QUICK_PROMPTS = [
   ["Generate a PRD", "/plan-pm "],
-  ["Break a PRD into todos", "/eng --todo "],
+  ["Write eng plan + todos", "/eng --plan "],
   ["Tune a PRD", "/plan-tune "],
   ["Ask about the project", "Looking at this project's PRDs and docs: "]
 ];

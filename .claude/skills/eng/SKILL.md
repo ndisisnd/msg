@@ -1,7 +1,7 @@
 ---
 name: eng
 description: >
-  Platform-agnostic engineering agent with three modes: --plan (propose file changes for human approval), --todo (break the confirmed plan into a per-feature todo checklist), --build (write code from the todos, falling back to exec-table rows). Invoked by plan-em or directly by the user.
+  Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todos, falling back to exec-table rows). Invoked by plan-em or directly by the user.
 allowed_tools:
   - Bash
   - Read
@@ -14,7 +14,7 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent with three modes — `--plan`, `--todo`, `--build` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
+Platform-agnostic engineering agent with two modes — `--plan`, `--build` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
 
 ---
 
@@ -26,15 +26,22 @@ Read the invocation flag and load exactly one mode protocol:
 |------|------|
 | `--plan` | `refs/plan/protocol.md` |
 | `--plan --flash` | `refs/plan/flash/mode-flash.md` (instead of `protocol.md` + `template-eng-plan.md`) |
-| `--todo` | `refs/todo/protocol-todo.md` |
 | `--build` | `refs/build/protocol.md` |
 | `--build --flash` | `refs/build/flash/mode-flash.md` (instead of `protocol.md`) |
 | `--build roadmap=<path>` | `refs/build/protocol-roadmap.md` (instead of `protocol.md`) |
 
-Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive); `flash` loads the flash variant of the active mode — that flash ref **only**, not the comprehensive one. Honored on `--plan`/`--build`; a no-op on `--todo`. Exactly one mode flag must be present. If zero or more than one is given, emit:
+Resolve the run mode per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive); `flash` loads the flash variant of the active mode — that flash ref **only**, not the comprehensive one. Honored on `--plan`/`--build`. Exactly one mode flag must be present (`--plan` | `--build`). If zero or more than one is given, emit:
 
 ```
-Hard failure: exactly one mode flag required (--plan | --todo | --build). Got: <list>.
+Hard failure: exactly one mode flag required (--plan | --build). Got: <list>.
+```
+
+Stop.
+
+**`--todo` is no longer a mode.** Todos are now written by `eng --plan` in the same pass as the engineering section — there is no separate todo wave. An invocation carrying `--todo` hard-fails:
+
+```
+Hard failure: --todo is no longer a mode — todos are written by `eng --plan` in the same pass. Re-run with --plan.
 ```
 
 Stop. `roadmap=<path>` (a `--build`-only field) loads `refs/build/protocol-roadmap.md` **instead of** `refs/build/protocol.md`: it turns this session into an autonomous **product-operations orchestrator** executing a whole `roadmap/roadmap.md` phase-by-phase, spawning `eng`/`review`/`test`/`pre-merge` subagents.
@@ -53,7 +60,7 @@ Requires four fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
-| mode flag | `--plan`, `--todo`, or `--build` |
+| mode flag | `--plan` or `--build` |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
 | `rows` | Semicolon-separated exec-table Feature identifiers for this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
 | `agent` | This invocation's agent identity (e.g. `eng-backend`) — the exec-table **Agent** column value for the assigned rows; names the `## Engineering — <agent>` heading and confirms row ownership. |
@@ -68,10 +75,10 @@ Stop. The active mode file may add mode-specific input rules — apply those too
 
 ### Alternate build sources (`--build` only)
 
-- **`test-json=<path>`** — build from a `/test` bug list instead of an exec-table. Required fields, rejections, path-validity failures, and the finding→issue-ticket projection live in `refs/build/protocol.md`.
+- **`test-json=<path>`** — build from a `/test` bug list instead of an exec-table. Required fields, rejections, path-validity failures, and the finding→issue-ticket projection live in `refs/build/protocol-build-testjson.md`.
 - **`roadmap=<path>`** — hand the whole roadmap to the orchestrator (`refs/build/protocol-roadmap.md`), which derives per-PRD fields for each leaf subagent. Required fields and rejections live in that file.
 
-`--plan`/`--todo` with either alternate is rejected, and passing more than one input source is a hard failure (ambiguous source) — exact messages in the mode refs.
+`--plan` with either alternate is rejected, and passing more than one input source is a hard failure (ambiguous source) — exact messages in the mode refs.
 
 ---
 
@@ -118,7 +125,7 @@ Ask up to 3 focused questions, one at a time — each naming the specific row or
 
 ## Step 4 — Pre-run (2 of 2): Coding standards
 
-Coding standards come from `/cook`, pulled via **explicit flags** (never a prose summary) so the call is cacheable and the P0 floor always loads. **Runs on `--build` only:** `--todo` pulls no standards (it writes no code), and `--plan` does not call `/cook` — its design doc is grounded in the `CLAUDE.md` + `devkit/ARCHITECTURE.md` stack constraints read in Step 2; standards are pulled later, at build time. On `--build`, resolve standards one of two ways:
+Coding standards come from `/cook`, pulled via **explicit flags** (never a prose summary) so the call is cacheable and the P0 floor always loads. **Runs on `--build` only:** `--plan` does not call `/cook` — its design doc + todo tickets are grounded in the `CLAUDE.md` + `devkit/ARCHITECTURE.md` stack constraints read in Step 2; standards are pulled later, at build time. On `--build`, resolve standards one of two ways:
 
 - **Orchestrated (payload injected):** when the prompt carries a **`standards payload`** section (an orchestrator compiled it once for this stack and injected it), use it and **do not call `/cook`**. Default on orchestrated runs.
 - **Standalone (call cook yourself):** when no payload is injected, call `/cook` once with explicit flags — stack→flag table in `refs/build/protocol.md`. Always include `--global` (guarantees the P0 floor + 8 concern refs); an identical flag set repeats as a cook cache hit. Read fully; surface any uncovered stack as a named gap in the build summary.
@@ -129,8 +136,7 @@ Coding standards come from `/cook`, pulled via **explicit flags** (never a prose
 
 Follow the work steps and output contract in the active mode file, where the modes diverge:
 
-- `--plan` → emit a proposed-changes document (no files written; inline snippets/pseudocode encouraged).
-- `--todo` → decompose the confirmed `## Engineering — <Agent>` section into per-feature `### F<n>` blocks under `## Todos — <Agent>` (no files written).
+- `--plan` → in one pass, append the `## Engineering — <Agent>` section, fill the Execution steps + Files columns, and write the `## Todos — <Agent>` tickets that decompose each owned F-ID (no implementation code written; inline snippets/pseudocode encouraged).
 - `--build` → write code to derived paths; emit a build summary.
 
 ---
@@ -143,9 +149,8 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 
 ## References
 
-- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule. `refs/plan/template-eng-plan.md` — §1–13 output format.
-- `refs/todo/protocol-todo.md` — `--todo`: decomposes each F-ID into tickets under `## Todos — <Agent>`. `refs/todo/template-todo.md` — ticket schema.
-- `refs/build/protocol.md` — `--build`: branch contract, `test-json` source + projection, coding-standards flag table, work steps, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format.
+- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **and the `## Todos — <Agent>` ticket-writing spec** run in the same pass. `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the eight fields, rendering, rules, empty-block sentinel, ticket-sizing caps) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–13 output format.
+- `refs/build/protocol.md` — `--build`: branch contract, `test-json` source, coding-standards flag table, work steps, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format. `refs/build/protocol-build-testjson.md` — `test-json` source + the finding→issue-ticket projection and `kind` discriminator.
 - `refs/build/protocol-roadmap.md` — `--build roadmap=<path>` orchestrator: executes `roadmap/roadmap.md` phase-by-phase, spawning subagents and injecting per-stack standards.
 - `.claude/scripts/eng-db-touch.sh` — production/data guardrail; the orchestrator pauses for sign-off when it trips.
-- **Contract:** the `## Engineering — <Agent>` heading written by `--plan` is how `plan-em` detects the section is ready and how `--build` locates its spec. Do not rename it.
+- **Contract:** the `## Engineering — <Agent>` and `## Todos — <Agent>` headings written by `--plan` (same pass) are how `plan-em` detects the section is ready and how `--build` locates its spec. Do not rename them.

@@ -15,6 +15,10 @@ Obeys `../../../../shared/refs/flash-floor.md`. Loaded **instead of** `refs/plan
 4. **Execution steps** — one column of ordered steps per row (skeleton, not prose).
 5. **Findings** — preflight gaps / open questions surfaced while planning.
 
+## Todos — same pass
+
+In the same pass, write the `## Todos — <Agent>` tickets under the `## Todos` umbrella (created by `plan-em`): one `### F<n>` block per owned F-ID, tickets keyed `F<n>-T<k>`. Same schema and **ticket-sizing caps** as comprehensive — `refs/plan/template-todo.md`, not compressed away. Empty features get the `_No discrete work for this feature._` sentinel.
+
 ## Gate
 
 **None.** Print the plan document + a one-line summary and proceed. No approval `AskUserQuestion`. (Safety-floor pauses in `flash-floor.md` still fire.)

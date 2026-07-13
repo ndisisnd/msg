@@ -67,23 +67,17 @@ Read `refs/principles.md` before any other ref. Apply all five categories throug
 
 Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
-## Step 0 — Resolve the todo preference (`prefs.json`)
-
-Runs once at the very start of every invocation, before Step 1's progress line, to resolve `$TODOS` — the single boolean that gates the **entire** todo layer (the execution table's Todos column, the todo phase, and the todo handoff). Read `.claude/skills/plan-em/prefs.json`: if it exists and parses with a boolean `todos` field, set `$TODOS` to that value (the common case — do not re-scan); if it is missing, unreadable, or corrupt, treat this as the **first invocation** and run `refs/prefs-bootstrap.md`, which detects any pre-existing user task-breakdown skill, writes `prefs.json`, and sets `$TODOS`. Continue to Step 1 with the resolved value.
-
 ## Step-by-step protocol
 
-Follow `refs/protocol-em.md` end-to-end. It defines the full five-step flow — Step 1 Validate and pre-flight (devkit + PRD scan, multi-PRD cross-reference, `preflight.md`), Step 2 PRD tune gate, Step 3 Identify agents and get approval (`/cook` roster + execution table skeleton), Step 4 Agents write (plan / todo / build mode detection, gated by `$TODOS` from Step 0), Step 5 Synthesise and next steps. Step 0 above resolves `$TODOS` before the protocol runs.
+Follow `refs/protocol-em.md` end-to-end. It defines the full five-step flow — Step 1 Validate and pre-flight (devkit + PRD scan, multi-PRD cross-reference, `preflight.md`), Step 2 PRD tune gate, Step 3 Identify agents and get approval (`/cook` roster + execution table skeleton), Step 4 Agents write (`plan` / `build` mode detection — the `plan` wave writes the engineering section **and** its todo tickets in one pass), Step 5 Synthesise and next steps.
 
 ## References
 
 - `refs/protocol-em.md` — end-to-end five-step execution protocol; followed from § Step-by-step protocol
-- `refs/prefs-bootstrap.md` — Step 0 first-invocation todo-preference bootstrap (read only when `prefs.json` is missing/corrupt)
 - `refs/principles.md` — core operating principles; read before any other ref (shared)
 - `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
-- `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (with the Todos column when `$TODOS = true`) before activating agents (shared)
-- `.claude/skills/plan-em/prefs.json` — persisted `todos` boolean resolved in Step 0; gates the entire todo layer (Todos column, todo phase, `## Todos` section)
-- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan`, `--todo`, or `--build` mode
-- `.claude/skills/eng/refs/todo/template-todo.md` — todo schema written in the `todo` phase and consumed by build agents
+- `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (Todos column always present) before activating agents (shared)
+- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
+- `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` (same pass as the engineering section) and consumed by build agents
 - `.claude/skills/test/SKILL.md` — `/test --prd` bootstraps the development eval_set in Step 4 plan mode; build agents and `/review` later consume it via `--eval-set`

@@ -17,7 +17,7 @@ Loaded only when `--build` is invoked with `test-json=<path>` (see `protocol.md`
 | `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see **Branch default**); must still exist before work starts |
 | `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
 
-- `test-json` is a **`--build`-only** source. `--plan` (and `--todo`) with `test-json` is a hard failure: `Hard failure: test-json is a --build-only input source`.
+- `test-json` is a **`--build`-only** source. `--plan` with `test-json` is a hard failure: `Hard failure: test-json is a --build-only input source`.
 - Supplying **both `prd-path` and `test-json`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or test-json, not both (ambiguous input source).`
 - A `test-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: test-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
 
@@ -57,3 +57,44 @@ On completion, `eng --build` **updates the `test-json` file's own `followUp.stat
 - one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `"partially_resolved"`
 
 This is the **only** write build mode makes to `msg-test/test-<n>.json`; the `issues[]` array and every other field stay untouched (the file remains canonical findings — the projection was read-time only). The `--gui` board reads this `followUp.status` back to render an honest Open/Resolved state per test-issue card.
+
+## The `kind` discriminator
+
+Every ticket — whether it originates from a PRD feature (a `## Todos` `### F<n>` block, schema in `refs/plan/template-todo.md`) or from a test/review finding (the projection below) — carries a `kind` field so a consumer (`--build`, the `--gui` board) can always tell a build todo apart from a bug:
+
+| `kind` | Origin | Id shape |
+|--------|--------|----------|
+| `"todo"` | a PRD `## Todos` `### F<n>` block (`refs/plan/template-todo.md`) | `F<n>-T<k>` |
+| `"issue"` | a canonical finding in `msg-test/test-<n>.json` (the projection below) | the finding `id`, e.g. `unit-002` |
+
+A ticket with no explicit `kind` is a `"todo"` (back-compat). The id shape alone is a secondary signal — an `F<n>-T<k>` id is a todo, any other shape is an issue — but `kind` is authoritative.
+
+## Finding → issue-ticket projection
+
+`msg-test/test-<n>.json` (written by `/test` Step 6) stores **canonical finding objects** — the same shape `/review` and `/pre-merge` emit, defined in `../../../shared/refs/finding-schema.md`. To let `eng --build` walk those findings with the same ticket vocabulary a PRD-todo build uses, and to let the `--gui` board render them beside PRD todos, each finding is **projected** into an issue-ticket through the single mapping below.
+
+This projection is cited by **both** `eng --build` (its `test-json` input path — this file) and the `--gui` board (`msg/refs/protocol-gui.md` Step 1b). Defining it once here keeps the two consumers from drifting.
+
+**It is a read-time view, never a rewrite.** `msg-test/test-<n>.json` stays canonical findings on disk — the projection is applied in memory each time a finding is consumed. Findings are never re-serialized into ticket shape, so `/review`↔`/test`↔`/pre-merge` interop and the shared dedup/regression keys (`id`, `rule`, `regression_of`) are untouched.
+
+### Field mapping
+
+| Issue-ticket field | Source (canonical finding) |
+|--------------------|----------------------------|
+| `kind` | literal `"issue"` |
+| `id` | finding `id` **verbatim** (`unit-002`) — its non-`F<n>-T<k>` shape itself signals an issue, and keeps `depends-on`/dedup handles stable |
+| `title` | finding `message` |
+| `objective` | synthesized `Restore correct behavior — <message>` (prefer `suggestion` when present). Does **not** trace to a PRD user story — a bug's intent is the fix, and `context.prd` is often `null` |
+| `type` | mapped from `category`: test buckets (`unit`, `e2e`, `functional`, `qa`, `a11y`, `api`, `mobile`, `coverage`, `load`, `perf`, `integration`, `contract`) → `test`; review concerns (`security`, `performance`, `complexity`, …) → `code` |
+| `priority` | mapped from `severity`: `blocker`→`P0`, `high`→`P1`, `medium`/`low`→`P2` |
+| `files` | `[{ path: <finding.file>, action: "edit" }]`, or `[]` when `file` is `null` (suite-level finding). `action` is always `edit` — `file` is where the *symptom* was observed, not a command to edit that path; Step 2's codebase scan still resolves the real target |
+| `depends-on` | `none` — findings carry no dependency graph |
+| `done-when` | `<repro> passes and the covering test file is green` (from `repro`; when `repro` is `null`, `the finding no longer reproduces`) |
+
+### Preserved diagnostic fields
+
+A todo has no slot for these, but a bug needs them for the fix flow and the GUI side panel, so they ride **alongside** the projected fields on the issue-ticket (copied verbatim from the finding, never dropped):
+
+`severity`, `category`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, and `evidence.flaky`.
+
+`evidence.flaky: true` in particular changes how `eng --build` treats the ticket (fix only if a reproducible root cause surfaces — see § Work-step deltas above) and how `--gui` tags it, so it must survive the projection.

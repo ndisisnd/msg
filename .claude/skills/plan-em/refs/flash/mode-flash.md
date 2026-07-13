@@ -22,7 +22,7 @@ Merge the tune gate + roster approval + relationship-flag confirmation into **on
 
 ## Synthesis — from agent returns only
 
-Synthesize the engineering sections from the **agent returns**, with **0 PRD/synth-slice reads at synthesis** (comprehensive reads the `synth` slice; flash goes further and reads nothing). Write the `## Engineering — <agent>` sections + exec table directly.
+Synthesize the engineering sections from the **agent returns**, with **0 PRD/synth-slice reads at synthesis** (comprehensive reads the `synth` slice; flash goes further and reads nothing). Write the `## Engineering — <agent>` sections + exec table directly. The exec table carries the **Todos** column (always present); create the `## Todos` umbrella once and each `eng --plan` agent writes its `## Todos — <agent>` tickets in the same pass (schema in `eng/refs/plan/template-todo.md`).
 
 ## Skipped vs comprehensive
 

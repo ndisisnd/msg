@@ -64,7 +64,7 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
 - **Run a prompt** — `POST /api/prompt {prompt}` starts a background job via the runner
   template; `GET /api/jobs` returns status + output tails and the GUI polls while a run is
   live, then refreshes board data. Quick actions prefill skill invocations (`/plan-pm …`,
-  `/eng --todo …`); todo/issue side panels offer "Ask Claude about this" with context
+  `/eng --build …`); todo/issue side panels offer "Ask Claude about this" with context
   prefilled.
 - **View project docs** — `GET /api/files` lists root `*.md` (README, CLAUDE.md, CHANGELOG…)
   and `devkit/*.md`, grouped; `GET /api/file?path=…` returns one file, rendered as markdown
@@ -101,12 +101,12 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `## 6. Features & acceptance criteria`), falling back to `## Execution Table` (legacy)
    or `## N. Feature execution table` (new).
 3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 11. Todos`) → tickets per
-   `.claude/skills/eng/refs/todo/template-todo.md` (`**<id> — <title>**` + labelled field
+   `.claude/skills/eng/refs/plan/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
 4. **Test issues** from `msg-test/test-*.json` via the shared **finding → issue-ticket
-   projection** in `template-todo.md` (read-time view, never re-serialized). Absent
-   `msg-test/` → `testIssues: []`.
+   projection** in `eng/refs/build/protocol-build-testjson.md` (read-time view, never
+   re-serialized). Absent `msg-test/` → `testIssues: []`.
 5. **Run reports** from `features/prd-*/reports/report-*.md` (one level of nested
    `prd-*` sub-dirs included) and `features/reports/report-*.md` (the no-PRD fallback),
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
@@ -177,7 +177,7 @@ is unchanged from the previous protocol revision, with these notes:
   "testIssues": [ { "file": "msg-test/test-1.json", "runId": 1, "verdict": "fail",
     "context": { "prd": "…", "branch": "…", "base": "main" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "…": "projected per template-todo.md" } ] } ],
+    "tickets": [ { "kind": "issue", "id": "unit-002", "…": "projected per protocol-build-testjson.md" } ] } ],
   "reports": [ { "file": "features/prd-101-task-crud/reports/report-1.md", "reportId": 1,
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",

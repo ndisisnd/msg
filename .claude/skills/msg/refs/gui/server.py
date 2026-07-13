@@ -309,7 +309,7 @@ SEV_PRIO = {"blocker": "P0", "high": "P1", "medium": "P2", "low": "P2"}
 
 
 def project_finding(f):
-    """Canonical finding → issue-ticket (template-todo.md 'Finding → issue-ticket projection')."""
+    """Canonical finding → issue-ticket (eng/refs/build/protocol-build-testjson.md 'Finding → issue-ticket projection')."""
     msg = f.get("message") or f.get("title") or f.get("id") or "finding"
     suggestion = f.get("suggestion")
     repro = f.get("repro")

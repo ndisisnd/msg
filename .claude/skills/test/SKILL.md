@@ -351,7 +351,7 @@ This mirrors the inline `max(suffix)+1` numbering pattern (empty folder → `1`)
 - `context.prd` / `context.branch` / `context.base` **reuse what Step 2 already resolved** — `context.prd` is the PRD used for the eval_set (`--prd`, auto-discovery, or `null`); `context.branch` is `git branch --show-current`; `context.base` is the `--base` value or `null`. No new detection logic.
 - `source_run.archived_output` is the `features/prd-<n>/test/test-<ts>.json` path Step 5 wrote when a PRD was known, else `null`.
 - `summary` counts come straight from the aggregated buckets: `failed` = findings of `severity` `blocker`/`high` that are not flaky; `flaky` = findings carrying `evidence.flaky: true`; `warnings` = remaining `medium`/`low` findings.
-- `issues[]` is the **same merged `findings[]` array Step 5 produced, copied verbatim** — the canonical finding objects, not re-derived and not reshaped into ticket form (the ticket projection is a read-time view owned by `eng/refs/todo/template-todo.md`; this file stays canonical findings).
+- `issues[]` is the **same merged `findings[]` array Step 5 produced, copied verbatim** — the canonical finding objects, not re-derived and not reshaped into ticket form (the ticket projection is a read-time view owned by `eng/refs/build/protocol-build-testjson.md`; this file stays canonical findings).
 
 **3 — Follow-up gate (the second, conditional `AskUserQuestion`).** After writing the file, ask exactly once:
 
@@ -376,7 +376,7 @@ This conditional gate is scoped to this step only — the same precedent `--init
 - `refs/modes/init.md` — `--init` decision tables (shape→buckets, bucket→tools) and `test.json` schema
 - `refs/schema.md` — output JSON schema and verdict semantics (conforms to the shared canonical finding object)
 - `../shared/refs/finding-schema.md` — canonical finding object shared with /review and /pre-merge (severity enum, dedup/regression keys, verdict normalization)
-- `../eng/refs/todo/template-todo.md` — the finding→issue-ticket projection `eng --build` and `msg --gui` apply to the `issues[]` Step 6 persists (this file stays canonical findings; the projection is a read-time view)
+- `../eng/refs/build/protocol-build-testjson.md` — the finding→issue-ticket projection `eng --build` and `msg --gui` apply to the `issues[]` Step 6 persists (this file stays canonical findings; the projection is a read-time view)
 - `refs/modes/unit.md` — unit/integration runner invocation and output parsing
 - `refs/modes/e2e.md` — e2e runner invocation and output parsing
 - `refs/modes/functional.md` — executable assertion verification via ephemeral scripts

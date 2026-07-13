@@ -19,7 +19,7 @@ The `roadmap` source's required-field set is just the mode flag plus the roadmap
 
 Rejections (all hard failures — emit and stop):
 
-- `roadmap=` with `--plan` or `--todo` → `Hard failure: roadmap= is a --build-only input source`.
+- `roadmap=` with `--plan` → `Hard failure: roadmap= is a --build-only input source`.
 - `roadmap=` together with `prd-path`/`rows` **or** `test-json` → `Hard failure: pass exactly one of prd-path+rows, test-json, or roadmap (ambiguous input source).`
 - A `roadmap` path that does not exist or has no phases → `Hard failure: roadmap <path> not found or empty`.
 
