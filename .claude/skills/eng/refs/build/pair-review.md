@@ -1,11 +1,11 @@
 ---
 name: eng-build-pair-review
-description: The per-ticket pair-review subagent — persona, single unnecessary-code mandate, and the one-round blocking contract. Loaded on the build hot path at protocol.md Step 4e. Skipped in flash.
+description: The per-ticket pair-review subagent — persona, single unnecessary-code mandate, and the one-round blocking contract. Loaded on the build hot path at protocol.md Step 4e.
 ---
 
 # Pair review (per ticket)
 
-Fires after a todo ticket's implementation passes green (`protocol.md` Step 4e) and **before that ticket's commit gate**. One diff-scoped subagent per ticket. **Skipped in flash** (`flash/mode-flash.md` — flash has a single end-of-run commit gate, no per-ticket cadence).
+Fires after a todo ticket's implementation passes green (`protocol.md` Step 4e) and **before that ticket's commit gate**. One diff-scoped subagent per ticket.
 
 ## Persona
 

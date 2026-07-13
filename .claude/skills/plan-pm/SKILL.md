@@ -26,8 +26,6 @@ allowed_tools:
 - Natural language (**sub-PRD**): "create a sub-PRD", "more changes to PRD 2", "follow-up fixes for this PRD", "spin off a sub-PRD" — route to the `--sub` mode in the § Sub-PRD mode section below.
 - Natural language (**roadmap**): "build a roadmap", "arrange my PRDs into phases", "sequence the PRDs", "plan the roadmap", "organise the PRDs into a roadmap" — route to the `--roadmap` mode in the § Roadmap mode section below.
 
-**Flash mode:** `/plan-pm --flash` — load `refs/flash/mode-flash.md` (+ its slim template) and follow it instead of the comprehensive protocol/template. Composes with `--sub`. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
-
 **Modes:** default (autonomous top-level PRD from an intake row), `--sub` (a numbered follow-up nested under an existing parent PRD), and `--roadmap` (analyse the existing PRDs and arrange them into sequenced phases). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first: it changes idea resolution (Step 1), numbering (Step 3 Part 1), the folder/frontmatter written (Step 3 Part 2), and nothing else. All other steps run identically. When `--roadmap` is present, read § Roadmap mode (`--roadmap`): it is a **separate protocol** (`refs/protocol-roadmap.md`), not the five-step PRD flow — it writes no new PRD, operating instead on the PRDs already in `features/` and reading the intake sequencing grades as an input.
 
 **Hard refusals:**

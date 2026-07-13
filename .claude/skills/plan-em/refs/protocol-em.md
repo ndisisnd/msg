@@ -87,7 +87,7 @@ Read the PRD's `product-tuned:` frontmatter (from Step 1) **and** the §9 Plan t
   - Certified (stamp set, zero unresolved Criticals) → proceed to agent identification.
   - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD.
 
-No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its own product-decision pause is the only stop. (Flash: the certification precondition still runs — it is a safety-floor gate, never collapsed; `../../shared/refs/flash-floor.md`.)
+No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its own product-decision pause is the only stop.
 
 ---
 
@@ -155,7 +155,6 @@ Each mode dispatches its agents to the `eng` skill with the matching flag (`--pl
 **Subagent context injection (compile/read once, share many).** plan-em already read the full PRD + devkit (Step 1) and compiled per-stack standards payloads (Step 3a). It passes each `eng` subagent only what it needs, so siblings do **not** each re-read the whole PRD, re-read every devkit file, or re-invoke `/cook`. Every dispatch prompt below therefore also includes:
 - **Scoped context** — this agent's exec-table rows, the PRD **feature sections** those rows map to, and a **devkit digest** (canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows — distilled from the Step 1 pre-flight). Plus the **escape hatch**: *"The full PRD is at `<prd-path>`; read it (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve a row."*
 - **Standards payload** *(build mode only)* — the compiled `/cook` output for this agent's stack, retained from Step 3a. The build agent uses it and **does not call `/cook` itself**. (`--plan` agents pull no standards → no payload.)
-- **Resolved mode** — the run mode plan-em resolved at Step 0, forwarded into every dispatch prompt as an explicit `--flash`/`--comprehensive` flag (carried alongside the scoped context and, in build mode, the standards payload). Each `eng` subagent runs that mode without re-reading the pref — flash flows one-way from the orchestrator (`../../shared/refs/flash-floor.md`, `../../shared/refs/mode-resolution.md`).
 
 Scope-enforcement and the branch contract in the numbered fields are unchanged — each agent acts only on its assigned rows and commits only to the resolved branch.
 

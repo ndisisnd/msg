@@ -34,7 +34,7 @@ Independent of tolerance, these always run and always gate:
 - **Security** stage (Step 6) — secret scan + SAST.
 - **Migration** stage (Step 6) — static SQL-safety scan when the diff touches migrations.
 - **Human gates** — preview-deploy approval (Step 8, when triggered), and the branch-protection green-CI requirement the PR opens against (Step 9).
-- The `../../shared/refs/flash-floor.md` safety floor (DB/data pauses, breaking-change pauses, branch isolation, secret scan, no unsanctioned writes).
+- The `../../shared/refs/safety-floor.md` safety floor (DB/data pauses, breaking-change pauses, branch isolation, secret scan, no unsanctioned writes).
 
 Tolerance moves **bucket selection + severity thresholds only** — it can never
 switch off a floor item.
