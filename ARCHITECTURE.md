@@ -34,6 +34,8 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | `scan-n.prd` | Assigns the next available PRD number |
 | `plan-tune-preflight.sh` | Validates PRD structure before a tune pass |
 | `changelog-gate.py` | Validates CHANGELOG.md format |
+| `eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
+| `eng-commit-cap.sh` | A5 small-commit cap — blocks a staged diff over 500 changed LOC (300 with `--breaking`); `--oversize-reason` escape hatch |
 
 ### 4. Devkit layer (scaffolded projects)
 

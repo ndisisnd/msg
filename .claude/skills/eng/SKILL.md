@@ -150,7 +150,10 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 ## References
 
 - `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **and the `## Todos — <Agent>` ticket-writing spec** run in the same pass. `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the eight fields, rendering, rules, empty-block sentinel, ticket-sizing caps) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–13 output format.
-- `refs/build/protocol.md` — `--build`: branch contract, `test-json` source, coding-standards flag table, work steps, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format. `refs/build/protocol-build-testjson.md` — `test-json` source + the finding→issue-ticket projection and `kind` discriminator.
+- `refs/build/protocol.md` — `--build`: branch contract, `test-json` source, coding-standards flag table, work steps, per-ticket pair review, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format. `refs/build/protocol-build-testjson.md` — `test-json` source + the finding→issue-ticket projection and `kind` discriminator.
+- `refs/build/pair-review.md` — per-ticket pair-review subagent: platform-parameterised principal-engineer persona, unnecessary-code-only mandate, one-revision-round blocking contract (loaded on the build hot path; skipped in flash).
 - `refs/build/protocol-roadmap.md` — `--build roadmap=<path>` orchestrator: executes `roadmap/roadmap.md` phase-by-phase, spawning subagents and injecting per-stack standards.
 - `.claude/scripts/eng-db-touch.sh` — production/data guardrail; the orchestrator pauses for sign-off when it trips.
+- `.claude/scripts/eng-comment-scan.sh` — deterministic A4 comment scan; flags added symbol declarations with no plain-English comment above them (`--staged` or a diff range).
+- `.claude/scripts/eng-commit-cap.sh` — A5 small-commit cap on the staged diff (>500 changed LOC, >300 with `--breaking`; `--oversize-reason` escape hatch).
 - **Contract:** the `## Engineering — <Agent>` and `## Todos — <Agent>` headings written by `--plan` (same pass) are how `plan-em` detects the section is ready and how `--build` locates its spec. Do not rename them.

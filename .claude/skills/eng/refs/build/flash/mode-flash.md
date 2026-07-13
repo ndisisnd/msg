@@ -22,7 +22,7 @@ The slice returns this feature's acceptance criteria (verbatim), its exec-table 
 1. **One cook compile, injected once.** Derive flags from eng's concern-keyword table (T1.3), compile `/cook` **once** (flag-based, cacheable, P0-guaranteed), inject the payload into the single build agent's prompt. **Not** per-row, **not** a `cook --flash` (which doesn't exist).
 2. **≤1 build agent for all rows** — no per-platform fan-out. Orchestrators forwarding `mode: flash` respect this (they spawn one, not one-per-platform).
 3. **Impl + tests written together**; run the **unit + integration** suite **once** before commit (skip the verify-red pre-step). Heavier buckets (e2e / visual / perf / a11y / coverage) are pre-merge's job, never run in the build loop.
-4. **Single commit gate** — fires once at the end (`kermit`-style), not per-row.
+4. **Single commit gate** — fires once at the end (`kermit`-style), not per-row. Two checks ride this single gate: (a) the A5 **commit cap** — run `eng-commit-cap.sh` (`--staged`, add `--breaking` when the diff carries a breaking change); `CAP_EXCEEDED` → **split into smaller commits even in flash** (escape hatch: `--oversize-reason` + an `Oversize-reason:` trailer, logged to §12); and (b) `eng-comment-scan.sh --staged` for the A4 comments — add any missing plain-English comment before committing. The per-ticket **pair-review** subagent (comprehensive `../protocol.md` Step 4e) is **SKIPPED in flash** — flash has no per-ticket cadence, only this end-of-run gate; the omission is deliberate, not a gap.
 5. **Debug capped at 2 cycles** — if the suite is still red after 2 fix attempts, stop and write the failure ticket rather than looping.
 
 ## Safety floor — unchanged
