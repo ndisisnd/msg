@@ -36,12 +36,6 @@ intake (capture + interview + grade → INTAKE.md rows)
 Natural language: "log an idea", "capture a bug", "add this to the backlog",
 "note this feature down", "track this idea", "put this in the backlog".
 
-**Flash mode:** `/intake --flash` — resolve per `../shared/refs/mode-resolution.md`
-(flag > forwarded > pref > comprehensive). Flash collapses the interview to **one**
-combined `AskUserQuestion` (thin-idea flesh-out + goal in a single batched call);
-grading, hybrid-split, and the XL-split ask are unchanged (they are single-turn and
-cheap). The banded-only grading rule and the ledger write are never relaxed.
-
 **Hard refusals:**
 - Never drafts a PRD, never reads the codebase, never runs an analysis pass. intake captures and grades; `plan-pm` plans. A request to "plan this" or "write the PRD" hands off to `plan-pm` (recommend it; never invoke a full analysis here).
 - Never invents a fake-precise estimate (`~1,240 LOC`, `3.5 days`). Grades are **banded only** (§ Grading).

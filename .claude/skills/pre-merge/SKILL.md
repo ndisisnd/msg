@@ -33,7 +33,6 @@ eng --build  →  /pre-merge  →  (fail → eng --build gate-json=…, repeat) 
 - `/pre-merge --full-secret-scan` — Step 6 scans the full tree (default: diff-only)
 - `/pre-merge --flaky <N>` — retry failing e2e / unit-int tests up to `N` times before counting a hard failure (`refs/buckets/_common.md`)
 - `/pre-merge --changed-only` — skip platform buckets whose surface the diff doesn't touch (`refs/buckets/_common.md`)
-- `/pre-merge --flash` — flash mode: load `refs/flash/mode-flash.md`. **Step 0 — Mode:** resolve per `../shared/refs/mode-resolution.md` (flag > forwarded > pref > comprehensive).
 
 Natural language: "run pre-merge", "gate this before merge", "open the PR against staging", "run the CI gate".
 

@@ -38,12 +38,9 @@ pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests s
 
 Natural language: "ship this to staging", "merge the staging PR", "promote to production", "release to production", "ship it live".
 
-**No flash mode — ever.** Post-merge has no `refs/flash/`. Ship gates never
-collapse: the green-CI check, the human staging test, the staging sign-off, and
-the production double-confirmation run in **every** invocation regardless of any
-forwarded/pref mode. Where every other skill would resolve a mode
-(`../shared/refs/mode-resolution.md`), post-merge ignores it — a `--flash` flag
-is accepted and discarded, and the gates below fire unchanged.
+**Ship gates never collapse.** The green-CI check, the human staging test, the
+staging sign-off, and the production double-confirmation run in **every**
+invocation.
 
 **Hard refusals** (`refs/refusal-patterns.md`):
 - Does NOT merge on red or pending CI — branch protection is the enforcement; this skill's checks refuse and list the failing checks.

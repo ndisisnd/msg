@@ -35,7 +35,7 @@ Run `rtk git merge origin/staging` into the current feature branch. When `origin
 
 Steps 3 (unit + integration) and 4 (regression) **always re-run post-sync** — the
 merge may have changed behavior, so a bad auto-merge cannot pass silently. This is
-non-negotiable regardless of profile or flash.
+non-negotiable regardless of profile.
 
 ## Write scope
 
