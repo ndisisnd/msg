@@ -22,7 +22,8 @@ v2: intake                   (NEW — idea/bug capture into INTAKE.md; owns the 
                                pauses only for open questions + breaking/critical touches)
       → plan-tune             (CERTIFIER — auto-fixes Critical+Major w/ terminal table, asks on
                                Minors; intent-fidelity + testability checks; self-heals via AHA.md)
-      → plan-em
+      → plan-em               (ONE human gate: roster approval — certification auto-run inline,
+                               relationship questions replaced by the certified graph)
       → eng --plan            (engineering section + todo tickets in ONE pass, todos always on)
       → eng --build           (unit+integration only · pair-programmer per ticket · plain-English
                                comments · ≤500/300-LOC commits)
@@ -46,15 +47,18 @@ v2: intake                   (NEW — idea/bug capture into INTAKE.md; owns the 
 | D5 | Regression-test edits | **Edit with justification.** Merge agent may update stale prior-PRD regression tests; every edit logged as a finding in the verdict JSON citing the PRD clause that justifies it. |
 | D6 | Preview-gate trigger | **Path heuristic.** Diff touches UI-surface paths (review's old a11y trigger logic) or API/schema/migration paths → gate fires. |
 | D7 | Sync conflicts | **Auto-resolve trivial only.** Non-overlapping/whitespace/lockfile conflicts auto-resolved; semantic (same-hunk) conflicts pause for human. Unit+integration always re-run post-sync, catching bad auto-merges. |
-| D8 | Migration order | **Phased A→B→C**, `evals/bench.py` gate between phases; harness stays working at every step. |
+| D8 | Execution model | **7 phases (P1–P7), one commit each, AC-gated.** A Fable session orchestrates (dispatch, AC verification, commit); Opus subagents execute the edits. No phase commits until its full acceptance checklist is green; harness stays working at every step. *(Amended from the original A→B→C grouping — mapping in § Execution phases.)* |
 | D9 | Pre-merge write powers | **Split.** Pre-merge itself performs only the mechanical sync-merge commit (D7-bounded — one correct answer or pause). Regression tests are **authored by a spawned eng subagent** from the PRD + tickets; pre-merge runs and grades them. Write power stays with the gate only where the write is mechanical; judgment writes are delegated so the gate remains adversarial to what it grades. |
 | D10 | Preview kind | **Per-platform** `preview_kind: url \| artifact \| screenshots` in `devkit/PLATFORMS.md`. Web=`url`, iOS/macOS/Android=`artifact` (TestFlight/simulator/.apk build), `screenshots` as an explicit opt-down only. The strictest platforms pay the human round-trip they deserve. |
 | D11 | Staging sign-off record | **Hybrid.** post-merge stamps `staging-signoff: <date>` into PRD frontmatter after an explicit approval question (harness/GUI-readable), AND branch protection requires the human's GitHub approval on the staging→main PR (machine-enforced). Belt and suspenders. |
-| D12 | plan-tune --eng dimension 5 | **In V2-A, narrow.** Add exactly two checks: ticket-size feasibility vs the A5 commit caps, and platform-profile bucket coverage. No other tune changes — keeps the auditor honest from day one without widening the phase. |
+| D12 | plan-tune --eng additions | **Narrow: exactly two checks** — ticket-size feasibility vs the A5 commit caps, and platform-profile bucket coverage. Absorbed into the G1 checklist (checks 5–6); lands in **P7** with the rest of the certifier. |
 | D13 | INTAKE.md location & ownership | **Repo root.** Scaffolded by `/msg --init` from `TEMPLATE-INTAKE.md`; row content written by `intake`, PRD-mapping + status stamps written by `plan-pm`/`post-merge`. Not in `devkit/` — devkit files are read-only after init, INTAKE.md is a living ledger. *(Default chosen while drafting — veto-able.)* |
 | D14 | Intake status lifecycle owner | `backlog` (intake, on capture) → `in-progress` (plan-pm, when the PRD is created and mapped) → `completed` (post-merge `--production`, when the mapped PRD ships). Manual edits via GUI allowed. *(Default chosen while drafting — veto-able.)* |
-| D15 | plan-tune severity policy | **Auto-fix Critical + Major**; emit a compact terminal table (1–2 lines per finding: what was found → what was fixed), then ask whether to fix Minors. The step-4 human gate and the fix-selection multiSelect are deleted; the only remaining pause types are the Minor ask and product-decision findings. |
+| D15 | plan-tune severity policy | **Auto-fix Critical + Major**; emit a compact terminal table (1–2 lines per finding: what was found → what was fixed), then ask whether to fix Minors. The step-4 human gate and the fix-selection multiSelect are deleted; the only remaining pause types are the Minor ask and product-decision findings. Severity source: the G1 checklist's per-check severities. |
 | D16 | plan-tune self-healing loop | Critical/Major findings are a **drafting-quality signal, not routine**. Each auto-fixed Critical/Major logs a compact learning to `devkit/AHA.md` (which plan-pm already reads pre-draft — the loop closes with zero new plumbing). Same finding category recurring across ≥3 runs → plan-tune flags that the drafting protocol itself needs repair, not the PRDs. |
+| D17 | plan-tune scope | **Contract certifier, not adversarial reviewer.** The v1 "assume broken, audit everything" posture is retired; plan-tune runs a fixed six-check certification (G1), each check tied to a named downstream consumer. Governing rule: **no check without a consumer.** Prose-quality/completeness/consistency sweeps are cut — product judgment belongs to the human touchpoints (intake, preview, staging). |
+| D18 | plan-em certification preconditions | **Auto-run, no ask — both sides.** plan-em runs the matching certifier inline before each dispatch wave: `plan-tune --product` before the **plan** wave (missing `product-tuned: yes` or unresolved Criticals), `plan-tune --eng` before the **build** wave (missing `eng-tuned: yes` or unresolved Criticals). Certification is a precondition, not a choice; the only stop is the certifier's own product-decision pause. Without the eng half, checks 4/5/7 would be advisory — an unenforced gate decays into documentation. |
+| D19 | plan-em human gates | **Roster approval is the single human gate.** It's a spend + scope decision (how many parallel agents, which platforms), one cheap question, and the natural "write eng sections" confirmation. Every other v1 pause (tune ask, relationship questions, Critical-findings gate) is deleted or absorbed into batched pauses. |
 
 ## Safety floor v2 (rewrite of `shared/refs/flash-floor.md`)
 
@@ -188,7 +192,7 @@ Invoked by another agent or the user after pre-merge's PR exists.
 
 | Area | Change |
 |------|--------|
-| `plan-em` | Step 0 prefs deleted; Step 4 dispatches plan(+tickets) or build only; synth references new pipeline |
+| `plan-em` | Full v2 rework — one human gate (roster), inline certification, silent graph consumption. **See Part I.** |
 | `eng --build roadmap=` | Orchestrator chain becomes eng → pre-merge → post-merge --staging (stops there; --production is always human-initiated) |
 | `shared/refs/flash-floor.md` | Rewritten to Safety floor v2 (above) |
 | `shared/refs/verify-prelude.md` | Producer changes review→pre-merge; test/pre-merge consumer split collapses |
@@ -224,7 +228,7 @@ Invoked by another agent or the user after pre-merge's PR exists.
   - Reject entries containing `..`, absolute paths, or anything not under `skills/` or `scripts/` — the manifest can never reach outside `~/.claude/skills` + `~/.claude/scripts`.
   - **Install/remove conflict check:** an entry that names something also present in this run's install source is skipped with a warning (manifest bug, not a removal).
   - `scripts/<file>` entries allowed for retired helper scripts — exact filenames only.
-- **Phasing:** manifest + the six entries above land in **V2-A** (independent of the consolidation). **V2-B appends** `skills/review`, `skills/test`, and their orphaned scripts (e.g. `test-aggregate-verdict.sh`) once the pre-merge consolidation deletes them from the repo — so existing installs get cleaned on their next update.
+- **Phasing:** manifest + the six entries above land in **P3** (independent of the consolidation). **P4 appends** `skills/review`, `skills/test`, and their orphaned scripts (e.g. `test-aggregate-verdict.sh`) once the pre-merge consolidation deletes them from the repo — so existing installs get cleaned on their next update.
 
 ## Part F — Intake layer + autonomous plan-pm
 
@@ -266,28 +270,37 @@ The planning front-door is restructured: **idea capture and the interview move t
 
 `intake` writes rows as `backlog` → `plan-pm` stamps `in-progress` + the `prd-<n>` mapping when the PRD file is created → `post-merge --production` stamps `completed` when the mapped PRD ships. The GUI Intake tab may hand-edit statuses (same trust level as its PRD board edits).
 
-## Part G — plan-tune v2: the certification authority
+## Part G — plan-tune v2: contract certifier, not adversarial reviewer
 
-In v2, plan-tune is the load-bearing wall of the planning layer. plan-pm drafts autonomously (F3), review is deleted (D1/D2), and the PRD's acceptance criteria became **executable** — regression tests are authored from them (D9), pre-merge's PRD-consistency check grades against them (gate step 7), and the preview gate keys off them. A vague criterion no longer just reads badly: it produces a weak regression test that then guards production forever. plan-tune is the only check between a machine-drafted PRD and all of that.
+**The v1 adversarial posture ("assume the PRD is broken, audit everything") is retired.** It fit v1, where the PRD was a human-communication document. In v2 the PRD is a **machine contract**: specific fields are executed against by specific consumers — regression authoring (D9), pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads. "Wrong product, correctly built" is caught by the human touchpoints that remain (intake interview, preview gate, staging test) — plan-tune's job is protecting the contracts machines execute blindly.
 
-### G1. Product tune — two new checks
+**The governing rule — no check without a consumer:** plan-tune checks a property *if and only if* a named downstream mechanism consumes it. Any future check proposal must name its consumer or it doesn't get added. This is what stops tune from re-bloating.
 
-- **Intent fidelity (new check, scope-integrity dimension):** audit the PRD *against its intake row* — every feature traceable to the row's idea/goal (catches autonomous scope-creep), every aspect of the core user goal addressed (catches scope-loss), and grade consistency (a `C:S` idea that ballooned into a 6-feature PRD is a finding). The direct antidote to machine-drafting risk. PRDs without an intake ancestor (legacy, pre-v2) skip this check with a note.
-- **Criteria testability (hardened, agent-readability dimension):** every acceptance criterion must be *assertable* — a regression test or consistency check must be mechanically derivable from it. A criterion that cannot become a test is a **Major** finding, because the D9 eng subagent will otherwise author a vacuous test from it.
+### G1. The certification checklist (replaces all five v1 dimensions)
+
+| # | Check | Tune | Consumer | Unchecked failure mode |
+|---|-------|------|----------|------------------------|
+| 1 | **Criteria testability** — every acceptance criterion mechanically derivable into an assertion | product | D9 regression authoring; pre-merge PRD-consistency (step 7) | vague criterion → vacuous regression test guards production forever (**Major**) |
+| 2 | **Breaking/DB surface labeled** | product + eng | 300-LOC cap; pre-merge breaking pause; plan-pm critical pause; `eng-db-touch.sh` | all safety pauses silently disarmed (**Critical**) |
+| 3 | **Intent fidelity vs intake row** — features traceable to idea/goal; goal fully addressed; grade consistency | product | the pipeline's purpose (only check on autonomous drift) | plan-pm builds the wrong thing *fluently*; no-intake-ancestor PRDs skip with a note |
+| 4 | **Exec-table / eng-section integrity** — F-ID coverage, exact identifiers, Files column populated | eng | `eng --build` mechanical reads; `plan-em-exec-collision.py` | agents block mid-build or guess; parallel builds collide |
+| 5 | **Ticket sizing + graph validity** — sizes vs commit caps (D12); `depends-on` acyclic, every referenced id exists, every ticket has `done-when` | eng | A5 commit gate; `eng --build` ordering logic (which hard-stops on cycles/unknown ids) | unbuildable tickets and build-time hard-stops discovered at build time, not plan time |
+| 6 | **Frontmatter graph** — `depends_on`/`affects` correctness (+ platform-profile bucket coverage, D12) | product + eng | roadmap sequencing; plan-em preflight; pre-merge bucket selection | wrong build order; missed cross-PRD breakage; wrong gate strictness |
+| 7 | **Cross-agent integration-contract coherence** — every identifier declared in one agent's integration contract resolves against every other agent's section/tickets that reference it | eng | parallel `eng --build` agents (row-scoped — they build against each other's contracts blindly, and structurally cannot see across sections) | two internally-consistent, mutually-wrong sections; mismatch surfaces at pre-merge integration tests — the most expensive place (**Critical**) |
+
+**Explicitly cut (no consumer):** blanket completeness sweeps (template + a structural grep cover it), prose quality of narrative sections (user flows/background — eng's Step 6 scope enforcement already blocks-and-asks on unresolvable rows), whole-document consistency sweeps (the valuable subset is checks 1/4), glossary cross-checks (demoted to Minor at most). Certification runs on **digest slices** — one short pass, not five dimension sweeps.
+
+**Known trade (accepted):** contradictions that never touch an executable field are no longer caught here — they're caught by the human at intake or staging. Contract violations produce concrete AHA learnings ("PRDs keep leaving breaking changes unlabeled"), which is exactly what makes G5 self-healing actionable.
 
 ### G2. Autonomy alignment + severity policy (D15)
 
 The tune-type ask, fix-selection multiSelect, and step-4 human gate are all deleted. The v2 run:
 
 1. Auto-select tune type (existing auto-suggest logic becomes the decision, not a suggestion).
-2. Run the audit; write findings to the PRD ledger as today.
+2. Run the six-check certification; write findings to the PRD ledger as today.
 3. **Auto-fix every Critical and Major.** Then emit a compact terminal table — one row per finding, 1–2 lines: `# | Sev | Found | Fixed`. The user always *sees* what the machine changed, without being gated on it.
 4. **Ask once about Minors:** "N minor findings — fix them too?" (fix / leave logged as `Open`).
 5. **Product-decision pause (only hard gate):** a finding whose fix requires choosing between product behaviors (e.g. two acceptance criteria contradict — either resolution changes the product) is never auto-fixed; batch back via AskUserQuestion, same shape as plan-pm's open-questions pause.
-
-### G3. Eng tune — D12 + breaking-change labeling
-
-D12's two checks (ticket-size feasibility vs commit caps, platform-profile bucket coverage) plus a third: **unlabeled breaking-surface hunt**. Three v2 mechanisms key off breaking changes being *marked* in the PRD — the 300-LOC commit cap, pre-merge's breaking-change pause, plan-pm's own critical pause. An unlabeled breaking change silently disarms all three, so the eng tune actively hunts for breaking surface (API contract changes, schema migrations touching existing columns, behavior changes on shipped features) that the PRD fails to label. Unlabeled = **Critical**.
 
 ### G4. Chaining
 
@@ -300,9 +313,9 @@ Recommend-only, unchanged (plan-pm's termination recommends `plan-tune --product
 - Every auto-fixed Critical/Major appends a compact learning to `devkit/AHA.md` — category-tagged, e.g. `[tune:error-cases] PRDs keep omitting timezone-boundary error cases — draft them for any date-touching feature.`
 - **The loop closes with zero new plumbing:** plan-pm already reads `devkit/AHA.md` in pre-flight, so the next autonomous draft avoids the pattern. intake reads it too for grading calibration.
 - **Recurrence escalation:** the same category appearing across **≥3 runs** means the learnings aren't landing — plan-tune stops treating it as a PRD problem and emits a protocol-repair flag: "this finding category recurs; the drafting protocol/template needs the fix, not individual PRDs" — pointing at the plan-pm ref or intake rubric to amend (an improve-plan candidate).
-- Success metric, benchmarkable: **Critical+Major count per fresh PRD should trend toward zero** across consecutive V2-D-era runs. A flat or rising trend = the self-heal is broken; investigate.
+- Success metric, benchmarkable: **Critical+Major count per fresh PRD should trend toward zero** across consecutive post-P7 runs. A flat or rising trend = the self-heal is broken; investigate.
 
-**Phasing:** G3 lands in V2-A alongside D12 (it's eng-tune-side and independent of intake). G1/G2/G5 land in **V2-D** with the autonomy era they serve.
+**Phasing:** G1's eng-side checks (4–7) land in **P7** with the rest of the certifier (plan-tune stays v1 until then; D12's narrow additions ride P7 too). The product-side checks (1–3), G2's autonomy, and G5 also land in **P7** — one coherent certifier commit.
 
 ## Part H — GUI v2 (`/msg --gui`)
 
@@ -341,7 +354,41 @@ Post-merge reports join the per-PRD grouping (`skill: post-merge` frontmatter): 
 
 GUI writes were confined to `features/prd-*/` markdown. v2 adds exactly one path: **INTAKE.md status/mapping cells** (H2). Everything else stays read-only — the GUI still never writes gate tickets, reports, roadmap, or devkit files.
 
-**Phasing:** H3 lands in V2-B (with the ticket rename), H1 + H4 in V2-C (they render post-merge states), H2 + H5 in V2-D (with intake). Each phase's GUI delta ships inside that phase — the board is never ahead of or behind the harness it renders.
+**Phasing:** H3 lands in P4 (with the ticket rename), H1 + H4 in P5 (they render post-merge states), H2 + H5 in P6 (with intake). Each phase's GUI delta ships inside that phase — the board is never ahead of or behind the harness it renders.
+
+## Part I — plan-em v2: one gate, certified inputs
+
+plan-em drops from ~4 interactive pauses to **1** (roster). Its v1 steps against the v2 world:
+
+### I1. Step 0 deleted; dispatch simplified (rides A1)
+
+The todos-pref resolution (`prefs.json` + bootstrap scan) is gone. Step 4's mode table shrinks to two modes: `plan` (section + tickets in one wave) and `build`. The `todo` dispatch wave no longer exists.
+
+### I2. Certification preconditions — both waves (D18)
+
+The interactive tune gate is replaced by mechanical checks, one per dispatch wave:
+
+- **Before the plan wave:** `product-tuned: yes` + zero unresolved Criticals. Uncertified → run `plan-tune --product` inline, proceed on green.
+- **Before the build wave:** `eng-tuned: yes` + zero unresolved Criticals. Uncertified → run `plan-tune --eng` inline (the six-check eng side: 2, 4, 5, 6, 7), proceed on green. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan.
+
+No asks in either direction — the certifier is autonomous and cheap; its own product-decision pause is the only stop.
+
+### I3. Step 1 — consume the certified graph, ask only on conflict
+
+The per-relationship AskUserQuestions (Dependency / Breaking / Overlap) are deleted. By the time plan-em runs, intake graded sequencing (`S:blocked-by-#n`) and the certifier verified the frontmatter graph (G1 check 6) — plan-em consumes both silently. It asks **only on a genuine conflict**: the certified graph contradicts what its codebase scan implies (e.g. `depends_on` names a PRD whose surface the diff plainly doesn't touch, or an undeclared overlap is detected). Expected: zero relationship questions on a clean run. `preflight.md` still written (cheap, GUI-readable).
+
+### I4. Step 3 — roster approval, the single human gate (D19)
+
+Unchanged mechanically (cook compile-once, scoped flags, exec-table skeleton — all v2-shaped from the token-cut waves). Elevated in status: this is plan-em's **only** human gate — a spend + scope decision (parallel-agent count, platform set) that doubles as the "write eng sections" confirmation. The Todos column is always present (A1).
+
+### I5. Steps 4–5 — dispatch + synth cleanup
+
+- The end-of-plan `/test --prd` eval-set preview dies with `/test` (pre-merge owns eval derivation).
+- Synth's next-step menu becomes the v2 chain: proceed to `eng --build` (the eng certification is no longer a menu item — I2 auto-runs it as the build-wave precondition). The "run todo breakdown" option is deleted.
+- Critical synth findings stop being a blocking gate — batched back via AskUserQuestion, same pause shape as everywhere else in v2.
+- Mode forwarding, injected standards payloads, and build-mode branch resolution are unchanged.
+
+**Phasing:** I1 + the synth todo-option deletion ride **P1** (A1 fallout). I5's `/test` call removal rides **P4** (test deletion). I2 + I3 ride **P7** (they depend on the certifier's autonomy and intake's grades).
 
 ## Token & speed accounting (net per coding run)
 
@@ -355,24 +402,81 @@ GUI writes were confined to `features/prd-*/` markdown. v2 adds exactly one path
 | A4 comments | **−** (compounding) | future agents orient from comments, not bodies |
 | F3 plan-pm autonomy | **−** | interview turns + per-section gates collapse to two pause types (open questions, safety) |
 | G2 plan-tune autonomy | **−** | three interactive gates collapse to one Minor ask + rare product-decision pause |
+| I plan-em rework | **−** | ~4 pauses → 1 (roster); relationship questions pre-answered by certified graph |
 | G5 self-healing | **−** (compounding) | Critical/Major count per fresh PRD trends to zero → fewer tune-fix cycles over time |
 | F1 intake interview | **+** (once per idea) | interview runs once at capture and is reused at planning; grading is cheap (single-turn rubric) |
 | A3 pair-programmer | **+** (bounded) | 1 diff-scoped subagent per ticket, capped input, no cook call |
 | B2 regression authoring | **+** (once per PRD) | one eng subagent (D9) writes tests once; suite reruns are runner cost, not LLM cost |
 | Net | **expected −40%+ vs v1 comprehensive** | to be proven via `evals/bench.py` before/after |
 
-## Migration plan (D8 — phased, benchmarked, working harness at every step)
+## Execution phases (D8 — 7 phases, 1 commit each, AC-gated)
 
-**Phase V2-A — Eng rebuild.** A1–A5 + the plan-em fallout (prefs deletion, dispatch simplification) + the Part E removal manifest + the D12 narrow plan-tune update (dimension 5 gains ticket-size feasibility and platform-profile coverage checks, nothing else). v1 review/test/pre-merge still run unchanged behind it, so the pipeline stays whole. Exit gate: `evals/bench.py` before/after — expect the A1 wave-elimination + A2 loop-shrink savings to land here; A3's pair-programmer cost must be visibly bounded per ticket.
+**Execution model:** a **Fable** session orchestrates — reads this plan, dispatches work, verifies acceptance criteria, commits. **Opus subagents execute** each phase's edits. Every phase lands as **exactly one commit** on `msg-v2`, and a phase may not commit until **every acceptance criterion is checked green** — a failed AC is fixed within the phase, never deferred. `evals/bench.py` runs where an AC names it.
 
-**Phase V2-B — Pre-merge consolidation.** B1–B4: migrate the test buckets and the two surviving review stages into pre-merge, wire the gate sequence, platform profiles, gate-ticket rename, then DELETE `/review` and `/test` + all doc/menu/GUI references (per the skill-removal-scope convention: README, ARCHITECTURE, `/msg` menu, `--help` table, GUI tabs). Exit gate: bench again — this is where the biggest cut should show; plus one live pipeline pass (eng → pre-merge) on a seeded PRD.
+*(Supersedes the V2-A…D grouping. Mapping for part-level phasing notes: V2-A → P1–P3 · V2-B → P4 · V2-C → P5 · V2-D → P6–P7.)*
 
-**Phase V2-C — Post-merge + branch topology.** C1–C3: new skill, `staging` branch creation, branch-protection bootstrap in `--init`, roadmap-orchestrator rewiring, Safety floor v2 ratified in `shared/refs/flash-floor.md`. Exit gate: end-to-end dry run feature→staging→main on a scratch repo (protection rules verified to actually block a red PR).
+### P1 — Eng core: one plan wave, lean build loop *(A1, A2, I1)*
+**Objective:** merge plan+tickets into a single dispatch wave; shrink the build loop to unit+integration.
+- [ ] `eng --plan` writes `## Engineering — <Agent>` + `## Todos — <Agent>` in a single pass; `--todo` invocation hard-fails with a pointer to `--plan`
+- [ ] plan-em: Step 0 + `prefs.json` + bootstrap ref deleted; dispatch modes = `plan` | `build` only; exec table always carries the Todos column
+- [ ] Tickets sized at plan time to fit commit caps (rule present in the plan protocol)
+- [ ] `eng --build` TDD loop + full-suite gate run unit+integration only
+- [ ] v1 review/test/pre-merge still pass one smoke pipeline run (harness whole)
+- [ ] `bench.py`: planning-phase tokens drop vs baseline (wave elimination visible)
 
-**Phase V2-D — Intake + autonomous planning.** F1–F4 + G1/G2/G5: new `intake` skill, `TEMPLATE-INTAKE.md` + `--init` scaffolding, plan-pm interview removal + autonomy rework, plan-tune certification rework (intent fidelity, testability, D15 severity policy, D16 self-healing), GUI Intake tab, D14 lifecycle wiring (post-merge's `completed` stamp lands here if V2-C shipped first, else stubbed). Independent of A–C — sequenced last so the planning front-door changes don't churn while the build/gate layers are moving. Exit gate: one full intake → plan-pm → plan-tune autonomous run producing a certified PRD with zero unresolved Criticals; interview-parity check; the G5 AHA learning verified to appear and be consumed by the next draft.
+### P2 — Build discipline *(A3, A4, A5)*
+**Objective:** per-ticket pair review, plain-English comments, small commits.
+- [ ] Pair-programmer spawns per completed ticket: platform-parameterised principal-engineer persona, unnecessary-code mandate only, blocking with exactly one revision round, unresolved findings ledger-logged
+- [ ] Pair contract: diff + `done-when` + parent's standards payload; no cook call; cost visibly bounded per ticket
+- [ ] Comment convention in the build protocol; mechanical grep flags uncommented new/modified symbols
+- [ ] `eng-commit-cap.sh` blocks >500 LOC (>300 breaking); `Oversize-reason:` trailer escape hatch, logged to the PRD ledger
 
-Each phase lands as its own commit series on `msg-v2`, honoring the A5 commit caps ourselves.
+### P3 — Install layer: removal manifest *(Part E)*
+**Objective:** retiring a skill becomes a data change; improve/ never ships.
+- [ ] `remove-manifest.txt` ships 9 entries (msg-init, docu, handoff, ship, plan, design, improve + 2 ship scripts)
+- [ ] install.sh: exact-match only; rejects globs/`..`/absolute/outside `skills/`+`scripts/`; install-conflict skip with warning; absent target = silent idempotent skip
+- [ ] `improve/` excluded from the copy loop
+- [ ] Dry-run against a scratch `$HOME`: all retired items removed; `plan-em`/`plan-pm`/`plan-tune` untouched
+
+### P4 — Pre-merge: the CI gate *(Part B, H3, I5-partial)*
+**Objective:** one gate from "eng done" to "PR open against staging"; /review and /test die.
+- [ ] Gate sequence 0–9 implemented; bucket set + severity thresholds resolved from `devkit/PLATFORMS.md` (strict / standard / lenient)
+- [ ] `/msg --init` writes `PLATFORMS.md` (+1 interview question, `preview_kind` column)
+- [ ] Regression: spawned eng subagent authors to `tests/regression/prd-<n>/` (D9); edits to prior tests emit PRD-clause-cited findings (D5)
+- [ ] Sync step: trivial conflicts auto-resolved, semantic conflicts pause; unit+int re-run post-sync (D7)
+- [ ] Fail-ticket loop: `msg-gate/gate-<n>.json` → `eng --build gate-json=` works end-to-end
+- [ ] Preview gate fires on the D6 path heuristic, presents the profile's `preview_kind`, blocks on approval
+- [ ] Opens PR feature→staging with verdict JSON + report linked
+- [ ] `/review` + `/test` deleted; README / ARCHITECTURE / `/msg` menu / `--help` / GUI references scrubbed; manifest += `review`, `test` + orphaned scripts
+- [ ] GUI Gate Issues tab reads `msg-gate/` with per-step source badges (H3)
+- [ ] `bench.py`: largest single cut lands; one live eng → pre-merge run on a seeded PRD is clean
+
+### P5 — Ship layer: staging → main *(Part C, H1, H4)*
+**Objective:** post-merge exists; nothing reaches main except staging via double-confirmed PR.
+- [ ] `--staging`: green-CI check → merge → deploy (per platform pipeline) → emit human test script → stamp `staging-signoff:` on explicit approval (D11)
+- [ ] `--production`: refuses without the stamp; double-confirmation; PRs staging→main release-style; merges only on green CI + required human review
+- [ ] Branch-protection bootstrap via `gh api` (offered by `--init`, re-verified by post-merge); **verified to block a red PR on a scratch repo**
+- [ ] `shared/refs/flash-floor.md` rewritten to Safety floor v2; roadmap orchestrator rewired (chain ends at `--staging`; `--production` always human-initiated)
+- [ ] GUI ladder renders gated / staged / shipped (H1); post-merge reports render, iOS `IRREVERSIBLE` surfaced (H4)
+
+### P6 — Intake + autonomous plan-pm *(Part F, H2, H5)*
+**Objective:** ideas enter through a graded ledger; plan-pm drafts solo.
+- [ ] `/intake` captures rows (`# | date | type | idea | goal | grade | status | prd`); C/T/S rubric is a single-turn banded judgment (no fake precision — enforced in `TEMPLATE-INTAKE.md`); XL triggers the split question; hybrid asks split into discrete rows
+- [ ] `TEMPLATE-INTAKE.md` added; `/msg --init` scaffolds `INTAKE.md` idempotently
+- [ ] plan-pm: interview + epic gate deleted; no-args lists non-completed ideas; drafts the full PRD solo; pauses only for batched open questions + breaking/critical touches; terminates with the follow-up ask
+- [ ] Interview parity: everything the old 5-question interview captured is either in the intake row or autonomously drafted
+- [ ] Lifecycle stamps wired: `backlog` → `in-progress` (plan-pm); `completed` (post-merge, live from P5)
+- [ ] GUI Intake tab with grade chips (H2); INTAKE.md status cells are the only new write path (H5)
+
+### P7 — Certification layer *(Part G, I2, I3)*
+**Objective:** plan-tune is the seven-check contract certifier; plan-em enforces it on both waves.
+- [ ] plan-tune runs the 7-check certification on digest slices; adversarial dimensions removed; "no check without a consumer" rule documented in the skill itself
+- [ ] D15: Critical+Major auto-fixed; `# | Sev | Found | Fixed` terminal table emitted; single Minor ask; product-decision pause is the only hard gate
+- [ ] D16: each auto-fix writes a category-tagged AHA learning; **verified consumed** by the next plan-pm draft; ≥3-run recurrence emits the protocol-repair flag
+- [ ] plan-em: matching certifier auto-runs inline before each wave (product → plan wave, eng → build wave, D18); relationship questions replaced by certified-graph consumption — zero questions on a clean run (I3)
+- [ ] Full autonomous dry run: intake → plan-pm → certify → plan-em → build → pre-merge on a scratch PRD, zero unresolved Criticals
+- [ ] `bench.py` final: net cut vs v1 comprehensive ≥ 40%
 
 ## Open questions
 
-**None — all resolved.** Every question raised during drafting is settled in the Decisions log (D1–D16). D13/D14 were defaulted during Part F drafting and are veto-able. The plan is ready to build, starting with Phase V2-A.
+**None — all resolved.** Every question raised during drafting is settled in the Decisions log (D1–D16). D13/D14 were defaulted during Part F drafting and are veto-able. The plan is ready to build, starting with P1.
