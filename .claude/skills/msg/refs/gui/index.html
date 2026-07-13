@@ -43,11 +43,11 @@
 "use strict";
 
 /* ---- Load inline data ----------------------------------------------------- */
-var DATA = { prds: [], testIssues: [], reports: [], skipped: [], projectFiles: [] };
+var DATA = { prds: [], gateIssues: [], reports: [], skipped: [], projectFiles: [] };
 try { DATA = JSON.parse(document.getElementById("prd-data").textContent) || DATA; }
-catch (e) { DATA = { prds: [], testIssues: [], reports: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
+catch (e) { DATA = { prds: [], gateIssues: [], reports: [], skipped: [], projectFiles: [], _parseError: String(e) }; }
 var PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
-var TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+var GATE_ISSUES = Array.isArray(DATA.gateIssues) ? DATA.gateIssues : [];
 var REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
 var ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
 
@@ -73,7 +73,7 @@ function api(path, body) {
 function adoptData(d) {
   DATA = d || DATA;
   PRDS = Array.isArray(DATA.prds) ? DATA.prds : [];
-  TEST_ISSUES = Array.isArray(DATA.testIssues) ? DATA.testIssues : [];
+  GATE_ISSUES = Array.isArray(DATA.gateIssues) ? DATA.gateIssues : [];
   REPORTS = Array.isArray(DATA.reports) ? DATA.reports : [];
   ROADMAP = DATA.roadmap || { exists: false, phases: [], tuneLog: "" };
 }
@@ -111,7 +111,7 @@ initTheme();
 
 /* ---- Test-issue helpers ------------------------------------------------------ */
 function findIssueFile(runId) {
-  return TEST_ISSUES.filter(function (t) { return String(t.runId) === String(runId); })[0];
+  return GATE_ISSUES.filter(function (t) { return String(t.runId) === String(runId); })[0];
 }
 // Per-ticket done-state is honest, not invented: derived only from the file's
 // followUp.status (resolved → done; open/partially_resolved → open).
@@ -119,12 +119,12 @@ function issueFollowStatus(tf) { return (tf && tf.followUp && tf.followUp.status
 function ticketDone(tf) { return issueFollowStatus(tf) === "resolved"; }
 function crossLinkedIssues(p) {
   var out = [];
-  TEST_ISSUES.forEach(function (tf) {
+  GATE_ISSUES.forEach(function (tf) {
     var prd = tf.context && tf.context.prd;
     if (!prd) return;
     if (String(prd).indexOf(p.id) >= 0 || (p.path && String(prd).indexOf(p.path) >= 0)) {
       (tf.tickets || []).forEach(function (t) {
-        out.push(Object.assign({ _fid: null, _feature: "test " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
+        out.push(Object.assign({ _fid: null, _feature: "gate " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
       });
     }
   });
@@ -481,7 +481,7 @@ function renderList() {
   renderTestIssuesSection(root);
 }
 
-/* ---- Test Issues surface ---------------------------------------------------- */
+/* ---- Gate Issues surface ---------------------------------------------------- */
 function issueVerdictPill(v) {
   var cls = v === "fail" ? "iv-fail" : "iv-warn";
   return '<span class="pill dot ' + cls + '">' + esc(v || "?") + "</span>";
@@ -507,7 +507,7 @@ function issueFileCard(tf) {
   if (s.warnings) counts.push(s.warnings + " warning" + (s.warnings === 1 ? "" : "s"));
   var c = el(
     '<div class="card issue-file-card" tabindex="0" role="button">' +
-      '<div class="title"><span class="num">test-' + esc(tf.runId) + "</span>" +
+      '<div class="title"><span class="num">gate-' + esc(tf.runId) + "</span>" +
         esc((tf.context && tf.context.branch) || tf.file || "") + "</div>" +
       '<div class="meta">' +
         issueVerdictPill(tf.verdict) +
@@ -523,11 +523,11 @@ function issueFileCard(tf) {
   return c;
 }
 function renderTestIssuesSection(container) {
-  if (!TEST_ISSUES.length) return;
-  container.appendChild(el('<div class="section-title">🐞 Test Issues ' +
-    '<span class="n" style="color:var(--text-faint)">' + TEST_ISSUES.length + "</span></div>"));
+  if (!GATE_ISSUES.length) return;
+  container.appendChild(el('<div class="section-title">🐞 Gate Issues ' +
+    '<span class="n" style="color:var(--text-faint)">' + GATE_ISSUES.length + "</span></div>"));
   var grid = el('<div class="issue-grid"></div>');
-  TEST_ISSUES.forEach(function (tf) { grid.appendChild(issueFileCard(tf)); });
+  GATE_ISSUES.forEach(function (tf) { grid.appendChild(issueFileCard(tf)); });
   container.appendChild(grid);
 }
 
@@ -1020,11 +1020,11 @@ function renderIssueDetail(runId) {
   root.innerHTML = "";
   if (!tf) {
     root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a></div>'));
-    root.appendChild(el('<div class="empty-state"><div class="big">Test issue not found</div>test-' + esc(runId) + "</div>"));
+    root.appendChild(el('<div class="empty-state"><div class="big">Gate issue not found</div>gate-' + esc(runId) + "</div>"));
     return;
   }
 
-  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 test-' +
+  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 gate-' +
     esc(tf.runId) + "</span></div>"));
 
   var ctx = tf.context || {};
@@ -1035,7 +1035,7 @@ function renderIssueDetail(runId) {
   if (s.warnings) counts.push(s.warnings + " warning" + (s.warnings === 1 ? "" : "s"));
 
   var head = el('<div class="detail-head"></div>');
-  var h2 = el('<h2><span class="num">test-' + esc(tf.runId) + "</span><span>Test issues</span></h2>");
+  var h2 = el('<h2><span class="num">gate-' + esc(tf.runId) + "</span><span>Gate issues</span></h2>");
   h2.appendChild(el(issueVerdictPill(tf.verdict)));
   head.appendChild(h2);
   head.appendChild(el('<div class="meta">' +
@@ -1048,7 +1048,7 @@ function renderIssueDetail(runId) {
     ? '<div class="subtitle" style="margin-top:8px">PRD: ' + esc(ctx.prd) +
       (findPrdByCtx(ctx.prd) ? ' — also shown on <a class="xlink" href="#/prd/' + esc(findPrdByCtx(ctx.prd).id) + '">PRD-' + esc(findPrdByCtx(ctx.prd).num) + "</a>" : "") + "</div>"
     : '<div class="subtitle" style="margin-top:8px">No PRD (ad hoc branch run)</div>'));
-  head.appendChild(el('<div class="subtitle">Fix: <code>/eng --build test-json=' + esc(tf.file) + "</code></div>"));
+  head.appendChild(el('<div class="subtitle">Fix: <code>/eng --build gate-json=' + esc(tf.file) + "</code></div>"));
   root.appendChild(head);
 
   root.appendChild(el('<div class="section-title">Issues</div>'));
@@ -1064,7 +1064,7 @@ function renderIssueDetail(runId) {
   if (LIVE) {
     var fix = el('<button class="btn ghost">🔧 Fix with Claude</button>');
     fix.addEventListener("click", function () {
-      state.draft = "/eng --build test-json=" + tf.file;
+      state.draft = "/eng --build gate-json=" + tf.file;
       location.hash = "#/prompts";
     });
     toolbar.appendChild(fix);
@@ -1108,6 +1108,14 @@ function sevPill(t) {
   if (!isIssue(t) || !t.severity) return "";
   return '<span class="pill sev-' + esc(t.severity) + '">' + esc(t.severity) + "</span>";
 }
+// Originating gate step, parsed from the finding's `source` (e.g. pre-merge:mechanical → "mechanical",
+// pre-merge:bucket:e2e → "bucket:e2e"). After dedup `source` may be comma-joined — show the first.
+function srcBadge(t) {
+  if (!isIssue(t) || !t.source) return "";
+  var step = String(t.source).split(",")[0].trim().replace(/^pre-merge:/, "");
+  if (!step) return "";
+  return '<span class="pill muted">' + esc(step) + "</span>";
+}
 function kindTag(t) {
   if (!isIssue(t)) return "";
   return '<span class="pill kind-issue">🐞 ' + (t.flaky ? "Flaky" : "Bug") + "</span>";
@@ -1124,6 +1132,7 @@ function todoCard(owner, t) {
       '<div class="meta">' +
         kindTag(t) +
         sevPill(t) +
+        srcBadge(t) +
         (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + "</span>" : "") +
         (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + "</span>" : "") +
         ((t.dependsOn && t.dependsOn.length) ? '<span class="pill muted">⛓ ' + esc(t.dependsOn.join(", ")) + "</span>" : "") +
@@ -1224,9 +1233,10 @@ function openPanel(t, owner) {
   var files = ticketFiles(t);
   var snippet = t.evidence && t.evidence.snippet;
   document.getElementById("panel-body").innerHTML =
-    field(isIssue(t) ? "Test run" : "Feature", t._feature) +
+    field(isIssue(t) ? "Gate run" : "Feature", t._feature) +
     field("Ticket", t.id) +
-    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky test issue" : "🐞 Bug / Test issue") : "") +
+    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky gate issue" : "🐞 Bug / Gate issue") : "") +
+    (isIssue(t) && t.source ? field("Gate step", String(t.source).replace(/^pre-merge:/, "")) : "") +
     field("Objective", t.objective) +
     fieldHtml("Type", typePill(t)) +              // Edit 6 — tag form, not text
     fieldHtml("Priority", prioPill(t)) +
@@ -1248,7 +1258,7 @@ function openPanel(t, owner) {
     ask.addEventListener("click", function () {
       closePanel();
       state.draft = isIssue(t)
-        ? "About test issue " + (t.id || "") + " in " + ((t._issueFile && t._issueFile.file) || "") +
+        ? "About gate issue " + (t.id || "") + " in " + ((t._issueFile && t._issueFile.file) || "") +
           " (\"" + (t.title || "") + "\"): "
         : "About ticket " + (t.id || "") + " in " + ((owner && owner.path) || "") +
           " (\"" + (t.title || t.objective || "") + "\"): ";
@@ -1264,7 +1274,7 @@ function openPanel(t, owner) {
       var fix = el('<button class="btn">🔧 Fix with Claude</button>');
       fix.addEventListener("click", function () {
         closePanel();
-        state.draft = "/eng --build test-json=" + t._issueFile.file;
+        state.draft = "/eng --build gate-json=" + t._issueFile.file;
         location.hash = "#/prompts";
       });
       actions.appendChild(fix);
@@ -1386,7 +1396,7 @@ function renderReports() {
   root.appendChild(topbar("reports", { title: "Run Reports", count: REPORTS.length }));
   if (!REPORTS.length) {
     root.appendChild(el('<div class="empty-state"><div class="big">No reports yet</div>' +
-      "<code>eng --build</code>, <code>/review</code> and <code>/pre-merge</code> write " +
+      "<code>eng --build</code> and <code>/pre-merge</code> write " +
       "<code>report-[n].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
     return;
   }

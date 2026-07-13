@@ -1,53 +1,54 @@
 ---
 name: verify-prelude
-description: Shared setup artifact cached by review/test/pre-merge. Holds the resolved diff, detected tooling, and eval-set path so whichever runs first pays for setup once and the rest consume it.
+description: Setup artifact pre-merge produces once and consumes on re-run. Holds the resolved diff + detected tooling so the gate pays for diff-resolution / fingerprint setup once instead of on every stage or re-invocation.
 ---
 
 # verify prelude
 
 A cached JSON at `.claude/msg/cache/verify-prelude.json` that dedups the setup
-work `review`, `test`, and `pre-merge` each otherwise redo: diff resolution,
-tooling detection, and eval-set bootstrap. It obeys the session-cache contract
-(`session-cache.md`) — source is canonical, cache is disposable, never a hard
-failure.
+work pre-merge does at the top of a run: diff resolution and tooling detection.
+It obeys the session-cache contract (`session-cache.md`) — source is canonical,
+cache is disposable, never a hard failure.
+
+In v2 pre-merge is **both producer and consumer** — it writes the prelude when it
+resolves the diff and detects tooling (gate steps 0–1), and consumes a fresh one
+on a later re-invocation against the same HEAD/base instead of redoing that setup.
+The old review→test→pre-merge producer/consumer split is gone (review and test are
+retired).
 
 ## Shape
 
 ```json
 {
   "head": "<git rev-parse HEAD>",
-  "base": "<diff base/range, e.g. origin/main or HEAD~1>",
+  "base": "<diff base/range, e.g. staging or origin/main>",
   "diff": { "base": "...", "files_changed": ["..."], "lines_added": 0, "lines_removed": 0, "commit_count": 0 },
-  "tooling": { /* verbatim test-tooling-detect.sh JSON */ },
-  "eval_set_path": "features/prd-<n>/review/eval_set.json"
+  "tooling": { /* verbatim pre-merge-tooling-detect.sh JSON */ }
 }
 ```
 
 - `diff` — from `pre-merge/scripts/resolve-diff.sh <base>`.
-- `tooling` — from `.claude/scripts/test-tooling-detect.sh`.
-- `eval_set_path` — the path `review` bootstraps (`null` if no PRD).
+- `tooling` — from `.claude/scripts/pre-merge-tooling-detect.sh`.
 
 ## Freshness key
 
-`head` (`rtk git rev-parse HEAD`) **plus** `base` (the diff base/range). This is
-the T1.11 freshness pattern pre-merge already uses for `--test-json`: fresh ⟺
+`head` (`rtk git rev-parse HEAD`) **plus** `base` (the diff base/range). Fresh ⟺
 both equal the current run's HEAD and base. Any mismatch, missing file, or
 unparseable JSON → **stale**.
 
 ## Generate-if-stale rule
 
-Whoever runs first regenerates on stale/missing/corrupt (running the scripts +
-eval bootstrap it already runs), then best-effort writes the prelude. On the
-normal pipeline (review→test→pre-merge) **review is the producer** — it already
-resolves the diff, detects tooling, and bootstraps the eval-set.
+Pre-merge regenerates on stale/missing/corrupt (running `resolve-diff.sh` +
+`pre-merge-tooling-detect.sh` it already runs at gate steps 0–1), then best-effort
+writes the prelude. The write never fails the run.
 
-## Per-skill consume rule
+## Consume rule
 
-When a **fresh** prelude exists, later skills consume it instead of redoing setup:
-- **test** — take `tooling` + `eval_set_path` (wire into `--eval-set`) rather than re-detecting/re-deriving.
-- **pre-merge** — take `diff` + `tooling` rather than re-resolving/re-detecting; composes with the existing `--test-json` bucket skip.
+When a **fresh** prelude exists at gate step 0/1, pre-merge takes `diff` + `tooling`
+from it rather than re-resolving/re-detecting. The empty-diff refusal is evaluated
+on whichever `files_changed` was used (prelude or fresh).
 
 ## Standalone fallback
 
-No prelude, or stale → each skill generates/self-sets-up exactly as today. The
-prelude is a dedup optimization only; behavior with no prelude is unchanged.
+No prelude, or stale → pre-merge self-sets-up exactly as it would with no cache.
+The prelude is a dedup optimization only; behavior with no prelude is unchanged.

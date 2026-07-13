@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# test-tooling-detect.sh — emit a single JSON fingerprint of detected tooling.
-# Consumed by /test (runner buckets) and by /review + /pre-merge Step 2
+# pre-merge-tooling-detect.sh — emit a single JSON fingerprint of detected tooling.
+# Consumed by /pre-merge (runner buckets + Step 2)
 # (build_tool, mechanical_runners, security_scanners/secret_scanner,
 # bundle_analyzer). Replaces the LLM's manual priority-table walk over
 # file / $PATH / package.json signals so a missed signal can't silently skip a
@@ -11,9 +11,9 @@
 #   - $PATH probes (command -v)
 #   - package.json dep / devDep / script / top-level-field lookups (via jq)
 #   - pubspec.yaml dependency presence checks
-#   - Returns the first-match per priority table per the test refs
+#   - Returns the first-match per priority table per the pre-merge refs
 #
-# What the script does NOT do (left to /test SKILL.md):
+# What the script does NOT do (left to /pre-merge SKILL.md):
 #   - CI workflow override extraction (npm run test:*) — needs human-readable
 #     intent matching; SKILL.md applies the override after reading this output
 #   - <files> / <url> / <script> placeholder substitution — depends on diff scope
@@ -22,7 +22,7 @@
 #     Playwright e2e on the same config — script reports e2e_runner; SKILL.md
 #     promotes the same runner to qa_runner if snapshot dirs exist)
 #
-# Usage:    test-tooling-detect.sh [project-root]    (default: .)
+# Usage:    pre-merge-tooling-detect.sh [project-root]    (default: .)
 # Output:   single JSON object to stdout
 # Exit:     0 always (detection is non-fatal); errors → stderr
 
@@ -112,6 +112,11 @@ elif pkg_dep mocha || has_file '.mocharc.*' 3; then
   tr='{"name":"Mocha","command":"npx nyc npx mocha <files>","coverage_output":".nyc_output/coverage-summary.json","ci_override":false}'
 elif py_signal pytest '\[tool\.pytest'; then
   tr='{"name":"pytest","command":"pytest --cov=<files> --cov-report=json","coverage_output":"coverage.json","ci_override":false}'
+elif has_file 'pytest.ini' 3 || has_file 'conftest.py' 3 || \
+     find tests test -maxdepth 3 -name 'test_*.py' -print -quit 2>/dev/null | grep -q .; then
+  # config-less pytest project (bare tests/ dir): run via the interpreter so a
+  # missing pytest launcher on PATH still works
+  tr='{"name":"pytest","command":"python3 -m pytest <files>","coverage_output":null,"ci_override":false}'
 elif pubspec_flutter; then
   tr='{"name":"Dart/Flutter","command":"flutter test <file>","coverage_output":null,"ci_override":false}'
 fi

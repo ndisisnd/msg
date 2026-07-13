@@ -26,7 +26,7 @@ Synthesize the engineering sections from the **agent returns**, with **0 PRD/syn
 
 ## Skipped vs comprehensive
 
-`/test --prd` · AHA.md writeback · the full-PRD synthesis re-read.
+AHA.md writeback · the full-PRD synthesis re-read.
 
 ## Safety floor — unchanged
 

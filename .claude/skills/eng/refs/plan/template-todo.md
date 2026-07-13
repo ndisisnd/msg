@@ -77,4 +77,4 @@ Each ticket is a bullet whose title line carries the ticket id and summary, foll
 8. **F-IDs stay aligned with the exec table.** Every `### F<n>` under `## Todos` must correspond to an F-ID that has execution-table rows, and vice versa. A mismatch is a coverage gap.
 9. **Ticket, not narrative.** Keep each ticket to its fields. Design rationale belongs in the `## Engineering — <Agent>` section; the ticket carries only what's needed to execute and verify it.
 
-A ticket with no explicit `kind` is a `"todo"`; the finding→issue-ticket projection that `eng --build test-json=` consumes lives in `refs/build/protocol-build-testjson.md`.
+A ticket with no explicit `kind` is a `"todo"`; the finding→issue-ticket projection that `eng --build gate-json=` consumes lives in `refs/build/protocol-build-gatejson.md`.

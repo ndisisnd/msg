@@ -10,14 +10,14 @@ BASE="${1:-origin/main}"
 
 # Fetch remote to ensure origin/main is up to date
 # Warn to stderr if fetch fails; set flag so caller knows base may be stale
-if ! rtk git fetch --quiet origin 2>/dev/null; then
+if ! git fetch --quiet origin 2>/dev/null; then
   echo "⚠️  Warning: git fetch failed — base ref may be stale" >&2
 fi
 
 # Verify the base ref actually resolves. Without this, a missing base (fresh
 # clone, renamed default branch, no upstream) yields empty diffs downstream and
 # the caller misreads "bad base" as "no changes to gate".
-if ! rtk git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null 2>&1; then
+if ! git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null 2>&1; then
   if command -v jq &>/dev/null; then
     jq -n --arg base "$BASE" '{error: "bad_base", base: $base}'
   else
@@ -27,13 +27,13 @@ if ! rtk git rev-parse --verify --quiet "${BASE}^{commit}" >/dev/null 2>&1; then
 fi
 
 # Commit count ahead of base
-COMMIT_COUNT=$(rtk git rev-list --count "${BASE}..HEAD" 2>/dev/null || echo 0)
+COMMIT_COUNT=$(git rev-list --count "${BASE}..HEAD" 2>/dev/null || echo 0)
 
 # Stat output: parse added/removed totals
-STAT=$(rtk git diff --stat "${BASE}...HEAD" 2>/dev/null || echo "")
+STAT=$(git diff --stat "${BASE}...HEAD" 2>/dev/null || echo "")
 
 # Extract files changed from name-only output (one path per line)
-FILES=$(rtk git diff --name-only "${BASE}...HEAD" 2>/dev/null || echo "")
+FILES=$(git diff --name-only "${BASE}...HEAD" 2>/dev/null || echo "")
 
 # Parse insertions/deletions from stat summary line
 # e.g. " 3 files changed, 42 insertions(+), 7 deletions(-)"
@@ -52,7 +52,7 @@ else
   FILES_JSON=$(echo "$FILES" | grep -v '^$' | awk 'BEGIN{printf "["} NR>1{printf ","} {gsub(/"/,"\\\"",$0); printf "\"%s\"", $0} END{printf "]"}')
 fi
 
-BRANCH=$(rtk git branch --show-current 2>/dev/null || echo "")
+BRANCH=$(git branch --show-current 2>/dev/null || echo "")
 
 # Use jq to construct final JSON safely
 if command -v jq &>/dev/null; then

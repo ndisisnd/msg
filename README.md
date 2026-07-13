@@ -27,7 +27,7 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, browse project docs, read run reports, and run Claude prompts — served on `127.0.0.1` only.
 
-**Run reports.** `eng --build`, `/review`, and `/pre-merge` each end a run by writing `report-[n].md` into the PRD's `features/prd-[n]/reports/` folder (`features/reports/` when no PRD applies) — a plain-language record of the work done (features, code changes, lines added/deleted, tests passed/failed) plus what you can expect and the exact steps to verify the feature works. The board renders them under a dedicated **Reports** tab, grouped by PRD. Schema: `.claude/skills/shared/refs/report-schema.md`.
+**Run reports.** `eng --build` and `/pre-merge` each end a run by writing `report-[n].md` into the PRD's `features/prd-[n]/reports/` folder (`features/reports/` when no PRD applies) — a plain-language record of the work done (features, code changes, lines added/deleted, tests passed/failed) plus what you can expect and the exact steps to verify the feature works. The board renders them under a dedicated **Reports** tab, grouped by PRD. Schema: `.claude/skills/shared/refs/report-schema.md`.
 
 **Run modes.** Every skill runs in one of two modes: **comprehensive** (default — full fan-out, all gates) or **flash** (fewer subagents/buckets/gates/turns for a fast pass). Add `--flash`/`--comprehensive` per run, or set a durable default with `/msg --set-mode --flash|--comprehensive` (precedence: per-run flag > orchestrator-forwarded > local `pref.json` > global > comprehensive). The safety floor — DB/breaking-change pauses, branch isolation, never push/merge, secret scan, PRD §9 ledger — is **never relaxed in either mode**. See ARCHITECTURE.md § Run modes.
 
@@ -44,10 +44,8 @@ Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --
 
 | Skill | Description |
 |-------|-------------|
-| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval **and** writes the per-feature todo tickets in the same pass, `--build` writes code from the todos (falling back to exec-table rows). `--build --loop` adds a plan-tune review cycle after each build pass. `--build roadmap=roadmap/roadmap.md` runs an autonomous **product-operations orchestrator** that executes a whole roadmap phase-by-phase via `eng`/`review`/`test`/`pre-merge` subagents — fixing critical+major by default, guarding production (DB/data/config pauses, branch-isolated, never pushes/merges), and reporting on an interval. |
-| `/test` | Runs unit, e2e, functional, visual, load, a11y, perf, API, mobile, and coverage buckets via detected runners. |
-| `/review` | After `eng --build`, fans out `/cook` sub-agents across five review modes plus mechanical gates, aggregating findings into JSON. |
-| `/pre-merge` | Pre-push gate — integration, e2e, build, deep-security, and bundle-size checks; emits a severity-graded JSON verdict. |
+| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval **and** writes the per-feature todo tickets in the same pass, `--build` writes code from the todos (falling back to exec-table rows). `--build --loop` adds a plan-tune review cycle after each build pass. `--build roadmap=roadmap/roadmap.md` runs an autonomous **product-operations orchestrator** that executes a whole roadmap phase-by-phase via `eng`/`pre-merge` subagents — fixing critical+major by default, guarding production (DB/data/config pauses, branch-isolated, never pushes/merges), and reporting on an interval. |
+| `/pre-merge` | The CI gate — takes a feature branch from "eng says done" to "PR open against staging": sync → mechanical → unit/int → regression → platform buckets → security/migration → PRD-consistency → preview deploy (human gate) → opens PR feature→staging. Absorbs the old `/review` and `/test`; emits a severity-graded JSON verdict. |
 
 ---
 

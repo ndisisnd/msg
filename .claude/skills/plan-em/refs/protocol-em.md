@@ -176,8 +176,6 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 
 Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete and the next `plan-em` invocation detects `$MODE = build`.
 
-**Preview the development eval_set (plan mode only).** After all plan-mode agents wrote their sections — so the PRD now carries the full feature list, engineering sections, and exec table — invoke `/test --prd <prd-path>` **once** (via `Skill`, resolved PRD path from Step 1). This derives a preview `eval_set` of functional assertions **in memory** from the PRD's acceptance criteria and reports its size; it does **not** persist an `eval_set.json` — only `/review`'s Functional mode writes that file (its shape is owned by `/review`; see `.claude/skills/review/refs/modes/functional.md`). So this step surfaces an early assertion count, but downstream `eng --build` agents and `/review` do **not** consume a file from here — `/review` bootstraps and persists the canonical `eval_set.json`, and `/test --eval-set <path>` later consumes that. Emit a one-line note with the assertion count (e.g. `Eval-set preview: 12 executable assertions.`). If `/test` reports zero executable assertions, note it and continue — a planner signal that the PRD lacks testable acceptance criteria, not a blocker.
-
 **Build mode (`$MODE = build`).** First, resolve and create the feature branch **once**.
 
 **Branch resolution (parent-aware).** Read the PRD frontmatter for a `parent:` field (present only on sub-PRDs — see `plan-pm` § Sub-PRD mode):
@@ -185,7 +183,7 @@ Each agent writes its `## Engineering — <Agent>` section **and**, in the same 
 | Frontmatter | `$BRANCH` | Note |
 |-------------|-----------|------|
 | No `parent:` (top-level PRD) | `feat/prd-[n]-<short-name>` (from this PRD's own id/title) | as before |
-| `parent: prd-<parent-n>-<parent-slug>` (sub-PRD) | `feat/prd-<parent-n>-<parent-slug>` (parsed from `parent`) | sub-PRD **never** gets its own branch — commits land on the parent's feature branch, so `/review` and `/test` see its changes in the parent's existing run directory |
+| `parent: prd-<parent-n>-<parent-slug>` (sub-PRD) | `feat/prd-<parent-n>-<parent-slug>` (parsed from `parent`) | sub-PRD **never** gets its own branch — commits land on the parent's feature branch, so `/pre-merge` sees its changes in the parent's existing run directory |
 
 **Idempotent create-or-checkout.** Check `git branch --list "$BRANCH"`:
 - Does **not** exist (common for a top-level PRD's first build) → cut it from `main` and push it.

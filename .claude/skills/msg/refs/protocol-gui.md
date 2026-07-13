@@ -88,7 +88,7 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
 - All paths are resolved and confined to `--root`; reads are extension-allowlisted
   (`.md .json .txt .yaml .yml .toml`, ≤2 MB) and skip `.git`/`node_modules`/`.env*`;
   **writes are restricted to `features/prd-*/` markdown** — the server cannot write
-  anywhere else, and never writes `msg-test/test-*.json` (the finding→ticket projection
+  anywhere else, and never writes `msg-gate/gate-*.json` (the finding→ticket projection
   stays read-time; `followUp.status` is written solely by `eng --build`).
 
 ## Step 2 — Data model (what the server parses)
@@ -104,9 +104,9 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `.claude/skills/eng/refs/plan/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
-4. **Test issues** from `msg-test/test-*.json` via the shared **finding → issue-ticket
-   projection** in `eng/refs/build/protocol-build-testjson.md` (read-time view, never
-   re-serialized). Absent `msg-test/` → `testIssues: []`.
+4. **Gate issues** from `msg-gate/gate-*.json` via the shared **finding → issue-ticket
+   projection** in `eng/refs/build/protocol-build-gatejson.md` (read-time view, never
+   re-serialized). Absent `msg-gate/` → `gateIssues: []`.
 5. **Run reports** from `features/prd-*/reports/report-*.md` (one level of nested
    `prd-*` sub-dirs included) and `features/reports/report-*.md` (the no-PRD fallback),
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
@@ -174,10 +174,10 @@ is unchanged from the previous protocol revision, with these notes:
       "objective": "…", "type": "code", "priority": "P0",
       "files": [ { "path": "src/x.ts", "action": "add" } ], "dependsOn": [], "doneWhen": "…",
       "done": false } ] } ] } ],
-  "testIssues": [ { "file": "msg-test/test-1.json", "runId": 1, "verdict": "fail",
-    "context": { "prd": "…", "branch": "…", "base": "main" },
+  "gateIssues": [ { "file": "msg-gate/gate-1.json", "runId": 1, "verdict": "fail",
+    "context": { "prd": "…", "branch": "…", "base": "staging" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "…": "projected per protocol-build-testjson.md" } ] } ],
+    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per protocol-build-gatejson.md" } ] } ],
   "reports": [ { "file": "features/prd-101-task-crud/reports/report-1.md", "reportId": 1,
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",
@@ -222,7 +222,7 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 ### Error cases
 - `python3` missing / ports busy → surface it, don't fail silently (error case 1).
-- Malformed PRD frontmatter or unparseable `msg-test/*.json` → `skipped[]`, flagged in the
+- Malformed PRD frontmatter or unparseable `msg-gate/*.json` → `skipped[]`, flagged in the
   board header; the rest still render (error case 2).
 - Browser won't open → print the `127.0.0.1` URL (error case 3).
 - `claude` CLI missing → Prompts runs fail with a visible error in the run's output; the
@@ -230,16 +230,21 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 ---
 
-## Test Issues surface + PRD cross-link (rendering)
+## Gate Issues surface + PRD cross-link (rendering)
 
-- **A distinct surface, not a PRD column.** `testIssues[]` render in their own grouping on
-  the board — one card per `msg-test/test-<n>.json` (runId, verdict pill, summary counts,
+- **A distinct surface, not a PRD column.** `gateIssues[]` render in their own grouping on
+  the board — one card per `msg-gate/gate-<n>.json` (runId, verdict pill, summary counts,
   `followUp.status`).
 - **Every ticket is tagged by `kind`.** Issue-tickets get a 🐞 tag, a `severity` pill, and
   `repro`/`evidence.snippet` in the side panel.
+- **Per-issue gate-step badge.** Each issue-ticket shows the originating gate step parsed
+  from the finding's `source` field (`pre-merge:mechanical` → `mechanical`,
+  `pre-merge:bucket:e2e` → `bucket:e2e`); the raw `source` is surfaced as `Gate step` in
+  the side panel.
 - **Real done-state for issues.** `followUp.status` is written back by `eng --build`; the
-  board renders it, never invents it, and never offers a toggle for it.
-- **PRD cross-link.** A `testIssues[]` entry whose `context.prd` matches an enumerated PRD
+  board renders it, never invents it, and never offers a toggle for it. The
+  suggested-command deep-link is `eng --build gate-json=msg-gate/gate-<n>.json`.
+- **PRD cross-link.** A `gateIssues[]` entry whose `context.prd` matches an enumerated PRD
   also surfaces its tickets on that PRD's detail page, tagged `kind: "issue"`.
 
 ## Reports tab (rendering)
@@ -250,13 +255,13 @@ across every project (light + dark, responsive); it is **not** sourced from
 - **Detail page.** `#/reports/<file>` renders the report's raw markdown `detail` through
   the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
   `prdId` matches an enumerated PRD.
-- **Producers, not the GUI, write reports.** `eng --build`, `/review`, and `/pre-merge`
+- **Producers, not the GUI, write reports.** `eng --build` and `/pre-merge`
   own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the board renders
   them and never writes, renumbers, or toggles them.
 
 ## What this protocol never does
 - Never lets the GUI write outside `features/prd-*/` markdown: no repo-file writes from the
-  Files view, no writes to `msg-test/test-*.json` (`followUp.status` belongs to
+  Files view, no writes to `msg-gate/gate-*.json` (`followUp.status` belongs to
   `eng --build`), no generated output written into the repo.
 - Never invents issue done-state, and never fabricates todo done-state — a todo is `done`
   only when its ticket block carries `- **done:** true` (the toggle's own field).

@@ -19,3 +19,13 @@ skills/improve       # repo-internal plan tracker, never should have shipped
 # scripts orphaned by retired skills
 scripts/ship-db-touch.sh
 scripts/ship-find-prd.sh
+
+# skills folded into /pre-merge (the v2 CI gate)
+skills/review
+skills/test
+
+# scripts orphaned by /review + /test — the first two were renamed to
+# pre-merge-*, so stale global copies under the old names must be scrubbed
+scripts/test-tooling-detect.sh
+scripts/test-aggregate-verdict.sh
+scripts/test-init-profile.sh

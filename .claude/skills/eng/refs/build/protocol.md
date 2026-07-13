@@ -11,13 +11,13 @@ This file defines the build-mode specifics only. The shared protocol — input v
 Build mode has two input sources (resolved at `SKILL.md` Step 1):
 
 - **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
-- **`test-json`** (alternate, `--build`-only): if a `test-json=<path to msg-test/test-N.json>` arg is present, **load `protocol-build-testjson.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `test-json` is a hard failure — ambiguous source; see that ref.)
+- **`gate-json`** (alternate, `--build`-only): if a `gate-json=<path to msg-gate/gate-N.json>` arg is present, **load `protocol-build-gatejson.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `gate-json` is a hard failure — ambiguous source; see that ref.)
 
 Either way, build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|
-| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `test-json` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `protocol-build-testjson.md`). |
+| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `gate-json` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `protocol-build-gatejson.md`). |
 | `commit_mode` | *(optional)* `direct` or `sub-branch`. Default `direct`. See **Branch contract** below. |
 
 ### Branch contract (what `branch` means)
@@ -38,7 +38,7 @@ If `commit_mode` is absent, default to `direct`.
 /eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
-**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `test-json`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `test-json` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
+**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `gate-json`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `gate-json` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
 
 ---
 
@@ -54,7 +54,7 @@ The `build --feature <F-ID>` slice returns that feature's row (F-ID + acceptance
 
 **Escape hatch:** if a row needs a detail the slice omits — Design-decisions / Phases prose or exact identifiers buried in narrative beyond the captured contracts/migration/scope blocks, or a heading under the digest's `unparsed_sections` — read only that engineering section's `prose_lines` range. Do **not** default to reading the whole PRD. (The `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers, per Work steps below.)
 
-The **orchestrated** build path is unchanged (work from the injected scoped excerpts, PRD path as escape hatch only), and the **`test-json`** source reads no exec-table at all — neither invokes this slice read.
+The **orchestrated** build path is unchanged (work from the injected scoped excerpts, PRD path as escape hatch only), and the **`gate-json`** source reads no exec-table at all — neither invokes this slice read.
 
 The `### F<n>` **todo** blocks are not part of the slice; they are written by `--plan` in the same pass as the engineering section (always present), so read them from the PRD's `## Todos — <Agent Name>` section as the Work steps specify.
 
@@ -122,7 +122,7 @@ If rows span multiple stacks, add each stack's scoped flags to the **same** call
 
 In all cases the PRD's `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers; the todos are the executable breakdown of that section. Do not re-interpret the PRD features section directly.
 
-**`test-json` source.** When build is driven by `test-json` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `protocol-build-testjson.md`**.
+**`gate-json` source.** When build is driven by `gate-json` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `protocol-build-gatejson.md`**.
 
 0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
    - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
@@ -243,7 +243,7 @@ Emit a build summary after all rows are complete:
 **Report:** <path to the report-[n].md if the file was written, else "inline — the build summary above is the report of record">
 ```
 
-**`test-json` source.** When the build was driven by `test-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `protocol-build-testjson.md`.
+**`gate-json` source.** When the build was driven by `gate-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `protocol-build-gatejson.md`.
 
 ### Run report — `report-[n].md`
 

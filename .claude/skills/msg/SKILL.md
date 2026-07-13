@@ -35,9 +35,7 @@ allowed_tools:
 | Planning | plan-tune | PRD auditor — product/eng |
 | Planning | plan-em | Engineering plan generator |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
-| Build & Ship | test | Run unit, e2e, functional, visual, perf, mobile, or coverage buckets |
-| Build & Ship | pre-merge | Pre-push gate — integration, e2e, build, security, bundle-size |
-| Review | review | Five-mode code review — Quality, Coverage, Functional, Security, Perf |
+| Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, preview, opens PR feature→staging |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 
 > **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
@@ -51,11 +49,7 @@ allowed_tools:
                                                                          ↓
                                                              /eng --build
                                                                          ↓
-                                             /test  →  /review  →  /test --eval-set
-                                                                         ↓
-                                                                 /pre-merge
-                                                                         ↓
-                                                                 gh pr create
+                                             /pre-merge  (CI gate: opens PR feature→staging)
 ```
 
 ---
@@ -121,8 +115,7 @@ Call `AskUserQuestion` with one question:
 - **multiSelect**: `false`
 - **Options**:
   - `label`: `Planning`, `description`: `Bootstrap, spec writing, PRD audit, engineering planning`
-  - `label`: `Build & Ship`, `description`: `Implement, test, and run the pre-push gate`
-  - `label`: `Review`, `description`: `Code review and doc checking`
+  - `label`: `Build & Ship`, `description`: `Implement code and run the CI gate`
   - `label`: `Delivery`, `description`: `Task lists, commits`
 
 **Step 2 — Skill**
@@ -200,9 +193,9 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Building | Nothing yet / rough idea | Working code or test results | plan-pm |
 | Building | A PRD or spec | Working code or test results | eng |
 | Building | any | A roadmap | eng --build roadmap=roadmap/roadmap.md |
-| Building | Code or a diff | Working code or test results | test |
+| Building | Code or a diff | Working code or test results | pre-merge |
 | Building | Code or a diff | A review or audit report | pre-merge |
-| Reviewing | Code or a diff | A review or audit report | review |
+| Reviewing | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | A PRD or spec | A project spec | plan-tune |
 | Reviewing | Code or a diff | An engineering plan | eng |
 | Wrapping up | Code or a diff | A commit or task list | kermit |

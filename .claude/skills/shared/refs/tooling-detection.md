@@ -1,19 +1,19 @@
 ---
 name: tooling-detection
-description: Shared tooling fingerprint protocol. Produces package manager, test runner, e2e runner, build tool, mechanical runner, security scanner, and bundle analyzer objects from project signals. Used by /review (Step 2 fingerprint) and /pre-merge (Step 2 detect tooling).
+description: Shared tooling fingerprint protocol. Produces package manager, test runner, e2e runner, build tool, mechanical runner, security scanner, and bundle analyzer objects from project signals. Used by /pre-merge (Step 0/1 tooling detection).
 ---
 
 # Tooling Detection
 
 > **Reference documentation for maintainers.** Runtime detection is done by
-> `.claude/scripts/test-tooling-detect.sh`, which emits this data as JSON — skills
+> `.claude/scripts/pre-merge-tooling-detect.sh`, which emits this data as JSON — skills
 > consume the script, not this file. The tables below document the heuristics the
 > script implements (and the output shapes it emits) so a maintainer can audit or
 > extend detection; they are no longer walked by hand at runtime.
 
 Shared fingerprint protocol. Run all checks in parallel. Populate outputs once per skill invocation; never re-derive mid-run.
 
-> **Deterministic detector:** `.claude/scripts/test-tooling-detect.sh` emits a single JSON object covering **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the test-skill-specific runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. `/test`, `/review`, and `/pre-merge` all invoke the script and read the fields they need — no skill re-derives these outputs from the tables below.
+> **Deterministic detector:** `.claude/scripts/pre-merge-tooling-detect.sh` emits a single JSON object covering **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the test-skill-specific runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. `/pre-merge` invokes the script (Step 0/1) and reads the fields each stage needs — no skill re-derives these outputs from the tables below.
 
 ---
 
@@ -211,7 +211,7 @@ Biome subsumes both lint and format — if Biome is detected alongside eslint or
 
 ## Security scanner detection
 
-Populate `security_scanners[]` in the priority order below. Each detected scanner appends one entry. The `secret_scanner` alias used by `/review` Security mode Stage 0 = first entry with `type: "secret"`, or `null` if none found.
+Populate `security_scanners[]` in the priority order below. Each detected scanner appends one entry. The `secret_scanner` alias used by /pre-merge Step 6 Security Stage 0 = first entry with `type: "secret"`, or `null` if none found.
 
 Any finding from a security scanner has `severity_on_hit: "block"`.
 
@@ -251,7 +251,7 @@ Probe in priority order:
 |--------|---------|---------|
 | `Dockerfile` or `docker-compose*.yml` found (maxdepth 2), and `trivy` on `$PATH` | trivy image | `trivy image --format json <image>` |
 
-If no secret scanner signal is found, callers that require one (e.g. `/review` Security mode Stage 0) emit a `warn` finding rather than blocking.
+If no secret scanner signal is found, callers that require one (e.g. /pre-merge Step 6 Security Stage 0) emit a `warn` finding rather than blocking.
 
 ---
 

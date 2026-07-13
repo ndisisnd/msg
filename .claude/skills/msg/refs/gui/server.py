@@ -309,7 +309,7 @@ SEV_PRIO = {"blocker": "P0", "high": "P1", "medium": "P2", "low": "P2"}
 
 
 def project_finding(f):
-    """Canonical finding → issue-ticket (eng/refs/build/protocol-build-testjson.md 'Finding → issue-ticket projection')."""
+    """Canonical finding → issue-ticket (eng/refs/build/protocol-build-gatejson.md 'Finding → issue-ticket projection')."""
     msg = f.get("message") or f.get("title") or f.get("id") or "finding"
     suggestion = f.get("suggestion")
     repro = f.get("repro")
@@ -327,6 +327,7 @@ def project_finding(f):
                     else "the finding no longer reproduces",
         "severity": f.get("severity"),
         "category": f.get("category"),
+        "source": f.get("source"),
         "rule": f.get("rule"),
         "repro": repro,
         "evidence": {"snippet": ev.get("snippet")},
@@ -336,16 +337,16 @@ def project_finding(f):
     }
 
 
-def collect_test_issues(skipped):
+def collect_gate_issues(skipped):
     out = []
-    for path in sorted(glob.glob(os.path.join(root_path(), "msg-test", "test-*.json"))):
+    for path in sorted(glob.glob(os.path.join(root_path(), "msg-gate", "gate-*.json"))):
         rel = os.path.relpath(path, root_path())
         try:
             doc = json.load(open(path, encoding="utf-8"))
         except Exception as e:
             skipped.append({"path": rel, "reason": "unparseable JSON: %s" % e})
             continue
-        nm = re.search(r"test-(\d+)\.json$", path)
+        nm = re.search(r"gate-(\d+)\.json$", path)
         out.append({
             "file": rel,
             "runId": int(nm.group(1)) if nm else rel,
@@ -522,13 +523,13 @@ def build_data():
                 prds.append(prd)
             elif skip and c == d:
                 skipped.append(skip)
-    test_issues = collect_test_issues(skipped)
+    gate_issues = collect_gate_issues(skipped)
     reports = collect_reports(skipped)
     return {
         "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
         "project": project_name(),
         "prds": prds,
-        "testIssues": test_issues,
+        "gateIssues": gate_issues,
         "reports": reports,
         "roadmap": build_roadmap(prds),
         "skipped": skipped,

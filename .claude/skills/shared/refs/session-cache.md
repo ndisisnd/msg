@@ -50,5 +50,5 @@ use(art)                                         # or fall back to sources on pa
 - **PRD digest** — `scan-prd-digest.py` → `prd-<slug>.digest.json`. See each
   planning/verify stage's read step.
 - **devkit digest** — `scan-devkit-digest.py` → `devkit.digest.json`.
-- **verify prelude** — diff-resolve + tooling-detect + eval-bootstrap →
-  `verify-prelude.json`, consumed by review/test/pre-merge.
+- **verify prelude** — diff-resolve + tooling-detect →
+  `verify-prelude.json`, produced and consumed by pre-merge.

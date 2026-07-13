@@ -25,9 +25,18 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "issues": [],
   "skipped": [],
   "prd_paths": [],
-  "prior_issues_loaded": false
+  "prior_issues_loaded": false,
+  "profile": "strict" | "standard" | "lenient",
+  "preview": { "fired": false, "approved": null, "kind": null, "artifact": null },
+  "gate_ticket": "msg-gate/gate-<n>.json" | null,
+  "pr_url": "<feature→staging PR url>" | null
 }
 ```
+
+- `profile` — the Step 0 platform-tolerance profile resolved for this run.
+- `preview` — Step 8 outcome (`fired: false` when the D6 trigger didn't match).
+- `gate_ticket` — path to the fail-ticket written on a non-clean verdict (`fail`), consumed by `eng --build gate-json=`; `null` on a clean pass.
+- `pr_url` — the feature→staging PR opened at Step 9 on `pass`/`pass_with_warnings`; `null` otherwise. Pre-merge never merges it.
 
 ## Verdict semantics
 
@@ -46,33 +55,24 @@ and enums are defined once in `../../shared/refs/finding-schema.md`, with pre-me
 bucket-specific notes and evidence extensions in `refs/finding-schema.md`. This file
 does not re-list the fields.
 
-ID prefixes: `int` (integration), `e2e`, `build`, `sec` (security), `bundle`.
+ID prefixes name the producing stage: `mech`, `unit`, `regr`, `e2e`, `qa`,
+`mobile`, `perf`, `a11y`, `cov`, `api`, `load`, `sec`, `mig`, `func`. See
+`refs/finding-schema.md`.
 
 ## skipped[]
 
-Array of buckets omitted from this run. Each entry:
+Array of stages/buckets omitted from this run. Each entry:
 
 ```json
 {
-  "bucket": "bundle",
-  "reason": "no_tooling" | "user_removed" | "covered_by_test_run"
+  "bucket": "load",
+  "reason": "no_tooling" | "not_in_profile" | "not_triggered"
 }
 ```
 
-- `no_tooling` — no detected tool supports the bucket (Step 3).
-- `user_removed` — the user dropped the bucket at the human gate (Step 4 Adjust).
-- `covered_by_test_run` — a clean, same-HEAD `/test` run (via `--test-json`) already
-  exercised this bucket, so pre-merge did not re-run it (Step 2a). Only `integration`
-  and `e2e` are eligible. These entries carry two extra keys:
-
-```json
-{
-  "bucket": "integration",
-  "reason": "covered_by_test_run",
-  "test_run": "<path to the /test aggregate JSON>",
-  "covered_head": "<HEAD sha the test run recorded, equal to current HEAD>"
-}
-```
+- `no_tooling` — no detected tool supports the bucket (Step 5).
+- `not_in_profile` — the bucket is not in the Step 0 profile's `required_buckets`.
+- `not_triggered` — a conditional stage whose trigger didn't match (Step 6 migration with no migration files, Step 8 preview with no D6 path match, Step 7 with no `--prd`).
 
 ## Refusal shape
 
@@ -81,7 +81,7 @@ When `verdict` is `"refused"`, the top-level object is:
 ```json
 {
   "verdict": "refused",
-  "reason": "no_diff" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
+  "reason": "no_diff" | "no_staging" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
   "detail": "<human-readable explanation>",
   "base": "<base ref>",
   "prior_issues_loaded": false,
@@ -98,19 +98,16 @@ When `verdict` is `"skipped"`:
 ```json
 {
   "verdict": "skipped",
-  "reason": "user_declined",
+  "reason": "sync_conflict_declined" | "preview_rejected",
   "base": "<base ref>",
   "branch": "<branch>",
   "timestamp": "<ISO 8601>",
-  "check_matrix": [
-    {
-      "bucket": "integration",
-      "command": "pnpm vitest run --coverage <files>",
-      "est_seconds": 12
-    }
-  ]
+  "detail": "<what the human declined and where>"
 }
 ```
+
+- `sync_conflict_declined` — the human aborted the Step 1 sync at a semantic conflict.
+- `preview_rejected` — the human rejected the Step 8 preview; the PR is not opened.
 
 ## Field reference
 

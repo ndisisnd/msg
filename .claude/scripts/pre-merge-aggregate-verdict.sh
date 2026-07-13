@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# test-aggregate-verdict.sh — aggregate per-bucket /test JSON outputs into the
-# top-level result document (refs/schema.md).
+# pre-merge-aggregate-verdict.sh — aggregate per-bucket pre-merge JSON outputs into
+# the top-level result document (pre-merge/refs/output-schema.md).
 #
 # Pure mechanical: computes the overall verdict as max severity across all present
 # buckets (fail > pass_with_warnings > pass), merges bucket payloads under
@@ -9,7 +9,7 @@
 # overall verdict.
 #
 # Usage:
-#   test-aggregate-verdict.sh --run-dir <dir> \
+#   pre-merge-aggregate-verdict.sh --run-dir <dir> \
 #     [--prd <path>] [--eval-set <path>] [--parallel]
 #
 # <dir> contains <bucket>.json for each completed bucket. Recognised buckets:
@@ -95,7 +95,7 @@ for i in "${!present_names[@]}"; do
 done
 buckets_obj=$(jq -nc "${slurp_args[@]}" "$filter")
 
-# HEAD sha at aggregation time — pre-merge's --test-json freshness check compares
+# HEAD sha at aggregation time — pre-merge's gate-json freshness check compares
 # this against its own HEAD to decide whether the run is reusable.
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
 

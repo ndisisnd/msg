@@ -7,39 +7,34 @@ description: Pre-merge finding shape. Conforms to the canonical finding object i
 
 Pre-merge findings use the **canonical finding object** defined in
 [`../../shared/refs/finding-schema.md`](../../shared/refs/finding-schema.md) —
-the single source of truth shared with `/review` and `/test`. Read that file for
-the full field list, field reference, severity enum, category enum,
-dedup/regression keys, verdict normalization, and the worked example (`sec-001`).
-This file records **only** pre-merge's specifics; it does not re-list the field
-set or repeat the shared example.
+the single source of truth. Read that file for the full field list, field
+reference, severity enum, category enum, dedup/regression keys, verdict
+normalization, and the worked example (`sec-001`). This file records **only**
+pre-merge's specifics; it does not re-list the field set or repeat the shared
+example.
 
-Each bucket subagent spawned by pre-merge Step 5 returns the canonical
-`{ "verdict": ..., "findings": [ <canonical finding>, ... ] }` object.
+Each stage subagent (Step 5 buckets, Step 6 security/migration, Step 7
+PRD-consistency) returns the canonical `{ "verdict": ..., "findings": [ ... ] }`
+object.
 
 ## Pre-merge specifics
 
-- **`id` prefixes:** `int` (integration), `e2e`, `build`, `sec` (security), `bundle`. Example id: `sec-001`.
-- **`category`** is always the bucket name: `integration`, `e2e`, `build`, `security`, `bundle`.
-- **`rule`** is **required** (per the canonical schema) and is the dedup + regression key.
-  Populate it from the tool: the `gitleaks` rule id, the semgrep check id, the
-  failing test/spec name, or the `bundlesize` route. Never leave it null — Step 6
-  dedups on `(category, file, line, rule)` and marks regressions on `(category, file, rule)`.
-- **`source`** is the bucket name (same as `category` for pre-merge, which has no semantic sub-agents).
-- **`regression_of`** is set by the aggregation step (Step 6) when this finding matches a prior-issues entry. Subagents always emit `null`.
+- **`id` prefixes** name the producing stage: `unit`, `regr` (regression), `e2e`, `qa`, `mobile`, `perf`, `a11y`, `cov` (coverage), `api`, `load`, `sec` (security), `mig` (migration), `func` (PRD-consistency), `mech` (mechanical). Example id: `sec-001`.
+- **`category`** is the closest concern (buckets → the bucket name; security → `security`; migration → `architecture`; PRD-consistency → `functional`/`scope-creep`; mechanical comment/commit → `readability`/`scope-creep`).
+- **`rule`** is **required** and is the dedup + regression key. Populate it from the tool: the `gitleaks` rule id, semgrep check id, failing test/spec name, WCAG criterion, coverage metric, or a stable slug (`acceptance-unmet`, `oversize-commit`). Never null — Step 6 dedups on `(category, file, line, rule)`, regressions on `(category, file, rule)`.
+- **`source`** is the gate stage per `../../shared/refs/finding-schema.md`: `pre-merge:mechanical` (or `lint:`/`comment-scan`/`commit-cap`), `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>`, `pre-merge:security` (or `secrets:<scanner>`/`sast:semgrep`/`dependency:<tool>`), `pre-merge:migration` (or `migration:static`), `pre-merge:prd-consistency`, `pre-merge:preview`.
+- **`regression_of`** is set by the aggregation step when this finding matches a `--prior-issues` entry. Subagents always emit `null`.
 
-### Bucket-specific evidence extensions
+### Stage-specific evidence extensions
 
-Buckets MAY add these keys inside `evidence` (sanctioned by the canonical schema's
-closed-field-set rule — extensions live inside `evidence`, never as new top-level
-finding fields):
+Stages MAY add these keys inside `evidence` (extensions live inside `evidence`,
+never as new top-level finding fields):
 
-| Field | Bucket | Notes |
+| Field | Stage | Notes |
 |---|---|---|
 | `evidence.spec` | e2e | spec file path (e.g. `tests/e2e/checkout.spec.ts`) |
-| `evidence.route` | bundle | Next.js/Vite route (e.g. `/dashboard`) |
-| `evidence.baseline_kb` | bundle | prior size in KB |
-| `evidence.current_kb` | bundle | current size in KB |
-| `evidence.culprit` | bundle | detected cause module |
+| `evidence.platform` / `evidence.device` | mobile | device matrix (`ios`/`android`/`widget`) |
+| `evidence.flaky` / `evidence.retries` | e2e, unit-int | present only under `--flaky <N>` |
 
 ## Severity assignment
 

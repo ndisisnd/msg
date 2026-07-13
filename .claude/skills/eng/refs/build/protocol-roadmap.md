@@ -6,7 +6,7 @@ type: reference
 
 # Roadmap Orchestrator Protocol
 
-Loaded when `eng --build` is invoked with `roadmap=<path>` (see `eng/SKILL.md` Step 0/1). This protocol **replaces** the leaf `refs/build/protocol.md` for the run: the current session becomes a long-running orchestrator that drives the whole roadmap. It does not write code itself — it coordinates leaf `eng --build`, `review`, `test`, and `pre-merge` **subagents**.
+Loaded when `eng --build` is invoked with `roadmap=<path>` (see `eng/SKILL.md` Step 0/1). This protocol **replaces** the leaf `refs/build/protocol.md` for the run: the current session becomes a long-running orchestrator that drives the whole roadmap. It does not write code itself — it coordinates leaf `eng --build` and `pre-merge` **subagents** (pre-merge is the single CI gate, absorbing the retired `/review` + `/test`). *(P5 extends this chain to `post-merge --staging`.)*
 
 ## Input contract (`roadmap` source)
 
@@ -20,7 +20,7 @@ The `roadmap` source's required-field set is just the mode flag plus the roadmap
 Rejections (all hard failures — emit and stop):
 
 - `roadmap=` with `--plan` → `Hard failure: roadmap= is a --build-only input source`.
-- `roadmap=` together with `prd-path`/`rows` **or** `test-json` → `Hard failure: pass exactly one of prd-path+rows, test-json, or roadmap (ambiguous input source).`
+- `roadmap=` together with `prd-path`/`rows` **or** `gate-json` → `Hard failure: pass exactly one of prd-path+rows, gate-json, or roadmap (ambiguous input source).`
 - A `roadmap` path that does not exist or has no phases → `Hard failure: roadmap <path> not found or empty`.
 
 ## Persona — product operations specialist
@@ -37,7 +37,7 @@ The roadmap's "fix critical + major by default" maps onto the pipeline's canonic
 | major | `high` | **must fix** before a PRD is done |
 | minor | `medium` / `low` | logged, not auto-fixed |
 
-So `review` subagents run with `--min-severity high`, and the fix loop pools every `review` finding at `blocker`/`high` plus every `test` finding that contributes to a `fail`.
+So the fix loop pools every `pre-merge` finding at `blocker`/`high` (across every gate stage — mechanical, unit-int, regression, platform buckets, security, migration, PRD-consistency).
 
 ## Step 0 — Preconditions and autonomy contract
 
@@ -51,7 +51,7 @@ So `review` subagents run with `--min-severity high`, and the fix loop pools eve
 **Before executing any part of the roadmap, emit a simple step-by-step protocol** the orchestrator will follow. This is a hard requirement — no build subagent is spawned before the user has seen and approved this plan. Emit:
 
 - **Phases** — the ordered phases and the PRDs in each, each flagged **execution-ready** or **not runnable as-is** per the acceptance-based readiness gate (Step 2).
-- **Per-PRD stage sequence** — `readiness (acceptance criteria) → branch → eng --build → review + test → fix-loop (critical+major) → pre-merge`.
+- **Per-PRD stage sequence** — `readiness (acceptance criteria) → branch → eng --build → pre-merge (the gate) → fix-loop (critical+major) → pre-merge clears`.
 - **Definition of done** — each PRD is done only when **its own §6 acceptance criteria are all met and verified** (the fix loop closes any unmet criterion, treated as major); green tooling alone is not done.
 - **Fix threshold** — critical + major (`blocker` + `high`) plus any unmet acceptance criterion, default `--max-rounds 5`.
 - **Guardrails** — branch isolation; DB/data/prod-config pause; breaking-change pause; never push/merge.
@@ -86,14 +86,14 @@ Never build a non-full PRD without the user resolving it (amend or skip). For ea
    - Sub-PRD (has `parent:`) → the parent's branch (`feat/prd-<parent-n>-<parent-slug>`); a sub-PRD never gets its own branch.
    Then: `git branch --list "$BRANCH"` — if absent, cut it from `main` and push; if present, check it out. Do **not** reset an existing branch (parallel build subagents must not race to create it).
 2. **Build.** Derive the agent roster and each agent's rows from the PRD's §7 execution table (Agent column) — one agent per platform/stack, disjoint files. **Compile standards once per stack:** for each distinct stack in the roster, call `/cook` a single time via explicit flags (`--global` + the stack's domain flags + a `:testing` sub-ref when that agent owns a Tests row — the flag derivation is in `refs/build/protocol.md` § Coding-standards flags) and keep the compiled payload; reuse the same payload for every agent on that stack (at most one cook call per distinct stack per run). Then spawn **one `eng --build` subagent per agent, all in a single message** (parallel), each with `commit_mode=direct`, `branch=$BRANCH`, its stack's **standards payload**, its **scoped context** (this agent's rows + the PRD feature sections they map to + the devkit digest), and the § Subagent contract prefix. Collect each agent's structured build summary.
-3. **Review + Test (against the acceptance done-set).** Spawn a `review` subagent (`--min-severity high`) and a `test` subagent (both via the Subagent contract). `review` bootstraps its eval-set from the PRD's acceptance criteria, so the run is measured against this PRD's done-set — not a generic pass. Pool the open findings: `review` findings at `blocker`/`high` + every `test` finding contributing to a `fail` + **any acceptance criterion in the done-set that is unmet or unverified** (treat an unmet acceptance criterion as a `high`/major issue so the fix loop must close it).
+3. **Pre-merge — the gate (against the acceptance done-set).** Spawn a `pre-merge` subagent (via the Subagent contract) with `--prd <path>` so its regression (Step 4) and PRD-consistency (Step 7) stages measure against this PRD's done-set — not a generic pass. Pre-merge runs the whole gate sequence (mechanical, unit-int, regression, platform buckets, security, migration, PRD-consistency) and returns its verdict JSON. Pool the open findings: every `pre-merge` finding at `blocker`/`high` + **any acceptance criterion in the done-set that pre-merge's PRD-consistency stage reports unmet or unverified** (a `high`/major issue the fix loop must close).
 4. **Fix loop (accepts no failures).** `round = 0`. While pooled critical+major issues remain and `round < max_rounds`:
-   - Spawn `eng --build test-json=<the test file>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings, each carrying its stack's already-compiled **standards payload** (reused from the Build step — no new cook call) and its scoped context per the § Subagent contract.
-   - Re-run `review` + `test`; re-pool. `round += 1`.
+   - Spawn `eng --build gate-json=<the msg-gate/gate-N.json ticket pre-merge wrote>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings, each carrying its stack's already-compiled **standards payload** (reused from the Build step — no new cook call) and its scoped context per the § Subagent contract.
+   - Re-run `pre-merge`; re-pool. `round += 1`.
    - Re-apply the § Guardrails DB/data check to the fix diff each round.
    **Exit:** zero pooled critical+major → PRD passes to step 5. `round == max_rounds` with issues still open → **PAUSE**: emit the residual issues and `AskUserQuestion` (Run more rounds / Skip this PRD with a logged blocker / Stop the run). Never silently pass a PRD with open critical/major issues.
-5. **Pre-merge.** Spawn a `pre-merge` subagent; it grades the branch diff merge-ready. A `blocker` verdict re-enters the fix loop (bounded as above). **Never** push or merge.
-6. **PRD done** — the bar is the PRD's own acceptance requirements: **every acceptance criterion in the done-set is satisfied and verified** (by a passing test and/or review evidence), **and** `review` = `pass`, `test` = `pass`/`pass_with_warnings`, `pre-merge` verdict clears, and zero open critical/major. A PRD with green tooling but an unverified acceptance criterion is **not** done — it re-enters the fix loop. Record the done-set (met/unmet per criterion) in the ledger.
+5. **Gate clears.** The final `pre-merge` run clears (`pass`/`pass_with_warnings`, zero open blocker/high) and, when its preview gate fired, the human approved — pre-merge then opens the feature→staging PR. The orchestrator itself **never** pushes or merges.
+6. **PRD done** — the bar is the PRD's own acceptance requirements: **every acceptance criterion in the done-set is satisfied and verified** (pre-merge PRD-consistency = clean), **and** the `pre-merge` verdict clears with zero open critical/major. A PRD with green tooling but an unmet acceptance criterion is **not** done — it re-enters the fix loop. Record the done-set (met/unmet per criterion) in the ledger.
 
 A **phase is complete** when every PRD in it is done. **Do not terminate the session until the current phase completes** — hold the session, keep the ledger live, keep reporting.
 
@@ -102,7 +102,7 @@ A **phase is complete** when every PRD in it is done. **Do not terminate the ses
 Maintain an in-memory **ledger**: for each PRD — phase, stage, round, open critical/major count, guardrail pauses, done/blocked. Emit a **standup digest** after each PRD completes and at each phase boundary:
 
 ```
-[roadmap] Phase <k>/<K> · PRD <i>/<m> <prd-id> · stage=<build|review|test|fix#r|pre-merge|done>
+[roadmap] Phase <k>/<K> · PRD <i>/<m> <prd-id> · stage=<build|pre-merge|fix#r|done>
           open: <c> critical, <j> major · guardrail: <none|paused: reason>
 ```
 
@@ -135,14 +135,12 @@ Stage → skill mapping (Build/Fix carry the injected `standards payload` + scop
 | Stage | Skill | Invocation |
 |-------|-------|-----------|
 | Build | `eng` | `--build prd-path=<p> rows=<...> branch=$BRANCH agent=<eng-platform> commit_mode=direct` |
-| Fix | `eng` | `--build test-json=<msg-test/test-N.json> branch=$BRANCH` |
-| Review | `review` | `Skill("review", "<branch> --min-severity high")` inside the subagent |
-| Test | `test` | `Skill("test", "<branch>")` inside the subagent |
-| Gate | `pre-merge` | `Skill("pre-merge", "<branch>")` inside the subagent |
+| Fix | `eng` | `--build gate-json=<msg-gate/gate-N.json> branch=$BRANCH` |
+| Gate | `pre-merge` | `Skill("pre-merge", "<branch> --prd <p>")` inside the subagent |
 
-**Mode propagation.** The orchestrator forwards its resolved run mode into **every** invocation above — append `--flash` (or `--comprehensive`) to each `eng`/`review`/`test`/`pre-merge` subagent's args. Leaf skills honor the forwarded flag and **never re-read the pref**, so the whole roadmap runs one mode without local/global drift (`../../shared/refs/flash-floor.md`, `../../shared/refs/mode-resolution.md`).
+**Mode propagation.** The orchestrator forwards its resolved run mode into **every** invocation above — append `--flash` (or `--comprehensive`) to each `eng`/`pre-merge` subagent's args. Leaf skills honor the forwarded flag and **never re-read the pref**, so the whole roadmap runs one mode without local/global drift (`../../shared/refs/flash-floor.md`, `../../shared/refs/mode-resolution.md`).
 
-**Return contract:** each subagent returns a single JSON summary object (build summary, or the shared `finding-schema` findings for review/test/pre-merge) — **never** free-form prose. The orchestrator pools these into the ledger. A subagent that dies or returns unparseable output is treated as a failed stage and re-spawned once; a second failure escalates to the user (accepts no failures).
+**Return contract:** each subagent returns a single JSON summary object (build summary, or the shared `finding-schema` verdict JSON for pre-merge) — **never** free-form prose. The orchestrator pools these into the ledger. A subagent that dies or returns unparseable output is treated as a failed stage and re-spawned once; a second failure escalates to the user (accepts no failures).
 
 ## Guardrails
 

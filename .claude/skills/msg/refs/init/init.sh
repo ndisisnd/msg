@@ -155,6 +155,46 @@ do
   write_file "$f" "$content" "devkit"
 done
 
+# ── devkit/PLATFORMS.md (B3 — pre-merge tolerance profiles) ────────────────────
+# Assembled from the template's ## Doc body preamble + one ### <platform> default
+# row per shipping platform selected at the --init interview (PLATFORMS env var).
+
+if [[ -e "$TARGET/devkit/PLATFORMS.md" ]]; then
+  SKIPPED+=("devkit/PLATFORMS.md")
+else
+  pf="$REFS/template-PLATFORMS.md"
+
+  preamble=$(awk '
+    /^## Doc body/ { in_section=1; next }
+    in_section && /^```/ && !in_block { in_block=1; next }
+    in_section && in_block && /^```/ { exit }
+    in_section && in_block { print }
+  ' "$pf")
+
+  # Shipping platforms: interview answer (space/comma separated, any case);
+  # default to all four baked-in profiles so the scaffold is complete and prunable.
+  plats="${PLATFORMS:-web ios android macos}"
+  plats=$(printf '%s' "$plats" | tr ',' ' ' | tr '[:upper:]' '[:lower:]')
+
+  rows=""
+  for p in $plats; do
+    row=$(awk -v hdr="### $p" '
+      $0 == hdr { found=1; next }
+      found && /^\|/ { print; exit }
+      found && /^### / { exit }
+    ' "$pf")
+    [[ -n "$row" ]] && rows+="$row"$'\n'
+  done
+
+  {
+    printf '%s\n' "$preamble"
+    printf '%s' "$rows"
+  } | sed 's/[[:space:]]*$//' > "$TARGET/devkit/PLATFORMS.md"
+
+  lines=$(wc -l < "$TARGET/devkit/PLATFORMS.md" | tr -d ' ')
+  CREATED+=("devkit/PLATFORMS.md|$lines")
+fi
+
 # ── Root-level flat templates ─────────────────────────────────────────────────
 
 for pair in \

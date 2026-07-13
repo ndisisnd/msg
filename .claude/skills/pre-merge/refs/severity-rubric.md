@@ -69,17 +69,20 @@ Condition: `regression_of` is non-null (set by aggregation step, not by subagent
 
 Action: no severity change. Add a `regression_of` note in the output. Human reviewers and the JSON consumer can filter on this field.
 
-## Severity floor by bucket
+## Severity floor by stage
 
-Even after downgrade, each bucket has a severity floor for hard-fail signals:
+Even after downgrade, each stage has a severity floor for hard-fail signals:
 
-| Bucket | Signal | Minimum severity |
+| Stage | Signal | Minimum severity |
 |---|---|---|
-| integration | Test suite exit non-zero | `blocker` |
+| mechanical | Lint/typecheck exit non-zero (`block`) | `blocker` |
+| unit-int (Step 3) | Test suite exit non-zero | `blocker` |
+| regression (Step 4) | Named regression failure; uncited prior-test edit | `high` |
 | e2e | Named spec failure | `high` |
-| build | Build exit non-zero | `blocker` |
+| coverage | Below floor, `enforced` profile | `high` |
 | security | Secret scanner hit | `blocker` |
-| bundle | No baseline available | `low` (size comparison skipped) |
+| migration | `DROP TABLE`/`DROP COLUMN` | `blocker` |
+| prd-consistency | Acceptance criterion unmet | `high` |
 
 ## Verdict derivation
 

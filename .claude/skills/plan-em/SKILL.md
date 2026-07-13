@@ -45,7 +45,6 @@ allowed_tools:
 |------|--------|-------------|
 | Pre-flight report | Markdown findings file | `features/prd-[n]-[slug]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
-| Development eval_set | Functional assertion set (JSON) | `features/prd-[n]-[slug]/` (bootstrapped via `/test --prd` in plan mode) |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 
 `[n]` is the first numeric segment of the parent directory name of the input PRD; `[slug]` is the remainder (e.g., `features/prd-3-habit-tracking/prd-3-habit-tracking.md` → `n=3`, `slug=habit-tracking`). Resolve the actual matched directory once at Step 1 and write every artifact relative to it — do not reconstruct a bare `features/prd-[n]/` path.
@@ -80,4 +79,3 @@ Follow `refs/protocol-em.md` end-to-end. It defines the full five-step flow — 
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (Todos column always present) before activating agents (shared)
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
 - `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` (same pass as the engineering section) and consumed by build agents
-- `.claude/skills/test/SKILL.md` — `/test --prd` bootstraps the development eval_set in Step 4 plan mode; build agents and `/review` later consume it via `--eval-set`
