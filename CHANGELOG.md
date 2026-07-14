@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-14
+
+### [1] — Drop the one-time install manifest now that its purge has run
+
+- `remove-manifest.txt`: deleted — the removal list it shipped has already been scrubbed from every global install
+- `install.sh`: removed the manifest-driven removal block (parser, guardrails, `rm -rf` loop)
+- `ARCHITECTURE.md`: dropped the removal-manifest paragraph from the install-layer description
+
 - **post-merge now verifies its deploys — a smoke check runs after every staging and production deploy.** "The deploy command exited 0" is no longer treated as "the app works": both modes gain a verification step that runs each shipping platform's new `smoke_cmd` (a `devkit/PLATFORMS.md` column — e.g. `curl -f <health url>`) against the **deployed** target. Exit 0 → verified; non-zero → a `high` `smoke-failed` finding and verdict `fail` — in `--staging` (new Step 5) the human test script + sign-off are skipped (never hand a human a script for a broken environment; fix forward via `/pre-merge`), in `--production` (new Step 7) the intake `completed` stamp is skipped (an unverifiably-live release doesn't close its PRD) and the per-platform rollback notes are surfaced prominently. Unconfigured / `[USER: …]` smoke cells skip verification with a visible note — never invented, never a failure — so existing PLATFORMS.md files stay valid. The clean-run summary gains a `verify: { ran, passed, skipped }` block and the run report a per-platform verified/smoke-failed/skipped line; new hard refusal: post-merge never reports a deploy as shipped without running (or explicitly noting the absence of) the smoke check.
   - `.claude/skills/post-merge/refs/verify-deploy.md` — new: the verification contract (resolve, run, finding shape, per-mode consequences, summary block)
   - `.claude/skills/post-merge/refs/staging.md` + `refs/production.md` — verify steps inserted; human-script/sign-off and intake-stamp steps renumbered + gated on a verified deploy

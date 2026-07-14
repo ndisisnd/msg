@@ -62,59 +62,6 @@ done
 
 success "Installed ${installed} skill(s)"
 
-# ── Remove retired artifacts (manifest-driven) ───────────────────────────────
-# remove-manifest.txt ships one exact path per line (skills/<name> | scripts/<file>,
-# relative to ~/.claude/). Retiring a skill is now a one-line data change, not a
-# script edit. Guardrails below keep every entry inside skills/ or scripts/ — no
-# globs, no traversal, no absolute paths — and an entry that names something this
-# run also installs is treated as a manifest bug and skipped. Absent target on
-# disk = silent idempotent skip.
-MANIFEST="${TMP_DIR}/msg/remove-manifest.txt"
-if [[ -f "${MANIFEST}" ]]; then
-  while IFS= read -r line || [[ -n "${line}" ]]; do
-    entry="${line%%#*}"                 # strip inline/whole-line comments
-    entry="${entry#"${entry%%[![:space:]]*}"}"   # ltrim
-    entry="${entry%"${entry##*[![:space:]]}"}"    # rtrim
-    [[ -z "${entry}" ]] && continue
-
-    # Guardrail a: exact paths only — no globs/prefixes.
-    case "${entry}" in
-      *'*'*|*'?'*|*'['*)
-        warn "Skipped manifest entry (glob not allowed): ${entry}"; continue ;;
-    esac
-    # Guardrail b: no traversal, no absolute paths, no backslashes.
-    case "${entry}" in
-      *'..'*|/*|*'\'*)
-        warn "Skipped manifest entry (unsafe path): ${entry}"; continue ;;
-    esac
-    # Guardrail b (cont.): must be skills/<seg> or scripts/<seg> — exactly one
-    # segment after the prefix (dirname, no nested path). This is what stops
-    # skills/plan from ever matching plan-em/plan-pm/plan-tune.
-    prefix="${entry%%/*}"               # skills | scripts | (whole entry if no /)
-    rest="${entry#*/}"                  # segment(s) after the first /
-    if { [[ "${prefix}" != "skills" && "${prefix}" != "scripts" ]]; } \
-       || [[ "${rest}" == "${entry}" ]] || [[ -z "${rest}" ]] || [[ "${rest}" == */* ]]; then
-      warn "Skipped manifest entry (must be skills/<name> or scripts/<file>): ${entry}"
-      continue
-    fi
-
-    # Guardrail c: install/remove conflict — skip if this run actually installs
-    # the entry. improve/ lives in the source tree but is excluded from the copy
-    # loop above, so listing it for removal is legitimate, not a conflict.
-    src_check="${TMP_DIR}/msg/.claude/${entry}"
-    if [[ -e "${src_check}" && "${entry}" != "skills/improve" ]]; then
-      warn "Skipped manifest entry (install source still ships it — manifest bug): ${entry}"
-      continue
-    fi
-
-    target="${CLAUDE_DIR}/${entry}"
-    if [[ -e "${target}" ]]; then
-      rm -rf "${target}"
-      info "Removed retired: ${entry}"
-    fi
-  done < "${MANIFEST}"
-fi
-
 # ── Install scripts ───────────────────────────────────────────────────────────
 SRC_SCRIPTS="${TMP_DIR}/msg/.claude/scripts"
 if [[ -d "${SRC_SCRIPTS}" ]]; then

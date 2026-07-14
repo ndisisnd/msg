@@ -10,8 +10,6 @@ Shallow-clones this repo into a temp directory, then copies:
 - `skills/` → `~/.claude/skills/` (each skill as its own subdirectory; `improve/` is excluded — it's a repo-internal plan tracker, never an installed skill)
 - `scripts/` → `~/.claude/scripts/` (all `.sh` files made executable)
 
-Retired artifacts are scrubbed on every install via a **removal manifest** (`remove-manifest.txt` at the repo root): one exact `skills/<name>` or `scripts/<file>` path per line, `rm -rf`'d under `~/.claude/` after the copy step. Retiring a skill is therefore a one-line data change, not a script edit. The parser rejects globs, `..`, absolute paths, and anything outside `skills/`+`scripts/`, and skips any entry this run also installs; an absent target is a silent (idempotent) skip.
-
 Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook) dependency, which provides the `/cook` skill MSG skills call for domain-specific coding standards.
 
 ### 2. Skill layer — `~/.claude/skills/<name>/SKILL.md`
