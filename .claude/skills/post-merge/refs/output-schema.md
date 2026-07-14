@@ -19,6 +19,7 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
   "merged_pr": "<pr url>",
   "merge_commit": "<sha>",
   "deploy": { "ran": true, "target": "<url/build id>", "skipped": [] },
+  "verify": { "ran": true, "passed": true, "skipped": [] },
   "staging_signoff": "2026-07-13",   // --staging only, on approval; null otherwise
   "report": "features/prd-101-.../reports/report-3.md"
 }
@@ -53,11 +54,20 @@ so post-merge surfaces it as a finding rather than swallowing it. Conforms to
 - `source` is `post-merge` (the value added to the finding-schema source enum in P5).
 - `category: deploy` is used for deploy failures; a refusal uses the refusal JSON shape instead (it carries no findings).
 
+## Smoke-verification failure finding
+
+A deploy that succeeds but fails its `smoke_cmd` emits the same canonical shape
+with `rule: "smoke-failed"` — full example and consequences in
+`refs/verify-deploy.md`. The clean-run summary's `verify` block records the
+outcome either way: `ran: false` / `passed: null` when nothing was configured,
+`passed: false` alongside the finding on a failure, `skipped` listing platforms
+with no usable `smoke_cmd`.
+
 ## Verdict values
 
 | Verdict | Meaning | Exit |
 |---|---|---|
-| `pass` | merged (+ deployed or deploy-skipped-with-note) | 0 |
-| `fail` | merged but a production deploy errored (finding emitted) | 1 |
+| `pass` | merged (+ deployed or deploy-skipped-with-note, + smoke verified or verify-skipped-with-note) | 0 |
+| `fail` | merged but a deploy errored or failed its smoke check (finding emitted) | 1 |
 | `refused` | a precondition/gate blocked before the sanctioned action | 1 |
 | `skipped` | a human cancelled at a gate | 0 |

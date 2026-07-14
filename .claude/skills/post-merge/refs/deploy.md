@@ -21,7 +21,7 @@ command (a multi-platform repo deploys each in turn).
 
 For each platform's resolved command:
 
-- **Non-empty, real command** → run it from the repo root, capture stdout/stderr to a log, and report the target (URL / build id) in the run report. A non-zero exit is a deploy failure → emit a `post-merge` finding (`refs/output-schema.md`, category `deploy`) and surface it; do not pretend it deployed.
+- **Non-empty, real command** → run it from the repo root, capture stdout/stderr to a log, and report the target (URL / build id) in the run report. A non-zero exit is a deploy failure → emit a `post-merge` finding (`refs/output-schema.md`, category `deploy`) and surface it; do not pretend it deployed. A **clean deploy exit is not the end of the story** — verification follows per `refs/verify-deploy.md` (a skipped deploy skips its verification too).
 - **Empty, or still a placeholder** (`[USER: …]`) → the user never filled it in. Do **not** invent one. Ask once via `AskUserQuestion`:
   > header **Deploy**, question "No `<mode>_deploy_cmd` for `<platform>` in PLATFORMS.md. How to proceed?"
   > - **Skip deploy** — merge/sign-off stand; note "deploy skipped — no command configured" in the report

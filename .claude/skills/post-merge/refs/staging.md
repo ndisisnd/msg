@@ -1,14 +1,15 @@
 ---
 name: post-merge-staging
-description: post-merge --staging — locate the feature→staging PR, verify green CI, merge into staging, and stamp the harness-readable staging sign-off (D11). Deploy and the human test script have their own refs.
+description: post-merge --staging — locate the feature→staging PR, verify green CI, merge into staging, verify the deploy with the platform smoke check, and stamp the harness-readable staging sign-off (D11). Deploy, verification, and the human test script have their own refs.
 ---
 
 # `--staging` — merge to staging, hand off to a human
 
 Runs after `/pre-merge` opened a `feature → staging` PR. Post-merge merges it on
-green CI, deploys, hands a human a test script, and — only on the human's
-explicit approval — stamps the sign-off that `--production` requires. Post-merge
-**never self-certifies staging**: Step 5 STOPS and waits for a human.
+green CI, deploys, verifies the deploy with the platform's smoke check, hands a
+human a test script, and — only on the human's explicit approval — stamps the
+sign-off that `--production` requires. Post-merge **never self-certifies
+staging**: Step 6 STOPS and waits for a human.
 
 ## Step 1 — Branch protection
 
@@ -50,13 +51,22 @@ merge commit sha.
 
 Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`).
 
-## Step 5 — Human test script + STOP
+## Step 5 — Verify the deploy
+
+Per `refs/verify-deploy.md`: run each platform's `smoke_cmd` against the deployed
+staging target. Verified (or skipped-with-note) → continue. **Smoke failure** →
+emit the `smoke-failed` finding, set verdict `fail`, and **stop here** — skip
+Steps 6–7. Never hand a human a test script for an environment that is already
+failing its own health check; the report points at fixing forward via
+`/pre-merge` (the merge stands).
+
+## Step 6 — Human test script + STOP
 
 Per `refs/human-test-script.md`. Emit the script and **stop the autonomous
-flow** — a human must exercise staging. Post-merge does not proceed to Step 6 on
+flow** — a human must exercise staging. Post-merge does not proceed to Step 7 on
 its own.
 
-## Step 6 — Stamp the sign-off (on explicit approval)
+## Step 7 — Stamp the sign-off (on explicit approval)
 
 Only after the human returns. Ask once:
 
@@ -89,7 +99,8 @@ On **Not yet**, do not stamp; note it in the run report and stop.
 Write `report-[n].md` (`../shared/refs/report-schema.md`, `skill: post-merge`)
 to the PRD's `reports/` dir. Staging flavor:
 
-- `verdict: pass` when merged + (deployed or deploy-skipped-with-note); `n/a` if it refused before merging.
+- `verdict: pass` when merged + (deployed or deploy-skipped-with-note) + (smoke verified or verify-skipped-with-note); `fail` on a smoke failure (Step 5); `n/a` if it refused before merging.
+- Body `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
 - Body `## What to expect` — staging is live at the deploy target; production still gated on sign-off + double-confirm.
-- Body `## How to verify` — **the human test script verbatim** (Step 5) so the GUI Reports tab surfaces it.
-- `## Links` — the merged PR, the merge commit, the deploy log/target.
+- Body `## How to verify` — **the human test script verbatim** (Step 6) so the GUI Reports tab surfaces it.
+- `## Links` — the merged PR, the merge commit, the deploy log/target, the smoke log.

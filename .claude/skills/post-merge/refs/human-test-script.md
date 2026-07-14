@@ -1,13 +1,15 @@
 ---
 name: post-merge-human-test-script
-description: post-merge --staging Step 5 — derive a plain-language human test script from the shipped PRD's report "How to verify" sections + acceptance criteria, then STOP for a human to test staging.
+description: post-merge --staging Step 6 — derive a plain-language human test script from the shipped PRD's report "How to verify" sections + acceptance criteria, then STOP for a human to test staging.
 ---
 
-# Step 5 — Emit a human test script, then STOP
+# Step 6 — Emit a human test script, then STOP
 
-Post-merge **never self-certifies staging.** After deploying, it hands a human a
-concrete, plain-language script for exercising the deployed staging environment,
-then stops and waits. The sign-off (Step 6) only happens after the human returns.
+Post-merge **never self-certifies staging.** After deploying and passing the
+smoke verification (Step 5, `refs/verify-deploy.md` — a smoke failure skips this
+step entirely), it hands a human a concrete, plain-language script for exercising
+the deployed staging environment, then stops and waits. The sign-off (Step 7)
+only happens after the human returns.
 
 ## Derive it from (in priority order)
 
@@ -33,8 +35,8 @@ concrete step for a feature, say so plainly rather than fabricating one.
 ## Then STOP
 
 Emit the script as the run's visible output and **halt the autonomous flow** —
-do not proceed to Step 6, do not stamp anything. The human runs the script; when
-they return, Step 6's `AskUserQuestion` records their verdict.
+do not proceed to Step 7, do not stamp anything. The human runs the script; when
+they return, Step 7's `AskUserQuestion` records their verdict.
 
 The same script is written verbatim into the staging run report's `## How to
 verify` section so the GUI Reports tab surfaces it (H4).

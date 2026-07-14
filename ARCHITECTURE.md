@@ -78,7 +78,7 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 | `plan-em` | Yes |
 | `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
 | `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`) |
-| `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges) |
+| `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; smoke-verifies every deploy via `smoke_cmd`) |
 | `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer, run-report reader — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
 

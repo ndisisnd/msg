@@ -1,6 +1,6 @@
 ---
 name: post-merge-production
-description: post-merge --production — the double-confirmed staging→main release. Preconditions (green staging + signoff stamp), two separate approvals, release-style PR, merge only on green CI + human review, production deploy.
+description: post-merge --production — the double-confirmed staging→main release. Preconditions (green staging + signoff stamp), two separate approvals, release-style PR, merge only on green CI + human review, production deploy, smoke verification of the live target.
 ---
 
 # `--production` — the double-confirmed release to main
@@ -89,9 +89,20 @@ command; capture logs. A deploy failure emits a `post-merge` finding
 (`refs/output-schema.md`) and is reported — the merge already happened, so this
 is surfaced, not silently swallowed.
 
-## Step 7 — Stamp the intake ledger `completed` (D14/F4)
+## Step 7 — Verify the deploy
 
-After the release merges, close the loop for each shipped PRD. Read `INTAKE.md`
+Per `refs/verify-deploy.md`: run each platform's `smoke_cmd` against the deployed
+production target. Verified (or skipped-with-note) → continue to Step 8. **Smoke
+failure** → emit the `smoke-failed` finding, set verdict `fail`, **skip Step 8**
+(a release that isn't verifiably live doesn't close its PRD), and surface the
+per-platform rollback notes (`rollback_possible`, iOS `IRREVERSIBLE`) prominently
+in the report so the human can restore manually. The merge stands — never pretend
+to un-ship.
+
+## Step 8 — Stamp the intake ledger `completed` (D14/F4)
+
+Only on a verified (or verify-skipped-with-note) deploy — Step 7's smoke failure
+skips this stamp. Close the loop for each shipped PRD. Read `INTAKE.md`
 (repo root); for every shipped PRD, find the row whose `prd` cell matches this
 PRD's id (`prd-<n>-<slug>`, as stamped by `plan-pm` at F4) and set that row's
 `status` cell to `completed` via `Bash` — edit only that row's status cell,
@@ -105,7 +116,8 @@ unmapped or no-intake-ancestor PRD is not an error).
 
 Write `report-[n].md` (`skill: post-merge`, production flavor) — release-style:
 
-- `verdict: pass` on a clean release; `fail` if a production deploy errored.
+- `verdict: pass` on a clean release; `fail` if a production deploy errored **or its smoke check failed** (Step 7).
 - `## Work done` — PRDs shipped, commit count, platforms deployed.
+- `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
 - `## What to expect` — production is live; **rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
 - `## Links` — the release PR, the merge commit, per-platform deploy logs.
