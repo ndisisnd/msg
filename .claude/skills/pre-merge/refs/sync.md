@@ -12,13 +12,13 @@ grades what will actually merge. The resulting sync-merge commit is pre-merge's
 ## Preconditions
 
 1. `rtk git fetch origin`.
-2. **`staging` must exist.** If `origin/staging` (and local `staging`) do not resolve → **refuse** with `reason: "no_staging"` (`refs/refusal-patterns.md#no_staging`) and terminate. The v2 topology (D3) is `feature → staging → main`; without `staging` there is nothing to gate against and nothing for Step 9 to PR into. The refusal names the setup: create `staging` off `main` and re-run, or run `/msg --init`'s branch-protection bootstrap.
+2. **Resolve the sync target.** The v2 topology (D3) is `feature → staging → main`, so `staging` is the preferred target. If neither `origin/staging` nor a local `staging` resolves, **fall back to `main`** (`origin/main`, else local `main`) — do not refuse or warn. Use the resolved branch as the sync target below and as Step 9's PR base. (Emit no `no_staging` refusal — that failure mode is retired.)
 
 ## Merge + conflict handling
 
-Run `rtk git merge origin/staging` into the current feature branch. When `origin/staging` does not resolve but a local `staging` does (the precondition-2 fallback — e.g. no remote yet), merge the local branch instead: `rtk git merge staging`.
+Run `rtk git merge origin/<target>` into the current feature branch, where `<target>` is the branch resolved in precondition 2 (`staging`, else `main`). When the remote branch does not resolve but a local one does (e.g. no remote yet), merge the local branch instead: `rtk git merge <target>`.
 
-- **Clean merge** → commit the merge (message: `sync: merge staging into <branch> before gate`). Proceed.
+- **Clean merge** → commit the merge (message: `sync: merge <target> into <branch> before gate`). Proceed.
 - **Conflicts** → classify each conflicted hunk:
 
 | Conflict class | Test | Action |

@@ -81,7 +81,7 @@ When `verdict` is `"refused"`, the top-level object is:
 ```json
 {
   "verdict": "refused",
-  "reason": "no_diff" | "no_staging" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
+  "reason": "no_diff" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
   "detail": "<human-readable explanation>",
   "base": "<base ref>",
   "prior_issues_loaded": false,

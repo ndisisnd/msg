@@ -38,15 +38,15 @@ Natural language: "run pre-merge", "gate this before merge", "open the PR agains
 
 **Hard refusals** (`refs/refusal-patterns.md`):
 - Does NOT modify source code. Its ONLY direct write is the Step 1 D7-bounded sync-merge commit; regression tests are written by a spawned eng subagent (Step 4), never by pre-merge.
-- Does NOT `git push`, `gh pr merge`, `git merge` into `main`, or deploy production. It opens exactly one PR (feature→staging) and never merges it.
-- Does NOT run without a non-empty diff against base, or without a `staging` branch.
+- Does NOT `git push`, `gh pr merge`, `git merge` into `main`, or deploy production. It opens exactly one PR (feature→staging, or feature→`main` when no `staging` branch exists) and never merges it.
+- Does NOT run without a non-empty diff against base. A missing `staging` branch is NOT a blocker — pre-merge falls back to `main` as the sync + PR target, no warning, no refusal.
 - Does NOT grade a finding as blocker without quoted tool evidence.
 
 ## Inputs / Outputs
 
 | | Name | Source / Destination |
 |--|------|----------------------|
-| In | base | default `staging`; diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
+| In | base | default `staging` (falls back to `main` when no `staging` branch exists); diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
 | In | prd_paths | `--prd` (repeatable) — feeds Steps 4 + 7 |
 | In | prior_issues | `--prior-issues` JSON, optional |
 | Out | verdict_json | single JSON per `refs/output-schema.md` — final stdout emission |
@@ -75,8 +75,8 @@ step loads its ref on demand — this file stays the spine.
 | # | Step | Ref | Notes |
 |---|------|-----|-------|
 | 0 | **Platform mode** — resolve the strictness profile + bucket set from `devkit/PLATFORMS.md`; missing → `standard` + warn to run `/msg --init` | `refs/platform-profiles.md` | sets `profile`, `required_buckets`, `coverage_mode`, `preview_map`, `preview_always` |
-| — | **Diff + tooling** — consume a fresh `../shared/refs/verify-prelude.md` if present, else run `scripts/resolve-diff.sh <base>` + `.claude/scripts/pre-merge-tooling-detect.sh`; empty diff → refuse `no_diff`. Best-effort write the prelude (producer + consumer). | `refs/refusal-patterns.md` | base defaults to `staging` |
-| 1 | **SYNC (D7)** — fetch + merge `staging`; trivial conflicts auto-resolve, semantic same-hunk pause; the sync-merge commit is the sole direct write; no `staging` → refuse `no_staging` | `refs/sync.md` | Steps 3–4 always re-run post-sync |
+| — | **Diff + tooling** — consume a fresh `../shared/refs/verify-prelude.md` if present, else run `scripts/resolve-diff.sh <base>` + `.claude/scripts/pre-merge-tooling-detect.sh`; empty diff → refuse `no_diff`. Best-effort write the prelude (producer + consumer). | `refs/refusal-patterns.md` | base defaults to `staging`, else `main` |
+| 1 | **SYNC (D7)** — fetch + merge the sync target (`staging`, else `main`); trivial conflicts auto-resolve, semantic same-hunk pause; the sync-merge commit is the sole direct write; no `staging` → fall back to `main` (no refusal) | `refs/sync.md` | Steps 3–4 always re-run post-sync |
 | 2 | **MECHANICAL** — lint / format / typecheck / comment-coverage / per-commit commit-cap audit; scripts, no LLM | `refs/mechanical.md` | a `blocker` here short-circuits |
 | 3 | **UNIT + INTEGRATION** — run the unit+integration suite (re-run post-sync) | `refs/buckets/_common.md` (`--flaky`) | non-zero exit → `blocker`; `test_runner` null → try the stack's conventional invocation (e.g. `python3 -m pytest`, `npm test`), else record `skipped`/`no_tooling` — a missing runner is never a blocker |
 | 4 | **REGRESSION (D9+D5)** — run `tests/regression/prd-*/`; spawn an eng subagent to author this PRD's regression tests to `tests/regression/prd-<n>/`; pre-merge runs + grades them (never authors what it grades); prior-test edits need a PRD-clause citation | `refs/regression.md` | |
@@ -109,7 +109,8 @@ branch comes back through the gate. `followUp.suggested_command` =
 ## Step 9 — Open the PR (clean verdict only)
 
 On `pass` / `pass_with_warnings` **and** an approved preview (when the gate fired):
-`gh pr create --base staging --head <feature-branch>` with the verdict JSON + report
+`gh pr create --base <target> --head <feature-branch>` (where `<target>` is the
+Step 1 sync target — `staging`, else `main`) with the verdict JSON + report
 path linked in the body. Record `pr_url`. **Never** `gh pr merge` — post-merge
 `--staging` merges it on green CI (Part C). On a non-clean verdict, skip Step 9 —
 the fail-ticket is the output.

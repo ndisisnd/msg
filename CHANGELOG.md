@@ -2,6 +2,13 @@
 
 ## 2026-07-14
 
+### [2] — /pre-merge now works in repos with no staging branch instead of refusing
+
+- `.claude/skills/pre-merge/SKILL.md`: staging→main fallback threaded through the constraints, the Inputs/Outputs base row, the Step 1 sync + Step 9 PR-base rows, and the `followUp.suggested_command` PR base — a missing `staging` is no longer a blocker
+- `.claude/skills/pre-merge/refs/sync.md`: precondition 2 now resolves the sync target (`staging`, else `main`) instead of refusing; merge command and sync-merge commit message parameterised on the resolved target
+- `.claude/skills/pre-merge/refs/refusal-patterns.md`: Removed — deleted the retired `no_staging` refusal section and its outcomes-table row
+- `.claude/skills/pre-merge/refs/output-schema.md`: dropped `no_staging` from the refusal `reason` enum
+
 ### [1] — Drop the one-time install manifest now that its purge has run
 
 - `remove-manifest.txt`: deleted — the removal list it shipped has already been scrubbed from every global install
