@@ -2,6 +2,20 @@
 
 ## 2026-07-16
 
+### [11] — `/msg --init` can now recommend your architecture instead of quizzing you about it
+
+- `.claude/skills/msg/refs/protocol-cto.md`: Added — new advisory setup mode. Describe the project in your own words and msg recommends architecture, language, conventions, release flow and design system against five objectives, then derives every remaining variable from its own recommendations
+  - the recommendations follow stated decision rules (less code is more, bias to agentic coding, comments carry the why, boring by default) — an unopinionated "it depends" is defined as a protocol failure
+  - bounded at ≤4 questions; on reaching the ceiling it takes its own recommendation rather than asking again
+- `.claude/skills/msg/refs/protocol-eng.md`: Added — the existing ask-and-build interview, now its own protocol and **six questions shorter**: team type, conventions, auth approach, production branch, staging branch, and the UI-layer gate are all gone
+  - Changed — the interview budget drops from ≤5 calls (≤4 with no UI layer) to **≤4 (≤3 with no UI layer)**
+  - Removed — the production/staging branch questions; branch topology is detected instead, so a `master` repo bootstraps a production branch that actually exists
+  - Removed — the "does this project have a UI layer?" question; it's derived from the platforms you ship to, defaulting to yes when ambiguous so a design system is never silently dropped
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — Step 2 is now a mode gate that delegates to either protocol; both converge on the identical variable set, so the rest of setup never branches on the mode. `--init --cto` / `--init --eng` skip the gate; a bare `--init`, natural language, or an unrecognised sub-flag lands on it
+- `.claude/skills/msg/refs/init/init-setup.sh`: Added — a sixth detection line (`LANG_DEFAULT`) mapping stack files to a language (`pubspec.yaml`→Dart/Flutter, `Cargo.toml`→Rust, `tsconfig.json`→TypeScript, …), so the language question is asked only when detection finds nothing
+- `.claude/skills/msg/SKILL.md`: document the two sub-flags — msg's first — and the gate fallback
+- `.claude/skills/msg/refs/init/init.sh`, `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`: Removed — `TEAM_TYPE` end-to-end (msg is solo-only by design). `CONVENTIONS` survives: cto derives it, eng defaults it
+
 ### [10] — Todo tickets drop the `priority` field; fixes are ordered by severity, which is finer than before
 
 - `.claude/skills/eng/refs/plan/template-todo.md`: Removed — the `priority` (`P0|P1|P2`) row from the ticket schema, the rendering block, and both worked examples; tickets now carry seven fields
