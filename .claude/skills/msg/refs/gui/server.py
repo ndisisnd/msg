@@ -555,7 +555,7 @@ def _split_md_row(row):
 
 
 def parse_grade(cell):
-    """Split a `C:L T:$$ S:next` grade cell into its three chips (missing → null)."""
+    """Split a `C:5 T:8 S:next` grade cell into its three chips (missing → null)."""
     out = {}
     for k, rx in GRADE_RE.items():
         m = rx.search(cell or "")

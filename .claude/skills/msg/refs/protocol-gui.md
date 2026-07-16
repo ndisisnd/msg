@@ -130,7 +130,7 @@ Same read model as before — now implemented in `server.py`, re-run per request
 6. **Intake ledger** from root `INTAKE.md` (H2) via `build_intake`: the ledger table is
    located by its header row (must carry `#` / `idea` / `status` columns), then each data
    row is parsed into `{num, date, type, idea, goal, grade, gradeRaw, status, prd, prdKnown,
-   prdPath, prdFeature}`. The `grade` cell (`C:L T:$$ S:next`) is split into
+   prdPath, prdFeature}`. The `grade` cell (`C:5 T:8 S:next`) is split into
    `{complexity, token, sequence}` for the three chips. A row's `prd` cell is cross-referenced
    against the live PRD set so a card links to its mapped PRD. Absent `INTAKE.md` →
    `intake: {exists: false, rows: []}`; a present-but-empty table → `rows: []`.

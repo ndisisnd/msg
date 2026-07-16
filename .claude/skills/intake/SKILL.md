@@ -5,9 +5,10 @@ description: >
   the root INTAKE.md ledger. Use it when the user says "log an idea", "capture
   a bug", "add to the backlog", "note this down", "track this feature", or
   invokes `/intake`. Owns the requirements interview — fleshes out thin ideas,
-  proactively suggests adjacent ideas, splits compound/hybrid asks and XL ideas
-  into discrete rows, and grades every idea in a single-turn banded judgment
-  (complexity / token-cost / sequencing). Feeds `plan-pm`, which drafts the PRD.
+  proactively suggests adjacent ideas, splits compound/hybrid asks and ideas
+  grading C:8 or higher into discrete rows, and grades every idea in a single-turn
+  banded judgment (complexity / token-cost / sequencing). Feeds `plan-pm`, which
+  drafts the PRD.
 allowed_tools:
   - AskUserQuestion
   - Bash
@@ -52,13 +53,13 @@ numbers — because the grade is a triage signal, not an estimate.
 
 Follow `refs/protocol-intake.md` end-to-end. It defines: scaffold-or-proceed on
 `INTAKE.md`, the interview (flesh-out / suggest-adjacent / goal), hybrid-ask and
-XL-idea splitting, the single-turn grading pass, and the row write.
+`≥8`-idea splitting, the single-turn grading pass, and the row write.
 
 ## Grading
 
 Every captured idea is graded in a **single-turn LLM judgment at capture time —
 never an analysis pass, never a codebase read.** Three banded dimensions stored
-compactly in the row's `grade` cell (e.g. `C:L T:$$ S:blocked-by-#4`). Bands and
+compactly in the row's `grade` cell (e.g. `C:5 T:8 S:blocked-by-#4`). Bands and
 ranges only; fake-precise numbers are forbidden. Full rubric: `refs/rubric.md`.
 `devkit/AHA.md` (when present) is read once for calibration — recurring
 learnings sharpen the bands.
@@ -77,7 +78,7 @@ The `/msg --gui` Intake tab may hand-edit statuses (same trust level as its PRD-
 
 ## References
 
-- `refs/protocol-intake.md` — end-to-end capture protocol: scaffold check, interview, hybrid/XL split, grading pass, row write
+- `refs/protocol-intake.md` — end-to-end capture protocol: scaffold check, interview, hybrid/`≥8` split, grading pass, row write
 - `refs/rubric.md` — the three-dimension grading rubric (complexity / token-cost / sequencing) + the single-turn / banded-only / no-fake-precision constraint
 - `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds; intake offers to scaffold from it when the ledger is missing
 - `devkit/AHA.md` — read (when present) for grading calibration; written by `plan-tune` self-healing (G5)

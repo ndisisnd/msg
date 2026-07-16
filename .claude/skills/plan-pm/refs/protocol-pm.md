@@ -153,5 +153,5 @@ On termination, **recommend** (never invoke) `plan-tune --product` on this PRD a
 `Next: run /plan-tune --product on features/prd-[n]-[feature_slug]/… to certify the contract.`
 
 **Multi-PRD note.** There is no multi-PRD loop in v2 — compound asks are split into discrete
-rows at `/intake` (hybrid-ask detection + the XL-split gate), so plan-pm always plans exactly one
+rows at `/intake` (hybrid-ask detection + the ≥8-split gate), so plan-pm always plans exactly one
 row per run. To plan another backlog row, run `/plan-pm` again.

@@ -2,6 +2,19 @@
 
 ## 2026-07-16
 
+### [8] — Ideas are graded by how many moving parts they have, not how many files they touch
+
+- `.claude/skills/intake/refs/rubric.md`: Changed — `C:` and `T:` move from `S/M/L/XL` + `$/$$/$$$` to a Fibonacci scale (`1/2/3/5/8/13`)
+  - complexity anchors now count **moving parts** (business rules, application-logic units, integration points, platforms, migration/breaking surface), so a single module carrying six rules grades `C:5` instead of the smallest band — added a worked promo-code example proving it
+  - the split gate fires at `C: ≥ 8` (six bands spread what four crammed into `XL`; firing on `13` alone would catch less than `XL` did)
+  - Changed — the gate's rationale is now **reviewability**, not the deleted A5 LOC caps; the accept/decline behaviour is preserved because the `≥8` threshold depends on decline staying cheap
+  - `S:` (sequencing) is untouched — it's a position, not a size
+- `.claude/skills/intake/refs/protocol-intake.md`: the capture-time gate renamed to the `≥8`-split gate; re-grade guidance now `3`/`5`
+- `.claude/skills/intake/SKILL.md`: trigger text and grading examples re-pointed to the new scale
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`: the scaffolded ledger's documented scale now matches the rubric exactly
+- `.claude/skills/msg/refs/gui/server.py`, `.claude/skills/msg/refs/protocol-gui.md`: grade-cell examples updated — the board's parser needed no change (`\bC:\s*(\S+)` already accepts any band)
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: reference to the split gate re-pointed
+
 ### [7] — `--doctor` now detects a missing CI pipeline and offers to set one up
 
 - `.claude/skills/pre-merge/refs/stubs/pre-merge.yml`: new — minimal `pull_request` workflow stub the doctor scaffolds into `.github/workflows/`, with the detected mechanical/unit/security gate commands substituted in
