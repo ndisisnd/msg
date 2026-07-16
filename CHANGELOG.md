@@ -2,6 +2,11 @@
 
 ## 2026-07-16
 
+### [5] — Document the `--doctor` mode and `policy.json` in the project docs
+
+- `ARCHITECTURE.md`: added `doctor-detect-repo.sh` to the scripts table; added `devkit/policy.json` to the devkit layer — the one co-written devkit file (seeded by `--init`, completed by `--doctor`, flipped by `--init-staging`) — with its init-gated pipeline behavior; noted `--doctor`/`--init-staging` on the skill surface
+- `README.md`: the `/pre-merge` and `/post-merge` rows now describe `--doctor`; new `/msg --init-staging` row; `/msg --init` notes the release-flow interview + `policy.json` seed; post-merge branch protection flagged policy-conditional (enforced/optional/skip)
+
 ### [4] — One-time `--doctor` setup for the gates: detect tooling, record release + protection policy
 
 - `.claude/skills/shared/refs/policy-schema.md`: new — canonical `devkit/policy.json` schema, fail-safe validation rules, and the gate read-contract (init lifecycle, release_flow, branch_protection, per-step decisions) both gates consult
