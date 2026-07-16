@@ -154,7 +154,7 @@ def parse_ticket_fields(field_lines):
     for line in field_lines:
         if not FIELD_RE.match(line):
             continue
-        # one physical line may carry several labels: `**type:** code · **priority:** P0`
+        # one physical line may carry several labels: `**kind:** issue · **complexity:** simple`
         for key, val in re.findall(r"\*\*([\w-]+):\*\*\s*([^·]*)", line):
             fields[key.lower()] = val.strip()
     return fields
@@ -216,7 +216,6 @@ def parse_todos(body, feats, order):
                 "title": title,
                 "objective": f.get("objective", ""),
                 "type": f.get("type", ""),
-                "priority": f.get("priority", ""),
                 "files": files,
                 "file": files[0]["path"] if files else None,
                 "action": files[0]["action"] if files else None,
@@ -355,7 +354,6 @@ def parse_prd_dir(d):
 
 CATEGORY_TEST = {"unit", "e2e", "functional", "qa", "a11y", "api", "mobile",
                  "coverage", "load", "perf", "integration", "contract"}
-SEV_PRIO = {"blocker": "P0", "high": "P1", "medium": "P2", "low": "P2"}
 
 
 def project_finding(f):
@@ -370,7 +368,6 @@ def project_finding(f):
         "title": msg,
         "objective": (suggestion if suggestion else "Restore correct behavior — %s" % msg),
         "type": "test" if (f.get("category") in CATEGORY_TEST) else "code",
-        "priority": SEV_PRIO.get(f.get("severity"), "P2"),
         "files": ([{"path": f["file"], "action": "edit"}] if f.get("file") else []),
         "dependsOn": [],
         "doneWhen": ("%s passes and the covering test file is green" % repro) if repro

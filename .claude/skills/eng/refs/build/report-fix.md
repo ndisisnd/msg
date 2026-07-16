@@ -36,7 +36,7 @@ The numbered Work steps in `protocol.md` still run, with these deltas:
 
 - **Item 0 is skipped entirely.** There is no exec-table and no `## Engineering —` section to cross-check against.
 - **Item 2 reads each issue, not Execution steps.** For each projected issue-ticket (from Step 2's projection of `issues[]`), read the finding's `message`, `evidence.snippet`, and `repro` — that triad *is* the spec for the fix.
-- **Item 4's TDD flow collapses from four phases to three**, because the failing test already exists. Per issue, in `priority` order (`P0`→`P1`→`P2`; findings carry no `depends-on`, so priority alone orders them):
+- **Item 4's TDD flow collapses from four phases to three**, because the failing test already exists. Per issue, in `severity` order (`blocker`→`high`→`medium`→`low`; findings carry no `depends-on`, so severity alone orders them):
   - **(a) reproduce** — run the issue's `repro` command (or exercise the covering test) and confirm it still fails the same way. This replaces "write tests" + "verify red".
   - **(b) fix** — implement the change, applying the Step 4 coding standards (injected payload, or `/cook` on a standalone run) exactly as today (Item 4c).
   - **(c) verify green** — re-run `repro`, then the covering test file, same as the existing verify-green phase (Item 4d). A still-failing issue enters Debug mode (`protocol-build-debug.md`) unchanged.
@@ -91,7 +91,6 @@ This projection is cited by **both** `eng --build` (its `report` input path — 
 | `title` | finding `message` |
 | `objective` | synthesized `Restore correct behavior — <message>` (prefer `suggestion` when present). Does **not** trace to a PRD user story — a bug's intent is the fix, and `context.prd` is often `null` |
 | `type` | mapped from `category`: test buckets (`unit`, `e2e`, `functional`, `qa`, `a11y`, `api`, `mobile`, `coverage`, `load`, `perf`, `integration`, `contract`) → `test`; code/security concerns (`security`, `performance`, `complexity`, …) → `code` |
-| `priority` | mapped from `severity`: `blocker`→`P0`, `high`→`P1`, `medium`/`low`→`P2` |
 | `files` | `[{ path: <finding.file>, action: "edit" }]`, or `[]` when `file` is `null` (suite-level finding). `action` is always `edit` — `file` is where the *symptom* was observed, not a command to edit that path; Step 2's codebase scan still resolves the real target |
 | `depends-on` | `none` — findings carry no dependency graph |
 | `done-when` | `<repro> passes and the covering test file is green` (from `repro`; when `repro` is `null`, `the finding no longer reproduces`) |

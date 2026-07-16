@@ -16,13 +16,13 @@ Todos are appended to the **PRD file** (the same file the `## Engineering — <A
 ### F1
 - **F1-T1 — Add streaks table**
   - **objective:** Let users see a daily streak so they stay motivated (F1 acceptance: streak count persists across days).
-  - **type:** migration · **priority:** P0
+  - **type:** migration
   - **files:** `migrations/0043_add_streaks.sql` (add), `models/streak.py` (edit)
   - **depends-on:** none
   - **done-when:** migration applies cleanly on a fresh DB; `streaks` table exists with `user_id UUID`, `count INT`, `updated_at TIMESTAMPTZ`.
 - **F1-T2 — Streak increment endpoint**
   - **objective:** Record a streak bump when a user completes their daily goal.
-  - **type:** code · **priority:** P0
+  - **type:** code
   - **files:** `routes/streaks.py` (add), `openapi.yaml` (edit)
   - **depends-on:** F1-T1
   - **done-when:** `POST /api/v1/streaks/increment` returns 200 and increments `count`; contract test passes.
@@ -47,17 +47,18 @@ Each ticket is a bullet whose title line carries the ticket id and summary, foll
 | `title` | short phrase | One-line summary of the unit of work — what a reviewer reads in a ticket list. On the title line after the id. |
 | `objective` | one sentence | The **product / user goal** this ticket serves — traces to the PRD feature's user story or acceptance criterion (the "why"). Keeps the build agent anchored to intent, not just mechanics. |
 | `type` | `code \| test \| config \| migration \| doc` | The kind of work. |
-| `priority` | `P0 \| P1 \| P2` | Build-order / importance signal — `P0` blocks the feature, `P1` is core, `P2` is nice-to-have. **Deliberately not an estimate** — there is no story-point / sizing field. |
 | `files` | `` `path` (add\|edit\|remove) ``, comma-separated | The file(s) touched, each tagged with its own action. Exact repo-relative paths where known (same precision bar as `--plan` §7 identifiers). |
 | `depends-on` | ticket id(s), or `none` | Other tickets that must complete **before** this one (e.g. an endpoint depends on its migration). `none` when independent. Only reference ids that exist in the same PRD's `## Todos`. |
 | `done-when` | a concrete, verifiable check | The acceptance condition — a build agent can run or inspect exactly this to confirm the ticket is done. Never vague ("works correctly"); always checkable. |
+
+**Deliberately not an estimate** — there is no story-point / sizing field in this schema.
 
 **Rendering** — one ticket per top-level bullet, fields as an indented sub-list, label-prefixed so a build agent (and the `--gui` parser) reads them positionally:
 
 ```
 - **<id> — <title>**
   - **objective:** <one sentence>
-  - **type:** <type> · **priority:** <P0|P1|P2>
+  - **type:** <type>
   - **files:** `<path>` (<action>), `<path>` (<action>)
   - **depends-on:** <id(s) | none>
   - **done-when:** <check>

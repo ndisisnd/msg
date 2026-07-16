@@ -149,7 +149,7 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 
 ## References
 
-- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **and the `## Todos — <Agent>` ticket-writing spec** run in the same pass. `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the eight fields, rendering, rules, empty-block sentinel, the ticket-sizing rule) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–13 output format.
+- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **and the `## Todos — <Agent>` ticket-writing spec** run in the same pass. `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the seven fields, rendering, rules, empty-block sentinel, the ticket-sizing rule) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–13 output format.
 - `refs/plan/report-fix.md` — `--plan`'s `report` source: required fields, rejections, and the fix-plan output contract for planning the fixes to a failed run's issues file.
 - `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, per-ticket pair review, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format. `refs/build/report-fix.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
 - `refs/build/pair-review.md` — per-ticket pair-review subagent: platform-parameterised principal-engineer persona, unnecessary-code-only mandate, one-revision-round blocking contract (loaded on the build hot path).

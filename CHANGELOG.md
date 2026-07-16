@@ -2,6 +2,17 @@
 
 ## 2026-07-16
 
+### [10] — Todo tickets drop the `priority` field; fixes are ordered by severity, which is finer than before
+
+- `.claude/skills/eng/refs/plan/template-todo.md`: Removed — the `priority` (`P0|P1|P2`) row from the ticket schema, the rendering block, and both worked examples; tickets now carry seven fields
+  - the field's "deliberately not an estimate — no story-point / sizing field" note is preserved as a standalone rule; it outlives the field that carried it
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — build order among unblocked tickets is now **ticket-id order** (`F1-T1` → `F1-T2` → `F2-T1`), which is deterministic and reproducible across runs; `depends-on` ordering and the cycle/unknown-id hard stop are untouched
+- `.claude/skills/eng/refs/build/report-fix.md`, `.claude/skills/eng/refs/plan/report-fix.md`: Changed — fix tickets order by `severity` directly (`blocker` → `high` → `medium` → `low`) and the derived severity→priority mapping is deleted; because that mapping collapsed `medium` and `low` into `P2`, ordering by severity is **finer** than before, not merely equivalent
+- `.claude/skills/eng/refs/plan/protocol.md`, `.claude/skills/eng/SKILL.md`: "the eight fields" now reads "the seven fields"
+- `.claude/skills/msg/refs/gui/server.py`, `.claude/skills/msg/refs/gui/index.html`, `.claude/skills/msg/refs/gui/styles.css`: Removed — the board's Priority column, pill, detail row, `.prio-P*` styles, and the GUI's private duplicate of the severity→priority map
+
+  Note: the `/cook` standards floor uses `P0`/`P1` in an unrelated sense and was deliberately left untouched — a blanket sweep would have broken standards resolution on every build.
+
 ### [9] — Commit size is measured and judged, never vetoed by a line count guessed before the code exists
 
 - `.claude/scripts/eng-commit-cap.sh`: Changed — the over-cap branch now exits 0 instead of 1, so the script measures rather than blocks; `CAP_OK`/`CAP_EXCEEDED <loc>/<cap>` still print, usage/env errors still exit 2

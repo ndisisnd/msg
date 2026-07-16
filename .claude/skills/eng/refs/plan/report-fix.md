@@ -30,7 +30,7 @@ This is the target of the fix loop's Offer #1 (`../../../shared/refs/fix-loop.md
 
 Read the issues file `report-prd-<N>-<K>.json` (the canonical findings written by the failed run) and project each entry of `issues[]` into an issue-ticket through the **existing** finding→issue-ticket projection — the single mapping defined in `../build/report-fix.md` § Finding → issue-ticket projection (field mapping + preserved diagnostic fields + the `kind` discriminator). That projection is authoritative and read-time-only; **do not duplicate or re-derive it here, and do not re-serialize the findings** — the issues file stays canonical on disk. This plan pass consumes the same in-memory projection the build pass does, then writes its own fix-plan artifact.
 
-Each projected issue-ticket already carries `kind: "issue"`, its verbatim finding `id`, `title`, `objective`, `type`, `priority`, `files`, `depends-on`, `done-when`, and the preserved diagnostic fields (`severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, `evidence.flaky`). This pass adds exactly one field: the **`complexity` tag** (below).
+Each projected issue-ticket already carries `kind: "issue"`, its verbatim finding `id`, `title`, `objective`, `type`, `files`, `depends-on`, `done-when`, and the preserved diagnostic fields (`severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, `evidence.flaky`). This pass adds exactly one field: the **`complexity` tag** (below).
 
 ## Fix-plan output — `report-prd-<N>-<K>-fix-plan.md`
 
@@ -67,7 +67,7 @@ One ticket per table row, in the same bullet + indented-field rendering as `temp
 - **unit-002 — Assertion failed: POST /users with empty email did not return 400** <a id="fix-unit-002"></a>
   - **kind:** issue · **complexity:** simple
   - **objective:** Restore correct behavior — validate email presence before the DB write.
-  - **type:** test · **priority:** P1
+  - **type:** test
   - **files:** `src/api/users.ts` (edit)
   - **depends-on:** none
   - **done-when:** `rtk npx vitest run test/users.test.ts` passes and the covering test file is green.
@@ -75,7 +75,7 @@ One ticket per table row, in the same bullet + indented-field rendering as `temp
 ```
 
 - Every projected field is carried through unchanged; the preserved diagnostic fields ride on a single `diagnostics:` line so the fix-build (and the `--gui` side panel) read them positionally without bloating the ticket.
-- `objective`, `done-when`, `files`, `priority`, `depends-on` come straight from the projection — do not re-invent them. `depends-on` is `none` for a bug list (findings carry no dependency graph).
+- `objective`, `done-when`, `files`, `depends-on` come straight from the projection — do not re-invent them. `depends-on` is `none` for a bug list (findings carry no dependency graph).
 - A ticket with `evidence.flaky: true` keeps that on its `diagnostics:` line — it changes how the fix-build treats the ticket (fix only if a reproducible root cause surfaces).
 
 ### One ticket per issue, or per coherent group
@@ -83,7 +83,7 @@ One ticket per table row, in the same bullet + indented-field rendering as `temp
 Default to **one ticket per issue** — findings are already atomic. Group multiple findings into one ticket **only** when they are genuinely one unit of work: same `file` and same `rule`/`category` cluster, or a single root cause with several symptoms (e.g. two `sec-001`/`sec-004` credential findings in the same module fixed by one env-var move). A group ticket:
 
 - lists every member id in the table's `Issue(s)` cell and carries a stable `fix-<slug>` id + anchor;
-- takes the **highest** member `priority` and the **most conservative** member `complexity` (any `complex` member ⇒ the group is `complex`);
+- takes the **highest** member `severity` and the **most conservative** member `complexity` (any `complex` member ⇒ the group is `complex`);
 - keeps every member's diagnostics (list them per-member on the `diagnostics:` line).
 
 Never group across unrelated files, categories, or root causes — the fix-build commits one issue's fix at a time, and an over-broad group breaks the one-commit-per-issue contract it inherits.
