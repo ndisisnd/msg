@@ -2,6 +2,13 @@
 
 ## 2026-07-16
 
+### [12] — CLAUDE.md now tells every agent what language the project is written in
+
+- `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`: Added — a `**Language**` row to the Project section. `init.sh` already substituted `{{language}}`, but no template used the placeholder, so the language never reached the one file every agent reads on session start
+- `.claude/skills/msg/refs/protocol-eng.md`: the note on why the `LANGUAGE` key survives its removed question now cites CLAUDE.md as well as the `.gitignore` selection
+
+  Note: `/msg --init` is the only writer of CLAUDE.md and never overwrites an existing file, so this reaches **new bootstraps only** — projects that already have a CLAUDE.md keep theirs unchanged.
+
 ### [11] — `/msg --init` can now recommend your architecture instead of quizzing you about it
 
 - `.claude/skills/msg/refs/protocol-cto.md`: Added — new advisory setup mode. Describe the project in your own words and msg recommends architecture, language, conventions, release flow and design system against five objectives, then derives every remaining variable from its own recommendations

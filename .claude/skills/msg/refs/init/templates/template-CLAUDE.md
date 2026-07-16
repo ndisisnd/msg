@@ -6,7 +6,7 @@ type: reference
 
 # CLAUDE Template
 
-The skill writes CLAUDE.md from this body, substituting `{{project_name}}`, `{{platform}}`, and `{{conventions}}` from Step 2.
+The skill writes CLAUDE.md from this body, substituting `{{project_name}}`, `{{platform}}`, `{{language}}`, and `{{conventions}}` from Step 2.
 
 ## Template body
 
@@ -19,6 +19,7 @@ This file is read by Claude Code on every session start. Keep it short, current,
 
 - **Name**: {{project_name}}
 - **Platform**: {{platform}}
+- **Language**: {{language}}
 
 ## How to work in this repo
 

@@ -50,8 +50,9 @@ silently.
 
 `LANGUAGE` must never reach Step 3 empty. `init.sh` picks the `.gitignore` section
 off `LANGUAGE` first and `PLATFORM` second, so an unset `LANGUAGE` silently drops a
-Dart/Flutter repo to a platform-level gitignore. The key also survives because
-agents code against it — that is why the question can go but the variable cannot.
+Dart/Flutter repo to a platform-level gitignore — and `CLAUDE.md` states the
+project's language to every future agent, so an unset one reads as "Not specified"
+forever. That is why the question can go but the variable cannot.
 
 Call 1 can therefore carry 1–3 questions. Q1 always fires.
 
