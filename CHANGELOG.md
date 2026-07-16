@@ -2,6 +2,14 @@
 
 ## 2026-07-16
 
+### [13] — Fixed: the PRD board showed every shipped PRD as un-shipped on a `master` repo
+
+- `.claude/skills/msg/refs/gui/server.py`: Fixed — the completion ladder hardcoded `--base "main"` and `--base "staging"` instead of reading `devkit/policy.json`, so on a repo whose production branch is `master` the production rung never fired and every shipped PRD rendered as un-shipped
+  - Added — a cached `release_branches()` helper reading `policies.release_flow.prod_branch` / `staging_branch`, with the `?? "main"` / `?? "staging"` fallbacks `shared/refs/policy-schema.md` already publishes; an absent or malformed policy degrades to those fallbacks so the board never errors
+  - a custom staging branch name is now honoured too, not just `staging`
+
+  Pre-existing defect, found during this refactor's GUI audit rather than caused by it.
+
 ### [12] — CLAUDE.md now tells every agent what language the project is written in
 
 - `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`: Added — a `**Language**` row to the Project section. `init.sh` already substituted `{{language}}`, but no template used the placeholder, so the language never reached the one file every agent reads on session start

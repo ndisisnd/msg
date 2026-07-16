@@ -253,10 +253,34 @@ def gh_ready():
     return _GH_READY
 
 
+_BRANCHES = None
+
+
+def release_branches():
+    """(prod, staging) branch names from devkit/policy.json — the contract both
+    gates read (`shared/refs/policy-schema.md`), with the `?? "main"` / `?? "staging"`
+    fallbacks that schema publishes. Never hardcode these: on a `master` repo the
+    production rung would never fire and every shipped PRD would render un-shipped.
+    Cached across requests; an unreadable/absent policy degrades to the fallbacks so
+    the board never errors."""
+    global _BRANCHES
+    if _BRANCHES is None:
+        prod, stg = "main", "staging"
+        try:
+            with open(os.path.join(root_path(), "devkit", "policy.json")) as fh:
+                flow = (json.load(fh).get("policies") or {}).get("release_flow") or {}
+            prod = (flow.get("prod_branch") or "").strip() or prod
+            stg = (flow.get("staging_branch") or "").strip() or stg
+        except Exception:
+            pass
+        _BRANCHES = (prod, stg)
+    return _BRANCHES
+
+
 def infer_completion(fm, num, slug):
     """H1 completion ladder (msg-v2 Part H1), most-authoritative first:
         frontmatter completion override
-          -> PR staging->main MERGED          = shipped (production)
+          -> PR staging->prod MERGED          = shipped (production)
           -> staging-signoff: stamp present   = staged (human-approved)
           -> PR feature->staging MERGED       = staged
           -> PR feature->staging OPEN         = gated (pre-merge passed)
@@ -271,13 +295,14 @@ def infer_completion(fm, num, slug):
 
     prd_id = "prd-%s%s" % (num, ("-" + slug) if slug else "")
     have_gh = gh_ready()
+    prod_branch, staging_branch = release_branches()
 
-    # Rung 1 — production: a merged staging->main release PR that names this PRD.
+    # Rung 1 — production: a merged staging->prod release PR that names this PRD.
     if have_gh:
-        code, out = run_cmd(["gh", "pr", "list", "--base", "main", "--state", "merged",
+        code, out = run_cmd(["gh", "pr", "list", "--base", prod_branch, "--state", "merged",
                              "--search", prd_id, "--json", "number", "--limit", "1"], timeout=5)
         if code == 0 and out and out != "[]":
-            return "shipped", "staging->main PR merged (references %s)" % prd_id
+            return "shipped", "staging->%s PR merged (references %s)" % (prod_branch, prd_id)
 
     # Rung 2 — staged, human-approved: the sign-off stamp (frontmatter, always readable).
     if (fm.get("staging-signoff") or "").strip():
@@ -289,14 +314,14 @@ def infer_completion(fm, num, slug):
     if code == 0 and out:
         branch = out.splitlines()[0].lstrip("* ").strip()
     if branch and have_gh:
-        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", "staging",
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", staging_branch,
                              "--state", "merged", "--json", "number", "--limit", "1"], timeout=4)
         if code == 0 and out and out != "[]":
-            return "staged", "feature->staging PR for %s merged" % branch
-        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", "staging",
+            return "staged", "feature->%s PR for %s merged" % (staging_branch, branch)
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", staging_branch,
                              "--state", "open", "--json", "number", "--limit", "1"], timeout=4)
         if code == 0 and out and out != "[]":
-            return "gated", "feature->staging PR for %s open (pre-merge passed)" % branch
+            return "gated", "feature->%s PR for %s open (pre-merge passed)" % (staging_branch, branch)
     if branch:
         return "building", "branch %s exists" % branch
 
