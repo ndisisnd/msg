@@ -1,29 +1,34 @@
 ---
-name: eng --build — gate-json source
-description: Lazily loaded when eng --build is invoked with gate-json=<path>. Defines the bug-list (issue-ticket) build source — required fields, rejections, path derivation, branch defaulting, work-step deltas, Issue-keyed summary, and loop-closing. A plain PRD/exec-table --build never loads this.
+name: eng --build — report source
+description: Lazily loaded when eng --build is invoked with report=<path>. Defines the bug-list (issue-ticket) build source — required fields, rejections, path derivation, branch defaulting, work-step deltas, Issue-keyed summary, and loop-closing. A plain PRD/exec-table --build never loads this.
 type: reference
 ---
 
-# eng --build — `gate-json` source
+# eng --build — `report` source
 
-Loaded only when `--build` is invoked with `gate-json=<path>` (see `protocol.md` § Input contract). Drives the build from a `/pre-merge` gate fail-ticket instead of an exec-table. The spec is a **bug list**, not a feature to build, so there is no red test to write — it already exists (it's literally what `/pre-merge` recorded).
+Loaded only when `--build` is invoked with `report=<path>` (see `protocol.md` § Input contract). Drives the build from a `/pre-merge` issues file instead of an exec-table. The spec is a **bug list**, not a feature to build, so there is no red test to write — it already exists (it's literally what `/pre-merge` recorded).
+
+## Orchestration routing
+
+`--build report=<path>` routes **by default** to `report-fix-orchestrated.md` — an Opus orchestrator session that projects `issues[]` into issue-tickets (§ Finding → issue-ticket projection below) and fans the fixes out to per-issue subagents. Pass `orchestrate=off` (`eng --build report=<path> orchestrate=off`) to skip the orchestrator and run the flat single-agent flow documented in the rest of this file instead. The orchestrated ref cites this file's projection and loop-closing sections rather than duplicating them.
 
 ## Required fields and rejections
 
 | Field | Value |
 |-------|-------|
 | mode flag | `--build` |
-| `gate-json` | Path to the `msg-gate/gate-N.json` file whose `issues[]` this build resolves |
+| `report` | Path to the `report-prd-<N>-<K>.json` issues file whose `issues[]` this build resolves |
 | `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see **Branch default**); must still exist before work starts |
 | `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
+| `orchestrate` | *(optional)* Defaults to `on` (routes to `report-fix-orchestrated.md`, see § Orchestration routing above). `orchestrate=off` runs the flat flow documented in this file |
 
-- `gate-json` is a **`--build`-only** source. `--plan` with `gate-json` is a hard failure: `Hard failure: gate-json is a --build-only input source`.
-- Supplying **both `prd-path` and `gate-json`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or gate-json, not both (ambiguous input source).`
-- A `gate-json` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: gate-json <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
+- `report` is valid on **both modes**: `--build` loads this file (or the orchestrated ref) to fix the findings, and `--plan report` loads `../plan/report-fix.md` to plan them first. It is no longer build-only. (`roadmap`, by contrast, stays `--build`-only.)
+- Supplying **both `prd-path` and `report`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or report, not both (ambiguous input source).`
+- A `report` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: report <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
 
-**Path derivation.** Eng derives all *implementation* file paths from the codebase scan and the projected issue-tickets. `gate-json`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
+**Path derivation.** Eng derives all *implementation* file paths from the codebase scan and the projected issue-tickets. `report`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
 
-**Branch default.** When build is driven by `gate-json` and `branch` is not explicitly passed, default it to the file's own `context.branch` — the branch `/pre-merge` was gating when it found the issues — rather than asking the user to repeat what the file records. The `branch`-must-exist rule (`protocol.md` Work-step 1) still applies unchanged: a defaulted branch that doesn't exist is still a hard failure.
+**Branch default.** When build is driven by `report` and `branch` is not explicitly passed, default it to the file's own `context.branch` — the branch `/pre-merge` was gating when it found the issues — rather than asking the user to repeat what the file records. The `branch`-must-exist rule (`protocol.md` Work-step 1) still applies unchanged: a defaulted branch that doesn't exist is still a hard failure.
 
 ## Work-step deltas (Step 5)
 
@@ -37,11 +42,11 @@ The numbered Work steps in `protocol.md` still run, with these deltas:
   - **(c) verify green** — re-run `repro`, then the covering test file, same as the existing verify-green phase (Item 4d). A still-failing issue enters Debug mode (`protocol-build-debug.md`) unchanged.
 - **Flaky issues are not forced.** An issue carrying `evidence.flaky: true` (a `--flaky <N>`-classified warning, not a confirmed break) is fixed **only if phase (a) surfaces a clear, reproducible root cause**. If it won't reproduce, leave it noted in the build summary (`⚠ flaky — not reproduced, left as-is`) rather than forcing a green — that is the whole point of flaky-classification.
 - **Debug mode and its 3-cycle escalation apply per issue**, exactly as they do per row (see `protocol-build-debug.md`).
-- **The build summary table is keyed by `Issue`** (below) and, on completion, `eng --build` **writes the loop closed** in the `gate-json` file (below).
+- **The build summary table is keyed by `Issue`** (below) and, on completion, `eng --build` **writes the loop closed** in the issues file (below).
 
 ## Output contract — table keyed by `Issue`
 
-When the build was driven by `gate-json`, swap the summary table's **`Row`** column for **`Issue`** (the finding `id`, e.g. `unit-002`); keep `Files created`, `Files modified`, `Tests`, and `Status` as-is:
+When the build was driven by `report`, swap the summary table's **`Row`** column for **`Issue`** (the finding `id`, e.g. `unit-002`); keep `Files created`, `Files modified`, `Tests`, and `Status` as-is:
 
 ```markdown
 | Issue | Files created | Files modified | Tests | Status |
@@ -51,12 +56,12 @@ When the build was driven by `gate-json`, swap the summary table's **`Row`** col
 
 ## Closing the loop
 
-On completion, `eng --build` **updates the `gate-json` file's own `followUp.status`** (camelCase — the key `server.py`/the `--gui` board reads) so the ticket reflects that it was acted on rather than sitting permanently `open`:
+On completion, `eng --build` **updates the issues file's own `followUp.status`** (camelCase — the key `server.py`/the `--gui` board reads) so the ticket reflects that it was acted on rather than sitting permanently `open`:
 
 - every issue verified green → `"resolved"`
 - one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `"partially_resolved"`
 
-This is the **only** write build mode makes to `msg-gate/gate-<n>.json`; the `issues[]` array and every other field stay untouched (the file remains canonical findings — the projection was read-time only). The `--gui` board reads this `followUp.status` back to render an honest Open/Resolved state per gate-issue card.
+This is the **only** write build mode makes to `report-prd-<N>-<K>.json`; the `issues[]` array and every other field stay untouched (the file remains canonical findings — the projection was read-time only). The `--gui` board reads this `followUp.status` back to render an honest Open/Resolved state per gate-issue card.
 
 ## The `kind` discriminator
 
@@ -65,17 +70,17 @@ Every ticket — whether it originates from a PRD feature (a `## Todos` `### F<n
 | `kind` | Origin | Id shape |
 |--------|--------|----------|
 | `"todo"` | a PRD `## Todos` `### F<n>` block (`refs/plan/template-todo.md`) | `F<n>-T<k>` |
-| `"issue"` | a canonical finding in `msg-gate/gate-<n>.json` (the projection below) | the finding `id`, e.g. `unit-002` |
+| `"issue"` | a canonical finding in `report-prd-<N>-<K>.json` (the projection below) | the finding `id`, e.g. `unit-002` |
 
 A ticket with no explicit `kind` is a `"todo"` (back-compat). The id shape alone is a secondary signal — an `F<n>-T<k>` id is a todo, any other shape is an issue — but `kind` is authoritative.
 
 ## Finding → issue-ticket projection
 
-`msg-gate/gate-<n>.json` (written by `/pre-merge` on a non-clean verdict) stores **canonical finding objects** — the same shape `/pre-merge` emits, defined in `../../../shared/refs/finding-schema.md`. To let `eng --build` walk those findings with the same ticket vocabulary a PRD-todo build uses, and to let the `--gui` board render them beside PRD todos, each finding is **projected** into an issue-ticket through the single mapping below.
+`report-prd-<N>-<K>.json` (written by `/pre-merge` on a non-clean verdict) stores **canonical finding objects** — the same shape `/pre-merge` emits, defined in `../../../shared/refs/finding-schema.md`. To let `eng --build` walk those findings with the same ticket vocabulary a PRD-todo build uses, and to let the `--gui` board render them beside PRD todos, each finding is **projected** into an issue-ticket through the single mapping below.
 
-This projection is cited by **both** `eng --build` (its `gate-json` input path — this file) and the `--gui` board (`msg/refs/protocol-gui.md` Step 1b). Defining it once here keeps the two consumers from drifting.
+This projection is cited by **both** `eng --build` (its `report` input path — this file) and the `--gui` board (`msg/refs/protocol-gui.md` Step 1b). Defining it once here keeps the two consumers from drifting.
 
-**It is a read-time view, never a rewrite.** `msg-gate/gate-<n>.json` stays canonical findings on disk — the projection is applied in memory each time a finding is consumed. Findings are never re-serialized into ticket shape, so the `/pre-merge` ↔ `eng --build` interop and the shared dedup/regression keys (`id`, `rule`, `regression_of`) are untouched.
+**It is a read-time view, never a rewrite.** `report-prd-<N>-<K>.json` stays canonical findings on disk — the projection is applied in memory each time a finding is consumed. Findings are never re-serialized into ticket shape, so the `/pre-merge` ↔ `eng --build` interop and the shared dedup/regression keys (`id`, `rule`, `regression_of`) are untouched.
 
 ### Field mapping
 

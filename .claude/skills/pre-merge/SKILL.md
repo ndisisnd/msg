@@ -22,7 +22,7 @@ it to a PR open against `staging` with green checks and a human-approved preview
 Absorbs the retired `/review` and `/test`. Each run is independent.
 
 ```
-eng --build  →  /pre-merge  →  (fail → eng --build gate-json=…, repeat)  →  PR feature→staging  →  post-merge --staging
+eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  →  PR feature→staging  →  post-merge --staging
 ```
 
 ## Usage
@@ -50,8 +50,8 @@ Natural language: "run pre-merge", "gate this before merge", "open the PR agains
 | In | prd_paths | `--prd` (repeatable) — feeds Steps 4 + 7 |
 | In | prior_issues | `--prior-issues` JSON, optional |
 | Out | verdict_json | single JSON per `refs/output-schema.md` — final stdout emission |
-| Out | run_report | `report-[n].md` per `../shared/refs/report-schema.md` (first `--prd`'s `reports/`, else `features/reports/`) |
-| Out | fail_ticket | `msg-gate/gate-<n>.json` on a non-clean verdict — consumed by `eng --build gate-json=` |
+| Out | run_report | `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (first `--prd`'s `reports/`, else `features/reports/` as `report-<K>.md`) |
+| Out | issues_file | the run report's paired `.json` (same stem + `reports/` folder as `run_report`) on a non-clean verdict — consumed by `eng --build report=` |
 | Out | run_artifacts | raw stage logs → `.pre-merge/<timestamp>/<stage>.log` |
 | Out | pr | PR feature→staging (Step 9), verdict JSON + report linked in the body |
 
@@ -69,8 +69,9 @@ prose, severity counts before the issue list, JSON-first.
 ## The gate sequence (Steps 0–9)
 
 Run in order. Any **red** step short-circuits per `refs/severity-rubric.md`; on a
-non-clean run write the fail-ticket (see below) and stop before Step 9's PR. Each
-step loads its ref on demand — this file stays the spine.
+non-clean run Step 9's PR is skipped and the run enters the **Issues-file loop**
+(below) instead of opening it — the gate does not dead-end. Each step loads its
+ref on demand — this file stays the spine.
 
 | # | Step | Ref | Notes |
 |---|------|-----|-------|
@@ -93,18 +94,26 @@ step loads its ref on demand — this file stays the spine.
 3. **Triage** with `refs/severity-rubric.md` (in-diff weighting, dev-only / unreachable downgrades, profile coverage floor).
 4. **Mark regressions** from `--prior-issues` on `(category, file, rule)`.
 5. **Verdict:** `fail` (any blocker/high) · `pass_with_warnings` (only medium/low) · `pass` (zero) · `refused`/`skipped` (early-termination paths).
-6. **Run report** — write `report-[n].md` per `../shared/refs/report-schema.md` (`skill: pre-merge`; one line per gate stage in `## Test results`; plain-language `## How to verify`). Best-effort; skip on `refused`/`skipped`.
-7. Print the JSON per `refs/output-schema.md` as the **final emission**.
+6. **Run report** — write `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: pre-merge`; one line per gate stage in `## Test results`; plain-language `## How to verify`). Best-effort; skip on `refused`/`skipped`.
+7. **Terminal issue summary** — on **every** report write, all verdicts, print the `Issue summary` block to the terminal (exact format owned by `../shared/refs/report-schema.md`); counts derive from the run's canonical `findings[]` (`category` / `severity`). A clean run prints exactly `Issue summary — 0 issues`.
+8. Print the JSON per `refs/output-schema.md` as the **final emission**.
 
-## Fail-ticket loop (non-clean verdict)
+## Issues-file loop (non-clean verdict)
 
-On `fail`, write `msg-gate/gate-<n>.json` — the same canonical-finding `issues[]`
-shape the old `msg-test/test-<n>.json` used (`followUp.status` contract kept —
-camelCase, the key `eng --build` writes back and the `--gui` board reads),
-numbered `max(suffix)+1` under `msg-gate/`. It is consumed by
-`eng --build gate-json=msg-gate/gate-<n>.json`, which fixes the findings and the
+On `fail`, write the **issues file** — the run report's paired `.json` (same stem,
+same `reports/` folder, sharing its N and K) — carrying the same canonical-finding
+`issues[]` shape the prior verdict artifact carried (`followUp.status` contract kept —
+camelCase, the key `eng --build` writes back and the `--gui` board reads). It is
+consumed by `eng --build report=<that .json path>`, which fixes the findings and the
 branch comes back through the gate. `followUp.suggested_command` =
-`eng --build gate-json=msg-gate/gate-<n>.json`.
+`eng --build report=<that .json path>` — kept as the deep-link fallback
+`fix-loop.md` resumes from if the user declines.
+
+Once the issues file **and** the run report are written, hand off to
+`../shared/refs/fix-loop.md` — it runs Offer #1 (plan the fixes with `eng --plan`)
+→ Offer #2 (orchestrated `eng --build`) off this same issues file. Do **not**
+re-spell the offer wording here; fix-loop.md owns it. The gate does not dead-end on
+the issues file — the loop walks the user from "issues found" to "fixes planned + built".
 
 ## Step 9 — Open the PR (clean verdict only)
 
@@ -113,7 +122,8 @@ On `pass` / `pass_with_warnings` **and** an approved preview (when the gate fire
 Step 1 sync target — `staging`, else `main`) with the verdict JSON + report
 path linked in the body. Record `pr_url`. **Never** `gh pr merge` — post-merge
 `--staging` merges it on green CI (Part C). On a non-clean verdict, skip Step 9 —
-the fail-ticket is the output.
+no PR opens; the **Issues-file loop** above runs instead (issues file → fix-loop),
+so the gate never dead-ends.
 
 ## References
 
@@ -128,6 +138,7 @@ the fail-ticket is the output.
 - `refs/output-schema.md` — final emission schema · `refs/finding-schema.md` — per-finding shape
 - `refs/severity-rubric.md` — grading + short-circuit rules · `refs/refusal-patterns.md` — refusal shapes
 - `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/verify-prelude.md`
+- `../shared/refs/fix-loop.md` — post-failure Offer #1 → Offer #2 sequence the issues-file loop hands off to
 - `.claude/scripts/pre-merge-tooling-detect.sh` — tooling fingerprint (Step 0/1)
 - `.claude/scripts/pre-merge-aggregate-verdict.sh` — Step 5 per-bucket verdict aggregation/merge
 - `scripts/resolve-diff.sh` — diff-vs-base structured summary

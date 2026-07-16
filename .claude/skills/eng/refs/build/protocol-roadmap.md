@@ -22,7 +22,7 @@ The `roadmap` source's required-field set is just the mode flag plus the roadmap
 Rejections (all hard failures — emit and stop):
 
 - `roadmap=` with `--plan` → `Hard failure: roadmap= is a --build-only input source`.
-- `roadmap=` together with `prd-path`/`rows` **or** `gate-json` → `Hard failure: pass exactly one of prd-path+rows, gate-json, or roadmap (ambiguous input source).`
+- `roadmap=` together with `prd-path`/`rows` **or** `report` → `Hard failure: pass exactly one of prd-path+rows, report, or roadmap (ambiguous input source).`
 - A `roadmap` path that does not exist or has no phases → `Hard failure: roadmap <path> not found or empty`.
 
 ## Persona — product operations specialist
@@ -90,7 +90,7 @@ Never build a non-full PRD without the user resolving it (amend or skip). For ea
 2. **Build.** Derive the agent roster and each agent's rows from the PRD's §7 execution table (Agent column) — one agent per platform/stack, disjoint files. **Compile standards once per stack:** for each distinct stack in the roster, call `/cook` a single time via explicit flags (`--global` + the stack's domain flags + a `:testing` sub-ref when that agent owns a Tests row — the flag derivation is in `refs/build/protocol.md` § Coding-standards flags) and keep the compiled payload; reuse the same payload for every agent on that stack (at most one cook call per distinct stack per run). Then spawn **one `eng --build` subagent per agent, all in a single message** (parallel), each with `commit_mode=direct`, `branch=$BRANCH`, its stack's **standards payload**, its **scoped context** (this agent's rows + the PRD feature sections they map to + the devkit digest), and the § Subagent contract prefix. Collect each agent's structured build summary.
 3. **Pre-merge — the gate (against the acceptance done-set).** Spawn a `pre-merge` subagent (via the Subagent contract) with `--prd <path>` so its regression (Step 4) and PRD-consistency (Step 7) stages measure against this PRD's done-set — not a generic pass. Pre-merge runs the whole gate sequence (mechanical, unit-int, regression, platform buckets, security, migration, PRD-consistency) and returns its verdict JSON. Pool the open findings: every `pre-merge` finding at `blocker`/`high` + **any acceptance criterion in the done-set that pre-merge's PRD-consistency stage reports unmet or unverified** (a `high`/major issue the fix loop must close).
 4. **Fix loop (accepts no failures).** `round = 0`. While pooled critical+major issues remain and `round < max_rounds`:
-   - Spawn `eng --build gate-json=<the msg-gate/gate-N.json ticket pre-merge wrote>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings, each carrying its stack's already-compiled **standards payload** (reused from the Build step — no new cook call) and its scoped context per the § Subagent contract.
+   - Spawn `eng --build report=<the report-prd-N-K.json issues file pre-merge wrote>` fix subagents (grouped by owning agent/file), scoped to **only** the pooled findings, each carrying its stack's already-compiled **standards payload** (reused from the Build step — no new cook call) and its scoped context per the § Subagent contract.
    - Re-run `pre-merge`; re-pool. `round += 1`.
    - Re-apply the § Guardrails DB/data check to the fix diff each round.
    **Exit:** zero pooled critical+major → PRD passes to step 5. `round == max_rounds` with issues still open → **PAUSE**: emit the residual issues and `AskUserQuestion` (Run more rounds / Skip this PRD with a logged blocker / Stop the run). Never silently pass a PRD with open critical/major issues.
@@ -139,7 +139,7 @@ Stage → skill mapping (Build/Fix carry the injected `standards payload` + scop
 | Stage | Skill | Invocation |
 |-------|-------|-----------|
 | Build | `eng` | `--build prd-path=<p> rows=<...> branch=$BRANCH agent=<eng-platform> commit_mode=direct` |
-| Fix | `eng` | `--build gate-json=<msg-gate/gate-N.json> branch=$BRANCH` |
+| Fix | `eng` | `--build report=<report-prd-N-K.json> branch=$BRANCH` |
 | Gate | `pre-merge` | `Skill("pre-merge", "<branch> --prd <p>")` inside the subagent |
 | Ship | `post-merge` | `Skill("post-merge", "--staging --prd <p>")` inside the subagent — only after Gate opened a clean PR; never `--production` |
 

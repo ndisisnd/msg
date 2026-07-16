@@ -114,7 +114,7 @@ unmapped or no-intake-ancestor PRD is not an error).
 
 ## Run report
 
-Write `report-[n].md` (`skill: post-merge`, production flavor) — release-style:
+Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored **or its smoke check failed** (Step 7).
 - `## Work done` — PRDs shipped, commit count, platforms deployed.

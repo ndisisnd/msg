@@ -28,14 +28,14 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "prior_issues_loaded": false,
   "profile": "strict" | "standard" | "lenient",
   "preview": { "fired": false, "approved": null, "kind": null, "artifact": null },
-  "gate_ticket": "msg-gate/gate-<n>.json" | null,
+  "issues_file": "features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json" | "features/reports/report-<K>.json" | null,
   "pr_url": "<feature→staging PR url>" | null
 }
 ```
 
 - `profile` — the Step 0 platform-tolerance profile resolved for this run.
 - `preview` — Step 8 outcome (`fired: false` when the D6 trigger didn't match).
-- `gate_ticket` — path to the fail-ticket written on a non-clean verdict (`fail`), consumed by `eng --build gate-json=`; `null` on a clean pass.
+- `issues_file` — path to the issues file written on a non-clean verdict (`fail`), consumed by `eng --build report=`; `null` on a clean pass. NO-PRD runs fall back to `features/reports/report-<K>.json`.
 - `pr_url` — the feature→staging PR opened at Step 9 on `pass`/`pass_with_warnings`; `null` otherwise. Pre-merge never merges it.
 
 ## Verdict semantics

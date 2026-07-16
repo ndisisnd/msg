@@ -50,6 +50,7 @@ invocation.
 - Does NOT run when `post-merge-protection.sh --verify` reports the branch unprotected — refuses with the bootstrap instruction.
 - Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), and its run report.
 - Does NOT report a deploy as shipped without running the platform's `smoke_cmd` against the deployed target (unconfigured → recorded as skipped with a note, per `refs/verify-deploy.md`).
+- A failed ship is **not** a refusal — the merge already happened; on a deploy/smoke failure post-merge writes the colocated issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` and enters the fix loop (`../shared/refs/fix-loop.md`) rather than dead-ending.
 
 ## Inputs / Outputs
 
@@ -61,8 +62,9 @@ invocation.
 | Out | staging_signoff | `staging-signoff: <YYYY-MM-DD>` stamped into PRD frontmatter (`--staging`, on approval) |
 | Out | human_test_script | printed + carried in the run report (`--staging`) |
 | Out | release_pr | PR staging→main, release-style body (`--production`) |
-| Out | run_report | `report-[n].md` per `../shared/refs/report-schema.md` (`skill: post-merge`) |
+| Out | run_report | `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: post-merge`) |
 | Out | verdict_json | on refusal / deploy failure — finding(s) per `refs/output-schema.md` |
+| Out | issues_file | `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` on a failed ship (deploy/smoke failure) — consumed by `eng --build report=` |
 
 Finding shape: `../shared/refs/finding-schema.md` (source `post-merge`). Report: `../shared/refs/report-schema.md`.
 
@@ -73,7 +75,9 @@ the staging merge and the production release. Trusts machines for what machines
 verify (green CI, branch protection) and humans for what only humans can judge
 (does staging actually work; do we really ship). Never self-certifies staging;
 never ships to production on its own say-so. Compact and checklist-driven —
-states what will happen, does it, reports what happened.
+states what will happen, does it, reports what happened. When a ship fails at
+deploy or smoke — the merge already stands — it doesn't just stop: it writes the
+issues file and walks the user into the fix loop.
 
 ## Mode: `--staging` (Steps 1–7)
 
@@ -89,7 +93,7 @@ Loads `refs/staging.md`. Run in order; any refusal emits `refs/refusal-patterns.
 | 6 | **Emit human test script + STOP** — derive from the shipped PRD report's `## How to verify` sections + acceptance criteria; post-merge never self-certifies staging | `refs/human-test-script.md` |
 | 7 | **Stamp sign-off (on approval)** — explicit `AskUserQuestion` ("staging works"); on yes stamp `staging-signoff: <YYYY-MM-DD>` into the PRD frontmatter (D11) | `refs/staging.md` |
 
-Then write the run report (`skill: post-merge`, staging flavor — carries the human test script).
+Then write the run report (`skill: post-merge`, staging flavor — carries the human test script, and the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
 
 ## Mode: `--production` (Steps 1–8)
 
@@ -106,7 +110,32 @@ Loads `refs/production.md`. The gates here never relax.
 | 7 | **Verify the deploy** — run each platform's `smoke_cmd` against the live target; failure → `smoke-failed` finding, verdict `fail`, skip Step 8, surface rollback notes; unconfigured → skipped with a note | `refs/verify-deploy.md` |
 | 8 | **Stamp intake `completed`** — only on a verified (or verify-skipped) deploy; for each shipped PRD, set its mapped `INTAKE.md` row's `status` to `completed` (D14); unmapped / no `INTAKE.md` → skip with a note | `refs/production.md` |
 
-Then write the run report (`skill: post-merge`, production flavor — release-style, iOS `IRREVERSIBLE` surfaced).
+Then write the run report (`skill: post-merge`, production flavor — release-style, iOS `IRREVERSIBLE` surfaced, carrying the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
+
+## Failed-ship loop (failed ship)
+
+When a ship **fails** — a non-zero deploy (`deploy` finding) or a smoke-check
+failure (`smoke-failed` finding), verdict `fail`, in **either** mode — the merge
+already happened, so post-merge does not dead-end on the failure. In order:
+
+1. **Write the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`**
+   — colocated in the PRD's `reports/` folder, sharing `N`/`K` with the run
+   report `.md` (NO-PRD fallback: `features/reports/report-<K>.json`). Same
+   canonical-finding `issues[]` shape pre-merge writes (`followUp.status`
+   contract kept — camelCase, the key `eng --build` writes back and the `--gui`
+   board reads). `followUp.suggested_command` =
+   `eng --build report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` —
+   the deep-link fallback `fix-loop.md` resumes from if the user declines.
+2. **Write the run report** (above) — it carries the `## Issue summary` block.
+3. **Print the terminal `Issue summary` block** (above).
+4. **Hand off to `../shared/refs/fix-loop.md`** — it runs Offer #1 (plan the
+   fixes with `eng --plan`) → Offer #2 (orchestrated `eng --build`) off this same
+   issues file. Do **not** re-spell the offer wording here; fix-loop.md owns it.
+
+Applies identically to `--staging` (Step 5 smoke failure / Step 4 deploy failure)
+and `--production` (Step 7 smoke failure / Step 6 deploy failure) — the mode's
+own skip rules (`refs/verify-deploy.md`) still apply. The fixed branch comes back
+through `/pre-merge` and this gate; the gate does not dead-end on the issues file.
 
 ## References
 
@@ -118,5 +147,7 @@ Then write the run report (`skill: post-merge`, production flavor — release-st
 - `refs/human-test-script.md` — deriving the staging human test script (D11 human gate)
 - `refs/refusal-patterns.md` — refusal shapes (red CI, missing sign-off, unconfirmed, unprotected)
 - `refs/output-schema.md` — finding/verdict emission on refusal or deploy failure
+- `../shared/refs/fix-loop.md` — the post-failure Offer #1 → Offer #2 sequence run on a failed ship
+- `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` — the issues file written on a failed ship (canonical `issues[]`, `followUp` contract)
 - `.claude/scripts/post-merge-protection.sh` — `--verify` / `--bootstrap` (C3 / D11)
 - `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`

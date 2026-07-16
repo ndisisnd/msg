@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-16
+
+### [3] — Add the failure→fix→re-gate loop and unify run reports into one artifact per run
+
+- `.claude/skills/shared/refs/fix-loop.md`: new — after a failed pre-merge/post-merge run, a two-offer sequence walks the user from "issues found" to "fixes planned + built": Offer #1 runs `eng --plan report=` (writes a fix plan), Offer #2 runs the orchestrated `eng --build report=`. Autonomy-aware (both offers pre-approved under a roadmap orchestrator)
+- `.claude/skills/eng/refs/plan/report-fix.md`: new — the `eng --plan report=` source; projects the issues file's findings into a fix plan (exec-table + fix tickets), one ticket per issue, each tagged `complexity: simple|complex`
+- `.claude/skills/eng/refs/build/report-fix-orchestrated.md`: new — the default `eng --build report=` route; an Opus orchestrator grades each issue's complexity and fans the fixes out to per-issue subagents (`model: sonnet` simple / `model: opus` complex), one commit per issue, re-verifies each ticket, then writes `followUp.status`
+- `.claude/skills/eng/refs/build/report-fix.md`: renamed from `protocol-build-gatejson.md`; routes the fix build to the orchestrated ref by default (`orchestrate=off` escape hatch to the flat flow)
+- `.claude/skills/eng/SKILL.md`, `refs/build/protocol.md`, `refs/build/protocol-roadmap.md`, `refs/plan/template-todo.md`: the eng fix flag `gate-json=` is now `report=`; `--plan report=` is now accepted (was a hard failure)
+- `.claude/skills/pre-merge/SKILL.md`, `.claude/skills/post-merge/SKILL.md`: on a failed run write the colocated machine issues file and hand off to `fix-loop.md`; post-merge now enters the loop on a deploy/smoke failure (both modes) instead of dead-ending; terminal issue-count block printed on every report write
+- `.claude/skills/shared/refs/report-schema.md`: unified run report — the three forms of a run share one stem in `features/prd-<N>-<slug>/reports/`: `report-prd-<N>-<K>.md` (human), `report-prd-<N>-<K>.json` (machine issues, on failure), `report-prd-<N>-<K>-fix-plan.md`; per-PRD `K` numbering; new `## Issue summary` body section
+- `.claude/skills/shared/refs/finding-schema.md`, `.claude/skills/pre-merge/refs/output-schema.md`, `refs/mechanical.md`, `refs/regression.md`, `.claude/skills/post-merge/refs/staging.md`, `refs/production.md`: retired the `msg-gate/gate-<n>.json` / `gate-json` vocabulary in favour of the issues file
+- `.claude/skills/msg/refs/gui/server.py`, `index.html`, `.claude/skills/msg/refs/protocol-gui.md`: the GUI reads the issues `.json` from the reports folders (not `msg-gate/`), skips `-fix-plan.md` when collecting reports, and deep-links `report=`
+- `.claude/scripts/pre-merge-aggregate-verdict.sh`, `.claude/skills/improve/plan-msg-v2.md`: stale-token cleanup
+
 ## 2026-07-14
 
 ### [2] — /pre-merge now works in repos with no staging branch instead of refusing
