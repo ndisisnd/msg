@@ -2,6 +2,20 @@
 
 ## 2026-07-16
 
+### [4] — One-time `--doctor` setup for the gates: detect tooling, record release + protection policy
+
+- `.claude/skills/shared/refs/policy-schema.md`: new — canonical `devkit/policy.json` schema, fail-safe validation rules, and the gate read-contract (init lifecycle, release_flow, branch_protection, per-step decisions) both gates consult
+- `.claude/skills/pre-merge/refs/protocol-doctor.md`: new — `/pre-merge --doctor` spec: detector-null→gap mapping, the three-flavor gap taxonomy, the OSS-first (free-only) install catalog, gated interview, and stub scaffolding
+- `.claude/skills/post-merge/refs/protocol-doctor.md`: new — `/post-merge --doctor` spec: branch-topology + branch-protection (Free-plan-403 auto-detect) + deploy/smoke CLI detection, PLATFORMS.md gaps delegated to `/msg --init`
+- `.claude/scripts/doctor-detect-repo.sh`: new — read-only probe of repo visibility, branch-protection availability, and staging/prod topology → JSON for the doctor to consume
+- `.claude/skills/pre-merge/refs/stubs/`: new — minimal runnable config templates (eslint, biome, prettier, ruff, vitest, playwright, size-limit) the doctor scaffolds for config-missing tools
+- `.claude/skills/pre-merge/SKILL.md`: `--doctor` usage, an `init` pre-flight that auto-runs the doctor until setup completes, `release_flow`-based PR base, and a Steps 2/3/5/6 policy consult — an absent `policy.json` keeps today's behavior
+- `.claude/skills/post-merge/SKILL.md`: `--doctor` usage, the `init` pre-flight, policy-conditional branch protection (enforced/optional/skip), and release-flow handling incl. the direct-mode single ship
+- `.claude/skills/post-merge/refs/protection.md`: branch-protection precondition is now policy-conditional — only `enforced` refuses on unprotected; `optional` warns and proceeds, `skip` skips
+- `.claude/skills/post-merge/refs/refusal-patterns.md`: `unprotected` refusal made conditional; new `no_staging_stage` refusal for direct-mode `--staging`
+- `.claude/skills/msg/SKILL.md`: `--init` now captures the release flow and seeds `policy.json`; new `--init-staging` mode adds a staging branch and flips the flow to staged
+- `.claude/skills/msg/refs/protocol-init.md`: the `--init` interview gains the release-flow call and the idempotent `policy.json` seed write
+
 ### [3] — Add the failure→fix→re-gate loop and unify run reports into one artifact per run
 
 - `.claude/skills/shared/refs/fix-loop.md`: new — after a failed pre-merge/post-merge run, a two-offer sequence walks the user from "issues found" to "fixes planned + built": Offer #1 runs `eng --plan report=` (writes a fix plan), Offer #2 runs the orchestrated `eng --build report=`. Autonomy-aware (both offers pre-approved under a roadmap orchestrator)

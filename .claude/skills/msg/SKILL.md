@@ -5,8 +5,9 @@ description: >
   project bootstrap — use it when the user says "initialise project",
   "bootstrap repo", "set up the framework", "start a new project", or asks
   to set up project structure in an empty repo (scaffolds devkit/ and root
-  files via a three-phase interview; idempotent, never overwrites). Other
-  modes: `--gui` (local PRD board), `--help` (guided skill picker).
+  files via a batched interview; idempotent, never overwrites). Other
+  modes: `--init-staging` (add a staging branch + flip release flow to staged),
+  `--gui` (local PRD board), `--help` (guided skill picker).
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -19,7 +20,8 @@ allowed_tools:
 ## Usage
 
 **Invoke**: `/msg` — two-step category → skill picker.
-**Invoke**: `/msg --init` — one-time project bootstrap (devkit/ + root files). Protocol: [`refs/protocol-init.md`](refs/protocol-init.md).
+**Invoke**: `/msg --init` — one-time project bootstrap (devkit/ + root files, incl. the `policy.json` release-flow seed). Protocol: [`refs/protocol-init.md`](refs/protocol-init.md).
+**Invoke**: `/msg --init-staging` — add a `staging` branch to a direct-flow repo and flip `policy.json` release flow to `staged` (the only mode that creates a staging branch). Protocol: [Protocol: --init-staging](#protocol---init-staging).
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
 **Invoke**: `/msg --gui` (or `/msg gui`) — launch the local interactive PRD board (Kanban/List, editing, todos, prompt console, project docs).
 
@@ -63,6 +65,9 @@ Before running any picker, check the invocation:
 
 1. `--init`, or a natural-language bootstrap request — "initialise project", "bootstrap repo",
    "set up the framework", "start a new project" — → **Protocol: --init**. Skip the picker.
+1b. `--init-staging`, or a natural-language request to add a staging stage — "add a staging
+   branch", "set up staging", "switch to a staged release flow" — → **Protocol: --init-staging**.
+   Skip the picker.
 2. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
    "show me the PRD board", "visualize my PRDs", "open kanban" — → **Protocol: --gui**. Skip
    the picker; do not call `AskUserQuestion`; go straight to rendering.
@@ -74,10 +79,74 @@ Before running any picker, check the invocation:
 ## Protocol: --init
 
 Dispatch to [`refs/protocol-init.md`](refs/protocol-init.md) and follow it end to end: scan the
-working directory (`refs/init/init-setup.sh`), run the batched three-phase interview (≤4
-`AskUserQuestion` calls), then generate the missing devkit/ and
+working directory (`refs/init/init-setup.sh`), run the batched interview — project basics,
+architecture, release flow, design system (≤5 `AskUserQuestion` calls) — then generate the missing devkit/ and
 root files deterministically via `refs/init/init.sh`. Idempotent — existing files are never
-overwritten. Do not run a picker.
+overwritten. Do not run a picker. The interview also captures the **release flow** and seeds
+`devkit/policy.json` (`version:1`, `init:false`, `policies.release_flow`) — see the protocol.
+
+---
+
+## Protocol: --init-staging
+
+The **only** path that creates a `staging` branch. It takes a direct-flow repo (ships straight to
+prod) and adds the staging stage: branch `staging` off the prod branch, push it, offer branch
+protection, then flip `devkit/policy.json` release flow to `staged`. Offered by
+`/post-merge --doctor` when it detects a direct-flow repo, and directly invocable. Skip the picker.
+
+**Preconditions.**
+- A git repo with `devkit/policy.json` present. If it is **absent**, the repo was never bootstrapped —
+  stop and direct the user to run `/msg --init` first (that seeds the policy this mode flips). Do not
+  create the file here.
+- Read `policies.release_flow.prod_branch` from `devkit/policy.json` (default `main`). This is the
+  branch `staging` is cut from.
+
+**Step 1 — Create + push the `staging` branch (the only branch creation in msg).**
+Idempotency first — if `staging` already exists locally or on the remote, skip creation and go
+straight to Step 3 (the branch is already there):
+
+```bash
+git show-ref --verify --quiet refs/heads/staging && echo LOCAL_STAGING
+git ls-remote --exit-code --heads origin staging >/dev/null 2>&1 && echo REMOTE_STAGING
+```
+
+If neither prints, create it off the prod branch and publish it:
+
+```bash
+git branch staging "<prod_branch>"     # cut staging from the recorded prod branch
+git push -u origin staging             # publish (skip if there is no remote — note it)
+```
+
+**Step 2 — Offer branch protection (gated).** Adding a staging stage means `/post-merge` will gate
+on it, so offer to protect `staging` (and `main`) now. One `AskUserQuestion`:
+
+> header **Branch protection**, question "Apply branch protection to `staging` + prod now? (required for `/post-merge`)"
+> - **Yes, bootstrap it** — run `bash .claude/scripts/post-merge-protection.sh --bootstrap` (resolve locally-first, else `$HOME/.claude/scripts/…`); it's idempotent. Print each `BOOTSTRAPPED`/`BOOTSTRAP_FAILED` line.
+> - **Skip** — note `/post-merge` will refuse until protection is set; the user can re-run the script later.
+
+Skip this offer silently when there is no GitHub remote or no `gh` (nothing to protect yet). Never a
+hard failure.
+
+**Step 3 — Flip the release flow in `devkit/policy.json`.** Surgically edit the existing file
+(preserve `version`, `init`, and `prod_branch`), setting four fields:
+
+```
+policies.release_flow.mode           = "staged"
+policies.release_flow.staging_branch = "staging"
+generated                            = "<today, YYYY-MM-DD>"   # the skill stamps it — this mode wrote the file
+generated_by                         = "msg --init-staging"
+```
+
+Leave `init` untouched — this mode does not complete setup (that's `--doctor`'s job) — but **do**
+refresh the provenance fields (`generated`/`generated_by`) since this mode is a policy-file writer.
+Do **not** rewrite the file from scratch; edit only these fields. After this, `policy.json` reads
+`release_flow.mode:"staged"`, `staging_branch:"staging"` (AC-RF5). Schema authority:
+[`shared/refs/policy-schema.md`](../shared/refs/policy-schema.md) (writers table — `/msg --init-staging`
+performs the "flow flip").
+
+**Step 4 — Summary.** Print what happened: branch created (or already present), protection applied
+(or skipped), and the new `staged` flow. Suggest next: `/pre-merge` now opens PRs against `staging`.
+This mode never merges, deploys, or opens PRs.
 
 ---
 

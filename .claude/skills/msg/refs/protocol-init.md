@@ -2,12 +2,13 @@
 name: msg-protocol-init
 description: >
   Protocol for /msg --init — one-time project bootstrap. Scans the working
-  directory, runs a three-phase interview (project basics, architecture,
-  design system), then creates a `devkit/` directory containing AHA.md,
-  GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, and OPEN-QUESTIONS.md,
-  plus root-level README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the
-  features/ directory. Idempotent — skips files that already exist; never
-  overwrites. All other msg skills read these files but never create them.
+  directory, runs a batched interview (project basics, architecture, release
+  flow, design system), then creates a `devkit/` directory containing AHA.md,
+  GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
+  seed `policy.json` (release-flow policy, `init:false`), plus root-level
+  README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the features/ directory.
+  Idempotent — skips files that already exist; never overwrites. All other msg
+  skills read these files but never create them.
 type: reference
 ---
 
@@ -37,6 +38,7 @@ type: reference
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
 | `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
+| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`); `--doctor` completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
@@ -47,6 +49,7 @@ type: reference
 | Working directory state | `key=value` lines from `init-setup.sh` | `init-setup.sh` at Step 1 |
 | Project metadata | Interview answers | `AskUserQuestion` at Step 2 |
 | Architecture details | Interview answers | `AskUserQuestion` at Step 2 |
+| Release flow | Interview answers (mode + branches), pre-filled from branch topology | `AskUserQuestion` at Step 2, Call 4 |
 | Design system details | Interview answers | `AskUserQuestion` at Step 2 |
 | Optional brief | Free text | User message at invocation |
 
@@ -61,6 +64,7 @@ type: reference
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with design system interview | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform selected at the interview (P1 answer) | `<cwd>/devkit/PLATFORMS.md` |
+| devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Call 4. Only these keys (AC-LC1). Never overwritten (AC-LC7). Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
@@ -89,7 +93,7 @@ If `ALL_COMPLETE=true`, emit `All foundational files exist — nothing to initia
 
 **Step 2/5 — Interview (batched)**
 
-Run the full interview — project basics, architecture, design system — as **batched `AskUserQuestion` calls, 3–4 questions per call**, in the four calls below (Call 4 fires only when a UI layer exists). The whole interview completes in **≤4 `AskUserQuestion` calls**; no question is dropped. `AskUserQuestion` returns all answers in a call together, so ask each call's full set at once. Hold every answer in conversation context under the variable names given.
+Run the full interview — project basics, architecture, release flow, design system — as **batched `AskUserQuestion` calls, 2–4 questions per call**, in the five calls below (Call 5 fires only when a UI layer exists). The whole interview completes in **≤5 `AskUserQuestion` calls** (≤4 when there's no UI layer); no question is dropped. `AskUserQuestion` returns all answers in a call together, so ask each call's full set at once. Hold every answer in conversation context under the variable names given.
 
 **Call 1 — Project basics** (Q1, Q2, Q2b, Q3):
 
@@ -118,7 +122,7 @@ Skip Q2 when `STACK_HINTS` has exactly one entry — in that case set `PLATFORM 
 | A4 | Authentication approach? | 4 options + Other: JWT / stateless sessions, OAuth 2.0 / SSO, API keys, None / not applicable | `ARCH_AUTH` |
 | A5 | Deployment pipeline? (e.g. GitHub Actions → AWS ECS, Vercel, manual) | 4 options + Other: GitHub Actions, Vercel / Netlify, AWS / GCP / Azure, Not decided yet | `ARCH_DEPLOYMENT` |
 | P1 | Which platforms does this project ship to? (drives `/pre-merge` tolerance profiles in `devkit/PLATFORMS.md`) | 4 options (multiSelect) + Other: Web, iOS, Android, macOS | `PLATFORMS_SHIPPED` |
-| D1 | Does this project include a UI layer? | 2 options: Yes, No | (gates Call 4) |
+| D1 | Does this project include a UI layer? | 2 options: Yes, No | (gates Call 5) |
 
 P1 is the one v2 interview addition. Map the selected labels to the space-separated
 platform keys `PLATFORMS` passes to `init.sh` (Web→`web`, iOS→`ios`, Android→`android`,
@@ -126,7 +130,28 @@ macOS→`macos`); an `Other` platform is recorded but has no baked default row �
 so the user adds a row by hand. If P1 is skipped/empty, `init.sh` scaffolds all four
 default rows for the user to prune.
 
-**Call 4 — Design system** (D2, D3, D4) — **only if D1 = "Yes"**:
+**Call 4 — Release flow** (RF1, RF2, RF3):
+
+First detect the current branch topology to pre-fill the answers (the skill runs this inline — `init.sh` never dates or branches):
+
+```bash
+git rev-parse --abbrev-ref HEAD 2>/dev/null                              # current branch
+git show-ref --verify --quiet refs/heads/staging && echo HAS_STAGING     # staging present?
+git show-ref --verify --quiet refs/heads/main    && echo HAS_MAIN
+git show-ref --verify --quiet refs/heads/master  && echo HAS_MASTER
+```
+
+A `staging` branch already present → pre-select RF1 = **Staged**; otherwise pre-select **Direct**. Set RF2's prod default to `main` if present, else `master`, else the current branch.
+
+| Q | Question | Format | Holds as |
+|---|----------|--------|----------|
+| RF1 | What's your release flow? | 2 options: `Staged` (feature → staging → prod), `Direct` (straight to prod) | `RELEASE_FLOW` |
+| RF2 | Which branch is production? | Free text, default from topology (`main`/`master`/current) | `PROD_BRANCH` |
+| RF3 | Staging branch name? (ignored when Direct) | Free text, default `staging` | `STAGING_BRANCH` |
+
+Resolve after the call: if `RELEASE_FLOW` = `Direct`, discard RF3 and set `STAGING_BRANCH = null`; if `Staged` and RF3 is blank, `STAGING_BRANCH = "staging"`. These three feed the `policy.json` seed at Step 3 (`policies.release_flow`).
+
+**Call 5 — Design system** (D2, D3, D4) — **only if D1 = "Yes"**:
 
 | Q | Question | Format | Holds as |
 |---|----------|--------|----------|
@@ -134,7 +159,7 @@ default rows for the user to prune.
 | D3 | Where do your design tokens live? (e.g. src/tokens/colors.ts, Figma variables, CSS custom properties) | Free text or "Not defined yet" | `DS_TOKENS` |
 | D4 | Any naming or folder structure conventions for components? (e.g. Atomic design, feature-based folders) | Free text or "None yet" | `DS_CONVENTIONS` |
 
-If D1 = "No", skip Call 4 entirely and set `DS_LIBRARY`, `DS_TOKENS`, `DS_CONVENTIONS` all to "Not applicable — no UI layer." (interview then completes in 3 calls).
+If D1 = "No", skip Call 5 entirely and set `DS_LIBRARY`, `DS_TOKENS`, `DS_CONVENTIONS` all to "Not applicable — no UI layer." (interview then completes in 4 calls).
 
 **Step 3/5 — Generate missing files**
 
@@ -160,6 +185,39 @@ DS_CONVENTIONS="<D4 answer>" \
 ```
 
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
+
+**Seed `devkit/policy.json`.** After `init.sh` returns (so `devkit/` exists), seed the committed
+release-flow policy file. The **skill writes this one directly** (via `Write`) — not `init.sh` —
+because the seed carries a `generated` date and scripts can't stamp the date. Schema authority:
+[`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) ("Seed skeleton").
+
+1. **Idempotent — never overwrite.** If `<cwd>/devkit/policy.json` already exists, skip it
+   entirely (do not read, do not rewrite) and note it as `skipped (exists)` alongside the manifest
+   (AC-LC7). Consistent with `init.sh`'s "writes only files absent from the target" rule.
+2. Otherwise write **exactly** the keys below — `version`, `init:false`, `generated`,
+   `generated_by`, and `policies.release_flow` from Call 4, and **nothing else** (no `repo`, no
+   `branch_protection`, no `steps` — those are `--doctor`'s to fill, which is why `init` is
+   `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`:
+
+```json
+{
+  "version": 1,
+  "init": false,
+  "generated": "<today, YYYY-MM-DD>",
+  "generated_by": "msg --init",
+  "policies": {
+    "release_flow": {
+      "mode": "<staged|direct>",
+      "prod_branch": "<PROD_BRANCH>",
+      "staging_branch": "<STAGING_BRANCH, or null in direct mode>"
+    }
+  }
+}
+```
+
+Map Call 4: `RELEASE_FLOW` Staged → `"staged"`, Direct → `"direct"`; `prod_branch` = `PROD_BRANCH`;
+`staging_branch` = `STAGING_BRANCH` (already resolved to `null` for direct, `"staging"` default for
+staged). Add `devkit/policy.json` to the Step 5 manifest as `created` (or `skipped (exists)`).
 
 **Step 4/5 — Verify**
 
@@ -210,3 +268,4 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform tolerance profiles + staging/production deploy commands; assembled from the P1 interview answer)
 - `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
 - `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)
+- `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`)

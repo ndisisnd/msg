@@ -1,6 +1,6 @@
 ---
 name: post-merge-refusal-patterns
-description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, missing sign-off, unconfirmed release, or unprotected branches.
+description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, missing sign-off, unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
 ---
 
 # Refusal Patterns
@@ -24,7 +24,8 @@ Common shape:
 
 | `reason` | Mode | When it fires | `detail` guidance |
 |---|---|---|---|
-| `unprotected` | both | Step 1/2 — `post-merge-protection.sh --verify` returns `UNPROTECTED`/`NO_GH`/`NO_REMOTE` | list the missing protection; give the exact `--bootstrap` command |
+| `unprotected` | both | Step 1/2 — **only when the resolved `branch_protection` mode is `enforced`** and `--verify` returns `UNPROTECTED`; **or** `NO_GH`/`NO_REMOTE` in any mode. Under `optional` an `UNPROTECTED` **warns + proceeds** (not a refusal); `skip` doesn't verify (`../shared/refs/policy-schema.md` §2) | list the missing protection; give the exact `--bootstrap` command. For `NO_GH`/`NO_REMOTE` cite the missing prerequisite, not protection |
+| `no_staging_stage` | staging | `release_flow.mode = direct` — there is no staging branch to merge into, so `--staging` cannot run (`../shared/refs/policy-schema.md` §1) | name both `/post-merge --production` (single ship straight to `prod_branch`, all human gates preserved) and `/msg --init-staging` (add a staging stage first) |
 | `no_pr` | staging | Step 2 — no open feature→staging PR to merge | run `/pre-merge` first, or the PR already merged |
 | `red_ci` | both | CI has a failing check | list each failing check name; fix + re-gate via `/pre-merge` |
 | `pending_ci` | both | CI still running | list pending checks; re-run post-merge when CI settles (post-merge does not poll) |

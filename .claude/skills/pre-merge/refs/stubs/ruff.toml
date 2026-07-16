@@ -1,0 +1,6 @@
+# Minimal Ruff config — scaffolded by `/pre-merge --doctor`.
+line-length = 100
+
+[lint]
+# pycodestyle errors, pyflakes, import sorting — a sane starting set.
+select = ["E", "F", "I"]

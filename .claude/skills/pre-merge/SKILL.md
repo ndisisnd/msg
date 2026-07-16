@@ -28,6 +28,7 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 ## Usage
 
 - `/pre-merge` — gate the current feature branch against `staging`
+- `/pre-merge --doctor` — run the doctor setup: detect tooling → interview → gated install → write `devkit/policy.json` (no gate run); see `refs/protocol-doctor.md`
 - `/pre-merge --prd <path>` — load a PRD for the regression (Step 4) + PRD-consistency (Step 7) stages (repeatable)
 - `/pre-merge --prior-issues <path>` — load a prior verdict JSON to mark regressions
 - `/pre-merge --full-secret-scan` — Step 6 scans the full tree (default: diff-only)
@@ -46,7 +47,7 @@ Natural language: "run pre-merge", "gate this before merge", "open the PR agains
 
 | | Name | Source / Destination |
 |--|------|----------------------|
-| In | base | default `staging` (falls back to `main` when no `staging` branch exists); diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
+| In | base | resolved via `release_flow` per `../shared/refs/policy-schema.md` §1 — `staged` → `staging_branch` (falls back to `main` when the branch is absent), `direct` → `prod_branch`; no policy → default `staging`, else `main`; diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
 | In | prd_paths | `--prd` (repeatable) — feeds Steps 4 + 7 |
 | In | prior_issues | `--prior-issues` JSON, optional |
 | Out | verdict_json | single JSON per `refs/output-schema.md` — final stdout emission |
@@ -65,6 +66,20 @@ what gets logged as accepted risk. Repeatable evidence over assertion; severity
 matched to reachability. Never modifies source (bar the sync-merge), never merges,
 never grades a blocker without quoted evidence. Compact and structured — tables over
 prose, severity counts before the issue list, JSON-first.
+
+## Pre-flight — `init` lifecycle (before Step 0)
+
+Before the diff prelude, load + validate `devkit/policy.json` once per run and check
+`init` per `../shared/refs/policy-schema.md` §0 (that ref owns the exact rules):
+
+| state | behavior |
+|---|---|
+| file **absent** | proceed on built-in defaults + one nudge line to run `/pre-merge --doctor` or `/msg --init`; **no** auto-doctor (back-compat, AC-LC6) |
+| `init: false` | **run `--doctor` inline first** (`refs/protocol-doctor.md`) — it flips `init: true`, then the gate continues; if the user **aborts** `--doctor`, stop and run **no** protocol step (AC-LC2, AC-LC4) |
+| `init: true` | proceed normally — no doctor (AC-LC5) |
+
+Malformed / `version` ≠ 1 → whole file treated as absent (defaults + one info line). The
+loaded policy also drives base resolution (below) and the Steps 2/3/5/6 consult.
 
 ## The gate sequence (Steps 0–9)
 
@@ -86,6 +101,14 @@ ref on demand — this file stays the spine.
 | 7 | **PRD-CONSISTENCY** — one spec-match pass: every F-ID's acceptance criteria met by the diff, nothing out-of-scope shipped | `refs/prd-consistency.md` | skipped (noted) with no `--prd` |
 | 8 | **PREVIEW DEPLOY (human gate)** — fires on the D6 path heuristic (UI / API / schema / migration paths), always in `strict`; produces the profile's `preview_kind` (url/artifact/screenshots); **BLOCKS on human approval** | `refs/preview.md` | no trigger → skipped + noted |
 | 9 | **OPEN PR feature→staging** — with the verdict JSON + report linked in the body | below | never merges, never touches `main` |
+
+**Policy consult (Steps 2, 3, 5, 6).** Before running, each of these steps consults its
+`steps.<key>` entry in the loaded `devkit/policy.json` per `../shared/refs/policy-schema.md`
+§3: `opted_out` / `n/a` → **skip silently** (zero findings/warnings); `ready` + live tool
+absent → one `medium` `policy-mismatch` finding, **then** the step's existing no-tooling
+path; `missing` / `deferred` → the existing `no_tooling` note; **key absent / no `policy.json`
+→ today's behavior unchanged** (back-compat invariant, AC-ST5). Except for the
+`policy-mismatch` finding, a `steps` entry never changes the pass/fail verdict.
 
 ## Aggregate + emit (after Step 8)
 
@@ -135,6 +158,8 @@ so the gate never dead-ends.
 - `refs/security.md`, `refs/migration.md` — Step 6 safety-floor stages
 - `refs/prd-consistency.md` — Step 7 spec-match pass
 - `refs/preview.md` — Step 8 preview deploy + human gate (D6/D10)
+- `refs/protocol-doctor.md` — `--doctor` mode: detect → interview → gated install → write `devkit/policy.json`
+- `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (pre-flight `init`, base `release_flow`, Steps 2/3/5/6 `steps.<key>`)
 - `refs/output-schema.md` — final emission schema · `refs/finding-schema.md` — per-finding shape
 - `refs/severity-rubric.md` — grading + short-circuit rules · `refs/refusal-patterns.md` — refusal shapes
 - `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/verify-prelude.md`
