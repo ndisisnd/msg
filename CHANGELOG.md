@@ -2,6 +2,10 @@
 
 ## 2026-07-16
 
+### [6] — Publish the v1.1.0 user-facing release notes
+
+- `RELEASES.md`: new — added the `v1.1.0 — 2026-07-16` section (user-facing notes for the `--doctor` gate setup, direct-flow shipping without a staging branch, self-fixing failed gate runs, and policy-conditional branch protection; covers changelog entries [3]–[5])
+
 ### [5] — Document the `--doctor` mode and `policy.json` in the project docs
 
 - `ARCHITECTURE.md`: added `doctor-detect-repo.sh` to the scripts table; added `devkit/policy.json` to the devkit layer — the one co-written devkit file (seeded by `--init`, completed by `--doctor`, flipped by `--init-staging`) — with its init-gated pipeline behavior; noted `--doctor`/`--init-staging` on the skill surface
