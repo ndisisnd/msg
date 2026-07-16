@@ -89,9 +89,36 @@ Run `init-setup.sh` via Bash:
 <msg_skill_dir>/refs/init/init-setup.sh "<cwd>"
 ```
 
-Parse the six `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, and `LANG_DEFAULT` in conversation context.
+Parse the eight `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, and `ROW_GAPS` in conversation context.
 
-If `ALL_COMPLETE=true`, emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step.
+**Resolve the run mode** — first row that matches:
+
+| Condition | Mode |
+|---|---|
+| `ALL_COMPLETE=true` **and** `ROW_GAPS=none` | **Nothing to do** — emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step. |
+| `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
+| otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
+
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/PLATFORMS.md` or
+`devkit/policy.json` existed can never receive them by waiting: `init.sh` writes any
+absent file, but the protocol used to stop at "nothing to initialise" before
+reaching it. Top-up is that repair — and it is **strictly additive**:
+
+- **Never rewrite a file that exists.** `init.sh`'s "writes only files absent from
+  the target" rule is untouched, and no step here edits prose a human wrote.
+  `devkit/AHA.md` and `GLOSSARY.md` in particular are accumulated institutional
+  knowledge — recreating them would destroy the thing they exist to hold.
+- **Missing files** are created by the ordinary Step 3 `init.sh` call.
+- **Missing rows** in files that already exist are added at Step 3b, additively,
+  behind a preview and an explicit confirmation.
+- **Ask only what the gap needs** (Step 2). A repo missing only `INTAKE.md` needs
+  no interview at all.
+- **No mode gate.** Top-up always uses [`protocol-eng.md`](protocol-eng.md). cto
+  mode recommends an architecture for a project that doesn't exist yet; a top-up
+  repo already has one, so there is nothing to advise on — asking is correct.
+
+Emit `Step X/5` progress as normal; Step 2 and Step 3b are the only steps that
+behave differently.
 
 **Step 2/5 — Interview (mode-gated, delegated)**
 
@@ -123,6 +150,34 @@ Both option labels must stay legible to a non-technical reader: the gate never s
 **Then dispatch** to the selected protocol and follow it end to end. It returns with
 every Step 3 variable resolved. Mode is invisible from here on: both protocols
 converge on the **identical** env-var set below, so Steps 3/4/5 never branch on it.
+
+**Top-up mode — ask only what the gap needs.** In top-up mode there is no gate:
+compute the **required-variable subset** from `MISSING` + any `ROW_GAPS` the user
+approves at Step 3b, using the table below, and pass that subset to
+[`protocol-eng.md`](protocol-eng.md), which asks only the questions that resolve it.
+A variable no missing file consumes is **not asked** — its file already exists and
+already carries its value.
+
+| Missing artifact | Variables it needs |
+|---|---|
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/` | **none** — no placeholders; pure template |
+| `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
+| `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
+| `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
+| `devkit/ARCHITECTURE.md` | `PROJECT_NAME`, `PLATFORM`, `ARCH_OVERVIEW`, `ARCH_EXTERNAL`, `ARCH_DATA_STORES`, `ARCH_AUTH`, `ARCH_DEPLOYMENT` |
+| `devkit/DESIGN-SYSTEM.md` | `PROJECT_NAME`, `DS_LIBRARY`, `DS_TOKENS`, `DS_CONVENTIONS` |
+| `devkit/PLATFORMS.md` | `PLATFORMS` — no placeholders, but it **selects the default rows** |
+| `devkit/policy.json` | `RELEASE_FLOW`, `PROD_BRANCH`, `STAGING_BRANCH` |
+| row gap `CLAUDE.md:language` | `LANGUAGE` |
+
+Two variables are free — take them without asking whenever they're needed:
+`PROD_BRANCH` from branch topology, and `LANGUAGE` from `LANG_DEFAULT` when
+detection resolved it. `PROJECT_NAME` can be read off an existing `README.md`/
+`CLAUDE.md` H1 rather than asked.
+
+**Everything the subset does not name keeps `init.sh`'s default.** That is safe by
+construction: every variable has a fallback, so an unasked one yields a `[USER: …]`
+stub in a file that didn't exist a moment ago — never a change to one that did.
 
 **Step 3/5 — Generate missing files**
 
@@ -189,6 +244,34 @@ resolved to `null` for direct, `"staging"` for staged). Both keys are a **downst
 they are seeded whether or not anything was asked. Add `devkit/policy.json` to the Step 5 manifest
 as `created` (or `skipped (exists)`).
 
+**Step 3b — Row top-up (top-up mode only; skip when `ROW_GAPS=none`)**
+
+`ROW_GAPS` names rows the templates gained *after* an existing file was written.
+The file is otherwise fine, so it is never rewritten — the row is **inserted** and
+nothing else is touched.
+
+This step is the skill's, not `init.sh`'s. `init.sh` never modifies an existing
+file and that rule does not bend here; keeping the row top-up outside it is what
+lets the never-overwrite guarantee stay absolute.
+
+| Token | Row to add | Where | Value |
+|---|---|---|---|
+| `CLAUDE.md:language` | `- **Language**: <LANGUAGE>` | `## Project`, directly under the `- **Platform**:` row (append to the list if that row is absent) | `LANG_DEFAULT` when detection resolved it; otherwise ask once (Q2b) |
+
+1. **Preview.** Show each proposed insertion as a diff — the file, the row, and the
+   line it lands under. Never show a change to an existing line: if a gap can only
+   be closed by rewording one, it is **not** a row gap. Drop it and report it.
+2. **Confirm** with one `AskUserQuestion`:
+
+   > header **Top-up**, question "Add `<n>` missing row(s) to files that already exist? Nothing else in them changes."
+   > - **Add them** — insert the rows above; existing content is untouched.
+   > - **Skip** — leave the files exactly as they are. Everything else in this run still applies.
+
+3. **On approval**, insert each row with `Edit`. On skip, note them in the manifest
+   as `skipped (declined)` and continue — a declined row is never a failure.
+4. **Idempotent.** A row already present is not a gap (`init-setup.sh` only emits
+   the token when it is genuinely absent), so re-running is a no-op.
+
 **Step 4/5 — Verify**
 
 `init.sh` exits non-zero and marks failures in the manifest if any write fails. If the script exits non-zero, surface its stderr and stop. Do not retry — the user re-runs or fixes manually.
@@ -226,7 +309,7 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 
 - `refs/protocol-cto.md` — Step 2, cto mode (advisory): recommends the technical decisions against five objectives, derives every remaining `init.sh` variable
 - `refs/protocol-eng.md` — Step 2, eng mode (direct execution): the batched question interview
-- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`
+- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
 - `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)

@@ -96,6 +96,13 @@ identical env-var set, so the mode is invisible from Step 3 on. Idempotent — e
 never overwritten. Do not run a picker. Step 2 also resolves the **release flow** and seeds
 `devkit/policy.json` (`version:1`, `init:false`, `policies.release_flow`) — see the protocol.
 
+**Already-bootstrapped repos get a top-up, not a dead-end.** When a `devkit/` is already there
+but files or template rows added since are missing, `--init` repairs the gap instead of stopping:
+it creates only the absent files, asks only the questions those files need (often none), and adds
+missing rows to existing files behind a preview and a confirmation. **Strictly additive** — no
+file that exists is ever rewritten, so accumulated `devkit/AHA.md` and `GLOSSARY.md` content is
+never at risk.
+
 ---
 
 ## Protocol: --init-staging

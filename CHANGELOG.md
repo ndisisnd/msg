@@ -2,6 +2,20 @@
 
 ## 2026-07-16
 
+### [14] — `/msg --init` now repairs older projects instead of dead-ending on them
+
+- `.claude/skills/msg/refs/init/init-setup.sh`: Fixed — `ALL_COMPLETE` was computed from a `TARGETS` list that predated `INTAKE.md`, `devkit/PLATFORMS.md` and `devkit/policy.json`, so a repo bootstrapped before those existed reported "all foundational files exist", stopped, and could **never** receive them — even though `init.sh` writes any absent file
+  - Added — the three missing files to `TARGETS`, plus a comment recording that this list gates the early exit, so a future file added without listing it repeats the bug
+  - Added — `INITIALISED` (does a `devkit/` already exist?) and `ROW_GAPS` (rows a template gained after an existing file was written) to the scanner output
+- `.claude/skills/msg/refs/protocol-init.md`: Added — a run-mode resolution at Step 1 (nothing-to-do / top-up / bootstrap) and **top-up mode**, which repairs an already-bootstrapped repo
+  - it asks **only the questions the missing files need** — a repo missing only `INTAKE.md` asks nothing at all; production branch and language come from detection rather than questions
+  - Added — Step 3b: missing template rows are **inserted** into existing files behind a preview and a confirmation, never rewriting a line that's already there
+  - top-up skips the cto/eng mode gate: cto recommends an architecture for a project that doesn't exist yet, and a top-up repo already has one
+- `.claude/skills/msg/refs/protocol-eng.md`: the interview accepts a required-variable subset and asks only what resolves it
+- `.claude/skills/msg/SKILL.md`: document the top-up path
+
+  **Strictly additive — nothing that exists is ever rewritten.** `init.sh` keeps its "writes only absent files" rule verbatim, which is why the row top-up lives in the skill instead. Verified on a simulated v1-era project: the unreachable files are created and hand-written `devkit/AHA.md` comes out byte-identical.
+
 ### [13] — Fixed: the PRD board showed every shipped PRD as un-shipped on a `master` repo
 
 - `.claude/skills/msg/refs/gui/server.py`: Fixed — the completion ladder hardcoded `--base "main"` and `--base "staging"` instead of reading `devkit/policy.json`, so on a repo whose production branch is `master` the production rung never fired and every shipped PRD rendered as un-shipped

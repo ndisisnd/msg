@@ -21,6 +21,20 @@ This protocol owns **Step 2 only**. Steps 1, 3, 4 and 5 stay in
 with the variables below in context. Every variable named here is one `init.sh`
 consumes — the mode is invisible downstream of Step 3.
 
+## Top-up mode — asking a subset
+
+When `protocol-init.md` invokes this protocol in **top-up mode**, it passes a
+**required-variable subset** (computed from the missing files). Ask only the
+questions that resolve a variable in that subset; drop every other question, and
+collapse the remaining ones into as few calls as they fit — the call structure
+below is the full-bootstrap shape, not a floor. A repo missing only `INTAKE.md`
+resolves an empty subset and this protocol asks **nothing at all**.
+
+Everything the subset omits keeps `init.sh`'s default. That is safe: the variable's
+file already exists, and `init.sh` will not rewrite it.
+
+The rest of this protocol describes the **bootstrap** shape — the full set.
+
 ## Call budget
 
 The interview completes in **≤4 `AskUserQuestion` calls (≤3 when there is no UI
