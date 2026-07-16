@@ -65,6 +65,14 @@ Before running any picker, check the invocation:
 
 1. `--init`, or a natural-language bootstrap request — "initialise project", "bootstrap repo",
    "set up the framework", "start a new project" — → **Protocol: --init**. Skip the picker.
+   `--init` takes two optional **sub-flags** (the only sub-flags in msg's surface — every other
+   mode is a bare flag off `/msg`) selecting the Step 2 interview mode: `--init --cto` (advisory —
+   msg recommends the technical decisions) and `--init --eng` (direct — msg asks, the user
+   decides). Pass the mode through to the protocol. **Bare `--init` carries no mode, and neither
+   does any natural-language phrasing — all of them land on the protocol's mode gate**, which is
+   the right default: NL phrasing correlates with the less-technical user, who is exactly who cto
+   mode is for. An **unrecognised sub-flag** (`--init --foo`) is never silently ignored — it also
+   falls to the gate.
 1b. `--init-staging`, or a natural-language request to add a staging stage — "add a staging
    branch", "set up staging", "switch to a staged release flow" — → **Protocol: --init-staging**.
    Skip the picker.
@@ -79,11 +87,21 @@ Before running any picker, check the invocation:
 ## Protocol: --init
 
 Dispatch to [`refs/protocol-init.md`](refs/protocol-init.md) and follow it end to end: scan the
-working directory (`refs/init/init-setup.sh`), run the batched interview — project basics,
-architecture, release flow, design system (≤5 `AskUserQuestion` calls) — then generate the missing devkit/ and
-root files deterministically via `refs/init/init.sh`. Idempotent — existing files are never
-overwritten. Do not run a picker. The interview also captures the **release flow** and seeds
+working directory (`refs/init/init-setup.sh`), resolve the **interview mode** — `--cto` (advisory:
+msg recommends architecture, language, conventions, release flow and design system) or `--eng`
+(direct: msg asks, the user decides), else one mode-gate `AskUserQuestion` — and run the mode's
+Step 2 protocol (`refs/protocol-cto.md` / `refs/protocol-eng.md`), then generate the missing
+devkit/ and root files deterministically via `refs/init/init.sh`. Both modes converge on the
+identical env-var set, so the mode is invisible from Step 3 on. Idempotent — existing files are
+never overwritten. Do not run a picker. Step 2 also resolves the **release flow** and seeds
 `devkit/policy.json` (`version:1`, `init:false`, `policies.release_flow`) — see the protocol.
+
+**Already-bootstrapped repos get a top-up, not a dead-end.** When a `devkit/` is already there
+but files or template rows added since are missing, `--init` repairs the gap instead of stopping:
+it creates only the absent files, asks only the questions those files need (often none), and adds
+missing rows to existing files behind a preview and a confirmation. **Strictly additive** — no
+file that exists is ever rewritten, so accumulated `devkit/AHA.md` and `GLOSSARY.md` content is
+never at risk.
 
 ---
 

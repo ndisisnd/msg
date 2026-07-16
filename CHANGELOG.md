@@ -2,6 +2,86 @@
 
 ## 2026-07-16
 
+### [14] — `/msg --init` now repairs older projects instead of dead-ending on them
+
+- `.claude/skills/msg/refs/init/init-setup.sh`: Fixed — `ALL_COMPLETE` was computed from a `TARGETS` list that predated `INTAKE.md`, `devkit/PLATFORMS.md` and `devkit/policy.json`, so a repo bootstrapped before those existed reported "all foundational files exist", stopped, and could **never** receive them — even though `init.sh` writes any absent file
+  - Added — the three missing files to `TARGETS`, plus a comment recording that this list gates the early exit, so a future file added without listing it repeats the bug
+  - Added — `INITIALISED` (does a `devkit/` already exist?) and `ROW_GAPS` (rows a template gained after an existing file was written) to the scanner output
+- `.claude/skills/msg/refs/protocol-init.md`: Added — a run-mode resolution at Step 1 (nothing-to-do / top-up / bootstrap) and **top-up mode**, which repairs an already-bootstrapped repo
+  - it asks **only the questions the missing files need** — a repo missing only `INTAKE.md` asks nothing at all; production branch and language come from detection rather than questions
+  - Added — Step 3b: missing template rows are **inserted** into existing files behind a preview and a confirmation, never rewriting a line that's already there
+  - top-up skips the cto/eng mode gate: cto recommends an architecture for a project that doesn't exist yet, and a top-up repo already has one
+- `.claude/skills/msg/refs/protocol-eng.md`: the interview accepts a required-variable subset and asks only what resolves it
+- `.claude/skills/msg/SKILL.md`: document the top-up path
+
+  **Strictly additive — nothing that exists is ever rewritten.** `init.sh` keeps its "writes only absent files" rule verbatim, which is why the row top-up lives in the skill instead. Verified on a simulated v1-era project: the unreachable files are created and hand-written `devkit/AHA.md` comes out byte-identical.
+
+### [13] — Fixed: the PRD board showed every shipped PRD as un-shipped on a `master` repo
+
+- `.claude/skills/msg/refs/gui/server.py`: Fixed — the completion ladder hardcoded `--base "main"` and `--base "staging"` instead of reading `devkit/policy.json`, so on a repo whose production branch is `master` the production rung never fired and every shipped PRD rendered as un-shipped
+  - Added — a cached `release_branches()` helper reading `policies.release_flow.prod_branch` / `staging_branch`, with the `?? "main"` / `?? "staging"` fallbacks `shared/refs/policy-schema.md` already publishes; an absent or malformed policy degrades to those fallbacks so the board never errors
+  - a custom staging branch name is now honoured too, not just `staging`
+
+  Pre-existing defect, found during this refactor's GUI audit rather than caused by it.
+
+### [12] — CLAUDE.md now tells every agent what language the project is written in
+
+- `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`: Added — a `**Language**` row to the Project section. `init.sh` already substituted `{{language}}`, but no template used the placeholder, so the language never reached the one file every agent reads on session start
+- `.claude/skills/msg/refs/protocol-eng.md`: the note on why the `LANGUAGE` key survives its removed question now cites CLAUDE.md as well as the `.gitignore` selection
+
+  Note: `/msg --init` is the only writer of CLAUDE.md and never overwrites an existing file, so this reaches **new bootstraps only** — projects that already have a CLAUDE.md keep theirs unchanged.
+
+### [11] — `/msg --init` can now recommend your architecture instead of quizzing you about it
+
+- `.claude/skills/msg/refs/protocol-cto.md`: Added — new advisory setup mode. Describe the project in your own words and msg recommends architecture, language, conventions, release flow and design system against five objectives, then derives every remaining variable from its own recommendations
+  - the recommendations follow stated decision rules (less code is more, bias to agentic coding, comments carry the why, boring by default) — an unopinionated "it depends" is defined as a protocol failure
+  - bounded at ≤4 questions; on reaching the ceiling it takes its own recommendation rather than asking again
+- `.claude/skills/msg/refs/protocol-eng.md`: Added — the existing ask-and-build interview, now its own protocol and **six questions shorter**: team type, conventions, auth approach, production branch, staging branch, and the UI-layer gate are all gone
+  - Changed — the interview budget drops from ≤5 calls (≤4 with no UI layer) to **≤4 (≤3 with no UI layer)**
+  - Removed — the production/staging branch questions; branch topology is detected instead, so a `master` repo bootstraps a production branch that actually exists
+  - Removed — the "does this project have a UI layer?" question; it's derived from the platforms you ship to, defaulting to yes when ambiguous so a design system is never silently dropped
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — Step 2 is now a mode gate that delegates to either protocol; both converge on the identical variable set, so the rest of setup never branches on the mode. `--init --cto` / `--init --eng` skip the gate; a bare `--init`, natural language, or an unrecognised sub-flag lands on it
+- `.claude/skills/msg/refs/init/init-setup.sh`: Added — a sixth detection line (`LANG_DEFAULT`) mapping stack files to a language (`pubspec.yaml`→Dart/Flutter, `Cargo.toml`→Rust, `tsconfig.json`→TypeScript, …), so the language question is asked only when detection finds nothing
+- `.claude/skills/msg/SKILL.md`: document the two sub-flags — msg's first — and the gate fallback
+- `.claude/skills/msg/refs/init/init.sh`, `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`: Removed — `TEAM_TYPE` end-to-end (msg is solo-only by design). `CONVENTIONS` survives: cto derives it, eng defaults it
+
+### [10] — Todo tickets drop the `priority` field; fixes are ordered by severity, which is finer than before
+
+- `.claude/skills/eng/refs/plan/template-todo.md`: Removed — the `priority` (`P0|P1|P2`) row from the ticket schema, the rendering block, and both worked examples; tickets now carry seven fields
+  - the field's "deliberately not an estimate — no story-point / sizing field" note is preserved as a standalone rule; it outlives the field that carried it
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — build order among unblocked tickets is now **ticket-id order** (`F1-T1` → `F1-T2` → `F2-T1`), which is deterministic and reproducible across runs; `depends-on` ordering and the cycle/unknown-id hard stop are untouched
+- `.claude/skills/eng/refs/build/report-fix.md`, `.claude/skills/eng/refs/plan/report-fix.md`: Changed — fix tickets order by `severity` directly (`blocker` → `high` → `medium` → `low`) and the derived severity→priority mapping is deleted; because that mapping collapsed `medium` and `low` into `P2`, ordering by severity is **finer** than before, not merely equivalent
+- `.claude/skills/eng/refs/plan/protocol.md`, `.claude/skills/eng/SKILL.md`: "the eight fields" now reads "the seven fields"
+- `.claude/skills/msg/refs/gui/server.py`, `.claude/skills/msg/refs/gui/index.html`, `.claude/skills/msg/refs/gui/styles.css`: Removed — the board's Priority column, pill, detail row, `.prio-P*` styles, and the GUI's private duplicate of the severity→priority map
+
+  Note: the `/cook` standards floor uses `P0`/`P1` in an unrelated sense and was deliberately left untouched — a blanket sweep would have broken standards resolution on every build.
+
+### [9] — Commit size is measured and judged, never vetoed by a line count guessed before the code exists
+
+- `.claude/scripts/eng-commit-cap.sh`: Changed — the over-cap branch now exits 0 instead of 1, so the script measures rather than blocks; `CAP_OK`/`CAP_EXCEEDED <loc>/<cap>` still print, usage/env errors still exit 2
+  - Removed — the single hard block in the whole A5 contract; the agent now reads the count and decides split-or-commit
+- `.claude/skills/eng/refs/plan/template-todo.md`: Removed — rule 2's `<500`/`<300` LOC ticket-sizing cap; a ticket is now scoped to one coherent reviewable unit, because a line count predicted before the code exists is the fake precision the intake rubric already forbids
+- `.claude/skills/eng/refs/plan/protocol.md`: Removed — the plan-time A1 ticket-sizing rule
+- `.claude/skills/eng/refs/build/protocol.md`: `CAP_EXCEEDED` reworded from a hard stop to a judgment call; the `Oversize-reason:` trailer stays mandatory when committing over-cap; recurring oversize now feeds `devkit/AHA.md` only (its old "feed back to plan time (A1)" terminus no longer exists)
+  - re-worded the two dangling references to the deleted plan-time rule
+- `.claude/skills/eng/refs/build/pair-review.md`, `.claude/skills/eng/SKILL.md`: the pair-review cost bound is restated against the measured count rather than a guaranteed cap; the script is described as advisory
+- `.claude/skills/plan-tune/refs/certification.md`, `.claude/skills/plan-tune/SKILL.md`: check 5 keeps its Critical graph-validity half (cycles, unknown ids, missing `done-when`) and drops size-feasibility; check 2 no longer cites the 300-LOC cap as a consumer
+
+  Note: pre-merge's per-commit `commit-cap` audit is deliberately retained — it never blocked, it honours the `Oversize-reason:` trailer, and it is now the only signal showing whether commit judgment is drifting.
+
+### [8] — Ideas are graded by how many moving parts they have, not how many files they touch
+
+- `.claude/skills/intake/refs/rubric.md`: Changed — `C:` and `T:` move from `S/M/L/XL` + `$/$$/$$$` to a Fibonacci scale (`1/2/3/5/8/13`)
+  - complexity anchors now count **moving parts** (business rules, application-logic units, integration points, platforms, migration/breaking surface), so a single module carrying six rules grades `C:5` instead of the smallest band — added a worked promo-code example proving it
+  - the split gate fires at `C: ≥ 8` (six bands spread what four crammed into `XL`; firing on `13` alone would catch less than `XL` did)
+  - Changed — the gate's rationale is now **reviewability**, not the deleted A5 LOC caps; the accept/decline behaviour is preserved because the `≥8` threshold depends on decline staying cheap
+  - `S:` (sequencing) is untouched — it's a position, not a size
+- `.claude/skills/intake/refs/protocol-intake.md`: the capture-time gate renamed to the `≥8`-split gate; re-grade guidance now `3`/`5`
+- `.claude/skills/intake/SKILL.md`: trigger text and grading examples re-pointed to the new scale
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`: the scaffolded ledger's documented scale now matches the rubric exactly
+- `.claude/skills/msg/refs/gui/server.py`, `.claude/skills/msg/refs/protocol-gui.md`: grade-cell examples updated — the board's parser needed no change (`\bC:\s*(\S+)` already accepts any band)
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: reference to the split gate re-pointed
+
 ### [7] — `--doctor` now detects a missing CI pipeline and offers to set one up
 
 - `.claude/skills/pre-merge/refs/stubs/pre-merge.yml`: new — minimal `pull_request` workflow stub the doctor scaffolds into `.github/workflows/`, with the detected mechanical/unit/security gate commands substituted in

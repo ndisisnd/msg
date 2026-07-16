@@ -8,8 +8,7 @@
 #   PROJECT_DESCRIPTION  Q1 one-line description
 #   PLATFORM             Q2 answer ("Web (frontend)", "Backend API", "CLI", "Mobile (iOS/Android)")
 #   LANGUAGE             Q2b answer (e.g. "TypeScript", "Swift (iOS)", "Kotlin (Android)")
-#   TEAM_TYPE            Q3 answer
-#   CONVENTIONS          Q4 answer
+#   CONVENTIONS          house conventions (cto derives them; eng falls back to the default below)
 #   ARCH_OVERVIEW        A1 — system components and how they interact
 #   ARCH_EXTERNAL        A2 — external services and APIs
 #   ARCH_DATA_STORES     A3 — databases, caches, queues
@@ -33,7 +32,6 @@ PROJECT_NAME="${PROJECT_NAME:-$(basename "$TARGET")}"
 PROJECT_DESCRIPTION="${PROJECT_DESCRIPTION:-Project bootstrapped with /msg --init.}"
 PLATFORM="${PLATFORM:-Not specified — fill in later.}"
 LANGUAGE="${LANGUAGE:-Not specified — fill in later.}"
-TEAM_TYPE="${TEAM_TYPE:-Solo}"
 CONVENTIONS="${CONVENTIONS:-None recorded yet. Add house conventions as they emerge.}"
 ARCH_OVERVIEW="${ARCH_OVERVIEW:-[USER: describe the major components of the system and how they interact]}"
 ARCH_EXTERNAL="${ARCH_EXTERNAL:-[USER: list external services, APIs, and their dependencies]}"
@@ -54,7 +52,6 @@ apply_subs() {
     -e "s|{{project_description}}|${PROJECT_DESCRIPTION}|g" \
     -e "s|{{platform}}|${PLATFORM}|g" \
     -e "s|{{language}}|${LANGUAGE}|g" \
-    -e "s|{{team_type}}|${TEAM_TYPE}|g" \
     -e "s|{{conventions}}|${CONVENTIONS}|g" \
     -e "s|{{arch_overview}}|${ARCH_OVERVIEW}|g" \
     -e "s|{{arch_external}}|${ARCH_EXTERNAL}|g" \

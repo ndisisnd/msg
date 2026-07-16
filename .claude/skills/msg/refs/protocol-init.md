@@ -2,8 +2,9 @@
 name: msg-protocol-init
 description: >
   Protocol for /msg --init — one-time project bootstrap. Scans the working
-  directory, runs a batched interview (project basics, architecture, release
-  flow, design system), then creates a `devkit/` directory containing AHA.md,
+  directory, resolves the interview mode (cto = advisory / eng = direct) and
+  delegates Step 2 to refs/protocol-cto.md or refs/protocol-eng.md, then
+  creates a `devkit/` directory containing AHA.md,
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
   README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the features/ directory.
@@ -18,7 +19,7 @@ type: reference
 
 **Invoke**: `/msg --init` — optionally pass a one-line project brief as input.
 
-- Slash command `/msg --init`
+- Slash command `/msg --init` (mode asked at Step 2), `/msg --init --cto`, `/msg --init --eng`
 - Natural language: "initialise project", "bootstrap repo", "set up the framework", "start a new project", "init the msg framework"
 - Context: empty or near-empty repository where the user asks Claude to set up project structure
 - Hand-off from another msg skill (e.g. `plan-pm`) when `AHA.md` or `GLOSSARY.md` is missing
@@ -47,10 +48,11 @@ type: reference
 | Name | Format | Source |
 |------|--------|--------|
 | Working directory state | `key=value` lines from `init-setup.sh` | `init-setup.sh` at Step 1 |
-| Project metadata | Interview answers | `AskUserQuestion` at Step 2 |
-| Architecture details | Interview answers | `AskUserQuestion` at Step 2 |
-| Release flow | Interview answers (mode + branches), pre-filled from branch topology | `AskUserQuestion` at Step 2, Call 4 |
-| Design system details | Interview answers | `AskUserQuestion` at Step 2 |
+| Interview mode | `cto` \| `eng` | `--cto`/`--eng` sub-flag, else the Step 2 mode gate |
+| Project metadata | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
+| Architecture details | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
+| Release flow | Mode answer + branch topology detection | Step 2, delegated |
+| Design system details | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
 | Optional brief | Free text | User message at invocation |
 
 ## Outputs
@@ -60,11 +62,11 @@ type: reference
 | devkit/ | Directory — agent context files | `<cwd>/devkit/` |
 | devkit/AHA.md | Markdown from `refs/init/templates/template-AHA.md` | `<cwd>/devkit/AHA.md` |
 | devkit/GLOSSARY.md | Markdown from `refs/init/templates/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
-| devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with platform and architecture interview | `<cwd>/devkit/ARCHITECTURE.md` |
-| devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with design system interview | `<cwd>/devkit/DESIGN-SYSTEM.md` |
+| devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with the platform and architecture answers (eng) or recommendations (cto) | `<cwd>/devkit/ARCHITECTURE.md` |
+| devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
-| devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform selected at the interview (P1 answer) | `<cwd>/devkit/PLATFORMS.md` |
-| devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Call 4. Only these keys (AC-LC1). Never overwritten (AC-LC7). Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
+| devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
+| devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten (AC-LC7). Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
@@ -87,79 +89,95 @@ Run `init-setup.sh` via Bash:
 <msg_skill_dir>/refs/init/init-setup.sh "<cwd>"
 ```
 
-Parse the five `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, and `STACK_DEFAULT` in conversation context.
+Parse the eight `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, and `ROW_GAPS` in conversation context.
 
-If `ALL_COMPLETE=true`, emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step.
+**Resolve the run mode** — first row that matches:
 
-**Step 2/5 — Interview (batched)**
+| Condition | Mode |
+|---|---|
+| `ALL_COMPLETE=true` **and** `ROW_GAPS=none` | **Nothing to do** — emit `All foundational files exist — nothing to initialise.` and stop. Skip every later step. |
+| `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
+| otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
 
-Run the full interview — project basics, architecture, release flow, design system — as **batched `AskUserQuestion` calls, 2–4 questions per call**, in the five calls below (Call 5 fires only when a UI layer exists). The whole interview completes in **≤5 `AskUserQuestion` calls** (≤4 when there's no UI layer); no question is dropped. `AskUserQuestion` returns all answers in a call together, so ask each call's full set at once. Hold every answer in conversation context under the variable names given.
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/PLATFORMS.md` or
+`devkit/policy.json` existed can never receive them by waiting: `init.sh` writes any
+absent file, but the protocol used to stop at "nothing to initialise" before
+reaching it. Top-up is that repair — and it is **strictly additive**:
 
-**Call 1 — Project basics** (Q1, Q2, Q2b, Q3):
+- **Never rewrite a file that exists.** `init.sh`'s "writes only files absent from
+  the target" rule is untouched, and no step here edits prose a human wrote.
+  `devkit/AHA.md` and `GLOSSARY.md` in particular are accumulated institutional
+  knowledge — recreating them would destroy the thing they exist to hold.
+- **Missing files** are created by the ordinary Step 3 `init.sh` call.
+- **Missing rows** in files that already exist are added at Step 3b, additively,
+  behind a preview and an explicit confirmation.
+- **Ask only what the gap needs** (Step 2). A repo missing only `INTAKE.md` needs
+  no interview at all.
+- **No mode gate.** Top-up always uses [`protocol-eng.md`](protocol-eng.md). cto
+  mode recommends an architecture for a project that doesn't exist yet; a top-up
+  repo already has one, so there is nothing to advise on — asking is correct.
 
-| Q | Question | Format | Holds as |
-|---|----------|--------|----------|
-| 1 | Project name and one-line description? | Free text | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
-| 2 | Primary platform or stack? | 4 options + Other: Web (frontend), Mobile (iOS/Android), Backend API, CLI | `PLATFORM` |
-| 2b | What is the primary language or framework? (e.g. Flutter, Go, React, NestJS, Swift) | Free text | `LANGUAGE` |
-| 3 | Team type? | 4 options + Other: Solo, Small team (<5), Cross-functional, Open source | `TEAM_TYPE` |
+Emit `Step X/5` progress as normal; Step 2 and Step 3b are the only steps that
+behave differently.
 
-Skip Q2 when `STACK_HINTS` has exactly one entry — in that case set `PLATFORM = STACK_DEFAULT` directly, no question asked (Call 1 then carries Q1, Q2b, Q3 only). Otherwise, if `STACK_DEFAULT` is not "Not specified", pre-select it as Q2's default option (user can still pick another).
+**Step 2/5 — Interview (mode-gated, delegated)**
 
-**Call 2 — Conventions + architecture** (Q4, A1, A2, A3):
+Step 2 resolves an **interview mode** and hands off. This protocol owns no interview
+text — the two modes own it:
 
-| Q | Question | Format | Holds as |
-|---|----------|--------|----------|
-| 4 | Any house conventions already in place? | Free text or "None yet" | `CONVENTIONS` |
-| A1 | Describe the major components of your system and how they interact. | Free text | `ARCH_OVERVIEW` |
-| A2 | What external services or APIs will your system depend on? (e.g. Stripe, Auth0, S3) | Free text or "None" | `ARCH_EXTERNAL` |
-| A3 | What data stores will you use? | 4 options + Other (multiSelect): PostgreSQL, MySQL / MariaDB, MongoDB / DynamoDB, Redis | `ARCH_DATA_STORES` |
+| Mode | Posture | Protocol |
+|------|---------|----------|
+| **eng** | **Direct execution** — ask and build, staff-engineer posture. The user makes the technical calls. | [`protocol-eng.md`](protocol-eng.md) |
+| **cto** | **Advisory** — take the user's project description and *recommend* the technical decisions. For a user who wants a sound baseline architecture without knowing the questions to ask. | [`protocol-cto.md`](protocol-cto.md) |
 
-**Call 3 — Architecture + platforms + UI gate** (A4, A5, P1, D1):
+**Mode resolution.** Read the invocation:
 
-| Q | Question | Format | Holds as |
-|---|----------|--------|----------|
-| A4 | Authentication approach? | 4 options + Other: JWT / stateless sessions, OAuth 2.0 / SSO, API keys, None / not applicable | `ARCH_AUTH` |
-| A5 | Deployment pipeline? (e.g. GitHub Actions → AWS ECS, Vercel, manual) | 4 options + Other: GitHub Actions, Vercel / Netlify, AWS / GCP / Azure, Not decided yet | `ARCH_DEPLOYMENT` |
-| P1 | Which platforms does this project ship to? (drives `/pre-merge` tolerance profiles in `devkit/PLATFORMS.md`) | 4 options (multiSelect) + Other: Web, iOS, Android, macOS | `PLATFORMS_SHIPPED` |
-| D1 | Does this project include a UI layer? | 2 options: Yes, No | (gates Call 5) |
+1. `--init --eng` → **eng**. No gate.
+2. `--init --cto` → **cto**. No gate.
+3. Bare `--init`, any natural-language bootstrap phrasing, or an **unrecognised
+   sub-flag** (`--init --foo`) → **the mode gate** below. An unrecognised sub-flag is
+   never silently ignored — it falls to the gate like a bare invocation.
 
-P1 is the one v2 interview addition. Map the selected labels to the space-separated
-platform keys `PLATFORMS` passes to `init.sh` (Web→`web`, iOS→`ios`, Android→`android`,
-macOS→`macos`); an `Other` platform is recorded but has no baked default row — note it
-so the user adds a row by hand. If P1 is skipped/empty, `init.sh` scaffolds all four
-default rows for the user to prune.
+**The mode gate — exactly one `AskUserQuestion`:**
 
-**Call 4 — Release flow** (RF1, RF2, RF3):
+> header **Setup**, question "How should we make the technical decisions for this project?"
+> - **Recommend a setup for me** — describe what you're building; I'll choose the architecture, language, release flow and design system, explain each call, and you can override anything. → **cto**
+> - **I'll decide, you ask** — I'll ask about platform, language, architecture, release flow and design system, and build exactly what you answer. → **eng**
 
-First detect the current branch topology to pre-fill the answers (the skill runs this inline — `init.sh` never dates or branches):
+Both option labels must stay legible to a non-technical reader: the gate never says
+"cto" or "eng" — those are this protocol's words, not the user's.
 
-```bash
-git rev-parse --abbrev-ref HEAD 2>/dev/null                              # current branch
-git show-ref --verify --quiet refs/heads/staging && echo HAS_STAGING     # staging present?
-git show-ref --verify --quiet refs/heads/main    && echo HAS_MAIN
-git show-ref --verify --quiet refs/heads/master  && echo HAS_MASTER
-```
+**Then dispatch** to the selected protocol and follow it end to end. It returns with
+every Step 3 variable resolved. Mode is invisible from here on: both protocols
+converge on the **identical** env-var set below, so Steps 3/4/5 never branch on it.
 
-A `staging` branch already present → pre-select RF1 = **Staged**; otherwise pre-select **Direct**. Set RF2's prod default to `main` if present, else `master`, else the current branch.
+**Top-up mode — ask only what the gap needs.** In top-up mode there is no gate:
+compute the **required-variable subset** from `MISSING` + any `ROW_GAPS` the user
+approves at Step 3b, using the table below, and pass that subset to
+[`protocol-eng.md`](protocol-eng.md), which asks only the questions that resolve it.
+A variable no missing file consumes is **not asked** — its file already exists and
+already carries its value.
 
-| Q | Question | Format | Holds as |
-|---|----------|--------|----------|
-| RF1 | What's your release flow? | 2 options: `Staged` (feature → staging → prod), `Direct` (straight to prod) | `RELEASE_FLOW` |
-| RF2 | Which branch is production? | Free text, default from topology (`main`/`master`/current) | `PROD_BRANCH` |
-| RF3 | Staging branch name? (ignored when Direct) | Free text, default `staging` | `STAGING_BRANCH` |
+| Missing artifact | Variables it needs |
+|---|---|
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/` | **none** — no placeholders; pure template |
+| `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
+| `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
+| `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
+| `devkit/ARCHITECTURE.md` | `PROJECT_NAME`, `PLATFORM`, `ARCH_OVERVIEW`, `ARCH_EXTERNAL`, `ARCH_DATA_STORES`, `ARCH_AUTH`, `ARCH_DEPLOYMENT` |
+| `devkit/DESIGN-SYSTEM.md` | `PROJECT_NAME`, `DS_LIBRARY`, `DS_TOKENS`, `DS_CONVENTIONS` |
+| `devkit/PLATFORMS.md` | `PLATFORMS` — no placeholders, but it **selects the default rows** |
+| `devkit/policy.json` | `RELEASE_FLOW`, `PROD_BRANCH`, `STAGING_BRANCH` |
+| row gap `CLAUDE.md:language` | `LANGUAGE` |
 
-Resolve after the call: if `RELEASE_FLOW` = `Direct`, discard RF3 and set `STAGING_BRANCH = null`; if `Staged` and RF3 is blank, `STAGING_BRANCH = "staging"`. These three feed the `policy.json` seed at Step 3 (`policies.release_flow`).
+Two variables are free — take them without asking whenever they're needed:
+`PROD_BRANCH` from branch topology, and `LANGUAGE` from `LANG_DEFAULT` when
+detection resolved it. `PROJECT_NAME` can be read off an existing `README.md`/
+`CLAUDE.md` H1 rather than asked.
 
-**Call 5 — Design system** (D2, D3, D4) — **only if D1 = "Yes"**:
-
-| Q | Question | Format | Holds as |
-|---|----------|--------|----------|
-| D2 | Which component library are you using? | 4 options + Other: shadcn/ui, MUI / Material UI, Tailwind UI, Custom / none | `DS_LIBRARY` |
-| D3 | Where do your design tokens live? (e.g. src/tokens/colors.ts, Figma variables, CSS custom properties) | Free text or "Not defined yet" | `DS_TOKENS` |
-| D4 | Any naming or folder structure conventions for components? (e.g. Atomic design, feature-based folders) | Free text or "None yet" | `DS_CONVENTIONS` |
-
-If D1 = "No", skip Call 5 entirely and set `DS_LIBRARY`, `DS_TOKENS`, `DS_CONVENTIONS` all to "Not applicable — no UI layer." (interview then completes in 4 calls).
+**Everything the subset does not name keeps `init.sh`'s default.** That is safe by
+construction: every variable has a fallback, so an unasked one yields a `[USER: …]`
+stub in a file that didn't exist a moment ago — never a change to one that did.
 
 **Step 3/5 — Generate missing files**
 
@@ -168,21 +186,24 @@ Run `init.sh` via Bash, passing all interview answers as env vars and the workin
 ```
 PROJECT_NAME="<Q1 name>" \
 PROJECT_DESCRIPTION="<Q1 description>" \
-PLATFORM="<Q2 answer>" \
-LANGUAGE="<Q2b answer>" \
-TEAM_TYPE="<Q3 answer>" \
-CONVENTIONS="<Q4 answer>" \
-ARCH_OVERVIEW="<A1 answer>" \
-ARCH_EXTERNAL="<A2 answer>" \
-ARCH_DATA_STORES="<A3 answer>" \
-ARCH_AUTH="<A4 answer>" \
-ARCH_DEPLOYMENT="<A5 answer>" \
-PLATFORMS="<P1 platform keys, space-separated — e.g. web ios>" \
-DS_LIBRARY="<D2 answer>" \
-DS_TOKENS="<D3 answer>" \
-DS_CONVENTIONS="<D4 answer>" \
+PLATFORM="<primary platform/stack>" \
+LANGUAGE="<primary language/framework>" \
+CONVENTIONS="<house conventions, or the init.sh default>" \
+ARCH_OVERVIEW="<system components and how they interact>" \
+ARCH_EXTERNAL="<external services and APIs>" \
+ARCH_DATA_STORES="<data stores>" \
+ARCH_AUTH="<authentication approach, or the init.sh stub>" \
+ARCH_DEPLOYMENT="<deployment pipeline>" \
+PLATFORMS="<platform keys, space-separated — e.g. web ios>" \
+DS_LIBRARY="<component library>" \
+DS_TOKENS="<design token locations>" \
+DS_CONVENTIONS="<component naming / folder conventions>" \
 <msg_skill_dir>/refs/init/init.sh "<cwd>"
 ```
+
+**This env block is the contract both modes converge on.** Before invoking, confirm
+every variable above is set — neither protocol may leave one unresolved, and no
+variable outside this block reaches `init.sh`.
 
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
 
@@ -215,9 +236,41 @@ because the seed carries a `generated` date and scripts can't stamp the date. Sc
 }
 ```
 
-Map Call 4: `RELEASE_FLOW` Staged → `"staged"`, Direct → `"direct"`; `prod_branch` = `PROD_BRANCH`;
-`staging_branch` = `STAGING_BRANCH` (already resolved to `null` for direct, `"staging"` default for
-staged). Add `devkit/policy.json` to the Step 5 manifest as `created` (or `skipped (exists)`).
+Map the Step 2 release-flow variables: `RELEASE_FLOW` Staged → `"staged"`, Direct → `"direct"`;
+`prod_branch` = `PROD_BRANCH` (detected from branch topology, never asked — this is what makes a
+`master` repo seed a `prod_branch` that exists); `staging_branch` = `STAGING_BRANCH` (already
+resolved to `null` for direct, `"staging"` for staged). Both keys are a **downstream contract** —
+`pre-merge` and `post-merge` read them off `policy.json` and `policy-schema.md` declares them — so
+they are seeded whether or not anything was asked. Add `devkit/policy.json` to the Step 5 manifest
+as `created` (or `skipped (exists)`).
+
+**Step 3b — Row top-up (top-up mode only; skip when `ROW_GAPS=none`)**
+
+`ROW_GAPS` names rows the templates gained *after* an existing file was written.
+The file is otherwise fine, so it is never rewritten — the row is **inserted** and
+nothing else is touched.
+
+This step is the skill's, not `init.sh`'s. `init.sh` never modifies an existing
+file and that rule does not bend here; keeping the row top-up outside it is what
+lets the never-overwrite guarantee stay absolute.
+
+| Token | Row to add | Where | Value |
+|---|---|---|---|
+| `CLAUDE.md:language` | `- **Language**: <LANGUAGE>` | `## Project`, directly under the `- **Platform**:` row (append to the list if that row is absent) | `LANG_DEFAULT` when detection resolved it; otherwise ask once (Q2b) |
+
+1. **Preview.** Show each proposed insertion as a diff — the file, the row, and the
+   line it lands under. Never show a change to an existing line: if a gap can only
+   be closed by rewording one, it is **not** a row gap. Drop it and report it.
+2. **Confirm** with one `AskUserQuestion`:
+
+   > header **Top-up**, question "Add `<n>` missing row(s) to files that already exist? Nothing else in them changes."
+   > - **Add them** — insert the rows above; existing content is untouched.
+   > - **Skip** — leave the files exactly as they are. Everything else in this run still applies.
+
+3. **On approval**, insert each row with `Edit`. On skip, note them in the manifest
+   as `skipped (declined)` and continue — a declined row is never a failure.
+4. **Idempotent.** A row already present is not a gap (`init-setup.sh` only emits
+   the token when it is genuinely absent), so re-running is a no-op.
 
 **Step 4/5 — Verify**
 
@@ -254,8 +307,10 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 
 ## References
 
-- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`
-- `refs/init/init.sh` — deterministic template writer; called at Step 3 with all interview answers as env vars
+- `refs/protocol-cto.md` — Step 2, cto mode (advisory): recommends the technical decisions against five objectives, derives every remaining `init.sh` variable
+- `refs/protocol-eng.md` — Step 2, eng mode (direct execution): the batched question interview
+- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
+- `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)

@@ -1,6 +1,6 @@
 ---
 name: Intake Protocol
-description: End-to-end capture protocol for /intake — scaffold-or-proceed on INTAKE.md, the interview (flesh-out / suggest-adjacent / goal), hybrid-ask + XL-idea splitting, the single-turn grading pass, and the row write.
+description: End-to-end capture protocol for /intake — scaffold-or-proceed on INTAKE.md, the interview (flesh-out / suggest-adjacent / goal), hybrid-ask + ≥8-idea splitting, the single-turn grading pass, and the row write.
 type: reference
 ---
 
@@ -79,18 +79,18 @@ grade and write it.
 
 Grade every confirmed idea (core + accepted suggestions + split rows) per
 `refs/rubric.md` — a **single-turn judgment, banded only, no analysis pass, no
-codebase read.** Produce the compact `grade` cell: `C:<S|M|L|XL> T:<$|$$|$$$>
+codebase read.** Produce the compact `grade` cell: `C:<1|2|3|5|8|13> T:<1|2|3|5|8|13>
 S:<now|next|later|blocked-by-#n>`.
 
-**XL-split gate.** Any idea graded `C:XL` triggers one `AskUserQuestion`:
+**≥8-split gate.** Any idea graded `C:` ≥ `8` triggers one `AskUserQuestion`:
 
-> header **Split XL**, question "`<idea>` grades XL (cross-platform / migration + breaking
+> header **Split ≥8**, question "`<idea>` grades `<grade>` (cross-platform / migration + breaking
 > surface). Break it into smaller ideas?"
 > - **Yes, split it** — derive 2–4 smaller ideas (same muscle as Step 2), re-grade each
->   (typically `M`/`L`), and replace the XL row with them. Front-door defence of the A5
->   commit caps.
-> - **Keep it whole** — record the single `XL` row; the downstream oversize-cap risk is now
->   a known, logged fact.
+>   (typically `3`/`5`), and replace the `≥8` row with them. Front-door defence of
+>   reviewability — each piece is small enough for one reviewer to hold at once.
+> - **Keep it whole** — record the single `≥8` row; the downstream reviewability risk is
+>   now a known, logged fact.
 
 ## Step 5/5 — Write the rows + summarise
 

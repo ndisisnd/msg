@@ -25,7 +25,7 @@ the identical content when the ledger is missing at capture time.
 
 ## Grade-cell format
 
-`C:<S|M|L|XL> T:<$|$$|$$$> S:<now|next|later|blocked-by-#n>` — a single-turn banded
+`C:<1|2|3|5|8|13> T:<1|2|3|5|8|13> S:<now|next|later|blocked-by-#n>` — a single-turn banded
 judgment by `intake` at capture time. **Bands and ranges only; never a fake-precise
 number** (`~1,240 LOC` and `3.5 days` are forbidden). Full rubric:
 `.claude/skills/intake/refs/rubric.md`.
@@ -44,8 +44,8 @@ Intake tab renders this as a board and may hand-edit status cells.
 → `completed` (post-merge --production ships the mapped PRD).
 
 **Grade cell** `C:… T:… S:…` — a single-turn, banded judgment made at capture:
-- `C:` complexity — `S` / `M` / `L` / `XL`
-- `T:` token cost — `$` / `$$` / `$$$`
+- `C:` complexity — `1` / `2` / `3` / `5` / `8` / `13`
+- `T:` token cost — `1` / `2` / `3` / `5` / `8` / `13`
 - `S:` sequencing — `now` / `next` / `later` / `blocked-by-#n`
 
 **Banded estimates ONLY.** Never write a fake-precise number (`~1,240 LOC`,

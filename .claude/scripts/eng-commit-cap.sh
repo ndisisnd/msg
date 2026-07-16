@@ -1,23 +1,27 @@
 #!/usr/bin/env bash
-# eng-commit-cap.sh — A5 small-commit cap for the eng build commit gate.
+# eng-commit-cap.sh — A5 commit-size measurement for the eng build commit gate.
 #
-# Checks the STAGED diff and blocks a commit that changes too many lines, so
-# each commit stays a small, reviewable, ticket-sized unit. Changed LOC =
-# additions + deletions from `git diff --cached --numstat`, excluding
-# lockfiles and generated files (allowlist below).
+# Checks the STAGED diff and reports whether it changes too many lines, so the
+# agent can judge split-or-commit against a measured number rather than a
+# guess. Changed LOC = additions + deletions from `git diff --cached
+# --numstat`, excluding lockfiles and generated files (allowlist below).
+#
+# This script never blocks — the commit-time LOC count is a measured fact,
+# not a plan-time estimate, so the agent reads it and decides. Always exits 0
+# on a completed measurement; only a usage/environment error exits non-zero.
 #
 # Usage:
 #   eng-commit-cap.sh                         cap = 500 changed LOC
 #   eng-commit-cap.sh --breaking              cap = 300 (commit carries a breaking change)
-#   eng-commit-cap.sh --oversize-reason "<t>" escape hatch: exit 0 even over-cap,
-#                                             printing an OVERSIZE line to log to the PRD ledger
+#   eng-commit-cap.sh --oversize-reason "<t>" always exit 0; also prints an OVERSIZE
+#                                             line to log to the PRD ledger
 #
 # Machine output (always one CAP_ line):
 #   CAP_OK <loc>/<cap>          under cap, exit 0
-#   CAP_EXCEEDED <loc>/<cap>    over cap  (exit 1, or exit 0 with a reason)
+#   CAP_EXCEEDED <loc>/<cap>    over cap — exit 0; the agent decides split-or-commit
 #   OVERSIZE <loc> reason: <t>  printed only when --oversize-reason is supplied over-cap
 #
-# Exit: 0 = under cap or reason-justified, 1 = over cap and unjustified,
+# Exit: 0 = measurement completed (under cap, over cap, or reason-justified),
 #       2 = usage/environment error.
 
 set -uo pipefail
@@ -59,9 +63,8 @@ if (( loc > CAP )); then
   echo "CAP_EXCEEDED ${loc}/${CAP}"
   if [[ -n "$REASON" ]]; then
     echo "OVERSIZE ${loc} reason: ${REASON}"
-    exit 0
   fi
-  exit 1
+  exit 0
 fi
 
 echo "CAP_OK ${loc}/${CAP}"

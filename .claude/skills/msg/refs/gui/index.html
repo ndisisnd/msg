@@ -1251,7 +1251,6 @@ function todoCard(owner, t) {
         sevPill(t) +
         srcBadge(t) +
         (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + "</span>" : "") +
-        (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + "</span>" : "") +
         ((t.dependsOn && t.dependsOn.length) ? '<span class="pill muted">⛓ ' + esc(t.dependsOn.join(", ")) + "</span>" : "") +
       "</div>" +
     "</div>"
@@ -1298,7 +1297,7 @@ function todoTable(owner, todos) {
   var wrap = el('<div class="table-wrap compact"></div>');
   var table = el("<table><thead><tr>" +
     (LIVE ? "<th></th>" : "") +
-    "<th>Ticket</th><th>Objective</th><th>Type</th><th>Priority</th><th>Files</th><th>Depends on</th><th>Status</th>" +
+    "<th>Ticket</th><th>Objective</th><th>Type</th><th>Files</th><th>Depends on</th><th>Status</th>" +
     "</tr></thead></table>");
   var tbody = el("<tbody></tbody>");
   sorted.forEach(function (t) {
@@ -1308,7 +1307,6 @@ function todoTable(owner, todos) {
       "<td>" + esc((t.id || t._fid || "") + (t.title ? " · " + t.title : "")) + "</td>" +
       '<td class="prose">' + esc(t.objective || "") + "</td>" +
       "<td>" + (t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + "</span>" : "") + "</td>" +
-      "<td>" + (t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + "</span>" : "") + "</td>" +
       '<td class="mono">' + esc(files.join(", ")) + "</td>" +
       '<td class="mono">' + esc((t.dependsOn && t.dependsOn.length) ? t.dependsOn.join(", ") : "—") + "</td>" +
       "<td>" + (t.done ? '<span class="pill st-done">Done</span>' : '<span class="pill st-open">Open</span>') + "</td>" +
@@ -1342,9 +1340,6 @@ function fieldHtml(label, html) {
 function typePill(t) {
   return t.type ? '<span class="pill type-' + esc(t.type) + '">' + esc(t.type) + "</span>" : "";
 }
-function prioPill(t) {
-  return t.priority ? '<span class="pill prio-' + esc(t.priority) + '">' + esc(t.priority) + "</span>" : "";
-}
 function openPanel(t, owner) {
   document.getElementById("panel-title").textContent = ticketHeading(t);
   var files = ticketFiles(t);
@@ -1356,7 +1351,6 @@ function openPanel(t, owner) {
     (isIssue(t) && t.source ? field("Gate step", String(t.source).replace(/^pre-merge:/, "")) : "") +
     field("Objective", t.objective) +
     fieldHtml("Type", typePill(t)) +              // Edit 6 — tag form, not text
-    fieldHtml("Priority", prioPill(t)) +
     (isIssue(t) ? field("Severity", t.severity) : "") +
     (isIssue(t) ? field("Category", t.category) : "") +
     (isIssue(t) ? field("Rule", t.rule, true) : "") +
