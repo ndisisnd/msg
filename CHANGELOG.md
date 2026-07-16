@@ -2,6 +2,19 @@
 
 ## 2026-07-16
 
+### [9] — Commit size is measured and judged, never vetoed by a line count guessed before the code exists
+
+- `.claude/scripts/eng-commit-cap.sh`: Changed — the over-cap branch now exits 0 instead of 1, so the script measures rather than blocks; `CAP_OK`/`CAP_EXCEEDED <loc>/<cap>` still print, usage/env errors still exit 2
+  - Removed — the single hard block in the whole A5 contract; the agent now reads the count and decides split-or-commit
+- `.claude/skills/eng/refs/plan/template-todo.md`: Removed — rule 2's `<500`/`<300` LOC ticket-sizing cap; a ticket is now scoped to one coherent reviewable unit, because a line count predicted before the code exists is the fake precision the intake rubric already forbids
+- `.claude/skills/eng/refs/plan/protocol.md`: Removed — the plan-time A1 ticket-sizing rule
+- `.claude/skills/eng/refs/build/protocol.md`: `CAP_EXCEEDED` reworded from a hard stop to a judgment call; the `Oversize-reason:` trailer stays mandatory when committing over-cap; recurring oversize now feeds `devkit/AHA.md` only (its old "feed back to plan time (A1)" terminus no longer exists)
+  - re-worded the two dangling references to the deleted plan-time rule
+- `.claude/skills/eng/refs/build/pair-review.md`, `.claude/skills/eng/SKILL.md`: the pair-review cost bound is restated against the measured count rather than a guaranteed cap; the script is described as advisory
+- `.claude/skills/plan-tune/refs/certification.md`, `.claude/skills/plan-tune/SKILL.md`: check 5 keeps its Critical graph-validity half (cycles, unknown ids, missing `done-when`) and drops size-feasibility; check 2 no longer cites the 300-LOC cap as a consumer
+
+  Note: pre-merge's per-commit `commit-cap` audit is deliberately retained — it never blocked, it honours the `Oversize-reason:` trailer, and it is now the only signal showing whether commit judgment is drifting.
+
 ### [8] — Ideas are graded by how many moving parts they have, not how many files they touch
 
 - `.claude/skills/intake/refs/rubric.md`: Changed — `C:` and `T:` move from `S/M/L/XL` + `$/$$/$$$` to a Fibonacci scale (`1/2/3/5/8/13`)

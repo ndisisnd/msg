@@ -33,7 +33,7 @@ allowed_tools:
 | Flag | Tune type | Checks run (from `refs/certification.md`) |
 |------|-----------|-------------------------------------------|
 | `--product` | Product tune | Checks 1 (criteria testability), 2 (breaking/DB labeled), 3 (intent fidelity), 6 (frontmatter graph) |
-| `--eng` | Eng tune | Checks 2, 4 (exec-table/eng integrity), 5 (ticket sizing + graph), 6, 7 (cross-agent contract coherence) |
+| `--eng` | Eng tune | Checks 2, 4 (exec-table/eng integrity), 5 (ticket graph validity), 6, 7 (cross-agent contract coherence) |
 | _(none)_ | Auto-selected | Decided from PRD content — **not** asked (see Step 1) |
 
 **Path rules:**
@@ -174,7 +174,7 @@ Use `Edit`; do not modify unrelated PRD content in this step. The section body i
 
 **Step 3/3 — Auto-fix, self-heal, stamp, recommend**
 
-**Auto-fix every Critical and Major (D15).** For each Critical/Major finding, patch the exact PRD section(s) it cites — product sections in a product tune; engineering sections (add a missing API-contract row, cover an uncovered F-ID, split an oversize ticket, break a dependency cycle, resolve an OPEN decision with a stated path) in an eng tune. In a Product tune, `## Engineering —` sections are out of scope; do not edit them. After patching each section, re-read the patched text and verify it (a) resolves the finding's "Suggested fix", (b) introduces no vague verb / weasel word, (c) does not create a new finding — if it does, fix that before continuing. Set each fixed finding's ledger `Status` → `Fixed`.
+**Auto-fix every Critical and Major (D15).** For each Critical/Major finding, patch the exact PRD section(s) it cites — product sections in a product tune; engineering sections (add a missing API-contract row, cover an uncovered F-ID, break a dependency cycle, resolve an OPEN decision with a stated path) in an eng tune. In a Product tune, `## Engineering —` sections are out of scope; do not edit them. After patching each section, re-read the patched text and verify it (a) resolves the finding's "Suggested fix", (b) introduces no vague verb / weasel word, (c) does not create a new finding — if it does, fix that before continuing. Set each fixed finding's ledger `Status` → `Fixed`.
 
 **Product-decision pause (the only hard gate).** A finding whose fix requires choosing between product behaviors — e.g. two acceptance criteria genuinely contradict and either resolution changes the product — is **never** auto-fixed. Batch every such finding into one `AskUserQuestion` (≤4 per call, same shape as plan-pm's open-questions pause), each with a suggested resolution. Apply the chosen resolutions, then mark those rows `Fixed`. This is the only place the run stops.
 

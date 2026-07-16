@@ -29,7 +29,7 @@ Also verify the **plain-English comment convention (A4)**: every new/modified fu
 
 **Input — injected into the subagent prompt; the reviewer makes NO `/cook` call:**
 
-- the ticket's **diff** (bounded by the ticket-sizing rule to ≤500 changed LOC — the cost is capped)
+- the ticket's **diff** (typically ≤500 changed LOC — the same figure `eng-commit-cap.sh` measures at the ticket's commit gate; an observed bound on review cost, not a guaranteed one)
 - the ticket's **`done-when`** (the scope line the reviewer measures over-engineering against)
 - the compiled **standards payload** already in the parent's context
 
