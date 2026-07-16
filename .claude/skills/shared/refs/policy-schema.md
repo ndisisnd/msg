@@ -50,6 +50,7 @@ No gate run ever writes it (AC-OW1). `--doctor` never writes `devkit/PLATFORMS.m
     "e2e":               { "status": "opted_out",  "reason": "no e2e surface yet" },
     "a11y":              { "status": "n/a",        "reason": "backend-only repo" },
     "security":          { "status": "ready",     "chosen": ["gitleaks", "semgrep", "osv-scanner"] },
+    "ci":                { "status": "ready",     "chosen": ".github/workflows/pre-merge.yml" },
     "deploy_staging":    { "status": "ready" },
     "deploy_production": { "status": "ready" },
     "smoke":             { "status": "missing",    "reason": "declared in PLATFORMS.md, never verified" }
@@ -123,11 +124,15 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `chosen` | string \| string[] | ✖ | — | the tool(s) selected for a `ready` step |
 | `last_checked` | `YYYY-MM-DD` | ✖ | — | informational |
 
-## Closed step-key vocabulary (15 keys)
+## Closed step-key vocabulary (16 keys)
 
 Any key outside this set → ignored + one warn (AC-S4):
 
-`mechanical` · `unit_int` · `e2e` · `qa` · `a11y` · `perf` · `load` · `api` · `mobile` · `coverage` · `security` · `migration` · `deploy_staging` · `deploy_production` · `smoke`
+`mechanical` · `unit_int` · `e2e` · `qa` · `a11y` · `perf` · `load` · `api` · `mobile` · `coverage` · `security` · `migration` · `ci` · `deploy_staging` · `deploy_production` · `smoke`
+
+`ci` records whether a `.github/workflows/` pipeline runs the gate on PRs (written by
+`pre-merge --doctor`, read by post-merge's green-CI check — see §3). It has no runner and never
+runs as a gate *step*; it exists so a missing pipeline surfaces instead of passing vacuously.
 
 ## Validation rules
 
@@ -193,7 +198,7 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 
 **`NO_GH` / `NO_REMOTE` → refuse regardless of `mode_b`** — a PR can't be merged without them; the refusal cites the missing prerequisite, not protection. The protection mode governs **only** the `UNPROTECTED` case. (AC-BP5) No file → `enforced` everywhere (= today, AC-BP6). Per-branch differences resolve via `overrides` — e.g. `overrides.main:"enforced"` under top-level `mode:"optional"` enforces on `main` while `staging` stays optional (AC-BP4).
 
-## 3 · `steps.<key>` (pre-merge 2/3/5/6; post-merge `deploy_*` / `smoke`)
+## 3 · `steps.<key>` (pre-merge 2/3/5/6; post-merge `deploy_*` / `smoke` / `ci`)
 
 | `status` | gate behavior |
 |---|---|
@@ -203,5 +208,7 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 | `missing` | skip with the existing `no_tooling` note (known unresolved gap) (AC-ST4) |
 | `deferred` | as `missing` (known gap, user will revisit) (AC-ST4) |
 | key absent / no file | **built-in fall-back, unchanged** (back-compat invariant, AC-ST5) |
+
+**`ci` — read by post-merge's green-CI check, not run as a step.** When post-merge's PR check finds an **empty** status-check set (nothing ran), it resolves `steps.ci`: `ready` → emit one `low` `vacuous-ci` note ("`ci` expected a pipeline but the PR reported zero checks") so a broken/absent workflow surfaces instead of a silent vacuous pass; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → existing behavior, no new note. It never blocks the merge — branch protection remains the enforcement.
 
 **Invariant.** Except for the `policy-mismatch` finding above (AC-ST3), a `steps` entry **never** changes a gate's pass/fail verdict — it only decides run-vs-skip and how loudly a gap is surfaced (AC-ST6).

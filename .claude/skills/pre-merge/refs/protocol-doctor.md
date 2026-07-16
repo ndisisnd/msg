@@ -67,6 +67,7 @@ fingerprint and the Step-0 profile, then classifies.
 | `coverage_runner` | `coverage` | Step 5 |
 | `security_scanners[]`, `secret_scanner` | `security` | Step 6 |
 | _(static SQL scan — no runner slot)_ | `migration` | Step 6 |
+| _(`.github/workflows/*.yml` presence — no runner slot)_ | `ci` | cross-cutting — the pipeline that runs the gate on the PR |
 
 **Cross-reference against `required_buckets`.** Resolve the Step-0 profile from `devkit/PLATFORMS.md`
 (`refs/platform-profiles.md`): a `null` slot is only a **gap** if its bucket is in the profile's
@@ -79,10 +80,26 @@ gaps, never `n/a`.
 > `ready` when the diff surface warrants it and `n/a` for repos with no migrations; there is
 > nothing to install.
 
+> `ci` has no runner slot either — it's the **CI workflow** that runs the gate on the PR and
+> produces the status checks that post-merge's "green CI" and branch protection depend on. Detect
+> it directly (not from the fingerprint): a repo has a gap when **no** `.github/workflows/*.yml`
+> triggers on `pull_request`.
+>
+> ```bash
+> grep -lE 'pull_request' .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null
+> ```
+>
+> Empty result → gap: nothing runs the gate on the PR, so "all checks green" is **vacuously true**
+> and branch protection has no check to require. Present → record `ci` as `ready`. `ci` is a
+> repo-wide floor (like `security`/`migration`), so its gap is always real — never `n/a`. Doctor
+> **scaffolds** the workflow (below) but never edits an existing one; if a workflow exists but
+> looks unrelated to the gate, record `ready` and note it rather than overwriting.
+
 **Steps covered:** `mechanical` (Step 2), `unit_int` (Step 3), the Step-5 platform buckets (`e2e`,
-`qa`, `a11y`, `perf`, `load`, `api`, `mobile`, `coverage`), and `security` + `migration` (Step 6).
-The `deploy_staging` / `deploy_production` / `smoke` keys are **post-merge's** — pre-merge `--doctor`
-leaves them untouched.
+`qa`, `a11y`, `perf`, `load`, `api`, `mobile`, `coverage`), `security` + `migration` (Step 6), and
+the cross-cutting `ci` workflow. The `deploy_staging` / `deploy_production` / `smoke` keys are
+**post-merge's** — pre-merge `--doctor` leaves them untouched. (post-merge `--doctor` *reads* the
+`ci` record at item 2 but never writes it — see its protocol-doctor.)
 
 ---
 
@@ -94,6 +111,7 @@ Every gap the detector surfaces is one of three flavors, read off the detector's
 |---|---|---|---|
 | **Binary missing** | `command -v` slot empty (gitleaks, semgrep, trivy, k6, hurl, osv-scanner…) | offer the install command (per-item, gated) | `ready` on install · `deferred`/`opted_out` on decline |
 | **Config missing** | dep may exist but no `eslint.config.*` / `playwright.config.*` / `.semgrep.yml` etc. | scaffold a **minimal stub config** + the dep | `ready` on scaffold · `deferred`/`opted_out` on decline |
+| **Workflow missing** | no `.github/workflows/*.yml` triggers on `pull_request` (the `ci` gap) | scaffold `pre-merge.yml` with the detected gate commands substituted in | `ready` on scaffold · `deferred`/`opted_out` on decline |
 | **N/A for surface** | slot `null` **and** the bucket is **not** in `required_buckets` | record only — offer nothing | `n/a` (with `reason`) |
 
 Declining any offered install always records `opted_out` (won't revisit) or `deferred` (will
@@ -143,6 +161,10 @@ For each real gap (after the `required_buckets` cross-reference), doctor asks **
   is persisted `ready`, never `installed`.
 - **Config-missing flavor** → additionally scaffold the minimal stub config (below) so the gate has
   something runnable immediately.
+- **Workflow-missing flavor (`ci`)** → no catalog tool; the only offer is **Scaffold `pre-merge.yml`**
+  (copy the stub to `.github/workflows/`, substitute the detected gate commands) or **Skip**. Scaffold
+  → `steps.ci = { status: "ready", chosen: ".github/workflows/pre-merge.yml" }`; skip →
+  `deferred`/`opted_out` with a `reason`.
 - **Skip** → record `opted_out` (won't revisit) or `deferred` (will revisit later) **with a
   `reason`**; install nothing.
 - **Paid-only slot** → present the free `deferred`/`opted_out` path only; name the paid tool in the
@@ -169,6 +191,13 @@ gate can execute the tool on the next run (not a curated house style). The templ
 | `vitest.config.ts` | unit_int + coverage | `vitest` + `@vitest/coverage-v8` |
 | `playwright.config.ts` | e2e | `@playwright/test` |
 | `.size-limit.json` | perf (bundle) | `size-limit` + `@size-limit/preset-app` |
+| `pre-merge.yml` → `.github/workflows/` | ci | — (no dep; substitute the detected gate commands) |
+
+`pre-merge.yml` is the one stub that is **command-dependent**: doctor copies it to
+`.github/workflows/pre-merge.yml`, then substitutes the `mechanical` / `unit_int` / `security`
+commands it detected (from the fingerprint) into the `[doctor: …]` placeholders and drops any step
+whose bucket the repo lacks. It installs no dependency of its own. Everything else about the gated,
+per-item `AskUserQuestion` approval is identical to a config stub.
 
 `.semgrep.yml` is intentionally **not** stubbed — semgrep runs with `--config auto` (its OSS
 ruleset) when no project config exists, so no scaffold is needed.

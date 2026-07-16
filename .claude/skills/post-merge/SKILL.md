@@ -36,7 +36,7 @@ pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests s
 - `/post-merge --staging --prd <path>` — name the shipped PRD explicitly (else resolved from the PR head branch `feat/prd-<n>-*`)
 - `/post-merge --production` — open + merge the double-confirmed staging→main release PR and run the production deploy
 - `/post-merge --production --prd <path>` (repeatable) — the PRD(s) this release ships; used for the release body + sign-off precondition
-- `/post-merge --doctor` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy (`refs/protocol-doctor.md`)
+- `/post-merge --doctor` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --doctor`'s job) (`refs/protocol-doctor.md`)
 
 Natural language: "ship this to staging", "merge the staging PR", "promote to production", "release to production", "ship it live".
 

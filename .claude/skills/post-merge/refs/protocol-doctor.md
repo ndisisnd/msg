@@ -79,6 +79,22 @@ writing `optional` — the relaxation is never silent.
 these modes into refuse / warn-proceed / skip at merge time lives in `policy-schema.md`
 §2 (AC-BP1–BP6 are enforced there; doctor only *records* the stance).
 
+**Phantom-check guard — a workflow must exist first.** Requiring "green CI" via protection is
+meaningless if no CI pipeline produces any status check. Before offering `--bootstrap`, resolve
+whether a gate workflow exists — read `steps.ci` from `policy.json` (written by
+`pre-merge --doctor`), or probe directly:
+
+```bash
+grep -lE 'pull_request' .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null
+```
+
+No workflow (`steps.ci` is `missing`/absent and the probe is empty) → **do not offer to enforce
+required checks**; note the gap and point the user at **`/pre-merge --doctor`**, which owns the `ci`
+step and scaffolds the pipeline. Post-merge `--doctor` **never writes `steps.ci`** and **never
+scaffolds a workflow** — it only reads the record so it doesn't bootstrap protection around checks
+nothing emits (AC-OW2 territory: the workflow is pre-merge's to create, as PLATFORMS.md is
+`/msg --init`'s).
+
 ### 3 · Deploy CLIs
 
 Parse `devkit/PLATFORMS.md` deploy commands (the `staging_deploy_cmd` /
@@ -119,8 +135,8 @@ declarations stay owned by `/msg --init`; doctor is read-only to that file.
 
 | Mode | Step | | Doctor's role |
 |---|---|---|---|
-| `--staging` | 1 · Branch protection | ✅ | policy + `--bootstrap` offer + `gh` install |
-| | 2 · Locate PR + green CI | ◐ | `gh` present + authed |
+| `--staging` | 1 · Branch protection | ✅ | policy + `--bootstrap` offer (guarded on a `ci` workflow existing) + `gh` install |
+| | 2 · Locate PR + green CI | ◐ | `gh` present + authed; reads `steps.ci` to flag a vacuous (zero-check) pass |
 | | 3 · Merge into staging | ◐ | `gh` + protection |
 | | 4 · Deploy staging | ✅ | deploy-CLI detect/install; PLATFORMS.md gaps → `/msg --init` |
 | | 5 · Verify deploy (smoke) | ✅ | `smoke_cmd` binary present; flag declared-but-unverified |
@@ -165,6 +181,7 @@ duplicate them here.
 
 - Never merge, open a PR, deploy, or run a smoke check — `--doctor` is setup only (AC-DR1).
 - Never write `devkit/PLATFORMS.md` — report gaps and delegate to `/msg --init` (AC-OW2).
+- Never write `steps.ci` or scaffold a `.github/workflows/` pipeline — that's `/pre-merge --doctor`'s; only *read* `steps.ci` to guard the protection offer.
 - Never create a staging branch — offer `/msg --init-staging`, which owns branch creation (AC-OW3).
 - Never install a paid/SaaS tool or sign the user up for a host — record `deferred`/`opted_out` with the paid tool named (AC-DR3).
 - Never write `optional` on a Free-plan 403 without an explicit confirm (AC-DR5).

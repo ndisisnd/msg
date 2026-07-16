@@ -28,7 +28,7 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 ## Usage
 
 - `/pre-merge` — gate the current feature branch against `staging`
-- `/pre-merge --doctor` — run the doctor setup: detect tooling → interview → gated install → write `devkit/policy.json` (no gate run); see `refs/protocol-doctor.md`
+- `/pre-merge --doctor` — run the doctor setup: detect tooling (incl. the `.github/workflows/` CI pipeline that runs the gate on PRs) → interview → gated install/scaffold → write `devkit/policy.json` (no gate run); see `refs/protocol-doctor.md`
 - `/pre-merge --prd <path>` — load a PRD for the regression (Step 4) + PRD-consistency (Step 7) stages (repeatable)
 - `/pre-merge --prior-issues <path>` — load a prior verdict JSON to mark regressions
 - `/pre-merge --full-secret-scan` — Step 6 scans the full tree (default: diff-only)

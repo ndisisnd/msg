@@ -1,0 +1,38 @@
+# Minimal PR gate workflow — scaffolded by `/pre-merge --doctor` for the `ci` step.
+#
+# Purpose: give the PR a real status check so "green CI" (post-merge Step 2 and
+# branch protection) means something instead of passing vacuously on zero checks.
+#
+# This is a STARTING POINT. `--doctor` substitutes the commands it actually
+# detected (the pre-merge-tooling-detect.sh fingerprint) into the run steps below,
+# replacing the `[doctor: …]` placeholders. Steps whose bucket the repo doesn't
+# have are dropped. Tune the runner/setup for your stack afterward.
+name: pre-merge
+
+on:
+  pull_request:
+    branches: [staging, main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup — doctor swaps this for the detected toolchain (node/python/…).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+
+      # Mechanical (Step 2) — lint / format / typecheck
+      - name: mechanical
+        run: '[doctor: mechanical command, e.g. npm run lint && npx tsc --noEmit]'
+
+      # Unit / integration (Step 3)
+      - name: unit_int
+        run: '[doctor: unit/int command, e.g. npm test]'
+
+      # Security floor (Step 6) — secret + dependency scan
+      - name: security
+        run: '[doctor: security command, e.g. npx osv-scanner -r .]'

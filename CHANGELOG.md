@@ -2,6 +2,17 @@
 
 ## 2026-07-16
 
+### [7] — `--doctor` now detects a missing CI pipeline and offers to set one up
+
+- `.claude/skills/pre-merge/refs/stubs/pre-merge.yml`: new — minimal `pull_request` workflow stub the doctor scaffolds into `.github/workflows/`, with the detected mechanical/unit/security gate commands substituted in
+- `.claude/skills/pre-merge/refs/protocol-doctor.md`: added the `ci` step — direct `.github/workflows/*` probe, a new "workflow-missing" gap flavor, and the scaffold-or-skip interview that writes `steps.ci`
+- `.claude/skills/pre-merge/refs/stubs/README.md`, `.claude/skills/pre-merge/SKILL.md`: document the workflow-missing stub and CI-pipeline detection
+- `.claude/skills/post-merge/refs/protocol-doctor.md`: branch-protection offer now guarded on a CI workflow existing — never bootstraps protection around checks nothing produces; delegates scaffolding to `/pre-merge --doctor`
+- `.claude/skills/post-merge/refs/staging.md`: an empty PR check set (no pipeline ran) no longer passes as "green" — emits a `low` `vacuous-ci` note when `steps.ci` expected a workflow
+- `.claude/skills/post-merge/SKILL.md`: document the protection guard
+- `.claude/skills/shared/refs/policy-schema.md`: added `ci` to the closed step-key vocabulary (15→16) and its post-merge read-contract (the `vacuous-ci` note)
+- `README.md`: `/pre-merge` and `/post-merge` rows note CI-workflow detection and the protection guard
+
 ### [6] — Publish the v1.1.0 user-facing release notes
 
 - `RELEASES.md`: new — added the `v1.1.0 — 2026-07-16` section (user-facing notes for the `--doctor` gate setup, direct-flow shipping without a staging branch, self-fixing failed gate runs, and policy-conditional branch protection; covers changelog entries [3]–[5])
