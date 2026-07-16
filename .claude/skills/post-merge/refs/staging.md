@@ -96,7 +96,7 @@ On **Not yet**, do not stamp; note it in the run report and stop.
 
 ## Run report
 
-Write `report-[n].md` (`../shared/refs/report-schema.md`, `skill: post-merge`)
+Write `report-prd-<N>-<K>.md` (`../shared/refs/report-schema.md`, `skill: post-merge`)
 to the PRD's `reports/` dir. Staging flavor:
 
 - `verdict: pass` when merged + (deployed or deploy-skipped-with-note) + (smoke verified or verify-skipped-with-note); `fail` on a smoke failure (Step 5); `n/a` if it refused before merging.

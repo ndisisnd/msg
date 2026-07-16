@@ -97,9 +97,9 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   (`.md .json .txt .yaml .yml .toml`, ≤2 MB) and skip `.git`/`node_modules`/`.env*`;
   **writes are restricted to `features/prd-*/` markdown plus the single root
   `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
-  writes no other INTAKE.md cell, and never writes `msg-gate/gate-*.json` (the
-  finding→ticket projection stays read-time; `followUp.status` is written solely by
-  `eng --build`).
+  writes no other INTAKE.md cell, and never writes the issues file
+  `report-prd-<N>-<K>.json` (the finding→ticket projection stays read-time;
+  `followUp.status` is written solely by `eng --build`).
 
 ## Step 2 — Data model (what the server parses)
 
@@ -114,14 +114,19 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `.claude/skills/eng/refs/plan/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
-4. **Gate issues** from `msg-gate/gate-*.json` via the shared **finding → issue-ticket
-   projection** in `eng/refs/build/protocol-build-gatejson.md` (read-time view, never
-   re-serialized). Absent `msg-gate/` → `gateIssues: []`.
-5. **Run reports** from `features/prd-*/reports/report-*.md` (one level of nested
+4. **Gate issues** from the per-run **issues file** — the failed-run `.json` colocated in
+   the PRD's `reports/` folder, sharing a stem with the human report
+   (`report-prd-<N>-<K>.json`) — globbed from `features/prd-*/reports/report-prd-*-*.json`,
+   `features/prd-*/prd-*/reports/report-prd-*-*.json`, and `features/reports/report-*.json`
+   (the no-PRD fallback), via the shared **finding → issue-ticket projection** in
+   `eng/refs/build/report-fix.md` (read-time view, never re-serialized). No issues file →
+   `gateIssues: []`.
+5. **Run reports** from `features/prd-*/reports/report-prd-*-*.md` (one level of nested
    `prd-*` sub-dirs included) and `features/reports/report-*.md` (the no-PRD fallback),
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
-   → raw markdown `detail`, containing `prd-*` folder → `prdId`. Missing/unparseable
-   frontmatter → `skipped[]`. No reports → `reports: []`.
+   → raw markdown `detail`, containing `prd-*` folder → `prdId`. The
+   `report-prd-<N>-<K>-fix-plan.md` fix plans are **excluded** — they are not reports.
+   Missing/unparseable frontmatter → `skipped[]`. No reports → `reports: []`.
 6. **Intake ledger** from root `INTAKE.md` (H2) via `build_intake`: the ledger table is
    located by its header row (must carry `#` / `idea` / `status` columns), then each data
    row is parsed into `{num, date, type, idea, goal, grade, gradeRaw, status, prd, prdKnown,
@@ -198,17 +203,17 @@ is unchanged from the previous protocol revision, with these notes:
       "objective": "…", "type": "code", "priority": "P0",
       "files": [ { "path": "src/x.ts", "action": "add" } ], "dependsOn": [], "doneWhen": "…",
       "done": false } ] } ] } ],
-  "gateIssues": [ { "file": "msg-gate/gate-1.json", "runId": 1, "verdict": "fail",
+  "gateIssues": [ { "file": "features/prd-100-…/reports/report-prd-100-1.json", "runId": "100-1", "verdict": "fail",
     "context": { "prd": "…", "branch": "…", "base": "staging" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per protocol-build-gatejson.md" } ] } ],
-  "reports": [ { "file": "features/prd-101-task-crud/reports/report-1.md", "reportId": 1,
+    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per report-fix.md" } ] } ],
+  "reports": [ { "file": "features/prd-101-task-crud/reports/report-prd-101-1.md", "reportId": "101-1",
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",
     "generated": "2026-07-08T14:00:00Z", "features": ["F1"],
     "stats": { "filesChanged": 3, "linesAdded": 120, "linesRemoved": 8,
       "testsPassed": 6, "testsFailed": 0 },
-    "title": "Report 1 — eng — …", "detail": "<raw report markdown body>" } ],
+    "title": "Report 101-1 — eng — …", "detail": "<raw report markdown body>" } ],
   "skipped": [ { "path": "…", "reason": "…" } ]
 }
 ```
@@ -246,7 +251,7 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 ### Error cases
 - `python3` missing / ports busy → surface it, don't fail silently (error case 1).
-- Malformed PRD frontmatter or unparseable `msg-gate/*.json` → `skipped[]`, flagged in the
+- Malformed PRD frontmatter or an unparseable issues `.json` → `skipped[]`, flagged in the
   board header; the rest still render (error case 2).
 - Browser won't open → print the `127.0.0.1` URL (error case 3).
 - `claude` CLI missing → Prompts runs fail with a visible error in the run's output; the
@@ -257,8 +262,8 @@ across every project (light + dark, responsive); it is **not** sourced from
 ## Gate Issues surface + PRD cross-link (rendering)
 
 - **A distinct surface, not a PRD column.** `gateIssues[]` render in their own grouping on
-  the board — one card per `msg-gate/gate-<n>.json` (runId, verdict pill, summary counts,
-  `followUp.status`).
+  the board — one card per issues file `report-prd-<N>-<K>.json` (runId, verdict pill,
+  summary counts, `followUp.status`).
 - **Every ticket is tagged by `kind`.** Issue-tickets get a 🐞 tag, a `severity` pill, and
   `repro`/`evidence.snippet` in the side panel.
 - **Per-issue gate-step badge.** Each issue-ticket shows the originating gate step parsed
@@ -267,7 +272,8 @@ across every project (light + dark, responsive); it is **not** sourced from
   the side panel.
 - **Real done-state for issues.** `followUp.status` is written back by `eng --build`; the
   board renders it, never invents it, and never offers a toggle for it. The
-  suggested-command deep-link is `eng --build gate-json=msg-gate/gate-<n>.json`.
+  suggested-command deep-link is
+  `eng --build report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`.
 - **PRD cross-link.** A `gateIssues[]` entry whose `context.prd` matches an enumerated PRD
   also surfaces its tickets on that PRD's detail page, tagged `kind: "issue"`.
 
@@ -293,12 +299,13 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 - **Own tab, read-only.** `reports[]` render under a dedicated **Reports** nav tab
   (`#/reports`), grouped by `prdId` (unmapped reports group under "No PRD"), one card per
-  `report-[n].md` with skill, verdict pill, diff/test stat pills, branch, and timestamp.
+  `report-prd-<N>-<K>.md` (the `-fix-plan.md` variant is excluded — fix plans are not
+  reports) with skill, verdict pill, diff/test stat pills, branch, and timestamp.
 - **Detail page.** `#/reports/<file>` renders the report's raw markdown `detail` through
   the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
   `prdId` matches an enumerated PRD.
 - **Producers, not the GUI, write reports.** `eng --build`, `/pre-merge`, and
-  `/post-merge` own `report-[n].md` (`.claude/skills/shared/refs/report-schema.md`); the
+  `/post-merge` own `report-prd-<N>-<K>.md` (`.claude/skills/shared/refs/report-schema.md`); the
   board renders them and never writes, renumbers, or toggles them. Post-merge reports join
   the per-PRD grouping by their `skill: post-merge` frontmatter — staging reports carry the
   human test script in `## How to verify`; production reports render release-style, and when
@@ -307,9 +314,9 @@ across every project (light + dark, responsive); it is **not** sourced from
 
 ## What this protocol never does
 - Never lets the GUI write outside `features/prd-*/` markdown **and the one root `INTAKE.md`
-  status-cell carve-out (H5)**: no repo-file writes from the Files view, no writes to
-  `msg-gate/gate-*.json` (`followUp.status` belongs to `eng --build`), no writes to any
-  INTAKE.md cell other than `status`, no generated output written into the repo.
+  status-cell carve-out (H5)**: no repo-file writes from the Files view, no writes to the
+  issues file `report-prd-<N>-<K>.json` (`followUp.status` belongs to `eng --build`), no
+  writes to any INTAKE.md cell other than `status`, no generated output written into the repo.
 - Never invents issue done-state, and never fabricates todo done-state — a todo is `done`
   only when its ticket block carries `- **done:** true` (the toggle's own field).
 - Never binds to anything but `127.0.0.1`, and never serves without the per-run token

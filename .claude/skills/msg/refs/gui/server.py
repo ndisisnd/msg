@@ -359,7 +359,7 @@ SEV_PRIO = {"blocker": "P0", "high": "P1", "medium": "P2", "low": "P2"}
 
 
 def project_finding(f):
-    """Canonical finding → issue-ticket (eng/refs/build/protocol-build-gatejson.md 'Finding → issue-ticket projection')."""
+    """Canonical finding → issue-ticket (eng/refs/build/report-fix.md 'Finding → issue-ticket projection')."""
     msg = f.get("message") or f.get("title") or f.get("id") or "finding"
     suggestion = f.get("suggestion")
     repro = f.get("repro")
@@ -389,17 +389,25 @@ def project_finding(f):
 
 def collect_gate_issues(skipped):
     out = []
-    for path in sorted(glob.glob(os.path.join(root_path(), "msg-gate", "gate-*.json"))):
+    pats = (
+        os.path.join(root_path(), "features", "prd-*", "reports", "report-prd-*-*.json"),
+        os.path.join(root_path(), "features", "prd-*", "prd-*", "reports", "report-prd-*-*.json"),
+        os.path.join(root_path(), "features", "reports", "report-*.json"),
+    )
+    paths = sorted(set(p for pat in pats for p in glob.glob(pat)))
+    for path in paths:
         rel = os.path.relpath(path, root_path())
         try:
             doc = json.load(open(path, encoding="utf-8"))
         except Exception as e:
             skipped.append({"path": rel, "reason": "unparseable JSON: %s" % e})
             continue
-        nm = re.search(r"gate-(\d+)\.json$", path)
+        pm = re.search(r"report-prd-(\d+)-(\d+)\.json$", path)
+        nm = re.search(r"report-(\d+)\.json$", path)
         out.append({
             "file": rel,
-            "runId": int(nm.group(1)) if nm else rel,
+            "runId": ("%s-%s" % (pm.group(1), pm.group(2))) if pm
+                     else (int(nm.group(1)) if nm else rel),
             "verdict": doc.get("verdict"),
             "context": doc.get("context") or {},
             "summary": doc.get("summary") or {},
@@ -412,7 +420,7 @@ def collect_gate_issues(skipped):
 # --------------------------------------------------------------------------- run reports
 
 def parse_report_file(path, skipped):
-    """One report-[n].md (shared/refs/report-schema.md) → Reports-tab payload entry."""
+    """One report-prd-<N>-<K>.md (shared/refs/report-schema.md) → Reports-tab payload entry."""
     rel = os.path.relpath(path, root_path())
     try:
         text = open(path, encoding="utf-8", errors="replace").read()
@@ -430,6 +438,7 @@ def parse_report_file(path, skipped):
         except (TypeError, ValueError):
             return None
 
+    pm = re.search(r"report-prd-(\d+)-(\d+)\.md$", path)
     nm = re.search(r"report-(\d+)\.md$", path)
     dm = re.search(r"([^/]+)/reports/[^/]+$", rel.replace(os.sep, "/"))
     prd_id = dm.group(1) if dm and dm.group(1).startswith("prd-") else None
@@ -437,7 +446,7 @@ def parse_report_file(path, skipped):
     prd = fm.get("prd")
     return {
         "file": rel,
-        "reportId": int(nm.group(1)) if nm else 0,
+        "reportId": int(pm.group(2)) if pm else (int(nm.group(1)) if nm else 0),
         "skill": fm.get("skill"),
         "prd": None if (not prd or prd == "none") else prd,
         "prdId": prd_id,
@@ -466,6 +475,8 @@ def collect_reports(skipped):
     )
     for pat in pats:
         for path in sorted(glob.glob(pat)):
+            if path.endswith("-fix-plan.md"):
+                continue
             r = parse_report_file(path, skipped)
             if r:
                 out.append(r)

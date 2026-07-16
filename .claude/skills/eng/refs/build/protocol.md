@@ -11,13 +11,13 @@ This file defines the build-mode specifics only. The shared protocol — input v
 Build mode has two input sources (resolved at `SKILL.md` Step 1):
 
 - **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
-- **`gate-json`** (alternate, `--build`-only): if a `gate-json=<path to msg-gate/gate-N.json>` arg is present, **load `protocol-build-gatejson.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `gate-json` is a hard failure — ambiguous source; see that ref.)
+- **`report`** (alternate, `--build`-only): if a `report=<path to features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json>` arg is present, **load `report-fix.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `report` is a hard failure — ambiguous source; see that ref.)
 
 Either way, build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|
-| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `gate-json` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `protocol-build-gatejson.md`). |
+| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `report` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `report-fix.md`). |
 | `commit_mode` | *(optional)* `direct` or `sub-branch`. Default `direct`. See **Branch contract** below. |
 
 ### Branch contract (what `branch` means)
@@ -38,7 +38,7 @@ If `commit_mode` is absent, default to `direct`.
 /eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
-**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `gate-json`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `gate-json` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
+**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `report`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `report` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
 
 ---
 
@@ -54,7 +54,7 @@ The `build --feature <F-ID>` slice returns that feature's row (F-ID + acceptance
 
 **Escape hatch:** if a row needs a detail the slice omits — Design-decisions / Phases prose or exact identifiers buried in narrative beyond the captured contracts/migration/scope blocks, or a heading under the digest's `unparsed_sections` — read only that engineering section's `prose_lines` range. Do **not** default to reading the whole PRD. (The `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers, per Work steps below.)
 
-The **orchestrated** build path is unchanged (work from the injected scoped excerpts, PRD path as escape hatch only), and the **`gate-json`** source reads no exec-table at all — neither invokes this slice read.
+The **orchestrated** build path is unchanged (work from the injected scoped excerpts, PRD path as escape hatch only), and the **`report`** source reads no exec-table at all — neither invokes this slice read.
 
 The `### F<n>` **todo** blocks are not part of the slice; they are written by `--plan` in the same pass as the engineering section (always present), so read them from the PRD's `## Todos — <Agent Name>` section as the Work steps specify.
 
@@ -122,7 +122,7 @@ If rows span multiple stacks, add each stack's scoped flags to the **same** call
 
 In all cases the PRD's `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers; the todos are the executable breakdown of that section. Do not re-interpret the PRD features section directly.
 
-**`gate-json` source.** When build is driven by `gate-json` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `protocol-build-gatejson.md`**.
+**`report` source.** When build is driven by `report=` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `report-fix.md`**.
 
 0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
    - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
@@ -240,16 +240,16 @@ Emit a build summary after all rows are complete:
 **Blocked rows:** <list any rows not completed and why>
 **AHA entries:** <list any entries written to devkit/AHA.md, or "None">
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
-**Report:** <path to the report-[n].md if the file was written, else "inline — the build summary above is the report of record">
+**Report:** <path to the report-prd-<N>-<K>.md if the file was written, else "inline — the build summary above is the report of record">
 ```
 
-**`gate-json` source.** When the build was driven by `gate-json`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `protocol-build-gatejson.md`.
+**`report` source.** When the build was driven by `report=`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `report-fix.md`.
 
-### Run report — `report-[n].md`
+### Run report — `report-prd-<N>-<K>.md`
 
-The inline build summary above is always emitted and is the **report of record** for the orchestrator — a `report-[n].md` file only *supplements* it (per `../../../shared/refs/report-schema.md`, which never lets the file replace the summary). After emitting the build summary, **best-effort** write that supplementary run report per the schema — path resolution, `[n]` numbering, frontmatter keys, and the fixed section contract all live there; do not improvise fields. The write is optional, not required: if the file cannot be written — sandbox / subagent write policy, or an IO failure — the inline build summary stands as the sanctioned fallback; note the skipped report under the build summary's **Warnings** and continue. Never fail or block the build over the report file. Build-mode specifics:
+The inline build summary above is always emitted and is the **report of record** for the orchestrator — a `report-prd-<N>-<K>.md` file only *supplements* it (per `../../../shared/refs/report-schema.md`, which never lets the file replace the summary). After emitting the build summary, **best-effort** write that supplementary run report per the schema — path resolution, `<N>`/`<K>` numbering, frontmatter keys, and the fixed section contract all live there; do not improvise fields. The write is optional, not required: if the file cannot be written — sandbox / subagent write policy, or an IO failure — the inline build summary stands as the sanctioned fallback; note the skipped report under the build summary's **Warnings** and continue. Never fail or block the build over the report file. Build-mode specifics:
 
-- Directory: `features/prd-<n>-<slug>/reports/` derived from the `prd-path` input (create if absent).
+- Directory: `features/prd-<N>-<slug>/reports/` derived from the `prd-path` input (create if absent).
 - Frontmatter: `skill: eng`; `prd` = `prd-path`; `branch` = the branch the commits landed on; `verdict` mapped from the full-suite gate (`pass` / `fail`, `n/a` when no test command); `features` = the assigned exec-table rows' feature ids; diff stats from `rtk git diff --numstat` over this agent's commits; test counts from the per-group and full-suite runs.
 - `## What to expect` / `## How to verify` are written for the human who will use the feature, in simple, non-technical language: derive the verification steps from the PRD acceptance criteria of the rows built and the tests written — say what to do and what they should see (exact command to copy-paste where unavoidable, user-visible behaviour to click through, expected result in plain words).
 - Best-effort: a failed report write never fails the build — record it under the build summary's **Warnings** instead.
@@ -258,4 +258,4 @@ The inline build summary above is always emitted and is the **report of record**
 - Use the PRD's `## Engineering — <Agent Name>` section as the sole specification.
 - Do not modify the PRD file.
 - Your commits must land on the feature branch (`branch`): directly in `direct` mode, or via a PR into it in `sub-branch` mode. Never commit to or open a PR against `main`.
-- Do not modify files outside the scope of the assigned exec-table rows — this also keeps parallel `direct`-mode agents file-disjoint on the shared branch. (Run artifacts are exempt: `devkit/AHA.md`, `devkit/OPEN-QUESTIONS.md`, and the run report under `features/…/reports/` — the report's max+1 numbering keeps parallel agents from colliding on a filename; on a collision, re-derive `n` and retry once.)
+- Do not modify files outside the scope of the assigned exec-table rows — this also keeps parallel `direct`-mode agents file-disjoint on the shared branch. (Run artifacts are exempt: `devkit/AHA.md`, `devkit/OPEN-QUESTIONS.md`, and the run report under `features/…/reports/` — the report's max+1 numbering keeps parallel agents from colliding on a filename; on a collision, re-derive `K` and retry once.)

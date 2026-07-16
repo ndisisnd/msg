@@ -54,5 +54,5 @@ A commit over cap **with** the trailer is recorded (not a finding) — the justi
 
 A `blocker` from lint/typecheck short-circuits the run per `refs/severity-rubric.md`
 (a broken build/type error makes later stages moot) — skip Steps 3–8, write the
-fail-ticket, go to Step 9's fail path. Comment-scan and commit-cap findings never
+issues file, go to Step 9's fail path. Comment-scan and commit-cap findings never
 short-circuit on their own (they are `low`/`medium`).

@@ -95,7 +95,7 @@ for i in "${!present_names[@]}"; do
 done
 buckets_obj=$(jq -nc "${slurp_args[@]}" "$filter")
 
-# HEAD sha at aggregation time — pre-merge's gate-json freshness check compares
+# HEAD sha at aggregation time — pre-merge's verdict-JSON freshness check compares
 # this against its own HEAD to decide whether the run is reusable.
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
 

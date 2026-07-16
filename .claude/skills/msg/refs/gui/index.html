@@ -126,7 +126,7 @@ function crossLinkedIssues(p) {
     if (!prd) return;
     if (String(prd).indexOf(p.id) >= 0 || (p.path && String(prd).indexOf(p.path) >= 0)) {
       (tf.tickets || []).forEach(function (t) {
-        out.push(Object.assign({ _fid: null, _feature: "gate " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
+        out.push(Object.assign({ _fid: null, _feature: "report " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t));
       });
     }
   });
@@ -513,7 +513,7 @@ function issueFileCard(tf) {
   if (s.warnings) counts.push(s.warnings + " warning" + (s.warnings === 1 ? "" : "s"));
   var c = el(
     '<div class="card issue-file-card" tabindex="0" role="button">' +
-      '<div class="title"><span class="num">gate-' + esc(tf.runId) + "</span>" +
+      '<div class="title"><span class="num">report-' + esc(tf.runId) + "</span>" +
         esc((tf.context && tf.context.branch) || tf.file || "") + "</div>" +
       '<div class="meta">' +
         issueVerdictPill(tf.verdict) +
@@ -530,7 +530,7 @@ function issueFileCard(tf) {
 }
 function renderTestIssuesSection(container) {
   if (!GATE_ISSUES.length) return;
-  container.appendChild(el('<div class="section-title">🐞 Gate Issues ' +
+  container.appendChild(el('<div class="section-title">🐞 Report Issues ' +
     '<span class="n" style="color:var(--text-faint)">' + GATE_ISSUES.length + "</span></div>"));
   var grid = el('<div class="issue-grid"></div>');
   GATE_ISSUES.forEach(function (tf) { grid.appendChild(issueFileCard(tf)); });
@@ -1137,11 +1137,11 @@ function renderIssueDetail(runId) {
   root.innerHTML = "";
   if (!tf) {
     root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a></div>'));
-    root.appendChild(el('<div class="empty-state"><div class="big">Gate issue not found</div>gate-' + esc(runId) + "</div>"));
+    root.appendChild(el('<div class="empty-state"><div class="big">Issue not found</div>report-' + esc(runId) + "</div>"));
     return;
   }
 
-  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 gate-' +
+  root.appendChild(el('<div class="crumbs"><a class="back" href="#/">← Board</a><span>/</span><span>🐞 report-' +
     esc(tf.runId) + "</span></div>"));
 
   var ctx = tf.context || {};
@@ -1152,7 +1152,7 @@ function renderIssueDetail(runId) {
   if (s.warnings) counts.push(s.warnings + " warning" + (s.warnings === 1 ? "" : "s"));
 
   var head = el('<div class="detail-head"></div>');
-  var h2 = el('<h2><span class="num">gate-' + esc(tf.runId) + "</span><span>Gate issues</span></h2>");
+  var h2 = el('<h2><span class="num">report-' + esc(tf.runId) + "</span><span>Report issues</span></h2>");
   h2.appendChild(el(issueVerdictPill(tf.verdict)));
   head.appendChild(h2);
   head.appendChild(el('<div class="meta">' +
@@ -1165,12 +1165,12 @@ function renderIssueDetail(runId) {
     ? '<div class="subtitle" style="margin-top:8px">PRD: ' + esc(ctx.prd) +
       (findPrdByCtx(ctx.prd) ? ' — also shown on <a class="xlink" href="#/prd/' + esc(findPrdByCtx(ctx.prd).id) + '">PRD-' + esc(findPrdByCtx(ctx.prd).num) + "</a>" : "") + "</div>"
     : '<div class="subtitle" style="margin-top:8px">No PRD (ad hoc branch run)</div>'));
-  head.appendChild(el('<div class="subtitle">Fix: <code>/eng --build gate-json=' + esc(tf.file) + "</code></div>"));
+  head.appendChild(el('<div class="subtitle">Fix: <code>/eng --build report=' + esc(tf.file) + "</code></div>"));
   root.appendChild(head);
 
   root.appendChild(el('<div class="section-title">Issues</div>'));
   var tickets = (tf.tickets || []).map(function (t) {
-    return Object.assign({ _feature: "run " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t);
+    return Object.assign({ _feature: "report " + tf.runId, _issueFile: tf, done: ticketDone(tf) }, t);
   });
   if (!tickets.length) {
     root.appendChild(el('<div class="empty-state">This ticket file has no issues.</div>'));
@@ -1181,7 +1181,7 @@ function renderIssueDetail(runId) {
   if (LIVE) {
     var fix = el('<button class="btn ghost">🔧 Fix with Claude</button>');
     fix.addEventListener("click", function () {
-      state.draft = "/eng --build gate-json=" + tf.file;
+      state.draft = "/eng --build report=" + tf.file;
       location.hash = "#/prompts";
     });
     toolbar.appendChild(fix);
@@ -1350,9 +1350,9 @@ function openPanel(t, owner) {
   var files = ticketFiles(t);
   var snippet = t.evidence && t.evidence.snippet;
   document.getElementById("panel-body").innerHTML =
-    field(isIssue(t) ? "Gate run" : "Feature", t._feature) +
+    field(isIssue(t) ? "Report run" : "Feature", t._feature) +
     field("Ticket", t.id) +
-    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky gate issue" : "🐞 Bug / Gate issue") : "") +
+    (isIssue(t) ? field("Kind", t.flaky ? "🐞 Flaky report issue" : "🐞 Bug / Report issue") : "") +
     (isIssue(t) && t.source ? field("Gate step", String(t.source).replace(/^pre-merge:/, "")) : "") +
     field("Objective", t.objective) +
     fieldHtml("Type", typePill(t)) +              // Edit 6 — tag form, not text
@@ -1375,7 +1375,7 @@ function openPanel(t, owner) {
     ask.addEventListener("click", function () {
       closePanel();
       state.draft = isIssue(t)
-        ? "About gate issue " + (t.id || "") + " in " + ((t._issueFile && t._issueFile.file) || "") +
+        ? "About issue " + (t.id || "") + " in " + ((t._issueFile && t._issueFile.file) || "") +
           " (\"" + (t.title || "") + "\"): "
         : "About ticket " + (t.id || "") + " in " + ((owner && owner.path) || "") +
           " (\"" + (t.title || t.objective || "") + "\"): ";
@@ -1391,7 +1391,7 @@ function openPanel(t, owner) {
       var fix = el('<button class="btn">🔧 Fix with Claude</button>');
       fix.addEventListener("click", function () {
         closePanel();
-        state.draft = "/eng --build gate-json=" + t._issueFile.file;
+        state.draft = "/eng --build report=" + t._issueFile.file;
         location.hash = "#/prompts";
       });
       actions.appendChild(fix);
@@ -1471,7 +1471,7 @@ function renderFiles(sel) {
 
 /* ========================================================================= */
 /*  REPORTS PAGE — run reports written by eng --build / pre-merge / post-merge */
-/*  (report-[n].md per shared/refs/report-schema.md)                          */
+/*  (report-prd-<N>-<K>.md per shared/refs/report-schema.md)                  */
 /* ========================================================================= */
 function findReport(file) {
   return REPORTS.filter(function (r) { return r.file === file; })[0];
@@ -1521,7 +1521,7 @@ function renderReports() {
   if (!REPORTS.length) {
     root.appendChild(el('<div class="empty-state"><div class="big">No reports yet</div>' +
       "<code>eng --build</code>, <code>/pre-merge</code> and <code>/post-merge</code> write " +
-      "<code>report-[n].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
+      "<code>report-prd-[N]-[K].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
     return;
   }
   var groups = {}, order = [];

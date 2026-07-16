@@ -116,9 +116,9 @@ Pre-merge becomes **the** CI gate: one skill that takes the feature branch from 
 
 ### B1. What it absorbs
 
-- **From `/test` (deleted):** all 10 bucket refs (`refs/modes/*.md`), `test-tooling-detect.sh` consumption, the aggregate-verdict script, the `--flaky`/`--changed-only` mechanics, the `msg-test/test-<n>.json` fail-ticket loop (renamed `msg-gate/gate-<n>.json`; `eng --build test-json=` becomes `gate-json=`).
+- **From `/test` (deleted):** all 10 bucket refs (`refs/modes/*.md`), `test-tooling-detect.sh` consumption, the aggregate-verdict script, the `--flaky`/`--changed-only` mechanics, the `msg-test/test-<n>.json` fail-ticket loop (renamed to the issues file `report-prd-<n>-<k>.json`; `eng --build test-json=` becomes `report=`).
 - **From `/review` (deleted):** the Security stage (secret scan + SAST via `/cook --security --auth`), the Migration stage (static SQL-safety scan + semantic pass when a DB flag assembles), and the diff-resolution/fingerprint/verify-prelude machinery (pre-merge becomes the prelude's producer AND consumer). Quality/Coverage/Functional/Performance modes are **not** carried over (D2).
-- The canonical finding schema, report-`[n]`.md writing, and run-dir JSON outputs stay exactly as-is — consumers (GUI, eng gate-json builds) see the same shapes.
+- The canonical finding schema, report-prd-`<n>`-`<k>`.md writing, and run-dir JSON outputs stay exactly as-is — consumers (GUI, eng `report=` builds) see the same shapes.
 
 ### B2. The gate sequence (items 6, 8 — order confirmed rearrangeable)
 
@@ -149,7 +149,7 @@ Pre-merge becomes **the** CI gate: one skill that takes the feature branch from 
 9. OPEN PR feature→staging with the verdict JSON + report linked in the PR body
 ```
 
-Any red step short-circuits per severity rules; the fail-ticket (`msg-gate/gate-<n>.json`) feeds `eng --build gate-json=` exactly like the v1 test-ticket loop.
+Any red step short-circuits per severity rules; the fail-ticket (the issues file `report-prd-<n>-<k>.json`) feeds `eng --build report=` exactly like the v1 test-ticket loop.
 
 ### B3. Platform-tolerance modes (item 7)
 
@@ -345,7 +345,7 @@ Backlog board over root `INTAKE.md`: one card per row, grade chips rendered from
 
 ### H3. Gate Issues tab (was Test Issues)
 
-Reads `msg-gate/gate-*.json` (the B1 rename of `msg-test/test-*.json`); card layout unchanged, source-badge per issue now shows the originating gate step (mechanical / unit-int / regression / platform bucket / security). The `suggested_command` deep-link updates to `eng --build gate-json=`.
+Reads the issues files `report-prd-*-*.json` under each `features/prd-*/reports/` dir (the B1 rename of `msg-test/test-*.json`); card layout unchanged, source-badge per issue now shows the originating gate step (mechanical / unit-int / regression / platform bucket / security). The `suggested_command` deep-link updates to `eng --build report=`.
 
 ### H4. Reports tab additions
 
@@ -445,11 +445,11 @@ Unchanged mechanically (cook compile-once, scoped flags, exec-table skeleton —
 - [ ] `/msg --init` writes `PLATFORMS.md` (+1 interview question, `preview_kind` column)
 - [ ] Regression: spawned eng subagent authors to `tests/regression/prd-<n>/` (D9); edits to prior tests emit PRD-clause-cited findings (D5)
 - [ ] Sync step: trivial conflicts auto-resolved, semantic conflicts pause; unit+int re-run post-sync (D7)
-- [ ] Fail-ticket loop: `msg-gate/gate-<n>.json` → `eng --build gate-json=` works end-to-end
+- [ ] Fail-ticket loop: the issues file `report-prd-<n>-<k>.json` → `eng --build report=` works end-to-end
 - [ ] Preview gate fires on the D6 path heuristic, presents the profile's `preview_kind`, blocks on approval
 - [ ] Opens PR feature→staging with verdict JSON + report linked
 - [ ] `/review` + `/test` deleted; README / ARCHITECTURE / `/msg` menu / `--help` / GUI references scrubbed; manifest += `review`, `test` + orphaned scripts
-- [ ] GUI Gate Issues tab reads `msg-gate/` with per-step source badges (H3)
+- [ ] GUI Gate Issues tab reads the issues files under `features/prd-*/reports/` with per-step source badges (H3)
 - [ ] `bench.py`: largest single cut lands; one live eng → pre-merge run on a seeded PRD is clean
 
 ### P5 — Ship layer: staging → main *(Part C, H1, H4)*

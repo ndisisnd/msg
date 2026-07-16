@@ -1,6 +1,6 @@
 ---
 name: finding-schema
-description: Canonical finding object emitted by pre-merge's gate stages and eng's pair-review / fail-ticket loop. One severity enum, one field set, one evidence shape. The single source of truth for finding interoperability across the gate.
+description: Canonical finding object emitted by pre-merge's gate stages and eng's pair-review / issues-file loop. One severity enum, one field set, one evidence shape. The single source of truth for finding interoperability across the gate.
 ---
 
 # Finding Schema
@@ -8,9 +8,10 @@ description: Canonical finding object emitted by pre-merge's gate stages and eng
 The single canonical finding shape emitted across the harness — every pre-merge
 gate stage (mechanical, unit-int, regression, platform buckets, security,
 migration, PRD-consistency, preview), eng's per-ticket pair-review, and the
-`msg-gate/gate-<n>.json` fail-ticket that `eng --build gate-json=` consumes. Every
-producer conforms to this object so downstream consumers (the `/msg --gui` board,
-`eng --build`'s gate-json read, the roadmap orchestrator) can merge, dedup, and
+`report-prd-<N>-<K>.json` issues file (in the PRD's `reports/` folder, written on
+a failed run) that `eng --build report=` consumes. Every producer conforms to
+this object so downstream consumers (the `/msg --gui` board, `eng --build`'s
+issues-file read, the roadmap orchestrator) can merge, dedup, and
 regression-match findings mechanically — without per-producer translation.
 
 Replaces the divergent shapes that previously drifted apart (disjoint severity
