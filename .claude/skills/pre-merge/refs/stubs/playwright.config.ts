@@ -1,5 +1,5 @@
-// Minimal Playwright config — scaffolded by `/pre-merge --doctor`.
-// Just enough for the e2e bucket to run: one project, a tests dir, list reporter.
+// Minimal Playwright config — scaffolded by `/pre-merge --init`.
+// Just enough for the e2e component to run: one project, a tests dir, list reporter.
 import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({

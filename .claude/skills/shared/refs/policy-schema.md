@@ -1,6 +1,6 @@
 ---
 name: policy-schema
-description: Canonical schema, status vocabulary, and gate read-contract for devkit/policy.json — the committed, shared policy file seeded by /msg --init, flipped by /msg --init-staging, completed by --doctor, and read by both gates
+description: Canonical schema, status vocabulary, and gate read-contract for devkit/policy.json — the committed, shared policy file seeded by /msg --init, flipped by /msg --init-staging, completed by --init (--doctor is a deprecated one-release alias), and read by both gates
 type: reference
 ---
 
@@ -14,18 +14,21 @@ The single authoritative definition of `devkit/policy.json`: the **committed, sh
 |---|---|
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow` (nothing else) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
-| `--doctor` | **completion** — fills tooling + `branch_protection`, flips `init:true` |
+| `--init` | **completion** — fills tooling + `branch_protection`, flips `init:true` |
 
-No gate run ever writes it (AC-OW1). `--doctor` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
+No gate run ever writes it (AC-OW1). `--init` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
+
+**Deprecated alias.** `--doctor` still works for one release: it runs `--init` and prints a
+deprecation note naming `--init`/`--update`.
 
 ## Canonical v1 schema (annotated)
 
 ```json
 {
   "version": 1,                          // must be 1; any other value → file treated as absent
-  "init": true,                          // lifecycle gate: false → gates auto-run --doctor first
+  "init": true,                          // lifecycle gate: false → gates auto-run --init first
   "generated": "2026-07-16",             // YYYY-MM-DD, stamped by the writing skill
-  "generated_by": "post-merge --doctor", // last writer; informational
+  "generated_by": "post-merge --init",   // last writer; informational
   "repo": {                              // evidence/audit only — gates never branch on it
     "host": "github",
     "visibility": "private",
@@ -60,7 +63,7 @@ No gate run ever writes it (AC-OW1). `--doctor` never writes `devkit/PLATFORMS.m
 
 ## Seed skeleton — what `/msg --init` writes
 
-Release-flow answers captured, tooling not yet resolved, `init:false` so the first gate run triggers `--doctor`. Idempotent: `/msg --init` never overwrites an existing `policy.json` (AC-LC7).
+Release-flow answers captured, tooling not yet resolved, `init:false` so the first gate run triggers `--init`. Idempotent: `/msg --init` never overwrites an existing `policy.json` (AC-LC7).
 
 ```json
 {
@@ -81,9 +84,9 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `version` | int | ✔ | — | must be `1`; any other value → whole file treated as absent (AC-S1) |
-| `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--doctor` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--doctor` flips it `true` on completion |
+| `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--init` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--init` flips it `true` on completion |
 | `generated` | `YYYY-MM-DD` | ✔ | — | stamped by the skill (scripts can't date); informational |
-| `generated_by` | enum `msg --init` \| `msg --init-staging` \| `pre-merge --doctor` \| `post-merge --doctor` | ✖ | — | last writer; informational |
+| `generated_by` | enum `msg --init` \| `msg --init-staging` \| `pre-merge --init` \| `post-merge --init` | ✖ | — | last writer; informational. `pre-merge --doctor`/`post-merge --doctor` still appear on files written during the one-release deprecation window (aliases of `--init`) |
 | `repo` | object | ✖ | — | evidence/audit only — gates never branch on it |
 | `policies` | object | ✖ | `{}` | the enforced half |
 | `steps` | object | ✖ | `{}` | per-step decisions |
@@ -131,7 +134,7 @@ Any key outside this set → ignored + one warn (AC-S4):
 `mechanical` · `unit_int` · `e2e` · `qa` · `a11y` · `perf` · `load` · `api` · `mobile` · `coverage` · `security` · `migration` · `ci` · `deploy_staging` · `deploy_production` · `smoke`
 
 `ci` records whether a `.github/workflows/` pipeline runs the gate on PRs (written by
-`pre-merge --doctor`, read by post-merge's green-CI check — see §3). It has no runner and never
+`pre-merge --init`, read by post-merge's green-CI check — see §3). It has no runner and never
 runs as a gate *step*; it exists so a missing pipeline surfaces instead of passing vacuously.
 
 ## Validation rules
@@ -143,9 +146,9 @@ Fail-safe throughout — a malformed policy never aborts a gate run.
 3. **Missing justification** — required `reason` missing (relaxed protection `optional`/`skip`, or a non-`ready` step) → decision **honored**, one `unjustified-policy` warn per offending field. A missing justification is a docs smell, not a safety failure — never let it flip to a stricter default. (AC-S3)
 4. **Unknown key** — unknown `steps` key or unknown top-level key → ignored, one warn each; known keys unaffected. (AC-S4)
 5. **Contradictory flow** — `release_flow.mode:"staged"` with null/absent `staging_branch` → contradictory; **discard `release_flow`** and use the built-in "staging if the branch exists, else prod" fallback + one warn. (AC-S5)
-6. **Self-healing `init`** — `init` missing on an existing file → treated as `false`; the next gate run triggers `--doctor`, which sets it `true`.
+6. **Self-healing `init`** — `init` missing on an existing file → treated as `false`; the next gate run triggers `--init`, which sets it `true`.
 
-A `--doctor`-written file re-loaded by a gate produces **zero** validation warnings (round-trip clean, AC-S6).
+An `--init`-written file re-loaded by a gate produces **zero** validation warnings (round-trip clean, AC-S6).
 
 ---
 
@@ -161,11 +164,11 @@ init = policy.init ?? false          // file present but no `init` → false
 
 | State | Gate behavior |
 |---|---|
-| file **absent** (repo never ran `/msg --init`) | built-in defaults + a one-line nudge to run `/msg --init` or `/pre-merge --doctor`. **No auto-doctor** — an ad-hoc gate run in an unmanaged repo is never hijacked (back-compat, AC-LC6). |
-| `init: false` | **auto-run `--doctor` inline before the protocol** (AC-LC2). `--doctor` completes setup and flips `init:true` (AC-LC3), then the gate continues. If the user **aborts** `--doctor`, the gate stops — nothing was set up, so it runs **no** protocol step on a half-configured repo (AC-LC4). |
-| `init: true` | run the protocol directly — no doctor (AC-LC5). |
+| file **absent** (repo never ran `/msg --init`) | built-in defaults + a one-line nudge to run `/msg --init` or `/pre-merge --init`. **No auto-init** — an ad-hoc gate run in an unmanaged repo is never hijacked (back-compat, AC-LC6). |
+| `init: false` | **auto-run `--init` inline before the protocol** (AC-LC2). `--init` completes setup and flips `init:true` (AC-LC3), then the gate continues. If the user **aborts** `--init`, the gate stops — nothing was set up, so it runs **no** protocol step on a half-configured repo (AC-LC4). |
+| `init: true` | run the protocol directly — no init run (AC-LC5). |
 
-Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/post-merge` auto-runs `--doctor` → `--doctor` flips `init:true` → every later run is a normal gate. `--doctor` can still be invoked manually anytime to re-tune (it does not depend on `init`).
+Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/post-merge` auto-runs `--init` → `--init` flips `init:true` → every later run is a normal gate. `--init` can still be invoked manually anytime to re-tune (it does not depend on `init`). (`--doctor` is a deprecated one-release alias for `--init` throughout this lifecycle.)
 
 ## 1 · `release_flow` (both gates)
 

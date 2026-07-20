@@ -20,7 +20,10 @@ Skills compose in two ways:
 - **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-tune` or `plan-em` directly)
 - **Subagent delegation** via the `Agent` tool (e.g. `/pre-merge` fans out `/cook` sub-agents in parallel for its security stage)
 
-The `shared/` skill holds common prompt fragments imported by multiple skills.
+The `shared/` skill holds common prompt fragments imported by multiple skills, including
+`shared/refs/component-catalog.md` — the single source of pre-merge/post-merge component
+metadata (schema, defaults, grouping) that gate sequencing, folder placement, and
+check-script naming all key off.
 
 ### 3. Script layer — `~/.claude/scripts/`
 
@@ -29,14 +32,14 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | Script | Purpose |
 |--------|---------|
 | `pre-merge-tooling-detect.sh` | Emits project tooling as JSON — test runners, mechanical runners (lint/format/typecheck), secret scanners, build tool, and bundle analyzer. Consumed at runtime by `pre-merge` (replacing manual reads of `shared/refs/tooling-detection.md`, now maintainer docs only) |
-| `pre-merge-aggregate-verdict.sh` | Merges per-bucket pre-merge results into a single verdict |
+| `pre-merge-aggregate-verdict.sh` | Merges per-component pre-merge results into a single verdict |
 | `scan-n.prd` | Assigns the next available PRD number |
 | `plan-tune-preflight.sh` | Validates PRD structure before a tune pass |
 | `changelog-gate.py` | Validates CHANGELOG.md format |
 | `eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
 | `eng-commit-cap.sh` | A5 small-commit cap — blocks a staged diff over 500 changed LOC (300 with `--breaking`); `--oversize-reason` escape hatch |
-| `post-merge-protection.sh` | Branch-protection `--bootstrap` (sets required status checks + no-force-push on `staging`/`main`, plus ≥1 required review on `main`) and `--verify` (machine `PROTECTED`/`UNPROTECTED` lines; `NO_GH`/`NO_REMOTE` when degraded). Run by `/post-merge` Step 1; offered by `/msg --init-staging` and `--doctor` |
-| `doctor-detect-repo.sh` | Read-only probe of repo visibility, branch-protection availability (Free-plan 403 sniff), and staging/prod branch topology → JSON. Consumed by `/pre-merge --doctor` and `/post-merge --doctor` to seed `devkit/policy.json`'s `repo` block + `release_flow` |
+| `post-merge-protection.sh` | Branch-protection `--bootstrap` (sets required status checks + no-force-push on `staging`/`main`, plus ≥1 required review on `main`) and `--verify` (machine `PROTECTED`/`UNPROTECTED` lines; `NO_GH`/`NO_REMOTE` when degraded). Run by `/post-merge` Step 1; offered by `/msg --init-staging` and `--init` |
+| `doctor-detect-repo.sh` | Read-only probe of repo visibility, branch-protection availability (Free-plan 403 sniff), and staging/prod branch topology → JSON. Consumed by `/pre-merge --init` and `/post-merge --init` to seed `devkit/policy.json`'s `repo` block + `release_flow` |
 
 ### 4. Devkit layer (scaffolded projects)
 
@@ -52,7 +55,7 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | `devkit/PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` and `/post-merge` |
 | `devkit/policy.json` | Committed, shared gate policy — release-flow shape (`staged`/`direct`), branch-protection stance, and per-step tooling decisions. Read by both gates at run time; **decisions only** (never per-machine tool presence). Schema: `shared/refs/policy-schema.md` |
 
-`devkit/policy.json` is the one **co-written** devkit file: `/msg --init` seeds it (`version`, `init:false`, `release_flow`), `--doctor` completes it (tooling + branch-protection, flips `init:true`), and `/msg --init-staging` flips the flow to `staged`. It gates the pipeline: a gate run with `init:false` auto-runs `--doctor` first; with `init:true` it runs the protocol; with no file at all it falls back to today's behavior (unmanaged repo). See the `--doctor` protocol refs (`{pre,post}-merge/refs/protocol-doctor.md`).
+`devkit/policy.json` is the one **co-written** devkit file: `/msg --init` seeds it (`version`, `init:false`, `release_flow`), `--init` completes it (tooling + branch-protection, flips `init:true`), and `/msg --init-staging` flips the flow to `staged`. It gates the pipeline: a gate run with `init:false` auto-runs `--init` first; with `init:true` it runs the protocol; with no file at all it falls back to today's behavior (unmanaged repo). See the `--init` protocol refs (`{pre,post}-merge/refs/protocol-init.md`). `--doctor` is a deprecated one-release alias for `--init` on both gates.
 
 The root `INTAKE.md` backlog ledger is **not** a devkit file — it is scaffolded by `/msg --init` at the repo root (D13) but, unlike the read-only devkit docs, it is a living ledger written by `intake` (rows), `plan-pm` (status/prd mapping), and `post-merge --production` (completed status).
 
@@ -79,8 +82,8 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 | `plan-tune` | Yes (contract certifier — seven consumer-bound checks; `--product` runs 1/2/3/6, `--eng` runs 2/4/5/6/7; auto-run by `plan-em` before each wave) |
 | `plan-em` | Yes |
 | `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
-| `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`; `--doctor` sets up its step tooling into `devkit/policy.json`) |
-| `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; smoke-verifies every deploy via `smoke_cmd`; `--doctor` sets up protection/deploy tooling + release-flow policy) |
+| `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`; `--init` sets up its step tooling into `devkit/policy.json`; `--doctor` is a deprecated one-release alias) |
+| `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; smoke-verifies every deploy via `smoke_cmd`; `--init` sets up protection/deploy tooling + release-flow policy; `--doctor` is a deprecated one-release alias) |
 | `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap + seeds `devkit/policy.json`; `--init-staging` adds a staging branch and flips the release flow to `staged`; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer, run-report reader — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
 

@@ -1,6 +1,6 @@
 ---
 name: finding-schema
-description: Pre-merge finding shape. Conforms to the canonical finding object in ../../shared/refs/finding-schema.md, with pre-merge bucket-specific evidence extensions.
+description: Pre-merge finding shape. Conforms to the canonical finding object in ../../shared/refs/finding-schema.md, with pre-merge component-specific evidence extensions.
 ---
 
 # Finding Schema
@@ -13,14 +13,14 @@ normalization, and the worked example (`sec-001`). This file records **only**
 pre-merge's specifics; it does not re-list the field set or repeat the shared
 example.
 
-Each stage subagent (Step 5 buckets, Step 6 security/migration, Step 7
+Each stage subagent (Step 5 components, Step 6 security/migration, Step 7
 PRD-consistency) returns the canonical `{ "verdict": ..., "findings": [ ... ] }`
 object.
 
 ## Pre-merge specifics
 
 - **`id` prefixes** name the producing stage: `unit`, `regr` (regression), `e2e`, `qa`, `mobile`, `perf`, `a11y`, `cov` (coverage), `api`, `load`, `sec` (security), `mig` (migration), `func` (PRD-consistency), `mech` (mechanical). Example id: `sec-001`.
-- **`category`** is the closest concern (buckets → the bucket name; security → `security`; migration → `architecture`; PRD-consistency → `functional`/`scope-creep`; mechanical comment/commit → `readability`/`scope-creep`).
+- **`category`** is the closest concern (platform components → the component name; security → `security`; migration → `architecture`; PRD-consistency → `functional`/`scope-creep`; mechanical comment/commit → `readability`/`scope-creep`).
 - **`rule`** is **required** and is the dedup + regression key. Populate it from the tool: the `gitleaks` rule id, semgrep check id, failing test/spec name, WCAG criterion, coverage metric, or a stable slug (`acceptance-unmet`, `oversize-commit`). Never null — Step 6 dedups on `(category, file, line, rule)`, regressions on `(category, file, rule)`.
 - **`source`** is the gate stage per `../../shared/refs/finding-schema.md`: `pre-merge:mechanical` (or `lint:`/`comment-scan`/`commit-cap`), `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>`, `pre-merge:security` (or `secrets:<scanner>`/`sast:semgrep`/`dependency:<tool>`), `pre-merge:migration` (or `migration:static`), `pre-merge:prd-consistency`, `pre-merge:preview`.
 - **`regression_of`** is set by the aggregation step when this finding matches a `--prior-issues` entry. Subagents always emit `null`.

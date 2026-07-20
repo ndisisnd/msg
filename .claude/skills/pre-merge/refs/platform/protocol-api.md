@@ -1,11 +1,11 @@
 ---
-name: bucket-api
-description: Pre-merge API/contract bucket — consumer-driven contract tests, HTTP collection runs, and OpenAPI spec conformance via all detected runners. Parse to canonical findings.
+name: api
+description: Pre-merge API/contract component — consumer-driven contract tests, HTTP collection runs, and OpenAPI spec conformance via all detected runners. Parse to canonical findings.
 ---
 
-# api bucket
+# api component
 
-Guard, error rule, envelope: `_common.md`. `api_runner` is an **array** (Pact / Newman /
+Guard, error rule, envelope: `../_common.md`. `api_runner` is an **array** (Pact / Newman /
 Dredd / Hurl / Spectral / openapi-validator) from the fingerprint — **all** detected
 runners are used (contract tests + a spec linter commonly co-exist); findings merge.
 
@@ -30,4 +30,4 @@ specific runner; `suggestion` = actionable fix. **Partial-results rule:** a fail
 runner contributes to `errors[]` but does not force `fail`; verdict from the runners
 that completed.
 
-Bucket fields: `runners[]`, `commands[]`, `errors[]`, `totals` (passed/failed/warned).
+Component fields: `runners[]`, `commands[]`, `errors[]`, `totals` (passed/failed/warned).

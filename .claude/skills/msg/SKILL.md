@@ -110,7 +110,8 @@ never at risk.
 The **only** path that creates a `staging` branch. It takes a direct-flow repo (ships straight to
 prod) and adds the staging stage: branch `staging` off the prod branch, push it, offer branch
 protection, then flip `devkit/policy.json` release flow to `staged`. Offered by
-`/post-merge --doctor` when it detects a direct-flow repo, and directly invocable. Skip the picker.
+`/post-merge --init` when it detects a direct-flow repo, and directly invocable. Skip the picker.
+(`--doctor` is a deprecated one-release alias for `--init`.)
 
 **Preconditions.**
 - A git repo with `devkit/policy.json` present. If it is **absent**, the repo was never bootstrapped —
@@ -155,7 +156,7 @@ generated                            = "<today, YYYY-MM-DD>"   # the skill stamp
 generated_by                         = "msg --init-staging"
 ```
 
-Leave `init` untouched — this mode does not complete setup (that's `--doctor`'s job) — but **do**
+Leave `init` untouched — this mode does not complete setup (that's `--init`'s job) — but **do**
 refresh the provenance fields (`generated`/`generated_by`) since this mode is a policy-file writer.
 Do **not** rewrite the file from scratch; edit only these fields. After this, `policy.json` reads
 `release_flow.mode:"staged"`, `staging_branch:"staging"` (AC-RF5). Schema authority:

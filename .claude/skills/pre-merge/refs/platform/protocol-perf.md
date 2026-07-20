@@ -1,14 +1,14 @@
 ---
-name: bucket-perf
-description: Pre-merge performance-budget bucket — Core Web Vitals / Lighthouse and bundle-size against configured budgets. Runs isolated. Parse to canonical findings.
+name: perf
+description: Pre-merge performance-budget component — Core Web Vitals / Lighthouse and bundle-size against configured budgets. Runs isolated. Parse to canonical findings.
 ---
 
-# perf bucket
+# perf component
 
-Guard, error rule, envelope: `_common.md`. **Runs isolated** (no overlap with other
-buckets or `load`). `perf_runner` is a `{runtime, bundle}` pair (runtime: Lighthouse CI
+Guard, error rule, envelope: `../_common.md`. **Runs isolated** (no overlap with other
+components or `load`). `perf_runner` is a `{runtime, bundle}` pair (runtime: Lighthouse CI
 `lhci` / Playwright+web-vitals; bundle: size-limit / bundlesize) from the fingerprint.
-Run all detected; either sub-check alone is enough to run the bucket.
+Run all detected; either sub-check alone is enough to run the component.
 
 ## Budgets
 
@@ -30,4 +30,4 @@ HTML report (runtime) or `null` (bundle); `suggestion` keyed to the metric.
 **Partial-results rule:** if one sub-check passes and the other errors, verdict =
 `pass_with_warnings`, the error recorded in `errors[]`.
 
-Bucket fields: `runners[]`, `errors[]`, `thresholds`, `totals`.
+Component fields: `runners[]`, `errors[]`, `thresholds`, `totals`.

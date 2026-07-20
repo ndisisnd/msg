@@ -1,6 +1,6 @@
 ---
 name: preview
-description: Gate Step 8 — preview deploy (human gate). Fires on the D6 path heuristic, produces the platform profile's preview_kind (url / artifact / screenshots), and BLOCKS on human approval. No trigger match → skipped and noted.
+description: Gate Step 8 — preview deploy (human gate). Fires on the D6 path heuristic, produces the platform profile's preview_kind (url / artifact / screenshots), and BLOCKS on human approval. No trigger match → skipped and noted. Also carries the former qa (visual capture) component's protocol, folded in by C20 (reference only this phase — see the file body).
 ---
 
 # Step 8 — PREVIEW DEPLOY (human gate)
@@ -32,6 +32,34 @@ For each platform in the Step 0 `preview_map`, produce its `preview_kind`:
 
 A multi-platform run produces one preview per platform (a strict mobile platform
 still gets its artifact even alongside a lenient web URL).
+
+## Visual capture (merged from qa)
+
+> **C20 note:** the former standalone `qa` (visual) component (`[15]`, retired —
+> see `shared/refs/component-catalog.md`) is folded into this file as of the C3
+> reorganization. Its content is transcribed below **for reference only** — it
+> is not yet wired into this step's active trigger/approval flow in this phase;
+> that integration (the full merged human-review gate, R1–R4) lands in Phase 6
+> (C20/C21). Today's gate sequence and Step 5/Step 8 behavior are unchanged.
+
+Guard, error rule, envelope: `../_common.md`. Runner (`qa_runner`: Playwright visual /
+Chromatic / Percy / BackstopJS / Loki) from the Step 1 fingerprint.
+
+**Baseline check.** Verify baselines exist before running: Playwright `.png`
+snapshots; BackstopJS `backstop_data/bitmaps_reference/`; Loki `.loki/reference/`;
+Chromatic/Percy are remote (assume present if configured). No local baseline and
+not Chromatic/Percy → `pass_with_warnings`, note `"No visual baselines found — run
+once in update mode."`
+
+**Run + parse.** Execute `qa_runner.command`.
+
+- Exit 0, no diffs (or below threshold) → `pass`.
+- Non-zero with visual diffs → each diff is one finding, `severity: high` (`medium` if attribution/threshold uncertain).
+- Runner crash/auth error → `pass_with_warnings`, note `"QA runner failed to start — results unreliable."`.
+
+Finding fields: `rule` = story/snapshot name; `file` = spec/story that produced the
+diff; `evidence.file` = diff-image path or report URL; `message` = e.g. `"23.4% pixel
+difference exceeds 0.1% threshold"`. Totals: `{ passed, failed, skipped }`.
 
 ## Block on approval
 

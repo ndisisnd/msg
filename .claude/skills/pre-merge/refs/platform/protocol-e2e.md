@@ -1,11 +1,11 @@
 ---
-name: bucket-e2e
-description: Pre-merge e2e bucket — run end-to-end tests via the detected runner, parse failures to canonical findings. Supports --flaky retry.
+name: e2e
+description: Pre-merge e2e component — run end-to-end tests via the detected runner, parse failures to canonical findings. Supports --flaky retry.
 ---
 
-# e2e bucket
+# e2e component
 
-Guard, error rule, envelope, `--flaky`/`--changed-only`: `_common.md`. Runner
+Guard, error rule, envelope, `--flaky`/`--changed-only`: `../_common.md`. Runner
 (`e2e_runner`) from the Step 1 fingerprint.
 
 ## Run
@@ -30,6 +30,6 @@ silent empty scope).
 
 Finding fields: `rule` = test title / `describe > it` path; `file` = spec path;
 `evidence.spec` = spec file; `evidence.file` = screenshot/trace artifact or `null`;
-`repro` = single-spec re-run command. `--flaky` retry per `_common.md`.
+`repro` = single-spec re-run command. `--flaky` retry per `../_common.md`.
 
 Totals: `{ passed, failed, skipped, flaky }` (`flaky` only under `--flaky`).

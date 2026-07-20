@@ -39,7 +39,7 @@ type: reference
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
 | `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
-| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`); `--doctor` completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
+| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`; `--doctor` is a deprecated one-release alias) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
@@ -217,7 +217,8 @@ because the seed carries a `generated` date and scripts can't stamp the date. Sc
    (AC-LC7). Consistent with `init.sh`'s "writes only files absent from the target" rule.
 2. Otherwise write **exactly** the keys below — `version`, `init:false`, `generated`,
    `generated_by`, and `policies.release_flow` from Call 4, and **nothing else** (no `repo`, no
-   `branch_protection`, no `steps` — those are `--doctor`'s to fill, which is why `init` is
+   `branch_protection`, no `steps` — those are the gate skills' `--init`'s to fill (`--doctor` is
+   a deprecated one-release alias), which is why `init` is
    `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`:
 
 ```json

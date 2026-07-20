@@ -31,7 +31,7 @@ but `PROTECTED staging` refuses (`refs/refusal-patterns.md` → `unprotected`).
    `gh pr checks <number> --json name,state`):
    - Any check `state` in `FAILURE`/`ERROR`/`CANCELLED` → refuse (`red_ci`), listing each failing check name.
    - Any check still `PENDING`/`IN_PROGRESS`/`QUEUED` → refuse (`pending_ci`), listing the pending checks. Do not wait/poll — the human re-runs post-merge when CI settles.
-   - **Empty check set** (the PR reports *zero* checks — no CI pipeline ran) → don't treat "no red" as green. Resolve `steps.ci` from `devkit/policy.json` per `policy-schema.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --doctor`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today. Never blocks the merge — branch protection is the enforcement.
+   - **Empty check set** (the PR reports *zero* checks — no CI pipeline ran) → don't treat "no red" as green. Resolve `steps.ci` from `devkit/policy.json` per `policy-schema.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --init`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today. Never blocks the merge — branch protection is the enforcement.
    - All `SUCCESS`/`NEUTRAL`/`SKIPPED` → proceed.
 
 ## Step 3 — Merge into staging

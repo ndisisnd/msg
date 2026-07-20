@@ -1,17 +1,20 @@
 ---
-name: pre-merge-protocol-doctor
-description: Spec for /pre-merge --doctor — detect each gate step's tooling from the pre-merge fingerprint, cross-reference nulls against the Step-0 required_buckets, interview + gated-install the gaps OSS-first, and record per-step decisions into devkit/policy.json (Steps 2/3/5/6 only).
+name: pre-merge-protocol-init
+description: Spec for /pre-merge --init — detect each gate step's tooling from the pre-merge fingerprint, cross-reference nulls against the Step-0 required_buckets, interview + gated-install the gaps OSS-first, and record per-step decisions into devkit/policy.json (Steps 2/3/5/6 only).
 type: reference
 ---
 
-# `/pre-merge --doctor`
+# `/pre-merge --init`
 
 The setup half of the pre-merge gate. It **detects** each step's tooling, **interviews** the user
 about the real gaps, **offers to install** the missing pieces (gated, per-item, OSS-first), and
 **records** every decision into `devkit/policy.json` — turning today's silent "no tooling → skip"
 into an explicit, persisted `steps.<key>` decision the gate reads at run time.
 
-`--doctor` **never runs the gate, never opens a PR, never merges, never deploys, and never writes
+> **Deprecated alias.** `/pre-merge --doctor` still works for one release: it runs `--init` and
+> prints a deprecation note naming `--init`/`--update`. New callers should use `--init`.
+
+`--init` **never runs the gate, never opens a PR, never merges, never deploys, and never writes
 `devkit/PLATFORMS.md`** (AC-DR1). Its only outputs are repo mutations under explicit per-item
 approval (binaries, stub configs) and the `policy.json` write.
 
@@ -21,9 +24,9 @@ anything schema-shaped and never redefines it.
 
 ---
 
-## Shared `--doctor` contract
+## Shared `--init` contract
 
-Both gate skills run the same seven-step contract (canonical text: the plan's "Shared `--doctor`
+Both gate skills run the same seven-step contract (canonical text: the plan's "Shared `--init`
 contract"). Pre-merge's flavor:
 
 1. **Prerequisites** — `jq` (the detector needs it) and a `git` remote. Offer `brew install jq` if
@@ -48,7 +51,7 @@ contract"). Pre-merge's flavor:
 ## Detection source
 
 `pre-merge-tooling-detect.sh` already emits the full fingerprint of detected tooling — one slot per
-runner. **Every `null` slot is a candidate gap.** Doctor does not re-detect by hand; it reads the
+runner. **Every `null` slot is a candidate gap.** `--init` does not re-detect by hand; it reads the
 fingerprint and the Step-0 profile, then classifies.
 
 **Fingerprint slot → canonical step-key** (the key written under `steps.<key>`):
@@ -70,13 +73,13 @@ fingerprint and the Step-0 profile, then classifies.
 | _(`.github/workflows/*.yml` presence — no runner slot)_ | `ci` | cross-cutting — the pipeline that runs the gate on the PR |
 
 **Cross-reference against `required_buckets`.** Resolve the Step-0 profile from `devkit/PLATFORMS.md`
-(`refs/platform-profiles.md`): a `null` slot is only a **gap** if its bucket is in the profile's
-`required_buckets`. A `null` slot whose bucket is **not** required (e.g. `a11y` on a backend-only
+(`refs/platform-profiles.md`): a `null` slot is only a **gap** if its component is in the profile's
+`required_buckets`. A `null` slot whose component is **not** required (e.g. `a11y` on a backend-only
 repo) is *correctly absent* — propose it as `n/a`, never nag it as a gap (AC-ST1 territory). The
 `security` and `migration` safety-floor steps run in every profile, so their nulls are always real
 gaps, never `n/a`.
 
-> `migration` has no external binary — it's pre-merge's static SQL-safety scan. Doctor records it
+> `migration` has no external binary — it's pre-merge's static SQL-safety scan. `--init` records it
 > `ready` when the diff surface warrants it and `n/a` for repos with no migrations; there is
 > nothing to install.
 
@@ -91,15 +94,15 @@ gaps, never `n/a`.
 >
 > Empty result → gap: nothing runs the gate on the PR, so "all checks green" is **vacuously true**
 > and branch protection has no check to require. Present → record `ci` as `ready`. `ci` is a
-> repo-wide floor (like `security`/`migration`), so its gap is always real — never `n/a`. Doctor
+> repo-wide floor (like `security`/`migration`), so its gap is always real — never `n/a`. `--init`
 > **scaffolds** the workflow (below) but never edits an existing one; if a workflow exists but
 > looks unrelated to the gate, record `ready` and note it rather than overwriting.
 
-**Steps covered:** `mechanical` (Step 2), `unit_int` (Step 3), the Step-5 platform buckets (`e2e`,
+**Steps covered:** `mechanical` (Step 2), `unit_int` (Step 3), the Step-5 platform components (`e2e`,
 `qa`, `a11y`, `perf`, `load`, `api`, `mobile`, `coverage`), `security` + `migration` (Step 6), and
 the cross-cutting `ci` workflow. The `deploy_staging` / `deploy_production` / `smoke` keys are
-**post-merge's** — pre-merge `--doctor` leaves them untouched. (post-merge `--doctor` *reads* the
-`ci` record at item 2 but never writes it — see its protocol-doctor.)
+**post-merge's** — pre-merge `--init` leaves them untouched. (post-merge `--init` *reads* the
+`ci` record at item 2 but never writes it — see its `protocol-init.md`.)
 
 ---
 
@@ -107,12 +110,12 @@ the cross-cutting `ci` workflow. The `deploy_staging` / `deploy_production` / `s
 
 Every gap the detector surfaces is one of three flavors, read off the detector's own signals:
 
-| Flavor | How the detector shows it | Doctor action | Recorded status |
+| Flavor | How the detector shows it | `--init` action | Recorded status |
 |---|---|---|---|
 | **Binary missing** | `command -v` slot empty (gitleaks, semgrep, trivy, k6, hurl, osv-scanner…) | offer the install command (per-item, gated) | `ready` on install · `deferred`/`opted_out` on decline |
 | **Config missing** | dep may exist but no `eslint.config.*` / `playwright.config.*` / `.semgrep.yml` etc. | scaffold a **minimal stub config** + the dep | `ready` on scaffold · `deferred`/`opted_out` on decline |
 | **Workflow missing** | no `.github/workflows/*.yml` triggers on `pull_request` (the `ci` gap) | scaffold `pre-merge.yml` with the detected gate commands substituted in | `ready` on scaffold · `deferred`/`opted_out` on decline |
-| **N/A for surface** | slot `null` **and** the bucket is **not** in `required_buckets` | record only — offer nothing | `n/a` (with `reason`) |
+| **N/A for surface** | slot `null` **and** the component is **not** in `required_buckets` | record only — offer nothing | `n/a` (with `reason`) |
 
 Declining any offered install always records `opted_out` (won't revisit) or `deferred` (will
 revisit) **with a `reason`** and installs nothing (AC-DR2). Both non-`ready` statuses require a
@@ -122,9 +125,9 @@ revisit) **with a `reason`** and installs nothing (AC-DR2). Both non-`ready` sta
 
 ## OSS-first install catalog
 
-**Reputable, open-source, free only.** Doctor offers the Preferred tool first, the OSS fallback if
+**Reputable, open-source, free only.** `--init` offers the Preferred tool first, the OSS fallback if
 the user prefers it, and **never auto-offers a paid/SaaS tool** (AC-DR3). When a step's only real
-option is paid, doctor **names it, explains why**, and records `deferred`/`opted_out` with the paid
+option is paid, `--init` **names it, explains why**, and records `deferred`/`opted_out` with the paid
 tool named in `reason` — it never installs it.
 
 | Step / slot | Preferred (OSS, free) | Fallback (OSS) | Flagged paid — **not** auto-offered |
@@ -152,7 +155,7 @@ tool named in `reason` — it never installs it.
 
 ## Interview + gated-install flow
 
-For each real gap (after the `required_buckets` cross-reference), doctor asks **one
+For each real gap (after the `required_buckets` cross-reference), `--init` asks **one
 `AskUserQuestion`** — never a bulk prompt, never a bulk install:
 
 - **Offer choices** = the catalog's Preferred and Fallback for that slot, plus a **Skip** option.
@@ -170,7 +173,7 @@ For each real gap (after the `required_buckets` cross-reference), doctor asks **
 - **Paid-only slot** → present the free `deferred`/`opted_out` path only; name the paid tool in the
   `reason`. Never an install button.
 
-**Re-run behavior (AC-DR4).** A second `--doctor` reads the existing `policy.json` and updates it in
+**Re-run behavior (AC-DR4).** A second `--init` reads the existing `policy.json` and updates it in
 place. A step already `opted_out` is **not** re-prompted unless the user explicitly asks to
 re-tune. Answers persist across runs precisely so the interview shrinks each time.
 
@@ -178,11 +181,11 @@ re-tune. Answers persist across runs precisely so the interview shrinks each tim
 
 ## Minimal-stub config scaffolding
 
-For the **config-missing** flavor, doctor copies a **minimal runnable stub** — just enough that the
+For the **config-missing** flavor, `--init` copies a **minimal runnable stub** — just enough that the
 gate can execute the tool on the next run (not a curated house style). The templates live in
 [`stubs/`](stubs/) (see [`stubs/README.md`](stubs/README.md) for the full stub→step→dep map):
 
-| Stub | Step / bucket | Dep installed alongside |
+| Stub | Step / component | Dep installed alongside |
 |---|---|---|
 | `eslint.config.js` | mechanical (lint) | `eslint` (≥9) + `@eslint/js` |
 | `biome.json` | mechanical (lint+format) | `@biomejs/biome` |
@@ -193,10 +196,10 @@ gate can execute the tool on the next run (not a curated house style). The templ
 | `.size-limit.json` | perf (bundle) | `size-limit` + `@size-limit/preset-app` |
 | `pre-merge.yml` → `.github/workflows/` | ci | — (no dep; substitute the detected gate commands) |
 
-`pre-merge.yml` is the one stub that is **command-dependent**: doctor copies it to
+`pre-merge.yml` is the one stub that is **command-dependent**: `--init` copies it to
 `.github/workflows/pre-merge.yml`, then substitutes the `mechanical` / `unit_int` / `security`
-commands it detected (from the fingerprint) into the `[doctor: …]` placeholders and drops any step
-whose bucket the repo lacks. It installs no dependency of its own. Everything else about the gated,
+commands it detected (from the fingerprint) into the `[init: …]` placeholders and drops any step
+whose component the repo lacks. It installs no dependency of its own. Everything else about the gated,
 per-item `AskUserQuestion` approval is identical to a config stub.
 
 `.semgrep.yml` is intentionally **not** stubbed — semgrep runs with `--config auto` (its OSS
@@ -204,14 +207,14 @@ ruleset) when no project config exists, so no scaffold is needed.
 
 Scaffolding is a mutation, so it is **gated by the same per-item `AskUserQuestion`** as a binary
 install — the user approves the config write explicitly. The dep is installed alongside the stub so
-the pairing is runnable. Doctor should confirm a copied stub matches the installed tool version
+the pairing is runnable. `--init` should confirm a copied stub matches the installed tool version
 (pinned schema/toolchain refs can drift).
 
 ---
 
 ## Writing `steps.<key>` and flipping `init`
 
-Doctor writes one `steps.<key>` entry per step it touched, using the persisted vocabulary and the
+`--init` writes one `steps.<key>` entry per step it touched, using the persisted vocabulary and the
 `reason`/`chosen` fields — **the schema, statuses, and required-field rules are defined in
 `../../shared/refs/policy-schema.md`; this spec does not restate them.** In outline:
 
@@ -221,11 +224,11 @@ Doctor writes one `steps.<key>` entry per step it touched, using the persisted v
 - **not in `required_buckets`** → `n/a` (+ `reason`).
 - **known unresolved gap left as-is** → `missing` (+ `reason`).
 
-On completion doctor **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote) and
-stamps `generated` + `generated_by: "pre-merge --doctor"`. The gate then consumes each entry via the
+On completion `--init` **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote) and
+stamps `generated` + `generated_by: "pre-merge --init"`. The gate then consumes each entry via the
 policy-schema read-contract (§3 `steps.<key>`): `ready` with no live tool → one `medium`
 `policy-mismatch` finding then the no-tooling path; `opted_out`/`n/a` → skip silently;
-`missing`/`deferred` → the existing `no_tooling` note. Doctor's job is to *record*; the gate's job
+`missing`/`deferred` → the existing `no_tooling` note. `--init`'s job is to *record*; the gate's job
 is to *read*.
 
 The written file must round-trip clean — re-loading it in a gate run produces **zero** validation
@@ -234,7 +237,7 @@ warnings (AC-S6). Never write `installed`, an unknown step-key, or a step-key ou
 
 ---
 
-## Boundaries (what `--doctor` never does)
+## Boundaries (what `--init` never does)
 
 - Never runs the pre-merge protocol, opens a PR, merges, or deploys (AC-DR1).
 - Never writes `devkit/PLATFORMS.md` — it *reports* PLATFORMS.md-shaped gaps and delegates to

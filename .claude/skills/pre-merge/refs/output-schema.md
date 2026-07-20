@@ -52,7 +52,7 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 
 Each item in `issues[]` is a **canonical finding object** — the field set, types,
 and enums are defined once in `../../shared/refs/finding-schema.md`, with pre-merge's
-bucket-specific notes and evidence extensions in `refs/finding-schema.md`. This file
+component-specific notes and evidence extensions in `refs/finding-schema.md`. This file
 does not re-list the fields.
 
 ID prefixes name the producing stage: `mech`, `unit`, `regr`, `e2e`, `qa`,
@@ -61,7 +61,7 @@ ID prefixes name the producing stage: `mech`, `unit`, `regr`, `e2e`, `qa`,
 
 ## skipped[]
 
-Array of stages/buckets omitted from this run. Each entry:
+Array of stages/components omitted from this run. Each entry:
 
 ```json
 {
@@ -70,8 +70,11 @@ Array of stages/buckets omitted from this run. Each entry:
 }
 ```
 
-- `no_tooling` — no detected tool supports the bucket (Step 5).
-- `not_in_profile` — the bucket is not in the Step 0 profile's `required_buckets`.
+(the `bucket` key is the literal wire field — unchanged this phase, same reason as
+`refs/_common.md`'s component envelope note.)
+
+- `no_tooling` — no detected tool supports the component (Step 5).
+- `not_in_profile` — the component is not in the Step 0 profile's `required_buckets`.
 - `not_triggered` — a conditional stage whose trigger didn't match (Step 6 migration with no migration files, Step 8 preview with no D6 path match, Step 7 with no `--prd`).
 
 ## Refusal shape
@@ -122,6 +125,6 @@ When `verdict` is `"skipped"`:
 | `verdict` | enum | See verdict table above |
 | `summary` | object | Count of findings per severity level |
 | `issues` | array | Zero or more findings; see finding-schema.md |
-| `skipped` | array | Buckets omitted and why |
+| `skipped` | array | Components omitted and why |
 | `prd_paths` | string[] | Paths of loaded PRD files, empty if none |
 | `prior_issues_loaded` | boolean | Whether `--prior-issues` file was loaded |

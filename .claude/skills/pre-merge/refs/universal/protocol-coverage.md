@@ -1,11 +1,11 @@
 ---
-name: bucket-coverage
-description: Pre-merge coverage-gate bucket — enforce line/branch/function thresholds by parsing an existing report or re-running with coverage. Floor is enforced or advisory per the platform profile.
+name: coverage
+description: Pre-merge coverage-gate component — enforce line/branch/function thresholds by parsing an existing report or re-running with coverage. Floor is enforced or advisory per the platform profile.
 ---
 
-# coverage bucket
+# coverage component
 
-Guard, error rule, envelope: `_common.md`. Runner (`coverage_runner`: Flutter / Jest /
+Guard, error rule, envelope: `../_common.md`. Runner (`coverage_runner`: Flutter / Jest /
 NYC / pytest-cov / Go) from the fingerprint.
 
 ## Report + thresholds
@@ -30,5 +30,5 @@ Finding fields: `rule` = `line-coverage`/`branch-coverage`/`function-coverage`;
 `file` = source path; `line` = `null` (file-level); `message` = observed-vs-threshold;
 `suggestion` = uncovered line ranges from lcov when available.
 
-Bucket fields: `runner`, `report_path`, `report_source` (existing/regenerated),
+Component fields: `runner`, `report_path`, `report_source` (existing/regenerated),
 `thresholds`, `totals` (overall percentages, files_checked, files_below_threshold).

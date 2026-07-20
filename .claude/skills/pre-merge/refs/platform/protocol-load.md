@@ -1,12 +1,12 @@
 ---
-name: bucket-load
-description: Pre-merge load bucket — throughput, latency percentiles, and error rate against configured thresholds. Runs isolated. Parse breaches to canonical findings.
+name: load
+description: Pre-merge load component — throughput, latency percentiles, and error rate against configured thresholds. Runs isolated. Parse breaches to canonical findings.
 ---
 
-# load bucket
+# load component
 
-Guard, error rule, envelope: `_common.md`. **Runs isolated** (no overlap with other
-buckets or `perf`). Runner (`load_runner`: k6 / Artillery / Locust / autocannon / wrk /
+Guard, error rule, envelope: `../_common.md`. **Runs isolated** (no overlap with other
+components or `perf`). Runner (`load_runner`: k6 / Artillery / Locust / autocannon / wrk /
 hey) from the fingerprint. Resolve `<script>`/`<config>` by searching `load/`,
 `tests/load/`, `perf/`, root (in order).
 
@@ -25,4 +25,4 @@ Emit the resolved thresholds.
 Finding fields: `rule` = threshold name (`p95 latency`/`error_rate`); `file` = script/config
 path; `line` = `null`; `message` = observed-vs-expected; `suggestion` = actionable.
 
-Bucket fields: `runner`, `command`, `thresholds`, `totals` (requests, passed/failed_checks, p95_ms, p99_ms, error_rate_pct).
+Component fields: `runner`, `command`, `thresholds`, `totals` (requests, passed/failed_checks, p95_ms, p99_ms, error_rate_pct).

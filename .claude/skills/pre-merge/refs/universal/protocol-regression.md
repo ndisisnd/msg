@@ -15,7 +15,7 @@ Runs (and re-runs) **post-sync** — Step 1's merge may have changed behavior.
 
 Execute every test under `tests/regression/prd-*/` using the detected unit/integration
 runner (the suite is plain test files — run them the same way as Step 3). Parse
-failures into findings per `refs/finding-schema.md` (`source: pre-merge:regression`,
+failures into findings per `../finding-schema.md` (`source: pre-merge:regression`,
 `category: unit`, `severity: high` for a named failure). A regression failure means
 this branch broke an assertion an earlier PRD locked in — treat it as `high`.
 
@@ -38,7 +38,7 @@ trust them unrun. New failures are findings exactly like the accumulated suite.
 When this PRD legitimately changes behavior an **older** regression test asserts,
 the eng subagent MAY edit that prior test — but under a strict contract:
 
-- Each edit is emitted as a **finding in the verdict JSON** citing the PRD clause (F-ID / §6 criterion) that justifies the behavior change (`source: pre-merge:regression`, `category: unit`, `rule: regression-test-edited`, `severity: low` when a citation is present — it is a logged, sanctioned change).
+- Each edit is emitted as a **finding in the verdict JSON** (per `../finding-schema.md`) citing the PRD clause (F-ID / §6 criterion) that justifies the behavior change (`source: pre-merge:regression`, `category: unit`, `rule: regression-test-edited`, `severity: low` when a citation is present — it is a logged, sanctioned change).
 - An edit with **no citable clause** is a `high` finding (`rule: regression-edit-uncited`) — the subagent changed a production guarantee with no spec authority. The human sees it in the issues file.
 
 The subagent never deletes a prior regression test — only edits with citation.

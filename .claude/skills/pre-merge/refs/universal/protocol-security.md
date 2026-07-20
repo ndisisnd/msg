@@ -1,6 +1,6 @@
 ---
 name: security
-description: Gate Step 6 — Security stage (safety floor, every profile). Stage 0 secret scan + dependency/SAST scanners, then a /cook-backed semantic pass over the diff's domains. Migrated from /review Security mode + the old pre-merge security bucket.
+description: Gate Step 6 — Security stage (safety floor, every profile). Stage 0 secret scan + dependency/SAST scanners, then a /cook-backed semantic pass over the diff's domains. Migrated from /review Security mode + the old pre-merge security component.
 ---
 
 # Step 6 — SECURITY stage (safety floor)
@@ -19,7 +19,7 @@ in parallel:
 | secret | gitleaks | `rtk gitleaks detect --no-git --source=<files> --no-banner --redact` | each hit → `blocker`, snippet **redacted** (rule name only) |
 | secret | trufflehog | `rtk trufflehog filesystem --no-update --json <files>` | as above |
 | sast | semgrep | `rtk semgrep scan --config auto <files>` (or `--config .semgrep.yml`) | `ERROR`→`high`, `WARNING`→`medium`, `INFO`→`low` |
-| dependency | pnpm/npm/yarn audit, trivy fs, snyk | `rtk <pm> audit --json` / `rtk trivy fs --format json .` | CVSS ≥ 9 → `high`, 7–8.9 → `medium`, < 7 → `low` (dev-only downgrade per `refs/severity-rubric.md`) |
+| dependency | pnpm/npm/yarn audit, trivy fs, snyk | `rtk <pm> audit --json` / `rtk trivy fs --format json .` | CVSS ≥ 9 → `high`, 7–8.9 → `medium`, < 7 → `low` (dev-only downgrade per `../severity-rubric.md`) |
 | container | trivy image | `rtk trivy image --format json <image>` | `CRITICAL`/`HIGH` → `high`, `MEDIUM` → `medium`, `LOW` → `low` |
 
 Secret scanning is diff-scoped by default; `--full-secret-scan` scans the full tree.

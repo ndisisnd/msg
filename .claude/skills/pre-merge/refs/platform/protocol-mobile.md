@@ -1,11 +1,11 @@
 ---
-name: bucket-mobile
-description: Pre-merge mobile bucket — Flutter/Dart widget + integration tests across an Android/iOS device matrix, plus Patrol/Maestro flows. Parse to canonical findings.
+name: mobile
+description: Pre-merge mobile component — Flutter/Dart widget + integration tests across an Android/iOS device matrix, plus Patrol/Maestro flows. Parse to canonical findings.
 ---
 
-# mobile bucket
+# mobile component
 
-Guard, error rule, envelope: `_common.md`. Runner (`mobile_runner`, already `flutter`
+Guard, error rule, envelope: `../_common.md`. Runner (`mobile_runner`, already `flutter`
 or `fvm flutter` plus `patrol`/`maestro` + `has_test_dir`/`has_integration_dir` flags)
 from the Step 1 fingerprint. Patrol/Maestro run **in addition to** the base flutter
 runner when their flag is set.
@@ -38,6 +38,6 @@ setup/teardown error → finding. `severity: high` for a widget/integration fail
 Dart test path; `evidence.platform` (`ios`/`android`/`widget`) + `evidence.device`
 carry the matrix (never top-level); `evidence.tool` = flutter/fvm/patrol/maestro.
 Same failure on iOS and Android → keep both (platform-specific). Timeouts/binary-missing
-follow the `_common.md` error rule (→ `pass_with_warnings`, skip that sub-check).
+follow the `../_common.md` error rule (→ `pass_with_warnings`, skip that sub-check).
 
-Bucket fields: `runner`, `matrix[]`, `errors[]`, `totals` (per-sub-check passed/failed/skipped).
+Component fields: `runner`, `matrix[]`, `errors[]`, `totals` (per-sub-check passed/failed/skipped).

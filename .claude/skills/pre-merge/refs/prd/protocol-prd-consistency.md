@@ -35,5 +35,5 @@ defines no acceptance criteria, record the stage as `skipped` with
 2. **Scope** — does the diff ship anything **not** traceable to an in-scope F-ID (a feature, endpoint, or surface the PRD doesn't cover)? Out-of-scope shipped code → `medium` finding (`rule: out-of-scope`, `category: scope-creep`), naming the file/surface.
 
 No mechanical stage — this is a single semantic pass; findings carry evidence (the
-diff hunk or the covering test) per `refs/finding-schema.md`. Stage verdict = worst
+diff hunk or the covering test) per `../finding-schema.md`. Stage verdict = worst
 finding severity.

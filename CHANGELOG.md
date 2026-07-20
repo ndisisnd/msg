@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-20
+
+### [15] — v3 build P0: pre-v3 token baseline recorded
+
+- `evals/token-baseline.md`: Added — a dated **pre-v3 baseline** checkpoint (pipeline 165,263 tok/PRD; static surface 139,303 tok; pre-merge stage 22,514 tok) recorded before any plan-msg-v3 phase lands, so the P3 executor cutover and P6 close-out measure against a fixed number instead of an estimate
+  - includes the F1 gate rule: the clean-run cost of C6's always-write result reports must stay ≤ ~5% of the pre-merge stage footprint at P3, else C6 degrades to fail/skip-only writes
+
+### [16] — v3 P1: three-way protocol folders, component catalog, --doctor→--init rename
+
+- `.claude/skills/pre-merge/refs/universal/protocol-unit.md`, `protocol-integration.md`: Added — the two missing universal protocols (Step 3's unit/integration halves), extracted from the old combined Step 3 semantics + `_common.md`'s `--flaky` contract; every universal component now has a dedicated file
+- `.claude/skills/shared/refs/component-catalog.md`: Added — the keystone artifact: the 16-live/17-authored component table (entry schema `{id, nn, group, kind, criticality, cost, depends_on[], active_when, platforms[], mandatory, run, ref, check}`), the `qa`(15)-retired tombstone, the merged `preview`(16) human-review gate, the three hard `depends_on` edges, the only-on-green tier, and the platform-applicability legend
+- `.claude/skills/pre-merge/refs/protocol-init.md`, `.claude/skills/post-merge/refs/protocol-init.md`: Changed — swept the body of both already file-renamed (`protocol-doctor.md` → `protocol-init.md`) specs from `--doctor`/"Doctor" prose to `--init`, added a one-line deprecated-alias note to each (`--doctor` still runs `--init` and prints a deprecation note for one release)
+- `.claude/skills/pre-merge/SKILL.md`: Changed — every `refs/…` path repointed to the new `universal/`/`platform/`/`prd/` folders and `refs/_common.md`; `--doctor` → `--init` (+ alias line) in Usage, the pre-flight lifecycle table, and References; "platform buckets"/"bucket(s)" → "platform components"/"component(s)" throughout (except the literal on-disk `required_buckets` column name and the `bucket` wire-field keys other skills already read — both explicitly called out as unchanged this phase)
+- `.claude/skills/pre-merge/refs/{output-schema,finding-schema}.md`, `refs/stubs/{README,pre-merge.yml,playwright.config.ts,vitest.config.ts,ruff.toml,eslint.config.js}`: Changed — remaining `--doctor`/"bucket" prose swept to `--init`/"component"; stub placeholders `[doctor: …]` → `[init: …]`; the literal `bucket`/`pre-merge:bucket:<name>` wire fields left untouched (documented as unchanged this phase, same reason as `_common.md`)
+- `.claude/scripts/pre-merge-aggregate-verdict.sh`, `.claude/scripts/doctor-detect-repo.sh`: Changed — header/usage comments swept ("bucket" → "component", "--doctor" → "--init"/alias note); no logic, variable-name, or JSON-field changes (`BUCKETS`, `.buckets` stay as-is — literal wire contract); `doctor-detect-repo.sh` keeps its filename this phase
+- `.claude/skills/post-merge/SKILL.md`, `.claude/skills/post-merge/refs/staging.md`: Changed — `--doctor` → `--init` (+ alias line) in Usage, the pre-flight lifecycle table, and References
+- `.claude/skills/msg/SKILL.md`, `.claude/skills/msg/refs/protocol-init.md`: Changed — remaining `--doctor` prose updated to name `--init` (+ alias note) where it described the gate skills' setup mode
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — `generated_by` enum → `pre-merge --init` / `post-merge --init` (aliases noted); every prose `--doctor` reference in the lifecycle table, the writers table, the JSON example, and the validation rules updated to `--init`
+- `ARCHITECTURE.md`, `README.md`: Changed — `--doctor` → `--init` (+ alias notes), "platform buckets" → "platform components" in the pre-merge pipeline description; `ARCHITECTURE.md`'s shared-skill paragraph now names `component-catalog.md`
+
+  Strictly structural — zero behavior change; `--doctor` stays a deprecated alias for one release.
+
 ## 2026-07-16
 
 ### [14] — `/msg --init` now repairs older projects instead of dead-ending on them
