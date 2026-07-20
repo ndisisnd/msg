@@ -1,4 +1,4 @@
-# Minimal Ruff config — scaffolded by `/pre-merge --doctor`.
+# Minimal Ruff config — scaffolded by `/pre-merge --init`.
 line-length = 100
 
 [lint]

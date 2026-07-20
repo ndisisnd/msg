@@ -19,6 +19,7 @@ al-*.jsonl
 **/run/
 **/schemas.json
 .claude/scheduled_tasks.lock
+.pre-merge/
 
 # ── Local config ──────────────────────────────────────────────────────────────
 settings.local.json
@@ -37,4 +38,6 @@ update-plan-gui.md
 update-plan-gui-done.md
 .claude/skills/improve/
 .claude/skills/**/*-plan.md
+# …but component protocol files are source, not scratch plans (e.g. manual-test-plan, C22)
+!.claude/skills/**/protocol-*-plan.md
 .claude/kermit/state.json

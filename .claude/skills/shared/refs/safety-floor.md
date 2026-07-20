@@ -35,8 +35,22 @@ always fire:
 - **Staging sign-off** — a human tests staging before `post-merge --production` will run (`staging-signoff:` stamp).
 - **Production double-confirmation** — two separate approvals before anything ships to `main`.
 
+## Secret-scan floor — never hollow (C9)
+
+The `security` gate component is `mandatory`, and secret-scan **coverage** is a hard
+requirement to *pass* — not merely a scanner that runs *if present*. When **no** secret
+scanner is detected, `security` emits a `blocker` (`no-secret-scanner`,
+`safety-floor-unmet`): there is **no green-gate path without secret-scan coverage**. A
+leaked credential is the highest-stakes, cheapest-to-catch failure, so this is the one
+signal the floor genuinely guarantees. The scanner **install** stays per-item approved
+(the gated-install rule holds — `/pre-merge --init` strongly offers gitleaks and flags
+declining it as a safety-floor gap), but a *passing* gate can never have had zero
+secret-scan coverage. SAST / dependency / container / `/cook` semantic layers stay
+best-effort — their absence is a note, never a blocker (`pre-merge/refs/universal/protocol-security.md`, C9).
+
 ## Always on, every skill
 
 DB/data/prod-config pauses (`eng-db-touch.sh`) · breaking-change pauses · branch
-isolation (`feat/prd-<n>-*`) · secret scan · frontmatter stamps · F-ID stability
-· PRD §9 ledger · gate-fail ticket · pre-merge refusals.
+isolation (`feat/prd-<n>-*`) · **secret scan (guaranteed floor — no-scanner blocks, C9)**
+· frontmatter stamps · F-ID stability · PRD §9 ledger · gate-fail ticket · pre-merge
+refusals.

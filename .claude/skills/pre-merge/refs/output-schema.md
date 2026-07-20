@@ -29,14 +29,27 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "profile": "strict" | "standard" | "lenient",
   "preview": { "fired": false, "approved": null, "kind": null, "artifact": null },
   "issues_file": "features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json" | "features/reports/report-<K>.json" | null,
-  "pr_url": "<feature→staging PR url>" | null
+  "pr_url": "<feature→staging PR url>" | null,
+  "pipeline": { "waves": [["mechanical","security","unit","integration"],["coverage"],["regression"]], "pruned": [ {"id": "e2e", "by": "--changed-only"} ] }
 }
 ```
 
-- `profile` — the Step 0 platform-tolerance profile resolved for this run.
-- `preview` — Step 8 outcome (`fired: false` when the D6 trigger didn't match).
-- `issues_file` — path to the issues file written on a non-clean verdict (`fail`), consumed by `eng --build report=`; `null` on a clean pass. NO-PRD runs fall back to `features/reports/report-<K>.json`.
-- `pr_url` — the feature→staging PR opened at Step 9 on `pass`/`pass_with_warnings`; `null` otherwise. Pre-merge never merges it.
+- `profile` — the platform-tolerance profile resolved for this run.
+- `preview` — preview-component outcome (`fired: false` when the D6 trigger didn't match).
+- `issues_file` — path to the issues file (the **universal report**, C7) written on a non-clean verdict (`fail`), consumed by `eng --build report=`; `null` on a clean pass. NO-PRD runs fall back to `features/reports/report-<K>.json`.
+- `pr_url` — the feature→staging PR opened by OPEN-PR on `pass`/`pass_with_warnings`; `null` otherwise. Pre-merge never merges it.
+- `pipeline` — **additive, optional** (v3, AC-PF15): the resolved, ordered wave list the executor ran + which components each flag pruned. Observability only — its absence does not change any other field. **All keys above are unchanged from pre-v3 (AC-PF16); `pipeline` is the sole addition and is a new key, never a rename.**
+
+## Universal report (the paired issues file — C7)
+
+`issues_file` points at `report-prd-<N>-<K>.json`, the **universal report**. It is the
+pre-v3 issues-file shape — `issues[]` + `context` + `summary` + `followUp` — **plus** an
+additive `checks[]` block (each per-check result report's `{check, group, verdict, totals,
+runner, log_path}`; AC-UR2). `issues[]` is the flattened + deduped fix list, each finding
+retaining `source` = producing check. `followUp.status` stays **camelCase** (AC-UR4). The
+verdict JSON above and the universal report share the canonical finding shape (AC-UR7).
+`checks[]` is additive — not a rename of any existing issues-file key (AC-PF16). Full
+shape in `refs/executor.md` §5 and `../../shared/refs/check-report-schema.md`.
 
 ## Verdict semantics
 
@@ -52,7 +65,7 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 
 Each item in `issues[]` is a **canonical finding object** — the field set, types,
 and enums are defined once in `../../shared/refs/finding-schema.md`, with pre-merge's
-bucket-specific notes and evidence extensions in `refs/finding-schema.md`. This file
+component-specific notes and evidence extensions in `refs/finding-schema.md`. This file
 does not re-list the fields.
 
 ID prefixes name the producing stage: `mech`, `unit`, `regr`, `e2e`, `qa`,
@@ -61,7 +74,7 @@ ID prefixes name the producing stage: `mech`, `unit`, `regr`, `e2e`, `qa`,
 
 ## skipped[]
 
-Array of stages/buckets omitted from this run. Each entry:
+Array of stages/components omitted from this run. Each entry:
 
 ```json
 {
@@ -70,8 +83,11 @@ Array of stages/buckets omitted from this run. Each entry:
 }
 ```
 
-- `no_tooling` — no detected tool supports the bucket (Step 5).
-- `not_in_profile` — the bucket is not in the Step 0 profile's `required_buckets`.
+(the `bucket` key is the literal wire field — unchanged this phase, same reason as
+`refs/_common.md`'s component envelope note.)
+
+- `no_tooling` — no detected tool supports the component (Step 5).
+- `not_in_profile` — the component is not in the Step 0 profile's `required_buckets`.
 - `not_triggered` — a conditional stage whose trigger didn't match (Step 6 migration with no migration files, Step 8 preview with no D6 path match, Step 7 with no `--prd`).
 
 ## Refusal shape
@@ -81,7 +97,7 @@ When `verdict` is `"refused"`, the top-level object is:
 ```json
 {
   "verdict": "refused",
-  "reason": "no_diff" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
+  "reason": "no_manifest" | "no_diff" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
   "detail": "<human-readable explanation>",
   "base": "<base ref>",
   "prior_issues_loaded": false,
@@ -122,6 +138,6 @@ When `verdict` is `"skipped"`:
 | `verdict` | enum | See verdict table above |
 | `summary` | object | Count of findings per severity level |
 | `issues` | array | Zero or more findings; see finding-schema.md |
-| `skipped` | array | Buckets omitted and why |
+| `skipped` | array | Components omitted and why |
 | `prd_paths` | string[] | Paths of loaded PRD files, empty if none |
 | `prior_issues_loaded` | boolean | Whether `--prior-issues` file was loaded |

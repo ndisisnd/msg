@@ -10,6 +10,8 @@ description: How to grade pre-merge findings using diff context, reachability, d
 | Tool signal | Raw severity |
 |---|---|
 | Secret scanner hit (any type) | blocker |
+| No secret scanner configured (`no-secret-scanner`, C9 safety floor) | blocker |
+| Platform coverage-gap (`platform-coverage-gap`, C12 — target platform, applicable component, no runner) | high |
 | Test suite exit non-zero (failing test) | blocker |
 | Build tool exit non-zero | blocker |
 | E2E test failure (spec named) | high |
@@ -61,7 +63,7 @@ Condition: `evidence.file` is NOT in `files_changed` and is not a test file co-l
 
 Action: downgrade to `low` regardless of tool raw severity. The caller did not change this file; the finding is ambient context, not a regression.
 
-Exception: build-failure and secret-scanner findings are not downgraded — they block the build or expose a credential regardless of whether the file was in the diff.
+Exception: build-failure and secret-scanner findings are not downgraded — they block the build or expose a credential regardless of whether the file was in the diff. The safety-floor `no-secret-scanner` blocker (C9) and the `platform-coverage-gap` finding (C12) are **repo-level** (no `evidence.file`), so this file-scoped downgrade never applies to them — they hold their raw severity.
 
 ### 5 — Regression marking (no severity change)
 
@@ -81,8 +83,28 @@ Even after downgrade, each stage has a severity floor for hard-fail signals:
 | e2e | Named spec failure | `high` |
 | coverage | Below floor, `enforced` profile | `high` |
 | security | Secret scanner hit | `blocker` |
+| security | No secret scanner configured (C9 floor) | `blocker` |
 | migration | `DROP TABLE`/`DROP COLUMN` | `blocker` |
-| prd-consistency | Acceptance criterion unmet | `high` |
+| migration | Same-PR destructive rename + app-code ref (C17 expand/contract) | `high` |
+| executor | `platform-coverage-gap` — targeted platform, applicable component, no runner (C12) | `high` |
+| prd-consistency | Acceptance criterion unmet (C11) | `high` |
+| prd-consistency | Acceptance/error-case met-but-untested (C11) | `medium` |
+
+## Fail-fast by component `criticality` (the executor's short-circuit)
+
+The old fixed "any red step short-circuits" rule is generalized to a **DAG fail-fast
+keyed on each component's `criticality`** (`refs/executor.md`, AC-PF11). When a component
+returns a failing verdict:
+
+| Failed component's `criticality` | Effect on the pipeline |
+|---|---|
+| `critical` (`mechanical`, `security`, `migration`) | **abort** the remaining pipeline — no later wave runs (the old mechanical short-circuit, generalized) |
+| `blocking` (`unit`, `integration`, `e2e`, `regression`, `prd-consistency`, `api`, `a11y`, `mobile`) | fail the verdict, mark the component's **downstream dependents `blocked`** (they write a `skipped` result with `skip_reason: "blocked:<dep>"`), and let **independent** in-flight branches finish so the verdict aggregates the full picture |
+| `advisory` / `config-driven` (until the project sets budgets) | never aborts — findings recorded, pipeline continues |
+
+A platform profile may override a component's `criticality` (Q1) — the fail-fast class
+follows the overridden tier. This governs run-abort only; per-finding severity is graded
+by the rules above independently.
 
 ## Verdict derivation
 

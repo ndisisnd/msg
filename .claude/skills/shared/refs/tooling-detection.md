@@ -5,15 +5,18 @@ description: Shared tooling fingerprint protocol. Produces package manager, test
 
 # Tooling Detection
 
-> **Reference documentation for maintainers.** Runtime detection is done by
-> `.claude/scripts/pre-merge-tooling-detect.sh`, which emits this data as JSON — skills
-> consume the script, not this file. The tables below document the heuristics the
-> script implements (and the output shapes it emits) so a maintainer can audit or
-> extend detection; they are no longer walked by hand at runtime.
+> **Reference documentation for maintainers.** Runtime detection is done by the
+> **`.claude/scripts/preflight-check-*.sh` family** (sharing the probe primitives in
+> `.claude/scripts/preflight-common.sh`), which each emit a normalized check-report
+> `detect` section as JSON — `--init`/`--update` consume those, not this file. The tables
+> below document the heuristics those probes implement (and the output shapes they emit)
+> so a maintainer can audit or extend detection; they are no longer walked by hand at
+> runtime. (This family superseded the retired monolithic `pre-merge` tooling detector at
+> v3 P3.)
 
 Shared fingerprint protocol. Run all checks in parallel. Populate outputs once per skill invocation; never re-derive mid-run.
 
-> **Deterministic detector:** `.claude/scripts/pre-merge-tooling-detect.sh` emits a single JSON object covering **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the test-skill-specific runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. `/pre-merge` invokes the script (Step 0/1) and reads the fields each stage needs — no skill re-derives these outputs from the tables below.
+> **Deterministic detector:** the `preflight-check-*.sh` family (one script per component, sharing `preflight-common.sh`) covers **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the platform-component runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. `--init`/`--update` run the family and resolve each component's `run` command into `devkit/policy.json` `components[]`; the gate executor reads those resolved commands — no skill re-derives these outputs from the tables below at gate time.
 
 ---
 

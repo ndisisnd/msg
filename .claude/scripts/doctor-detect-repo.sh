@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # doctor-detect-repo.sh — repo topology + branch-protection-availability probe.
-# Consumed by /pre-merge --doctor and /post-merge --doctor to seed devkit/policy.json's
-# `repo` block and `policies.release_flow` (see shared/refs/policy-schema.md and
+# Consumed by /pre-merge --init and /post-merge --init (--doctor is a deprecated
+# one-release alias for --init) to seed devkit/policy.json's `repo` block and
+# `policies.release_flow` (see shared/refs/policy-schema.md and
 # update/improve-doctor.md's "post-merge --doctor" section, items 1 + 2).
 #
 # What the script DOES:
@@ -14,7 +15,7 @@
 #   - Detects release-flow topology: local/remote staging-branch existence, the
 #     prod/default branch, and a suggested_mode (staged when staging exists, else direct)
 #
-# What the script does NOT do (left to `--doctor` SKILL.md):
+# What the script does NOT do (left to `--init` SKILL.md):
 #   - Writing devkit/policy.json — this script only detects and reports
 #   - The Free-plan-403 confirm interview (AC-DR5) — SKILL.md gates that decision
 #   - Per-branch PROTECTED/UNPROTECTED verification — reuse

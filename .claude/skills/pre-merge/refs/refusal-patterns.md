@@ -5,7 +5,7 @@ description: The three canonical refusal shapes for pre-merge. Defines no_diff, 
 
 # Refusal Patterns
 
-Pre-merge emits a structured refusal JSON and terminates on three conditions. Refusals always exit non-zero (except `user_declined` which exits zero — that is the `skipped` verdict, not a refusal).
+Pre-merge emits a structured refusal JSON and terminates on these conditions. Refusals always exit non-zero (except `user_declined` which exits zero — that is the `skipped` verdict, not a refusal).
 
 Refusals are emitted as the sole JSON output. No other text follows.
 
@@ -34,9 +34,38 @@ Refusals are emitted as the sole JSON output. No other text follows.
 
 ---
 
+## no_manifest
+
+**When it fires**: pre-flight (before SYNC), when `devkit/policy.json` carries **no**
+`components[]` manifest — the file is absent, malformed, `version` ≠ 1, or a **pre-v3**
+policy (has `init`/`release_flow` but no `components[]`). The v3 executor
+(`refs/executor.md`) runs the resolved `components[]` pipeline; with no manifest there is
+nothing to run. This is the **breaking cutover** (Fork C, AC-PF13/PF14) — it **retires**
+the old "file absent → run on built-in defaults" fallback (`AC-LC6`/`AC-ST5` retired).
+
+**Exit code**: 1 (non-zero)
+
+**JSON shape**:
+
+```json
+{
+  "verdict": "refused",
+  "reason": "no_manifest",
+  "detail": "No components[] manifest in devkit/policy.json — /pre-merge runs the preflight-resolved pipeline and cannot gate without it. Run /pre-merge --init to detect this project's pipeline and write the manifest (a pre-v3 policy.json is upgraded in place).",
+  "base": "<base ref>",
+  "prior_issues_loaded": false,
+  "issues": []
+}
+```
+
+**Runs zero components** — no SYNC, no waves, no PR. Terminate immediately after emitting
+this JSON, naming `/pre-merge --init`.
+
+---
+
 ## schema_mismatch
 
-**When it fires**: Step 2, when `--prior-issues` file fails validation against `refs/output-schema.md`. The file exists but its shape does not match the expected schema (missing required fields, wrong types, unknown verdict value).
+**When it fires**: pre-flight, when `--prior-issues` file fails validation against `refs/output-schema.md`. The file exists but its shape does not match the expected schema (missing required fields, wrong types, unknown verdict value).
 
 **Exit code**: 1 (non-zero)
 
@@ -105,6 +134,7 @@ Refusals are emitted as the sole JSON output. No other text follows.
 
 | Condition | Output type | Exit code |
 |---|---|---|
+| No `components[]` manifest (absent / pre-v3 policy) | Refusal JSON (`refused/no_manifest`) | 1 |
 | Clean tree | Refusal JSON (`refused/no_diff`) | 1 |
 | Schema mismatch | Refusal JSON (`refused/schema_mismatch`) | 1 |
 | Modify instruction | Refusal JSON (`refused/out_of_scope_modify`) | 1 |

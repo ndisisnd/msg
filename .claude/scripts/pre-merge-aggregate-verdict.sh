@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
-# pre-merge-aggregate-verdict.sh — aggregate per-bucket pre-merge JSON outputs into
+# pre-merge-aggregate-verdict.sh — aggregate per-component pre-merge JSON outputs into
 # the top-level result document (pre-merge/refs/output-schema.md).
 #
 # Pure mechanical: computes the overall verdict as max severity across all present
-# buckets (fail > pass_with_warnings > pass), merges bucket payloads under
-# .buckets, and validates each bucket has a recognised verdict. Refuses malformed
-# input so a broken bucket fails loudly instead of silently downgrading the
-# overall verdict.
+# components (fail > pass_with_warnings > pass), merges component payloads under
+# .buckets (the JSON output key — literal wire field, unchanged this phase; see
+# pre-merge/refs/_common.md), and validates each component has a recognised verdict.
+# Refuses malformed input so a broken component fails loudly instead of silently
+# downgrading the overall verdict.
 #
 # Usage:
 #   pre-merge-aggregate-verdict.sh --run-dir <dir> \
 #     [--prd <path>] [--eval-set <path>] [--parallel]
 #
-# <dir> contains <bucket>.json for each completed bucket. Recognised buckets:
+# <dir> contains <component>.json for each completed component. Recognised
+# components (the BUCKETS array below — variable name unchanged this phase):
 #   unit, e2e, functional, qa, load, a11y, perf, api, mobile, coverage
-# Skipped buckets are simply absent from the directory and omitted from output.
+# Skipped components are simply absent from the directory and omitted from output.
 #
 # Exit 0 on success; exit 1 with a stderr message on malformed input.
 

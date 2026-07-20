@@ -6,7 +6,7 @@ description: Gate Step 2 — deterministic, zero-LLM checks. Lint, format, typec
 # Step 2 — MECHANICAL
 
 All checks here are scripts — **no LLM**. Run them on the post-sync branch diff.
-Findings conform to `refs/finding-schema.md`; `source` uses the tool prefix.
+Findings conform to `../finding-schema.md`; `source` uses the tool prefix.
 
 ## Lint / format / typecheck
 
@@ -52,7 +52,7 @@ A commit over cap **with** the trailer is recorded (not a finding) — the justi
 
 ## Short-circuit
 
-A `blocker` from lint/typecheck short-circuits the run per `refs/severity-rubric.md`
+A `blocker` from lint/typecheck short-circuits the run per `../severity-rubric.md`
 (a broken build/type error makes later stages moot) — skip Steps 3–8, write the
 issues file, go to Step 9's fail path. Comment-scan and commit-cap findings never
 short-circuit on their own (they are `low`/`medium`).

@@ -36,7 +36,8 @@ pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests s
 - `/post-merge --staging --prd <path>` — name the shipped PRD explicitly (else resolved from the PR head branch `feat/prd-<n>-*`)
 - `/post-merge --production` — open + merge the double-confirmed staging→main release PR and run the production deploy
 - `/post-merge --production --prd <path>` (repeatable) — the PRD(s) this release ships; used for the release body + sign-off precondition
-- `/post-merge --doctor` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --doctor`'s job) (`refs/protocol-doctor.md`)
+- `/post-merge --init` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --init`'s job) (`refs/protocol-init.md`)
+  - `/post-merge --doctor` — **deprecated alias for one release**: runs `--init` and prints a deprecation note naming `--init`/`--update`
 
 Natural language: "ship this to staging", "merge the staging PR", "promote to production", "release to production", "ship it live".
 
@@ -91,14 +92,15 @@ one info line; never abort on a parse error.
 
 | policy `init` state | action |
 |---|---|
-| file **absent** (repo never `/msg --init`ed) | built-in defaults + a one-line nudge to run `/msg --init` or `/post-merge --doctor`; **no** auto-doctor (back-compat, AC-LC6) — proceed to Step 1 |
-| `init: false` (or `init` absent on a present file) | **auto-run `--doctor` inline first** (AC-LC2); on completion it flips `init: true` (AC-LC3), then continue to Step 1. If the user **aborts** `--doctor`, stop — run **no** protocol step (no PR, no merge, no verdict) (AC-LC4) |
-| `init: true` | proceed to Step 1 directly — no doctor (AC-LC5) |
+| file **absent** (repo never `/msg --init`ed) | built-in defaults + a one-line nudge to run `/msg --init` or `/post-merge --init`; **no** auto-init (back-compat, AC-LC6) — proceed to Step 1 |
+| `init: false` (or `init` absent on a present file) | **auto-run `--init` inline first** (AC-LC2); on completion it flips `init: true` (AC-LC3), then continue to Step 1. If the user **aborts** `--init`, stop — run **no** protocol step (no PR, no merge, no verdict) (AC-LC4) |
+| `init: true` | proceed to Step 1 directly — no init run (AC-LC5) |
 
 The same load resolves `release_flow` (below) and `branch_protection` (Step 1
 `--staging` / Step 2 `--production`) for the run. No gate run ever *writes*
-`policy.json` — only `--doctor` does (AC-OW1). `--doctor` itself never merges,
-opens PRs, or deploys (`refs/protocol-doctor.md`).
+`policy.json` — only `--init` does (AC-OW1). `--init` itself never merges,
+opens PRs, or deploys (`refs/protocol-init.md`). (`--doctor` is a deprecated
+one-release alias for `--init`.)
 
 ## Release flow (both modes)
 
@@ -186,7 +188,7 @@ through `/pre-merge` and this gate; the gate does not dead-end on the issues fil
 - `refs/staging.md` — `--staging` steps 2/3/7 (PR locate, green-CI check, merge, sign-off stamp)
 - `refs/production.md` — `--production` preconditions, double-confirmation, release PR, merge
 - `refs/protection.md` — Step 1/2 branch-protection verify via `post-merge-protection.sh` (policy-conditional: `enforced` refuses, `optional` warns + proceeds, `skip` doesn't verify)
-- `refs/protocol-doctor.md` — `--doctor` mode (protection policy, deploy/smoke CLIs, PLATFORMS.md gap delegation; no merge/PR/deploy)
+- `refs/protocol-init.md` — `--init` mode (protection policy, deploy/smoke CLIs, PLATFORMS.md gap delegation; no merge/PR/deploy); `--doctor` is a deprecated one-release alias
 - `refs/deploy.md` — per-platform staging/production deploy resolution from `devkit/PLATFORMS.md`
 - `refs/verify-deploy.md` — post-deploy smoke verification (`smoke_cmd` per platform, both modes)
 - `refs/human-test-script.md` — deriving the staging human test script (D11 human gate)
