@@ -87,7 +87,7 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `preflight-check-06-coverage.sh` |
 | 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `preflight-check-07-prd-consistency.sh` |
 | 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `preflight-check-08-e2e.sh` |
-| 09 | a11y | `a11y_runner` | `platform/protocol-a11y.md` | `preflight-check-09-a11y.sh` |
+| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (`--init`, AC-A11Y4) | `platform/protocol-a11y.md` | `preflight-check-09-a11y.sh` |
 | 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `preflight-check-10-perf.sh` |
 | 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `preflight-check-11-api.sh` |
 | 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `preflight-check-12-load.sh` |
@@ -95,7 +95,7 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
 | ~~15~~ | ~~qa~~ | — retired, no script — | — | — no `preflight-check-15-qa.sh` — |
 | 16 | preview | `preview_deploy_cmd` + `qa_runner` (visual capture, merged) | `platform/protocol-preview.md` | `preflight-check-16-preview.sh` |
-| 17 | smoke | `smoke_runner` (new, resolves Q3) | `platform/protocol-smoke.md` (new, Phase 6/C21) | `preflight-check-17-smoke.sh` |
+| 17 | smoke | `smoke_runner` (resolves Q3) — **default-liveness floor** when unconfigured on a fired preview + **critical-tagged e2e-flow subset** (C21/D29) | `platform/protocol-smoke.md` (C21) | `preflight-check-17-smoke.sh` |
 | 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `preflight-check-18-manual-test-plan.sh` |
 
 ## Legend
@@ -208,8 +208,25 @@ per-item approved at `--init` (`AC-DR2`). See
   a tiny one) when no schema/stats source is available; absent both stats and the list,
   lock findings keep their flat severity (AC-MIG3/MIG4). Optional — an empty/absent list
   means "no size context", never a validation error.
-- **`a11y`** corrected from a provisional advisory to **blocking** (fails on
-  serious/critical WCAG). **`smoke`** resolves Q3 (`depends_on preview`).
+- **`a11y`** (C13) audits **interactive states reached by the e2e flows** (dialog/error/
+  menu — D29), not just static page loads, and gains **native runner support** (iOS/macOS
+  `performAccessibilityAudit` + Android accessibility-test-framework — real coverage when
+  a native runner is present, no longer a C12 flag). Findings **lead with user impact +
+  flow** (`name-the-user-impact.md`), WCAG id secondary. Its **default enablement/
+  criticality is a project-level `--init` decision** (AC-A11Y4): public-facing product →
+  default-on/blocking; internal tool / backend → default-off/advisory — the row's default
+  `blocking` is the public-facing default, not unconditional. Tagged **low-priority** in
+  the build sequence (AC-A11Y5).
+- **`smoke`** (C21) resolves Q3 (`depends_on preview`, the 2nd hard edge — unchanged) and
+  gains two behaviors: a **no-vacuous-skip default-liveness floor** (a fired preview with
+  no `smoke_cmd` still runs a liveness check — URL 200 / artifact launches — so C20's R1
+  precondition can never pass vacuously; safety-floor pattern like C9/D28) and
+  **critical-path coverage** (the `critical`-tagged e2e-flow subset — 1–3 golden paths
+  incl. the core action, D29 — not just homepage 200). It runs **first among the
+  preview-tail checks and short-circuits** the expensive api-drift / migration-up→down→up /
+  capture suite on failure (`preview-unhealthy`), feeds C20/R2 evidence, and **blocks the
+  R1 approval prompt**. A genuinely un-smokeable surface degrades **loudly** (surfaced in
+  R2), never silent green.
 
 ## Resolves
 

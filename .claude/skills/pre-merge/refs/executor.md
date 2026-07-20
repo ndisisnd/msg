@@ -147,6 +147,17 @@ independent of the universal set (they only `depend_on sync`), so they join
 Wave 1 when present. `preview` (only-on-green, late) and `smoke` (`depends_on
 preview`) land in the tail waves alongside/after `regression`.
 
+**Smoke gates preview's expensive checks (C21).** `preview` first *fires* — provisions
+the ephemeral env + a preview handle — after which `smoke` (its `depends_on preview`
+dependent) runs **before** `preview`'s expensive pre-approval work (visual captures, the
+api spec-drift + migration up→down→up live-env sweep, R2 assembly). Because `smoke` is
+`blocking` and cheap, a smoke failure **short-circuits**: the executor marks the rest of
+`preview` unhealthy (`preview-unhealthy`), skips those expensive checks against a dead
+preview, and — per R1 — never serves the human approval prompt. The `smoke` result (pass
+or the short-circuit failure) feeds `preview`'s R2 evidence either way. A fired preview
+always gets at least smoke's default-liveness floor, so R1 can never pass vacuously
+(`platform/protocol-smoke.md`, C21/AC-SMK1–5).
+
 ## 3 · Run the waves + fail-fast
 
 Run waves **in order**. For every edge `A depends_on B`, B fully completes before

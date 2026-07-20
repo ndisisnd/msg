@@ -111,6 +111,16 @@ gaps, never `n/a`.
 > which client breaks. Absent both broker and hint, findings degrade to endpoint+change (no
 > fabricated consumer). Optional — an empty/absent list is valid, never a validation error.
 
+> **a11y relevance (C13, AC-A11Y4).** When `a11y` is active (a UI surface), `--init` asks
+> **one** `AskUserQuestion` for whether accessibility is a **default check for this
+> project** — is it **public-facing** (a product real users touch) or **internal/backend**
+> (an admin tool, a service). The answer sets the `a11y` component's default **enablement +
+> criticality**, recorded in the manifest: **public-facing → default-on / blocking**
+> (fails on serious/critical WCAG); **internal / backend → default-off or advisory**
+> (findings recorded as context, never block). This makes a11y a project-level decision
+> rather than an unconditional default (see `platform/protocol-a11y.md`) — a profile
+> override still layers on top. Policy, not a tool — nothing is installed.
+
 > **Load read/write mix (C16, AC-LOAD2).** When `load` is active (an endpoint/data-path
 > surface), `--init` asks **one** `AskUserQuestion` for the project's realistic **read/write
 > mix** (ratio + concurrency + think-time), recorded as the `load` component's `traffic_mix`
