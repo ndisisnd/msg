@@ -2,6 +2,44 @@
 
 What's new for you, release by release.
 
+## v2.0.0 — 2026-07-20
+
+> **Heads up:** if you haven't run gate setup yet (or set it up before this release), `/pre-merge` now refuses to run instead of quietly falling back to defaults — a one-time `/pre-merge --init` fixes it. In exchange, the gate got a lot more trustworthy: real secret-scan and migration-safety floors, coverage and load checks that focus on what your change actually touches, native iOS/Android test coverage, and one unified human review step instead of two.
+
+### ✨ New
+- One-time setup now also checks whether your project has a CI pipeline and offers to scaffold one for you if it's missing.
+- Describe your project in your own words during setup and get a recommended architecture, language, conventions, and release flow — instead of answering a long interview.
+- Gate setup can be refreshed after the fact: re-scan your project to pick up new gaps without re-answering questions you've already settled.
+- If you've declared a target platform (like iOS or web) but have no test runner set up for it, the gate now flags that gap explicitly instead of silently skipping the check.
+- Database migrations that drop or rename something still used elsewhere in the same change are now caught before they ship, with a safe migration path suggested.
+- The gate now generates a plain-language, priority-ordered manual test checklist for whatever your automated tests didn't verify — shown to whoever approves the preview, and again to whoever signs off on staging.
+- Native iOS and Android test suites are now detected and run automatically alongside Flutter tests, so a native app's mobile checks are real coverage, not a gap.
+- API checks now catch backward-incompatible changes to your API spec — removed fields, tightened types — even when your existing tests still pass.
+
+### 📈 Improved
+- Idea grading now measures how many moving parts a feature actually has, on a finer six-level scale, instead of a coarse T-shirt size.
+- Oversized commits are no longer auto-blocked by a size guess made before the code even exists — the size is measured and left to your judgment, with a brief reason required when you go over.
+- Running setup again on a project you've already bootstrapped now fills in whatever's missing instead of stopping because it thinks everything's already there.
+- Test coverage checks now focus on the lines your change actually touches, rather than penalizing an imperfect codebase total — and your overall coverage is tracked so it never quietly drops.
+- PRD-consistency checks are more thorough: every acceptance criterion needs an actual passing test, unhandled error cases named in your PRD get caught, and scope creep is flagged more strictly.
+- Performance checks now also measure how your app responds under realistic load, not just a cold page load, and flag it if things quietly get slower compared to your base branch.
+- Load testing now runs only when your change actually touches an endpoint or data path, so it's not wasted on unrelated changes.
+- Preview and QA review are now one unified human review step — one clear approve/reject decision with all the evidence in one place.
+- A broken preview can no longer be sent for review — a health check now runs first and blocks the request if the preview is down.
+- Accessibility checks now cover interactive states like an open dialog or a validation error, not just the initial page load, and can run native accessibility audits on iOS/macOS/Android apps.
+
+### 🐛 Fixed
+- The project board no longer misreports every shipped feature as unshipped when your production branch is named `master` instead of `main`.
+
+### 🔒 Security
+- Your project can no longer pass the gate without secret-scanning coverage — if no scanner is configured, the gate now blocks instead of quietly skipping this check.
+
+### ⚠️ Breaking
+- If your project doesn't have gate configuration yet (or has one from before this release), `/pre-merge` now refuses to run instead of silently falling back to built-in defaults. Run `/pre-merge --init` once — it detects your pipeline and writes the config for you.
+
+### 🗑️ Deprecated
+- `--doctor` is renamed to `--init`. `--doctor` still works as an alias for one more release, but switch over now.
+
 ## v1.1.0 — 2026-07-16
 
 > A new one-time setup checks that your project has the tools each gate needs and offers to install the missing, free ones — and when a gate run turns up problems, it now offers to fix them and re-run instead of dead-ending.
