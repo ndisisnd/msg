@@ -237,6 +237,95 @@ warnings (AC-S6). Never write `installed`, an unknown step-key, or a step-key ou
 
 ---
 
+## v3 — preflight ingestion → `components[]`
+
+> **New in v3 (P2).** `--init` gains a preflight-driven assembly step. It runs the
+> `preflight-check-*.sh` family, ingests their normalized reports, and writes the
+> `components[]` manifest into `devkit/policy.json` — the resolved instance of the
+> [`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)
+> defaults. The single monolithic `pre-merge-tooling-detect.sh` is superseded by the
+> per-check family (it is **deprecated, not deleted** — the pre-P3 gate prelude still
+> calls it; it's removed at P3). The check-report shape is
+> [`../../shared/refs/check-report-schema.md`](../../shared/refs/check-report-schema.md).
+
+The assembly runs **after** the interview + gated install (so a just-installed tool is
+detected) and **before** the write:
+
+1. **Run all checks.** Execute every `.claude/scripts/preflight-check-*.sh` (ids 01–17,
+   `15` retired). Each detects its own tooling/surface and writes a normalized `detect`
+   report to `.pre-merge/preflight/<slug>.json` + stdout (AC-CK2/CK3). A missing runner
+   is never fatal — the check emits `present:false` + `status:no_tooling`/`n/a`.
+   Mandatory checks (`security`, `migration`) always emit a report even when nothing is
+   detected (AC-PF2).
+2. **Ingest the 16 reports.** For each, validate it round-trips against the check-report
+   schema (AC-CK5); reject a malformed report rather than assembling a bad entry.
+3. **Assemble `components[]`** (AC-CAT9): start from the catalog default row for each
+   `nn`; overlay the detection (`present`, `run`, `tooling`, `status`); apply user
+   overrides from the interview (`opted_out`/`deferred` decisions, any user-set
+   `criticality`). Ingestion needs **zero** per-check special-casing (AC-CK7) — one
+   uniform loop keyed on `nn`.
+4. **Validate the DAG is acyclic** (AC-PF3): topo-check the union of every component's
+   `depends_on`. A cycle → report it and write **no** manifest (leave `policy.json`
+   unchanged).
+5. **Write `components[]`** with **no `order` field** (AC-PF4 — ordering is the
+   executor's runtime topo-sort) and **stamp `source_signature`** (AC-UP4) — the
+   sha256 defined in `policy-schema.md` over the sorted `id:present:run:tooling.chosen`
+   lines across all reports.
+6. **Everything `--init` already did stays:** the interview, the gated per-item install,
+   and the `init:true` flip on completion.
+
+### Q2 — `steps.*` migration + dual-write
+
+On a **pre-v3** `policy.json` (has `init`/`release_flow`, no `components[]`), `--init`
+rewrites the old `steps.*` states into `components[]` **once**, per the mapping table in
+`policy-schema.md` (`ready`→`present:true`; `opted_out`/`n/a`→`present:false` + status
+**preserved**; `missing`/`deferred`→`present:false` + status). It then **dual-writes**
+both `components[]` **and** `steps` this phase — the pre-P3 gate still reads `steps` via
+the §3 read-contract, so both must stay coherent. **The `steps` dual-write is removed at
+P3**, when the executor cuts over to `components[]` and `steps` is dropped.
+
+---
+
+## `--update` — reconcile the manifest with reality
+
+`/pre-merge --update` refreshes an existing manifest without a full re-setup. It
+reconciles **facts about the code**, never settled policy choices.
+
+1. **Re-run the preflight checks** — same `preflight-check-*.sh` family, fresh
+   `.pre-merge/preflight/<slug>.json` reports.
+2. **Diff** the fresh detect reports against the recorded `components[]`: which `present`
+   flipped (tool added/removed), which `active_when` surface appeared/vanished (first
+   migration, new API/mobile surface), any newly-detected component not yet in the
+   manifest.
+3. **Present the delta for approval BEFORE writing** (AC-UP1) — a compact
+   added/changed/removed table; nothing is written until the user approves.
+4. **Apply only** (AC-UP2):
+   - `present` flips (a runner appeared or disappeared),
+   - `active_when` flips (a surface appeared or disappeared),
+   - **new** components, seeded with **catalog defaults**.
+   It **never** re-prompts a settled `opted_out`/`n/a` decision and **never** changes a
+   **user-set** `criticality` — those are policy, not facts.
+5. **Fill genuinely-new gaps** by reusing `--init`'s gated per-item install/scaffold
+   offer (AC-UP3) — a newly-detected-but-untooled component follows the same
+   OSS-first `AskUserQuestion` path.
+6. **Restamp `source_signature`** (AC-UP4) and stamp `generated_by: "pre-merge --update"`.
+   Re-validate the DAG (AC-PF3) before writing; dual-write `steps` until P3 as `--init` does.
+
+`--update` never runs the gate, opens a PR, merges, or deploys — same boundaries as
+`--init`. A pre-v3 `policy.json` with no `components[]` is an `--init` case, not
+`--update` (there's nothing to reconcile against) — `--update` says so and points to
+`--init`.
+
+### Gate staleness nudge (Fork E — the gate stays a pure reader)
+
+A normal `/pre-merge` run **recomputes** `source_signature` cheaply and, on mismatch,
+emits *"pipeline may be stale — run `/pre-merge --update`"*, then **proceeds on the
+current manifest**. The gate **never** writes `policy.json` or mutates `components[]` —
+only `--init`/`--update` write it (AC-UP5/UP6). This nudge lives in the executor's
+manifest-read prose; the gate sequence itself is unchanged this phase.
+
+---
+
 ## Boundaries (what `--init` never does)
 
 - Never runs the pre-merge protocol, opens a PR, merges, or deploys (AC-DR1).

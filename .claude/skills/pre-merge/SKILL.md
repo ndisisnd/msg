@@ -30,6 +30,7 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 - `/pre-merge` — gate the current feature branch against `staging`
 - `/pre-merge --init` — run the one-time setup: detect tooling (incl. the `.github/workflows/` CI pipeline that runs the gate on PRs) → interview → gated install/scaffold → write `devkit/policy.json` (no gate run); see `refs/protocol-init.md`
   - `/pre-merge --doctor` — **deprecated alias for one release**: runs `--init` and prints a deprecation note naming `--init`/`--update`
+- `/pre-merge --update` — reconcile the manifest with codebase reality (re-run preflight checks → diff `components[]` → approve the delta → apply `present`/`active_when`/new-component changes only; never re-grades user-set criticality or re-prompts settled opt-outs); see `refs/protocol-init.md`
 - `/pre-merge --prd <path>` — load a PRD for the regression (Step 4) + PRD-consistency (Step 7) stages (repeatable)
 - `/pre-merge --prior-issues <path>` — load a prior verdict JSON to mark regressions
 - `/pre-merge --full-secret-scan` — Step 6 scans the full tree (default: diff-only)
@@ -81,6 +82,15 @@ Before the diff prelude, load + validate `devkit/policy.json` once per run and c
 
 Malformed / `version` ≠ 1 → whole file treated as absent (defaults + one info line). The
 loaded policy also drives base resolution (below) and the Steps 2/3/5/6 consult.
+
+**Manifest staleness nudge (v3, Fork E).** When the loaded policy carries a v3
+`components[]` + `source_signature`, the gate **recomputes** the signature cheaply (the
+sha256 over the sorted `id:present:run:tooling.chosen` lines, per
+`../shared/refs/policy-schema.md`) and, on mismatch, prints one line — *"pipeline may be
+stale — run `/pre-merge --update`"* — then **proceeds on the current manifest**. The gate
+**never** writes `policy.json` or mutates `components[]`; only `--init`/`--update` do
+(AC-UP5/UP6). This is a read-only nudge — the gate sequence below is unchanged, and the
+executor cutover that actually *runs* from `components[]` lands at P3.
 
 ## The gate sequence (Steps 0–9)
 
@@ -167,6 +177,8 @@ so the gate never dead-ends.
 - `refs/severity-rubric.md` — grading + short-circuit rules · `refs/refusal-patterns.md` — refusal shapes
 - `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/verify-prelude.md`
 - `../shared/refs/fix-loop.md` — post-failure Offer #1 → Offer #2 sequence the issues-file loop hands off to
-- `.claude/scripts/pre-merge-tooling-detect.sh` — tooling fingerprint (Step 0/1)
+- `../shared/refs/check-report-schema.md` — the normalized check-report schema (`detect` + `result` sections) the preflight scripts emit and the executor aggregates
+- `.claude/scripts/preflight-check-*.sh` — the per-check detect+normalize family (C4); `--init`/`--update` run + ingest them into `components[]` (`refs/protocol-init.md`)
+- `.claude/scripts/pre-merge-tooling-detect.sh` — tooling fingerprint (Step 0/1); **deprecated** — superseded by `preflight-check-*.sh`, still consumed by the pre-P3 gate prelude, removed at P3
 - `.claude/scripts/pre-merge-aggregate-verdict.sh` — Step 5 per-component verdict aggregation/merge
 - `scripts/resolve-diff.sh` — diff-vs-base structured summary

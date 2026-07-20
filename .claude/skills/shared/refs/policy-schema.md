@@ -14,9 +14,11 @@ The single authoritative definition of `devkit/policy.json`: the **committed, sh
 |---|---|
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow` (nothing else) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
-| `--init` | **completion** — fills tooling + `branch_protection`, flips `init:true` |
+| `--init` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling + `branch_protection`, flips `init:true` |
+| `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`active_when`/new-component changes, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
 
-No gate run ever writes it (AC-OW1). `--init` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
+No gate run ever writes it (AC-OW1, AC-UP6) — a gate only recomputes `source_signature`
+read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
 
 **Deprecated alias.** `--doctor` still works for one release: it runs `--init` and prints a
 deprecation note naming `--init`/`--update`.
@@ -86,10 +88,12 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `version` | int | ✔ | — | must be `1`; any other value → whole file treated as absent (AC-S1) |
 | `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--init` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--init` flips it `true` on completion |
 | `generated` | `YYYY-MM-DD` | ✔ | — | stamped by the skill (scripts can't date); informational |
-| `generated_by` | enum `msg --init` \| `msg --init-staging` \| `pre-merge --init` \| `post-merge --init` | ✖ | — | last writer; informational. `pre-merge --doctor`/`post-merge --doctor` still appear on files written during the one-release deprecation window (aliases of `--init`) |
+| `generated_by` | enum `msg --init` \| `msg --init-staging` \| `pre-merge --init` \| `pre-merge --update` \| `post-merge --init` \| `post-merge --update` | ✖ | — | last writer; informational. `pre-merge --doctor`/`post-merge --doctor` still appear on files written during the one-release deprecation window (aliases of `--init`) |
 | `repo` | object | ✖ | — | evidence/audit only — gates never branch on it |
 | `policies` | object | ✖ | `{}` | the enforced half |
-| `steps` | object | ✖ | `{}` | per-step decisions |
+| `components` | object[] | ✖ | — | the **v3 preflight manifest** — the resolved per-project pipeline (catalog defaults + detection + user overrides). Purely **additive** to the same file (AC-PF5). See [`components[]`](#components--the-v3-preflight-manifest) |
+| `source_signature` | string | ✖ | — | staleness hash of the detect-section tuple across all preflight reports; stamped by `--init`/`--update` (AC-UP4). Gate recomputes it read-only to warn on drift (AC-UP5). See below |
+| `steps` | object | ✖ | `{}` | per-step decisions. **Deprecated (v3):** superseded by `components[]`; **dual-written** by `--init`/`--update` until P3 flips the gate to the executor, then dropped. The pre-P3 gate still reads it |
 
 ### `repo` (informational — gates never branch on it)
 
@@ -126,6 +130,93 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `reason` | string | required for `opted_out`/`n/a`/`deferred` | — | missing → honored + `unjustified-policy` warn (AC-S3) |
 | `chosen` | string \| string[] | ✖ | — | the tool(s) selected for a `ready` step |
 | `last_checked` | `YYYY-MM-DD` | ✖ | — | informational |
+
+### `components[]` — the v3 preflight manifest
+
+The resolved per-project pipeline. `--init`/`--update` assemble it by seeding the
+[`component-catalog.md`](component-catalog.md) defaults, overlaying live detection (from
+the `preflight-check-*.sh` reports — `present`/`run`/`tooling`), then applying user
+overrides. **Additive** — it lives beside `release_flow`/`branch_protection`/`init`,
+which are untouched (AC-PF5). The v3 **executor** (P3) requires it; today's gate does
+not read it yet (**note, not enforced this phase**).
+
+```json
+"components": [
+  {
+    "id": "mechanical",
+    "nn": "01",
+    "group": "universal",
+    "kind": "script",
+    "present": true,
+    "mandatory": false,
+    "active_when": "always",
+    "criticality": "critical",
+    "cost": "cheap",
+    "depends_on": [],
+    "run": "npx eslint <files>; npx tsc --noEmit",
+    "tooling": { "chosen": "eslint,tsc", "version": null },
+    "status": "ready",
+    "source": "preflight-check-01-mechanical.sh"
+  }
+]
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `id` | string | component slug — matches `protocol-<slug>.md` + the check-report `check` |
+| `nn` | string | stable zero-padded global catalog id (`"01"`…`"17"`, minus retired `15`); never reused, group-orthogonal |
+| `group` | enum `universal`\|`platform`\|`prd` | gating source (folder) |
+| `kind` | enum `script`\|`subagent`\|`hybrid`\|`gate` | how the component runs |
+| `present` | bool | in the pipeline this run only when `true` (or `mandatory`); an absent component produces **no** step and **no** skip note (AC-PF6) |
+| `mandatory` | bool | `true` **exactly** for `security` + `migration` (AC-CAT4) — never opts out, only degrades per its own safety-floor rule |
+| `active_when` | string | presence gate (`always`, `prd`, `ui-surface`, `migrations`, `preview-fired`, …) |
+| `criticality` | enum `critical`\|`blocking`\|`advisory`\|`config-driven` | grading tier + fail-fast class; a platform profile may override (Q1); **user-set values are never re-graded by `--update`** (AC-UP2) |
+| `cost` | enum `cheap`\|`moderate`\|`expensive` | wave-scheduling hint |
+| `depends_on` | string[] | hard effect edges only; the graph MUST be **acyclic** — `--init` rejects a cycle and writes no manifest (AC-PF3) |
+| `run` | string \| null | resolved command (script/hybrid) or `<group>/protocol-<slug>.md` ref (subagent/gate) |
+| `tooling` | `{chosen,version}` \| null | the detection overlay |
+| `status` | enum `ready`\|`no_tooling`\|`n/a`\|`opted_out`\|`deferred` | detection status (`ready`/`no_tooling`/`n/a`) or the carried-over user decision (`opted_out`/`deferred`) |
+| `source` | string | the `preflight-check-<nn>-<slug>.sh` that produced this entry (audit) |
+
+**No `order` field** — ordering is a runtime topo-sort on `depends_on` (Fork B, AC-PF4);
+the manifest never freezes a sequence.
+
+### `source_signature` — staleness hash
+
+A hash of the **detect-section tuple** across all preflight reports, stamped by
+`--init`/`--update` (AC-UP4). Defined precisely so the gate can recompute it cheaply:
+
+```
+source_signature = "sha256:" + sha256(
+  join("\n", sort(
+    for each preflight report r:  "<r.id>:<r.present>:<r.run>:<r.tooling.chosen>"
+  ))
+)
+```
+
+i.e. sha256 over the newline-joined, **sorted** `id:present:run:tooling.chosen` lines
+(one per check; `null` run/chosen render as the literal `null`). The gate recomputes this
+read-only each run; on mismatch it warns *"pipeline may be stale — run
+`/pre-merge --update`"*, proceeds on the current manifest, and **never writes** (Fork E,
+AC-UP5/UP6).
+
+### Q2 — `steps.<key>` → `components[]` migration
+
+`--init` rewrites a pre-v3 `steps.*` block into `components[]` **once**, mapping the old
+per-step status onto component fields (then keeps `steps` dual-written until P3):
+
+| old `steps.<key>.status` | → component fields |
+|---|---|
+| `ready` | `present: true` (detection re-resolves `run`/`tooling`) |
+| `opted_out` | `present: false`, `status: opted_out` (**preserved** — `--update` never re-prompts it, AC-UP2) |
+| `n/a` | `present: false`, `status: n/a` (**preserved**) |
+| `missing` | `present: false`, `status: no_tooling` (a known gap) |
+| `deferred` | `present: false`, `status: deferred` (preserved; will revisit) |
+
+Step-key → component id: `mechanical`→`mechanical`, `unit_int`→`unit`+`integration`,
+`e2e`/`a11y`/`perf`/`load`/`api`/`mobile`/`coverage`/`security`→same id, `qa`→`preview`
+(merged, C20), `migration`→`migration`, `smoke`→`smoke`. `ci`/`deploy_staging`/
+`deploy_production` have no pre-merge component — they stay `steps`-only (post-merge's).
 
 ## Closed step-key vocabulary (16 keys)
 

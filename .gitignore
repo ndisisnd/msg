@@ -19,6 +19,7 @@ al-*.jsonl
 **/run/
 **/schemas.json
 .claude/scheduled_tasks.lock
+.pre-merge/
 
 # ── Local config ──────────────────────────────────────────────────────────────
 settings.local.json

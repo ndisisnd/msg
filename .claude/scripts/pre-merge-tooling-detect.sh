@@ -1,4 +1,12 @@
 #!/usr/bin/env bash
+# ============================================================================
+# DEPRECATED: superseded by the preflight-check-*.sh family (C4, Phase 2).
+#   - New detection lives in per-check scripts + preflight-common.sh, ingested
+#     into devkit/policy.json's components[] by --init/--update.
+#   - This monolith is STILL CONSUMED by the pre-P3 gate prelude (SKILL.md
+#     "Diff + tooling" step), so it is kept intact — REMOVED at P3 when the
+#     executor cuts over to components[]. No logic change this phase.
+# ============================================================================
 # pre-merge-tooling-detect.sh — emit a single JSON fingerprint of detected tooling.
 # Consumed by /pre-merge (runner buckets + Step 2)
 # (build_tool, mechanical_runners, security_scanners/secret_scanner,
