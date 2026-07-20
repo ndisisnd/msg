@@ -6,7 +6,7 @@ type: reference
 
 # `devkit/policy.json` — the committed policy file
 
-The single authoritative definition of `devkit/policy.json`: the **committed, shared** policy artifact both gate skills (`pre-merge`, `post-merge`) read at run time. It holds **decisions only** — release-flow shape, branch-protection stance, per-step opt-in/out — never per-machine binary presence (that lives in the ephemeral `pre-merge-tooling-detect.sh` fingerprint, never persisted). Because it's committed, its decisions travel to CI and teammates. It sits next to its sibling config `devkit/PLATFORMS.md`.
+The single authoritative definition of `devkit/policy.json`: the **committed, shared** policy artifact both gate skills (`pre-merge`, `post-merge`) read at run time. It holds **decisions only** — release-flow shape, branch-protection stance, per-step opt-in/out — never per-machine binary presence (that is detected by the ephemeral `preflight-check-*.sh` family at `--init`/`--update` time and resolved into each component's `run` command, never persisted as a standalone fingerprint). Because it's committed, its decisions travel to CI and teammates. It sits next to its sibling config `devkit/PLATFORMS.md`.
 
 **Writers — the only three:**
 
@@ -137,8 +137,10 @@ The resolved per-project pipeline. `--init`/`--update` assemble it by seeding th
 [`component-catalog.md`](component-catalog.md) defaults, overlaying live detection (from
 the `preflight-check-*.sh` reports — `present`/`run`/`tooling`), then applying user
 overrides. **Additive** — it lives beside `release_flow`/`branch_protection`/`init`,
-which are untouched (AC-PF5). The v3 **executor** (P3) requires it; today's gate does
-not read it yet (**note, not enforced this phase**).
+which are untouched (AC-PF5). The v3 pre-merge **executor** reads it as the pipeline
+source (P3, live — `pre-merge/refs/executor.md`); a `/pre-merge` run with **no**
+`components[]` refuses `no_manifest` (Fork C, AC-PF13/PF14). Post-merge keeps its
+pre-executor lifecycle until its own executor plan lands.
 
 ```json
 "components": [
@@ -261,6 +263,14 @@ init = policy.init ?? false          // file present but no `init` → false
 
 Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/post-merge` auto-runs `--init` → `--init` flips `init:true` → every later run is a normal gate. `--init` can still be invoked manually anytime to re-tune (it does not depend on `init`). (`--doctor` is a deprecated one-release alias for `--init` throughout this lifecycle.)
 
+> **v3 pre-merge override (Fork C, AC-PF13/PF14).** The pre-merge executor gates on the
+> **`components[]` manifest**, not on the `init` states above: a `/pre-merge` run with no
+> `components[]` (file absent, malformed, or a pre-v3 policy) **refuses `no_manifest`** and
+> names `/pre-merge --init` — it does **not** fall back to built-in defaults and does
+> **not** auto-run `--init` inline (`AC-LC6`/`AC-ST5` retired). See
+> `pre-merge/refs/executor.md`. Post-merge still follows the `init` table above until its
+> own executor lands.
+
 ## 1 · `release_flow` (both gates)
 
 ```
@@ -292,7 +302,13 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 
 **`NO_GH` / `NO_REMOTE` → refuse regardless of `mode_b`** — a PR can't be merged without them; the refusal cites the missing prerequisite, not protection. The protection mode governs **only** the `UNPROTECTED` case. (AC-BP5) No file → `enforced` everywhere (= today, AC-BP6). Per-branch differences resolve via `overrides` — e.g. `overrides.main:"enforced"` under top-level `mode:"optional"` enforces on `main` while `staging` stays optional (AC-BP4).
 
-## 3 · `steps.<key>` (pre-merge 2/3/5/6; post-merge `deploy_*` / `smoke` / `ci`)
+## 3 · `steps.<key>` (post-merge `deploy_*` / `smoke` / `ci`; pre-merge consult retired at v3 P3)
+
+> **v3 note.** Pre-merge's per-step `steps.<key>` consult (the old Steps 2/3/5/6 skip/run
+> decision) is **retired** — the executor decides run-vs-skip from component **presence**
+> in `components[]` (an absent component simply isn't in the pipeline; AC-PF6). The table
+> below still governs **post-merge**'s `deploy_staging`/`deploy_production`/`smoke` and the
+> cross-cutting `ci` record, which are not yet on an executor.
 
 | `status` | gate behavior |
 |---|---|

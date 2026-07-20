@@ -31,7 +31,7 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 
 | Script | Purpose |
 |--------|---------|
-| `pre-merge-tooling-detect.sh` | Emits project tooling as JSON — test runners, mechanical runners (lint/format/typecheck), secret scanners, build tool, and bundle analyzer. Consumed at runtime by `pre-merge` (replacing manual reads of `shared/refs/tooling-detection.md`, now maintainer docs only) |
+| `preflight-check-*.sh` (+ `preflight-common.sh`) | The per-check detect+normalize family — one script per component, sharing the probe primitives in `preflight-common.sh`. Each emits a normalized check-report `detect` section; `/pre-merge --init` / `--update` run them to assemble the `components[]` manifest. **Replaced the retired monolithic `pre-merge-tooling-detect.sh`** at v3 P3 |
 | `pre-merge-aggregate-verdict.sh` | Merges per-component pre-merge results into a single verdict |
 | `scan-n.prd` | Assigns the next available PRD number |
 | `plan-tune-preflight.sh` | Validates PRD structure before a tune pass |
@@ -82,7 +82,7 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 | `plan-tune` | Yes (contract certifier — seven consumer-bound checks; `--product` runs 1/2/3/6, `--eng` runs 2/4/5/6/7; auto-run by `plan-em` before each wave) |
 | `plan-em` | Yes |
 | `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
-| `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`; `--init` sets up its step tooling into `devkit/policy.json`; `--doctor` is a deprecated one-release alias) |
+| `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`; runs a **preflight-driven pipeline executor** over the `components[]` manifest in `devkit/policy.json` — no manifest → refuses `no_manifest` naming `--init`; `--init`/`--update` detect the pipeline and write the manifest; `--doctor` is a deprecated one-release alias) |
 | `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; smoke-verifies every deploy via `smoke_cmd`; `--init` sets up protection/deploy tooling + release-flow policy; `--doctor` is a deprecated one-release alias) |
 | `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap + seeds `devkit/policy.json`; `--init-staging` adds a staging branch and flips the release flow to `staged`; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer, run-report reader — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |

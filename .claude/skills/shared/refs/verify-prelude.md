@@ -10,11 +10,12 @@ work pre-merge does at the top of a run: diff resolution and tooling detection.
 It obeys the session-cache contract (`session-cache.md`) — source is canonical,
 cache is disposable, never a hard failure.
 
-In v2 pre-merge is **both producer and consumer** — it writes the prelude when it
-resolves the diff and detects tooling (gate steps 0–1), and consumes a fresh one
-on a later re-invocation against the same HEAD/base instead of redoing that setup.
-The old review→test→pre-merge producer/consumer split is gone (review and test are
-retired).
+Pre-merge is **both producer and consumer** — it writes the prelude when it
+resolves the diff at the top of a run, and consumes a fresh one on a later
+re-invocation against the same HEAD/base instead of re-resolving. The old
+review→test→pre-merge producer/consumer split is gone (review and test are
+retired). In v3 the executor reads each component's resolved `run` from the
+`components[]` manifest, so the prelude no longer detects tooling — only the diff.
 
 ## Shape
 
@@ -23,12 +24,16 @@ retired).
   "head": "<git rev-parse HEAD>",
   "base": "<diff base/range, e.g. staging or origin/main>",
   "diff": { "base": "...", "files_changed": ["..."], "lines_added": 0, "lines_removed": 0, "commit_count": 0 },
-  "tooling": { /* verbatim pre-merge-tooling-detect.sh JSON */ }
+  "tooling": null
 }
 ```
 
 - `diff` — from `pre-merge/scripts/resolve-diff.sh <base>`.
-- `tooling` — from `.claude/scripts/pre-merge-tooling-detect.sh`.
+- `tooling` — **superseded in v3**: tooling is resolved at `--init`/`--update` into each
+  component's `run` command in `devkit/policy.json` `components[]` (via the
+  `preflight-check-*.sh` family), which the executor reads directly. The prelude no
+  longer caches a tooling fingerprint (the field stays `null` for back-compat); it caches
+  only the resolved `diff`.
 
 ## Freshness key
 
@@ -38,15 +43,14 @@ unparseable JSON → **stale**.
 
 ## Generate-if-stale rule
 
-Pre-merge regenerates on stale/missing/corrupt (running `resolve-diff.sh` +
-`pre-merge-tooling-detect.sh` it already runs at gate steps 0–1), then best-effort
-writes the prelude. The write never fails the run.
+Pre-merge regenerates on stale/missing/corrupt (running `resolve-diff.sh` at the
+top of the run), then best-effort writes the prelude. The write never fails the run.
 
 ## Consume rule
 
-When a **fresh** prelude exists at gate step 0/1, pre-merge takes `diff` + `tooling`
-from it rather than re-resolving/re-detecting. The empty-diff refusal is evaluated
-on whichever `files_changed` was used (prelude or fresh).
+When a **fresh** prelude exists at the top of the run, pre-merge takes `diff` from
+it rather than re-resolving. The empty-diff refusal is evaluated on whichever
+`files_changed` was used (prelude or fresh).
 
 ## Standalone fallback
 

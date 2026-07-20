@@ -34,7 +34,7 @@ contract"). Pre-merge's flavor:
    concern.)
 2. **Load or seed** the policy file — read `devkit/policy.json` if present (re-run = update in
    place, never overwrite from scratch); else start empty.
-3. **Detect** — run `pre-merge-tooling-detect.sh` (below) and resolve the Step-0 profile.
+3. **Detect** — run the `preflight-check-*.sh` family (the v3 preflight ingestion below) and resolve the Step-0 profile.
 4. **Interview** — one `AskUserQuestion` per real gap and per open policy question. Every answer
    is recorded, including "skip" and "N/A", so the choice is durable and the next run does not
    re-ask (AC-DR4).
@@ -50,9 +50,11 @@ contract"). Pre-merge's flavor:
 
 ## Detection source
 
-`pre-merge-tooling-detect.sh` already emits the full fingerprint of detected tooling — one slot per
-runner. **Every `null` slot is a candidate gap.** `--init` does not re-detect by hand; it reads the
-fingerprint and the Step-0 profile, then classifies.
+The `preflight-check-*.sh` family emits one normalized detect report per component, together
+covering the full fingerprint of detected tooling — one slot per runner (the probe primitives
+live in `preflight-common.sh`; they superseded the retired monolithic detector at v3 P3).
+**Every `null`/`no_tooling` slot is a candidate gap.** `--init` does not re-detect by hand; it
+reads the reports and the Step-0 profile, then classifies.
 
 **Fingerprint slot → canonical step-key** (the key written under `steps.<key>`):
 
@@ -239,13 +241,13 @@ warnings (AC-S6). Never write `installed`, an unknown step-key, or a step-key ou
 
 ## v3 — preflight ingestion → `components[]`
 
-> **New in v3 (P2).** `--init` gains a preflight-driven assembly step. It runs the
-> `preflight-check-*.sh` family, ingests their normalized reports, and writes the
+> **v3 (P2 assembly, P3 cutover).** `--init` runs a preflight-driven assembly step: it
+> runs the `preflight-check-*.sh` family, ingests their normalized reports, and writes the
 > `components[]` manifest into `devkit/policy.json` — the resolved instance of the
 > [`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)
-> defaults. The single monolithic `pre-merge-tooling-detect.sh` is superseded by the
-> per-check family (it is **deprecated, not deleted** — the pre-P3 gate prelude still
-> calls it; it's removed at P3). The check-report shape is
+> defaults. The single monolithic `pre-merge` tooling detector is **retired** (deleted at
+> v3 P3) — the per-check `preflight-check-*.sh` family is the only detector now, and the
+> executor reads each component's resolved `run` from the manifest. The check-report shape is
 > [`../../shared/refs/check-report-schema.md`](../../shared/refs/check-report-schema.md).
 
 The assembly runs **after** the interview + gated install (so a just-installed tool is
@@ -274,15 +276,16 @@ detected) and **before** the write:
 6. **Everything `--init` already did stays:** the interview, the gated per-item install,
    and the `init:true` flip on completion.
 
-### Q2 — `steps.*` migration + dual-write
+### Q2 — `steps.*` migration (dual-write dropped at P3)
 
 On a **pre-v3** `policy.json` (has `init`/`release_flow`, no `components[]`), `--init`
 rewrites the old `steps.*` states into `components[]` **once**, per the mapping table in
 `policy-schema.md` (`ready`→`present:true`; `opted_out`/`n/a`→`present:false` + status
-**preserved**; `missing`/`deferred`→`present:false` + status). It then **dual-writes**
-both `components[]` **and** `steps` this phase — the pre-P3 gate still reads `steps` via
-the §3 read-contract, so both must stay coherent. **The `steps` dual-write is removed at
-P3**, when the executor cuts over to `components[]` and `steps` is dropped.
+**preserved**; `missing`/`deferred`→`present:false` + status). **At v3 P3 the pre-merge
+`steps` dual-write is dropped** — the executor reads run-vs-skip from `components[]`
+presence (AC-PF6), not the §3 `steps` consult, so `--init` no longer needs to keep
+pre-merge's `steps.*` coherent. It still writes the `ci`/`deploy_*`/`smoke` step-keys that
+**post-merge** and the green-CI check read (those consumers are not yet on an executor).
 
 ---
 
@@ -309,7 +312,9 @@ reconciles **facts about the code**, never settled policy choices.
    offer (AC-UP3) — a newly-detected-but-untooled component follows the same
    OSS-first `AskUserQuestion` path.
 6. **Restamp `source_signature`** (AC-UP4) and stamp `generated_by: "pre-merge --update"`.
-   Re-validate the DAG (AC-PF3) before writing; dual-write `steps` until P3 as `--init` does.
+   Re-validate the DAG (AC-PF3) before writing. As of v3 P3 the pre-merge `steps` dual-write
+   is dropped (the executor runs from `components[]`); `--update` only touches the
+   post-merge-owned `ci`/`deploy_*`/`smoke` step-keys, same as `--init`.
 
 `--update` never runs the gate, opens a PR, merges, or deploys — same boundaries as
 `--init`. A pre-v3 `policy.json` with no `components[]` is an `--init` case, not
@@ -322,7 +327,7 @@ A normal `/pre-merge` run **recomputes** `source_signature` cheaply and, on mism
 emits *"pipeline may be stale — run `/pre-merge --update`"*, then **proceeds on the
 current manifest**. The gate **never** writes `policy.json` or mutates `components[]` —
 only `--init`/`--update` write it (AC-UP5/UP6). This nudge lives in the executor's
-manifest-read prose; the gate sequence itself is unchanged this phase.
+manifest-read prose (`refs/executor.md` §0).
 
 ---
 

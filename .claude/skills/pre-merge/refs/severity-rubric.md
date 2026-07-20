@@ -84,6 +84,22 @@ Even after downgrade, each stage has a severity floor for hard-fail signals:
 | migration | `DROP TABLE`/`DROP COLUMN` | `blocker` |
 | prd-consistency | Acceptance criterion unmet | `high` |
 
+## Fail-fast by component `criticality` (the executor's short-circuit)
+
+The old fixed "any red step short-circuits" rule is generalized to a **DAG fail-fast
+keyed on each component's `criticality`** (`refs/executor.md`, AC-PF11). When a component
+returns a failing verdict:
+
+| Failed component's `criticality` | Effect on the pipeline |
+|---|---|
+| `critical` (`mechanical`, `security`, `migration`) | **abort** the remaining pipeline — no later wave runs (the old mechanical short-circuit, generalized) |
+| `blocking` (`unit`, `integration`, `e2e`, `regression`, `prd-consistency`, `api`, `a11y`, `mobile`) | fail the verdict, mark the component's **downstream dependents `blocked`** (they write a `skipped` result with `skip_reason: "blocked:<dep>"`), and let **independent** in-flight branches finish so the verdict aggregates the full picture |
+| `advisory` / `config-driven` (until the project sets budgets) | never aborts — findings recorded, pipeline continues |
+
+A platform profile may override a component's `criticality` (Q1) — the fail-fast class
+follows the overridden tier. This governs run-abort only; per-finding severity is graded
+by the rules above independently.
+
 ## Verdict derivation
 
 After all adjustments:

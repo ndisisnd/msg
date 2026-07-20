@@ -10,13 +10,11 @@ Step 1's sync-merge). Findings conform to `../finding-schema.md`; `source: unit`
 
 ## Runner
 
-Read `test_runner` from the Step 1 tooling fingerprint
-(`pre-merge-tooling-detect.sh`) — do not re-detect. Restrict the invocation to the
-unit-suite subset when the runner's config distinguishes one (e.g. a `unit/` test
-directory, a `--testPathPattern`/`-m unit` marker, a pytest `unit` marker); else run
-the runner's default suite (today's tooling fingerprint does not yet split
-unit-only/integration-only commands — the per-component detect scripts that add that
-split land in Phase 2).
+Use the `run` command resolved for the `unit` component in `devkit/policy.json`
+`components[]` (detected at `--init`/`--update` by `preflight-check-02-unit.sh`) — do
+not re-detect. Restrict the invocation to the unit-suite subset when the runner's config
+distinguishes one (e.g. a `unit/` test directory, a `--testPathPattern`/`-m unit`
+marker, a pytest `unit` marker); else run the component's default suite.
 
 ```
 rtk <test_runner.command>

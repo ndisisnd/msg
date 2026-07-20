@@ -11,14 +11,12 @@ Step 1's sync-merge), alongside `protocol-unit.md`'s pass. Findings conform to
 
 ## Runner
 
-Read `test_runner` from the Step 1 tooling fingerprint
-(`pre-merge-tooling-detect.sh`) — the same field `protocol-unit.md` reads; do not
-re-detect. Restrict the invocation to the integration-suite subset when the runner's
-config distinguishes one (an `integration/` or `test/integration` directory, a
+Use the `run` command resolved for the `integration` component in `devkit/policy.json`
+`components[]` (detected at `--init`/`--update` by `preflight-check-03-integration.sh`) —
+do not re-detect. Restrict the invocation to the integration-suite subset when the
+runner's config distinguishes one (an `integration/` or `test/integration` directory, a
 `--testPathPattern`/`-m integration` marker, a pytest `integration` marker, Flutter's
-`integration_test/`); else run the runner's default suite (today's tooling
-fingerprint does not yet split unit-only/integration-only commands — the
-per-component detect scripts that add that split land in Phase 2).
+`integration_test/`); else run the component's default suite.
 
 ```
 rtk <test_runner.command>

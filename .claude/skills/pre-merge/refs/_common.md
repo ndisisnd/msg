@@ -9,8 +9,9 @@ Which components run is decided by the Step 0 platform profile's resolved requir
 components set (`refs/platform-profiles.md`, sourced from the `required_buckets`
 column of `devkit/PLATFORMS.md` — the column's on-disk name predates this rename and
 is unchanged by it) — **never hardcoded**. Each selected component runs as its own
-parallel `Agent` subagent and reads its runner from the Step 1 tooling fingerprint
-(`pre-merge-tooling-detect.sh`); it does not re-detect.
+parallel `Agent` subagent and uses the `run` command resolved for it in
+`devkit/policy.json` `components[]` (detected at `--init`/`--update` by the
+`preflight-check-*.sh` family); it does not re-detect.
 
 Components: `e2e`, `qa` (visual — folded into `platform/protocol-preview.md`, C20),
 `mobile`, `perf`, `a11y`, `coverage`, `api`, `load`. `load` and `perf` run **isolated**

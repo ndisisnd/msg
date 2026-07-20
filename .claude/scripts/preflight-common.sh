@@ -7,7 +7,7 @@
 # that exits 0.
 #
 # Provides:
-#   - tooling-detection primitives mined from pre-merge-tooling-detect.sh (has_cmd,
+#   - tooling-detection primitives the retired monolithic pre-merge tooling detector (has_cmd,
 #     has_file, has_dir, pkg_dep, pkg_field, pkg_script, pubspec_*, py_*, etc.)
 #   - `tooling <chosen> [version]` — build the `tooling` object; `NO_TOOLING` = the null literal
 #   - `mk_report …` — emit the single check-report **detect** section
@@ -20,7 +20,7 @@ set -uo pipefail
 
 command -v jq >/dev/null 2>&1 || { echo "jq is required (brew install jq)" >&2; exit 1; }
 
-# ---------- file / command / package probes (mined from pre-merge-tooling-detect.sh) ----------
+# ---------- file / command / package probes (the retired monolithic pre-merge tooling detector) ----------
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 has_file() {

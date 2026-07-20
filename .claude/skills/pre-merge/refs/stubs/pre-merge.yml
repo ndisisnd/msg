@@ -4,9 +4,9 @@
 # branch protection) means something instead of passing vacuously on zero checks.
 #
 # This is a STARTING POINT. `--init` substitutes the commands it actually
-# detected (the pre-merge-tooling-detect.sh fingerprint) into the run steps below,
-# replacing the `[init: …]` placeholders. Steps whose component the repo doesn't
-# have are dropped. Tune the runner/setup for your stack afterward.
+# detected (the resolved `run` commands from the preflight-check-*.sh family)
+# into the run steps below, replacing the `[init: …]` placeholders. Steps whose
+# component the repo doesn't have are dropped. Tune the runner/setup afterward.
 # (`--doctor` is a deprecated one-release alias for `--init`.)
 name: pre-merge
 
