@@ -85,6 +85,16 @@ gaps, never `n/a`.
 > `ready` when the diff surface warrants it and `n/a` for repos with no migrations; there is
 > nothing to install.
 
+> **Large/hot tables question (C17, AC-MIG3).** When `migration` is active (the repo has a
+> migrations surface), `--init` asks **one** `AskUserQuestion` for the project's **large or hot
+> tables** — the ones where a lock-taking migration (CREATE INDEX without CONCURRENTLY, a
+> whole-table rewrite) would be an apparent outage. The answer is recorded on the `migration`
+> component as an optional `hot_tables[]` hint (see `component-catalog.md`). It gives the migration
+> stage size context to **scale lock-risk severity** (escalate on a hot table, quiet on a tiny
+> one) when no schema/stats source is available; with neither stats nor a declared list, lock
+> findings keep their current flat severity (AC-MIG4). A sane default is an empty list (no
+> size context — flat severity). This is policy, not a tool — nothing is installed.
+
 > `ci` has no runner slot either — it's the **CI workflow** that runs the gate on the PR and
 > produces the status checks that post-merge's "green CI" and branch protection depend on. Detect
 > it directly (not from the fingerprint): a repo has a gap when **no** `.github/workflows/*.yml`
@@ -122,6 +132,16 @@ Every gap the detector surfaces is one of three flavors, read off the detector's
 Declining any offered install always records `opted_out` (won't revisit) or `deferred` (will
 revisit) **with a `reason`** and installs nothing (AC-DR2). Both non-`ready` statuses require a
 `reason` per the schema.
+
+**Secret scanner — the safety-floor exception (C9, AC-SF2).** The `security` secret scanner
+(gitleaks/trufflehog) is **not** an ordinary declinable tool. `--init` **strongly offers** it and,
+if the user declines, records the decision as an explicit **safety-floor gap** (not a quiet
+`opted_out`): the interview states that **the gate will `blocker` on every run until a secret
+scanner is configured** — there is no green-gate path without secret-scan coverage
+(`refs/universal/protocol-security.md`, C9). The **install itself still goes through per-item
+approval** (`AC-DR2` — no forced mutation); C9 changes the *framing and the recorded gap*, never
+the consent model. Every other `security` layer (SAST / deps / container / `/cook`) stays an
+ordinary best-effort gap — declining it is a plain note, not a floor gap.
 
 ---
 

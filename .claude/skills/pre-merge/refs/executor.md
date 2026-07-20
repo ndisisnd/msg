@@ -69,6 +69,52 @@ An **absent** component produces **no** step and **no** "skipped/no_tooling" not
 that ran but had nothing to do still writes a `skipped` result report — §4, that
 is a *ran-and-skipped* trace, not an absent component.)
 
+## 1b · Platform coverage-gap check (C12 — post-detection)
+
+After pruning, before ordering, run the **coverage-gap check**. It turns the
+catalog's documented platform gaps (AC-CAT14) into **enforced findings** so a native
+app can no longer silently green with zero UI/perf/a11y coverage.
+
+`platforms[]` in the catalog is **applicability** — where a component's concern
+*applies* — **not** runner coverage (AC-GAP1). A web-only *runner* against a broader
+applicability is a coverage fact, not a narrowing. The check correlates three inputs
+that already exist: catalog `platforms` + the repo's **target platforms** + component
+**detection**.
+
+**Target platforms** come from `devkit/PLATFORMS.md` (detected/declared at `--init`) —
+the platforms the repo actually ships to (∈ web · iOS · macOS · Android · backend).
+
+For **each target platform** `T`, for **each component** `C` where `T` falls in
+`C.platforms` applicability (per the catalog legend — `all` / `UI` = all clients /
+`web` / `srv` / `mob` / `DB`):
+
+- **A runner/mode IS detected** for `(C, T)` → covered, no finding.
+- **NO runner/mode detected** for `(C, T)` → emit a **`high`** finding
+  (`rule: platform-coverage-gap`, `category: <C's category>`,
+  `source: pre-merge:executor`), naming **platform + component + remediation**
+  (AC-GAP2/GAP3): *"`<T>` is a target but `<C>` has no coverage — add a `<T>` runner
+  for `<C>`, or drop `<T>` from the repo's targets."*
+
+**Scoping rules (no false gaps):**
+
+- A component whose **concern does not apply** to `T` fires **no** gap (AC-GAP5): `e2e`
+  is `web`-only applicability — native UI-e2e is `mobile`'s domain — so an iOS target
+  raises **no** `e2e` gap (it surfaces via `mobile` instead). Applicability is read
+  straight from the catalog `platforms` column; the check never invents applicability.
+- **No target platform** declared for a component ⇒ **no** gap for it (AC-GAP6) — gaps
+  are scoped to declared targets only. A backend-only repo raises no `a11y`/`mobile`
+  gaps.
+- This is **enforcement of AC-CAT14's documented gaps** (AC-GAP4): mobile-a11y/perf,
+  macOS-native, native UI-e2e (via `mobile`) all become `high` findings **when those
+  platforms are targeted**, never silent.
+
+Gap findings join the run's `findings[]` for aggregation (§5). They are `high`
+(blocking per the rubric), distinct from a *present-but-hollow* safety-floor finding
+(D28): the gap answers *"is anything covering this?"*; a floor finding answers *"is the
+thing that runs actually checking anything?"* — both can fire on one component without
+double-counting (absent → gap; hollow → floor). `severity-rubric.md` carries the
+`platform-coverage-gap` rule.
+
 ## 2 · Order the pipeline (Fork B — runtime topo-sort)
 
 Compute order every run — the manifest carries **no** frozen `order` field (AC-PF4).
@@ -93,7 +139,7 @@ manifest this collapses today's 6 serial steps into **3 waves** (C5, AC-SEQ1):
 | Wave | Components (tie-break order shown) | Why |
 |---|---|---|
 | **1** | `mechanical` (critical, short-circuits) · `security` (critical) · `unit` · `integration` · `prd-consistency` *(prd; only with `--prd`)* | need only `sync` — no effect edges among them |
-| **2** | `coverage` | `depends_on {unit, integration}` — parses their output |
+| **2** | `coverage` · `manual-test-plan` *(prd; only with `--prd`)* | `coverage depends_on {unit, integration}`; `manual-test-plan depends_on {prd-consistency}` (reuses its grades) — both parse a Wave-1 output |
 | **3** | `regression` | tail-pinned: `depends_on` all other universal/prd |
 
 Platform components (`e2e`, `a11y`, `perf`, `api`, `load`, `mobile`) are

@@ -27,6 +27,31 @@ A secret-scanner hit is **never** downgraded (test-file / unreachable exceptions
 the rubric do not apply to secrets). Scanner logs → `.pre-merge/<ts>/security-<scanner>.log`.
 `source: secrets:<scanner>` / `sast:semgrep` / `dependency:<tool>`, `category: security`.
 
+## Guaranteed secret-scan floor (C9 — the floor can't hollow out)
+
+`security` is `mandatory` and never opts out, but its layers were all conditional —
+a repo with **no scanner and no `/cook`** could run nothing and still green. C9 closes
+that: **secret-scan coverage is a hard requirement to *pass*.**
+
+- **Secret scanner present** → always run it (above). A hit → `blocker` (AC-SF1).
+- **No secret scanner detected at all** (`detected.secret_scanner` empty / no
+  gitleaks/trufflehog) → emit a `blocker` **without** running one:
+  `rule: no-secret-scanner`, `category: security`, `source: pre-merge:security`,
+  message *"No secret scanner is configured — the safety floor requires secret-scan
+  coverage before this gate can pass"* + `evidence.snippet: "safety-floor-unmet"`.
+  There is **no green-gate path without secret-scan coverage** (AC-SF1/SF4). The fix
+  is `/pre-merge --init` (it strongly offers gitleaks), not a forced install here —
+  the install stays per-item approved (`AC-DR2` preserved).
+- **This blocker is not declinable at gate time** — a passing gate can never have had
+  zero secret-scan coverage (AC-SF4). Only `--init` recording the scanner (or the user
+  installing one) clears it.
+
+**Everything else stays best-effort/degradable (AC-SF3).** Absence of SAST (semgrep),
+dependency scanning (audit/trivy/osv), container scanning (trivy image), or the `/cook`
+semantic pass is a **note**, never a blocker — recorded as `skipped` with a `reason`
+(`no_sast` / `no_dep_scanner` / `no_cook`), a degrade, not a failure. The secret
+scanner is the **only** layer whose absence blocks; the rest inform.
+
 ## Semantic pass (/cook-backed)
 
 One `Agent` subagent for the whole stage. Assemble `/cook` flags: globals

@@ -101,7 +101,7 @@ def build(prd_path):
                          "product-tuned","eng-tuned","reviewed","parent","depends_on","affects","created")},
         "summary": fm.get("summary"),
         "features": [], "out_of_scope": [], "key_interactions": [],
-        "error_cases": [], "glossary": {}, "open_questions": [],
+        "error_cases": [], "edge_cases": [], "glossary": {}, "open_questions": [],
         "exec_table": [], "engineering": {}, "audits_present": [],
         "todos": {}, "user_flows": None, "auth_model": None,
         "unparsed_sections": [],
@@ -136,6 +136,12 @@ def build(prd_path):
             d["error_cases"] = [{"id": pick(r, "id"),
                                  "trigger": pick(r, "trigger"),
                                  "behavior": pick(r, "user-visible behavior", "behavior", "behaviour")} for r in rows]
+            KNOWN.add(title)
+        elif low.startswith("edge case"):
+            _, rows = md_table(block)
+            d["edge_cases"] = [{"id": pick(r, "id"),
+                                "trigger": pick(r, "scenario", "condition", "trigger", "case"),
+                                "behavior": pick(r, "expected behavior", "expected", "user-visible behavior", "behavior", "behaviour", "handling")} for r in rows]
             KNOWN.add(title)
         elif low.startswith("open question"):
             d["open_questions"] = bullets(block); KNOWN.add(title)
@@ -192,8 +198,10 @@ SLICES = {
     "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
     "build":   ["frontmatter","features","exec_table","engineering"],
-    # review / test eval bootstrap: derive assertions.
-    "eval":    ["features","error_cases"],
+    # review / test eval bootstrap + manual-test-plan (C22): derive assertions +
+    # the human-testable checklist. edge_cases[] feeds C22's checklist (C11 stays
+    # on features + error_cases).
+    "eval":    ["features","error_cases","edge_cases"],
     # plan-em Step 5 synthesis: summarize eng sections + cross-section findings.
     "synth":   ["frontmatter","features","exec_table","engineering","open_questions"],
 }
