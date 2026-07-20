@@ -95,6 +95,29 @@ gaps, never `n/a`.
 > findings keep their current flat severity (AC-MIG4). A sane default is an empty list (no
 > size context — flat severity). This is policy, not a tool — nothing is installed.
 
+> **Mobile device/OS matrix (C18, AC-MOB5).** When `mobile` is active (a native iOS/Android
+> or Flutter surface), and **no** declared matrix exists (`.flutter-test-matrix.json` /
+> manifest mobile matrix), `--init` asks **one** `AskUserQuestion` for the target
+> **platforms + OS versions** (e.g. iOS 17, Android 14). The answer is the **enforced**
+> `{platform, os}` matrix recorded on the `mobile` component: a declared target with no
+> available device/simulator (incl. no macOS host for iOS XCUITest) becomes a `high`
+> coverage-gap at gate time, not a silent pass (see `platform/protocol-mobile.md`). This is
+> policy, not a tool — nothing is installed.
+
+> **API consumers hint (C15, AC-API4 — optional).** When `api` is active and **no** Pact
+> broker is configured (`PACT_BROKER_BASE_URL` absent), `--init` may ask **one** optional
+> `AskUserQuestion` for the API's known **consumers** (`ios`/`android`/`web`), recorded as
+> the `api` component's optional `consumers[]` hint so a breaking-change finding can name
+> which client breaks. Absent both broker and hint, findings degrade to endpoint+change (no
+> fabricated consumer). Optional — an empty/absent list is valid, never a validation error.
+
+> **Load read/write mix (C16, AC-LOAD2).** When `load` is active (an endpoint/data-path
+> surface), `--init` asks **one** `AskUserQuestion` for the project's realistic **read/write
+> mix** (ratio + concurrency + think-time), recorded as the `load` component's `traffic_mix`
+> so the profile exercises the write path and surfaces read/write contention. A **sane
+> default** (e.g. 80/20 read/write, moderate concurrency, short think-time) is offered so a
+> skip still yields a runnable profile. Policy, not a tool — nothing is installed.
+
 > `ci` has no runner slot either — it's the **CI workflow** that runs the gate on the PR and
 > produces the status checks that post-merge's "green CI" and branch protection depend on. Detect
 > it directly (not from the fingerprint): a repo has a gap when **no** `.github/workflows/*.yml`

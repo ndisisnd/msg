@@ -63,7 +63,7 @@ newest live component.
 | 09 | a11y | platform | subagent | **blocking** | moderate | sync | ui-surface | UI | – |
 | 10 | perf | platform | subagent | config-driven† | expensive | sync | perf-config | UI | – |
 | 11 | api | platform | subagent | blocking | moderate | sync | api-surface | srv | – |
-| 12 | load | platform | subagent | config-driven† | expensive | sync | api-surface | srv | – |
+| 12 | load | platform | subagent | config-driven† | expensive | sync | api-surface **+ diff-scoped**ᵈ | srv | – |
 | 13 | migration | platform | hybrid | **critical** | moderate | sync | **migrations** | DB³ | **✔** |
 | 14 | mobile | platform | subagent | blocking | expensive | sync | mobile-surface | mob✦ | – |
 | **15** | ~~qa~~ | — | — | — | — | — | **retired (qa merged into preview, C20/D26); never reused** | — | — |
@@ -88,11 +88,11 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `preflight-check-07-prd-consistency.sh` |
 | 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `preflight-check-08-e2e.sh` |
 | 09 | a11y | `a11y_runner` | `platform/protocol-a11y.md` | `preflight-check-09-a11y.sh` |
-| 10 | perf | `perf_runner` (`{runtime, bundle}`) | `platform/protocol-perf.md` | `preflight-check-10-perf.sh` |
-| 11 | api | `api_runner` (array) | `platform/protocol-api.md` | `preflight-check-11-api.sh` |
-| 12 | load | `load_runner` | `platform/protocol-load.md` | `preflight-check-12-load.sh` |
+| 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `preflight-check-10-perf.sh` |
+| 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `preflight-check-11-api.sh` |
+| 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `preflight-check-12-load.sh` |
 | 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `preflight-check-13-migration.sh` |
-| 14 | mobile | `mobile_runner` | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
+| 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
 | ~~15~~ | ~~qa~~ | — retired, no script — | — | — no `preflight-check-15-qa.sh` — |
 | 16 | preview | `preview_deploy_cmd` + `qa_runner` (visual capture, merged) | `platform/protocol-preview.md` | `preflight-check-16-preview.sh` |
 | 17 | smoke | `smoke_runner` (new, resolves Q3) | `platform/protocol-smoke.md` (new, Phase 6/C21) | `preflight-check-17-smoke.sh` |
@@ -114,6 +114,12 @@ web-only *runner* against a broader applicability is an **enforced
 - **†** — **config-driven criticality**: advisory by default, **blocking when the
   project configures explicit budgets/thresholds** (also honors a profile
   override) — applies to `perf`, `load`, `coverage`
+- **ᵈ** — **diff-scoped** (C16): `load` runs **and** gates only when the PR touches an
+  endpoint handler or a shared data-access path (via the executor's `resolve-diff`),
+  scoped to the affected endpoints; a PR touching neither **skips** load entirely. Makes
+  an expensive component affordable to gate — but does **not** change whether configured
+  thresholds block (criticality stays `†` config-driven); diff-scoping governs *when* it
+  runs, not *whether* thresholds block.
 - **ᵍ** — **human-review gate** (C19 → merged C20): `preview` captures the
   feature's UI states **and** stands up the live/pokeable env, then serves one
   unified artifact for explicit human sign-off — blocking; no auto
@@ -172,9 +178,30 @@ per-item approved at `--init` (`AC-DR2`). See
   produces a per-platform artifact, so no web-only-runner gap there.) `e2e`
   stays **web**: native UI-e2e is `mobile`'s concern (the e2e↔mobile split), so
   an iOS target's UI-e2e gap fires via `mobile`, not `e2e`.
-- **`mobile`** is a self-contained Android/iOS vertical (Flutter widget/
-  integration + Patrol/Maestro + device matrix); native (XCUITest/Espresso)
-  support is a gap → enforced when iOS/Android is targeted (C12).
+- **`mobile`** is a self-contained Android/iOS vertical. As of **C18** it detects + runs
+  **native iOS (XCUITest/XCTest, Swift)** and **native Android (Espresso/JUnit, Kotlin)**
+  runners **in addition** to the Flutter path (widget/integration + Patrol/Maestro) — a
+  native app with no Dart files is no longer "no test files → green". The `mobile_runner`
+  slot is now a **set** (native + Flutter). Native runner support is **real coverage**, no
+  longer a C12 flag — when a platform's native runner runs, C12's native-mobile gap for
+  that platform is satisfied (AC-MOB3). The **declared `{platform, os}` matrix is
+  enforced**: a declared target with no available device/simulator (incl. no macOS host
+  for iOS XCUITest) is a `high` `platform-coverage-gap` (C12), **not** a silent
+  `pass_with_warnings` (AC-MOB2); `--init` establishes the matrix when absent.
+- **`perf`** (C14) measures **interaction latency under e2e-flow-driven heavy state** (INP
+  under load / long-task / scroll jank — D29: `e2e` owns the flows), not only cold-load,
+  and carries a **no-regression ratchet vs base** (runtime + bundle may not worsen vs base
+  even with no absolute budget — `ratchet-vs-base.md`); configured budgets stay the hard
+  bar (`†` unchanged). Bundle findings **attribute the culprit import** (`attribute-the-cause.md`).
+- **`api`** (C15) gains a **backward-compatibility spec-diff vs base** (`oasdiff`/`openapi-diff`
+  — removed/narrowed/required/deleted → `high`/blocking, the contract-compat ratchet,
+  `ratchet-vs-base.md`); findings are **consumer-named** (Pact broker → optional `consumers[]`
+  hint → endpoint+change, no fabricated consumer — `attribute-the-cause.md` +
+  `name-the-user-impact.md`). Rec #3 (live-server conformance) is **parked to `preview`**.
+- **`load`** (C16) is **diff-scoped** (legend `ᵈ` — runs/gates only on an endpoint/data-path
+  touch, scoped to the affected endpoints) under a **declared read/write `traffic_mix`**
+  (`--init`-captured, sane default) that exercises the write path; breaches **name the
+  bottleneck** (`attribute-the-cause.md`). Config-driven criticality unchanged (`†`).
 - **`migration`** carries an optional **`hot_tables[]`** hint (C17) — the project's
   large/hot tables, declared at `--init` (`protocol-init.md`). It gives the migration
   stage size context to **scale lock-risk severity** (escalate on a hot table, quiet on

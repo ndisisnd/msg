@@ -48,8 +48,10 @@ Total (whole-repo) coverage never blocks a well-covered diff on its own. It carr
 things:
 
 1. **Advisory context** — the overall percentages, reported for visibility.
-2. **A no-regression ratchet** — total coverage may **not decrease vs base**. Fetch the
-   base branch's coverage (its report, or recompute on base) and compare **like-for-like**
+2. **A no-regression ratchet** — total coverage may **not decrease vs base**. This is
+   the shared **ratchet-vs-base** pattern (`../../../shared/refs/ratchet-vs-base.md`) —
+   coverage is one of its three consumers (with perf C14 + api C15). Fetch the base
+   branch's coverage (its report, or recompute on base) and compare **like-for-like**
    — same runner, same exclusion set, same metric (AC-CV4). A **drop** vs base → a finding
    (`rule: coverage-regression`, `category: coverage`; `high` when a budget is set, else
    `medium`) naming the delta. A low absolute total with **no** drop is **not** a finding —
