@@ -2,6 +2,10 @@
 
 ## 2026-07-21
 
+### [35] — install.sh: retire the stale `/ship`-era comment
+
+- `install.sh`: Changed — the execute-bit rationale comment referenced `/ship`'s Test stage and two scripts that no longer exist (`test-tooling-detect.sh`, `test-aggregate-verdict.sh`); now cites the live reality (`/pre-merge` runs the `preflight-check-*.sh` family and `pre-merge-aggregate-verdict.sh` as `"$S"`). Copy logic unchanged — the wildcard install already ships every v4 addition (`submission.md`, `release-identity.md`, the 30-script `.claude/scripts/` set)
+
 ### [34] — v4 P5: release lock — two production ships can no longer race
 
 - `.claude/skills/post-merge/refs/production.md`: Added (**C8/D4**, AC-LK1/LK2) — **§ Release lock**: a remote annotated git tag `release-lock-<prod>` is the lock — the only candidate with true atomic acquire (a tag ref is never fast-forwarded, so pushing an existing name is server-rejected = compare-and-swap-to-absent); survives across machines, no new credentials, no tracked-file write (safety floor, per D8's tag precedent). Holder metadata (who/when/sha/PRDs) rides in the tag message and is read back into the `release_in_flight` refusal. Acquire sits **after Step 3** (pre-flight refusals never touch the lock) and **before Step 4** (covers the whole mutating window); release is wired into **every** post-acquire exit — the 10-row exit-path walk is in the ref, incl. the one honest gap (hard SIGKILL → covered by TTL + manual unlock). **TTL 120m** (clears notarization + poll/watch ceilings with margin); stale → reported with the one-line unlock (`git push origin :refs/tags/release-lock-<prod>`), never blind-refused, never auto-stolen
