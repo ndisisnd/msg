@@ -29,7 +29,33 @@ rows** — a PRD folder, a branch, and a file on disk are all out of scope.
 | File | How to apply |
 |------|-------------|
 | `INTAKE.md` (repo root) | The ledger. Absent → Step 1 terminates. |
+| `INTAKE-UPDATE.md` (repo root) | The update/removal log. **May be absent** (lazy-created on first write). Checked by W4 (Step 3) and appended to at Step 5. |
 | `features/` (listing only) | To resolve whether a row's `prd` cell maps to a **live PRD folder**. A directory listing, not a PRD read. |
+
+## Pre-run — migration (first touch)
+
+Before Step 1, check whether `INTAKE.md` still carries an in-file `## Update log`
+section (pre-C11). This check runs **ahead of the warning pass** — not at
+write time — precisely so that W4 (Step 3) never has to guess: on a legacy
+ledger whose first-ever `/intake` touch happens to be `--delete`, running the
+check here means `INTAKE-UPDATE.md` already reflects the row's history by the
+time W4 reads it, instead of W4 finding that file absent while the real history
+still sits in the in-file section.
+
+1. **Present** → move the log's **entry rows only** — never the legacy `##
+   Update log` heading or its column-header row — into `INTAKE-UPDATE.md`.
+   `protocol-update.md` § *The update log* states the canonical header and the
+   entry-rows-only rule in full; this step follows that rule by citation, not
+   by restating it: create `INTAKE-UPDATE.md` with the canonical header if it
+   doesn't exist yet, append the moved entry rows under the header's table,
+   then strip the section from `INTAKE.md` (row table + everything above it is
+   untouched).
+2. **Absent** → nothing to migrate; proceed directly.
+
+**Idempotent.** A ledger already split (no in-file section) hits case 2 on
+every run — migration is a one-time event per ledger, never repeated, never
+destructive. An absent `INTAKE.md` also hits case 2 trivially; Step 1 handles
+that termination on its own terms.
 
 ## Step 1/5 — Ledger check
 
@@ -113,19 +139,14 @@ On **Cancel**: write nothing, say so, terminate.
 ## Step 5/5 — Remove + log
 
 - Remove the target row line(s) **only**. Every other row, the header, the
-  separator, and the preamble are preserved byte-for-byte. `INTAKE.md` no longer
-  carries the log (it lives in `INTAKE-UPDATE.md` — see below), so there is
-  nothing else in the ledger to preserve around the removal.
+  separator, and the preamble are preserved byte-for-byte. `INTAKE.md` no
+  longer carries the log **for a post-migration ledger** — and every ledger is
+  post-migration by this point, since **Pre-run — migration** (above) already
+  ran, unconditionally and idempotently, before Step 1. So there is nothing
+  else in the ledger to preserve around the removal.
 - **Do not renumber.** The gap stays.
 - **Do not touch** `features/`, any PRD file, or any branch. The ledger row is the
   entire blast radius.
-- **Migration (first touch).** If `INTAKE.md` still carries an in-file
-  `## Update log` section (pre-C11), migrate it before writing the `remove`
-  entry: move the section verbatim into `INTAKE-UPDATE.md` (creating it with
-  the canonical header if absent — `protocol-update.md` § *The update log*
-  states the header in full; applied identically here), then strip the section
-  from `INTAKE.md`. Idempotent — an already-split ledger has nothing to
-  migrate on subsequent runs.
 - Append one `remove` entry per deleted row to `INTAKE-UPDATE.md` — this is the
   first and only writer of the `remove` kind. Lazy-created on first write, same
   as `--update`'s log writes:

@@ -203,7 +203,10 @@ A **targeted row rewrite, never a file rewrite**:
 - **Log entries are written in the same operation as the row change.** A row
   edited without its log entry is a defect, not a degraded success.
 - **No-op guard:** if the resolved change equals the current value, report
-  `no change` and write **nothing** — no row edit, no log entry.
+  `no change` and write **nothing** — no row edit, no log entry, and (see
+  *Migration* below) no migration either: migration rides the first *write*,
+  not the first *invocation*, so a no-op run leaves a pre-C11 ledger's in-file
+  log exactly where it was.
 
 ### The update log — `INTAKE-UPDATE.md`
 
@@ -253,9 +256,13 @@ reused, so the ledger keeps a visible gap).
 No `TEMPLATE-INTAKE-UPDATE.md` exists — this header is the one canonical
 source for the file's shape; `/msg --init` does not pre-create it.
 
-**Migration (first touch).** A ledger that predates the split may still carry
-an in-file `## Update log` section at the foot of `INTAKE.md` (pre-C11). Before
-writing the new entry, check for that section:
+**Migration (first touch — meaning first *writing* touch).** A ledger that
+predates the split may still carry an in-file `## Update log` section at the
+foot of `INTAKE.md` (pre-C11). This check runs immediately before the row/log
+write in this same step — never on a run that ends in the no-op guard above,
+which writes nothing and therefore migrates nothing; the legacy layout stays
+in place by design until a run that actually changes a cell. Before writing
+the new entry, check for that section:
 
 1. **Present** → move it **verbatim** (entries byte-for-byte) into
    `INTAKE-UPDATE.md` — creating the file with the canonical header above if it

@@ -2,6 +2,14 @@
 
 ## 2026-07-21
 
+### [36] — verification fixes (wave B): intake delete-flow ordering + the v4 docs scrub
+
+- `.claude/skills/intake/refs/protocol-delete.md`: Changed (**verify-I1/I2/I3/I5**) — migration moved to a **Pre-run step ahead of the warning pass**, so W4's "history preserved" always reads post-migration state (previously, a legacy ledger whose first-ever touch was a `--delete` warned "no history" while history sat in the in-file log); `INTAKE-UPDATE.md` added to the pre-run reads table (may-be-absent); migration wording unified — **entry rows only**, never the legacy heading/column-header row (cites `protocol-update.md` § The update log instead of restating); Step 5's "no longer carries the log" conditioned on post-migration
+- `.claude/skills/intake/refs/protocol-update.md`: Changed (**verify-I4**) — stated plainly: migration rides the first *writing* touch; a no-op run leaves the legacy layout by design
+- `README.md` + `ARCHITECTURE.md`: Changed (**verify-R1/R2**) — the post-merge descriptions finally match the v4 surface: release-model split (submission platforms never report `live`), pinned sign-off, release identity threaded through confirm→PR→tag, the release lock, the always-ask rollback/halt offer, provenance vs the signed-off sha, per-platform staging readiness at `--init`. "Smoke-verifies every deploy" is gone; "live target" survives only conditioned to deploy-model platforms
+
+  (Fixture-doc errata — Steps 6–9, the pre-v4-schema caveat, macos tense, and the P3 android-row erratum — landed in the gitignored `evals/` alongside)
+
 ### [35] — install.sh: retire the stale `/ship`-era comment
 
 - `install.sh`: Changed — the execute-bit rationale comment referenced `/ship`'s Test stage and two scripts that no longer exist (`test-tooling-detect.sh`, `test-aggregate-verdict.sh`); now cites the live reality (`/pre-merge` runs the `preflight-check-*.sh` family and `pre-merge-aggregate-verdict.sh` as `"$S"`). Copy logic unchanged — the wildcard install already ships every v4 addition (`submission.md`, `release-identity.md`, the 30-script `.claude/scripts/` set)
