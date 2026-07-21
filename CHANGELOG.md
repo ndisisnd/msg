@@ -2,6 +2,10 @@
 
 ## 2026-07-21
 
+### [26] — Publish the v2.2.0 user-facing release notes
+
+- `RELEASES.md`: Added — the `v2.2.0 — 2026-07-21` section (user-facing notes covering entry [25]: intake's new `--update` and `--delete` modes, the ignored ledger, the update log, and `argument-hint` autocomplete across every skill)
+
 ### [25] — v4.1: intake gains `--update` and `--delete`, plus `argument-hint` on every skill
 
 - `.claude/skills/intake/SKILL.md`: Changed (**C1/C9/C10**, AC-UM1–5, AC-UD1–6, AC-AH1) — intake becomes a **three-mode skill**. New § Usage blocks for `--update` (browse + one-shot) and `--delete`, mode dispatch resolved once at entry from the arg string, `argument-hint` frontmatter, a § Two edit surfaces table splitting the ledger's writers by cell, and a § Update log section. Hard refusals extended: neither new mode scaffolds a missing ledger, `--update` is never destructive, `--delete` never renumbers and never touches anything but ledger rows

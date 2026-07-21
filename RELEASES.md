@@ -2,6 +2,22 @@
 
 What's new for you, release by release.
 
+## v2.2.0 — 2026-07-21
+
+> Your backlog is no longer append-only: you can now edit an idea you've already logged, or remove one outright — and the removal tells you what it breaks before it happens.
+
+### ✨ New
+- You can now change an idea that's already in your backlog with `/intake --update` — sharpen the wording, correct the goal, or have it re-graded — instead of logging a near-duplicate row and untangling it later. Say what you want changed in one line, or browse the open rows and pick one.
+- You can now remove a backlog row with `/intake --delete`. Before anything is removed, it tells you what the removal costs you — a PRD left orphaned, a shipped record destroyed, other ideas that were waiting on this one — so you decide with the consequences in front of you.
+- Autocomplete now shows each skill's accepted modes and arguments as you type `/`, so you find out what a skill takes before you run it rather than after it refuses.
+
+### 📈 Improved
+- Your backlog file is no longer tracked by git. Every feature branch appends to the same table, which made it a standing source of merge conflicts — that whole class of conflict is now gone. The trade-off: the "shipped" stamp a production release puts on a row now stays on your machine only.
+- Edits to an idea are recorded in a running log at the bottom of the backlog, so you can see how a feature's definition drifted over time instead of only where it landed.
+- Updating an idea never guesses which row you meant. If your description matches nothing, or matches two rows, you get the list and a question — it will never quietly log a new idea when you meant to edit an existing one.
+- Ideas already in progress are shown but locked when updating, so an edit can't rewrite the brief out from under work that's already underway. The board (`/msg --gui`) remains the place to move one backwards through its lifecycle.
+- Removing a row never renumbers the rows around it. The gap left in the numbering is the record that something was removed — renumbering would silently repoint every reference pointing at those rows.
+
 ## v2.1.0 — 2026-07-21
 
 > Checks that need a live app or database — integration, e2e, accessibility, performance, load, migration, mobile, and smoke — now run inside a fresh, disposable sandbox instead of against ambient state, and that same sandbox now doubles as your preview environment.
