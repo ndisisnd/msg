@@ -146,6 +146,28 @@ set as catalog data (AC-NS5) — post-merge is not component-driven yet
 set is named **once**, here, and every ref defers to this section rather than
 restating it.
 
+## Release model (both modes)
+
+Every shipping platform carries a `release_model` ∈ `deploy` | `submission`,
+authored as a `devkit/PLATFORMS.md` column and resolved per platform
+(`../shared/refs/policy-schema.md` §4). It is **orthogonal to `release_flow`**:
+`release_flow` decides *which stages run* (staged vs direct), `release_model`
+decides *what a deploy/verify stage means* for each platform. The deploy and
+verification steps below (`--staging` 4–5, `--production` 6–7) branch on it:
+
+| `release_model` | Platforms (default) | Deploy exit 0 ⇒ | Verify | Report |
+|---|---|---|---|---|
+| `deploy` | web, macOS, server | target is **live** | smoke the live target (`refs/verify-deploy.md`) | live — today's path, unchanged (AC-RM2) |
+| `submission` | iOS, Android | **submitted** to store review | submission accepted; a configured smoke is backend/build health (`refs/submission.md`) | `submitted` (+ track), **never** `live` (AC-RM3) |
+
+Resolution is **per platform and independent** (AC-RM4): a mixed repo verifies web
+as live and iOS as submitted in the **same run**. Missing `release_model` → inferred
+from the platform identity with a warn, never guessed silently (AC-RM1). The full
+submission lifecycle (processing → review → phased rollout), the monitor-handoff,
+and the polling seam are **deferred to the submission-lifecycle phase**
+(`refs/submission.md` § *Deferred*); C1 establishes only the primitive —
+submitted-not-live and the backend-health smoke label.
+
 ## Mode: `--staging` (Steps 1–7)
 
 Loads `refs/staging.md`. Run in order; any refusal emits `refs/refusal-patterns.md` and stops.
@@ -159,8 +181,8 @@ Loads `refs/staging.md`. Run in order; any refusal emits `refs/refusal-patterns.
 | 1 | **Branch protection (policy-conditional)** — resolve `mode_staging = overrides[staging] ?? branch_protection.mode ?? "enforced"` (`../shared/refs/policy-schema.md` §2), then `post-merge-protection.sh --verify staging`: `enforced` → `UNPROTECTED` **refuses** (`unprotected`, bootstrap instruction); `optional` → `UNPROTECTED` **warns + proceeds** (one `low` note in the report); `skip` → don't verify (record "protection check skipped by policy"). `NO_GH`/`NO_REMOTE` **refuse regardless of mode**. No file → `enforced` (= today) | `refs/protection.md` |
 | 2 | **Locate PR + verify green CI** — `gh pr list --base staging --head <feat/prd-<n>-*>`; check its checks are all green; red/pending → refuse listing the failing checks | `refs/staging.md` |
 | 3 | **Merge into staging** — `gh pr merge --merge` (post-merge's sanctioned merge power) | `refs/staging.md` |
-| 4 | **Deploy staging** — run the per-platform `staging_deploy_cmd` from `devkit/PLATFORMS.md`; empty ⇒ ask or skip with a note | `refs/deploy.md` |
-| 5 | **Verify the deploy** — run each platform's `smoke_cmd` against the deployed staging target; failure → `smoke-failed` finding, verdict `fail`, skip Steps 6–7; unconfigured → skipped with a note | `refs/verify-deploy.md` |
+| 4 | **Deploy staging** — run the per-platform `staging_deploy_cmd` from `devkit/PLATFORMS.md`; empty ⇒ ask or skip with a note. Exit 0 means **live** (`deploy` model) or **submitted to the internal/TestFlight track** (`submission` model — report `submitted`, never `live`) | `refs/deploy.md`, `refs/submission.md` |
+| 5 | **Verify the deploy** — **`deploy` model:** run each platform's `smoke_cmd` against the deployed staging target (unchanged, AC-RM2). **`submission` model:** verification = submission accepted; a configured `smoke_cmd` runs but is reported as backend/build health, never app liveness (AC-RM3). Failure → `smoke-failed` finding, verdict `fail`, skip Steps 6–7; unconfigured → skipped with a note | `refs/verify-deploy.md`, `refs/submission.md` |
 | 6 | **Emit human test script + STOP** — derive from the shipped PRD report's `## How to verify` sections + acceptance criteria; post-merge never self-certifies staging | `refs/human-test-script.md` |
 | 7 | **Stamp sign-off (on approval)** — explicit `AskUserQuestion` ("staging works"); on yes stamp `staging-signoff: <YYYY-MM-DD>@<certified sha>` into the PRD frontmatter (D11), pinned to Step 3's merge sha — the commit that was actually deployed and tested | `refs/staging.md` |
 
@@ -177,8 +199,8 @@ Loads `refs/production.md`. The gates here never relax.
 | 3 | **Double-confirmation** — two separately-asked `AskUserQuestion`s: (a) intent — "ship staging to production?"; (b) final confirm listing exactly what ships (PRDs, commits, platforms, rollback notes) | `refs/production.md` |
 | 4 | **Open release PR** — `gh pr create --base main --head staging`, release-style body: PRDs, linked reports, per-platform rollback notes from `PLATFORMS.md` `rollback_possible` (iOS flagged `IRREVERSIBLE`) | `refs/production.md` |
 | 5 | **Merge on green CI + human review** — branch protection enforces both; post-merge checks then `gh pr merge --merge`; red/pending/unreviewed → refuse | `refs/production.md` |
-| 6 | **Production deploy** — run each platform's `production_deploy_cmd` from `devkit/PLATFORMS.md` | `refs/deploy.md` |
-| 7 | **Verify the deploy** — run each platform's `smoke_cmd` against the live target; failure → `smoke-failed` finding, verdict `fail`, skip Step 8, surface rollback notes; unconfigured → skipped with a note | `refs/verify-deploy.md` |
+| 6 | **Production deploy** — run each platform's `production_deploy_cmd` from `devkit/PLATFORMS.md`. Exit 0 means **live** (`deploy` model) or **submitted to store review** (`submission` model — report `submitted` + track, never `live`; the app goes live downstream, out-of-band) | `refs/deploy.md`, `refs/submission.md` |
+| 7 | **Verify the deploy** — **`deploy` model:** run each platform's `smoke_cmd` against the live target (unchanged, AC-RM2). **`submission` model:** verification = submission accepted; a configured `smoke_cmd` is reported as backend/build health, never app liveness (AC-RM3). Failure → `smoke-failed` finding, verdict `fail`, skip Step 8, surface rollback notes; unconfigured → skipped with a note | `refs/verify-deploy.md`, `refs/submission.md` |
 | 8 | **Stamp intake `completed`** — only on a verified (or verify-skipped) deploy; for each shipped PRD, set its mapped `INTAKE.md` row's `status` to `completed` (D14); unmapped / no `INTAKE.md` → skip with a note | `refs/production.md` |
 
 Then write the run report (`skill: post-merge`, production flavor — release-style, iOS `IRREVERSIBLE` surfaced, carrying the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
@@ -214,8 +236,9 @@ through `/pre-merge` and this gate; the gate does not dead-end on the issues fil
 - `refs/production.md` — `--production` preconditions, double-confirmation, release PR, merge
 - `refs/protection.md` — Step 1/2 branch-protection verify via `post-merge-protection.sh` (policy-conditional: `enforced` refuses, `optional` warns + proceeds, `skip` doesn't verify)
 - `refs/protocol-init.md` — `--init` mode (protection policy, deploy/smoke CLIs, PLATFORMS.md gap delegation; no merge/PR/deploy); `--doctor` is a deprecated one-release alias
-- `refs/deploy.md` — per-platform staging/production deploy resolution from `devkit/PLATFORMS.md`
-- `refs/verify-deploy.md` — post-deploy smoke verification (`smoke_cmd` per platform, both modes)
+- `refs/deploy.md` — per-platform staging/production deploy resolution from `devkit/PLATFORMS.md`; what deploy-cmd exit 0 means per `release_model` (live vs submitted)
+- `refs/verify-deploy.md` — post-deploy verification per `release_model` (`deploy`: smoke the live target; `submission`: submission accepted + backend-health-labeled smoke)
+- `refs/submission.md` — the `submission` release model (iOS/Android): exit 0 = submitted (+ track), never live; verification = submission accepted; smoke = backend/build health. Full lifecycle/monitor-handoff/polling seam deferred to the submission-lifecycle phase
 - `refs/human-test-script.md` — deriving the staging human test script (D11 human gate)
 - `refs/refusal-patterns.md` — refusal shapes (red CI, missing sign-off, unconfirmed, conditional `unprotected`, direct-mode `no_staging_stage`)
 - `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (§0 `init` lifecycle, §1 `release_flow`, §2 `branch_protection`)

@@ -123,6 +123,6 @@ to the PRD's `reports/` dir. Staging flavor:
 
 - `verdict: pass` when merged + (deployed or deploy-skipped-with-note) + (smoke verified or verify-skipped-with-note); `fail` on a smoke failure (Step 5); `n/a` if it refused before merging.
 - Body `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
-- Body `## What to expect` — staging is live at the deploy target; production still gated on sign-off + double-confirm.
+- Body `## What to expect` — per `release_model`: `deploy` platforms — staging is live at the deploy target; `submission` platforms — **submitted to the internal/TestFlight track, not "live"** (`refs/submission.md`). Production still gated on sign-off + double-confirm.
 - Body `## How to verify` — **the human test script verbatim** (Step 6) so the GUI Reports tab surfaces it.
 - `## Links` — the merged PR, the merge commit, the deploy log/target, the smoke log.

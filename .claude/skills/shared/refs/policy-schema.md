@@ -381,3 +381,31 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 **`ci` — read by post-merge's green-CI check, not run as a step.** When post-merge's PR check finds an **empty** status-check set (nothing ran), it resolves `steps.ci`: `ready` → emit one `low` `vacuous-ci` note ("`ci` expected a pipeline but the PR reported zero checks") so a broken/absent workflow surfaces instead of a silent vacuous pass; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → existing behavior, no new note. It never blocks the merge — branch protection remains the enforcement.
 
 **Invariant.** Except for the `policy-mismatch` finding above (AC-ST3), a `steps` entry **never** changes a gate's pass/fail verdict — it only decides run-vs-skip and how loudly a gap is surfaced (AC-ST6).
+
+## 4 · `release_model` (post-merge, per platform)
+
+`release_model` is authored the same way `tolerance` and `preview_kind` are: a
+**per-platform column in `devkit/PLATFORMS.md`**, not a `policy.json` field
+(D7). One human-authored source, one resolved consumer — no drift. Post-merge
+reads it per shipping platform and branches every deploy/verify/rollback/lifecycle
+decision on it (`post-merge/SKILL.md` § *Release model*):
+
+| `release_model` | Meaning | Deploy-cmd exit 0 means | Verification | Rollback lever |
+|---|---|---|---|---|
+| `deploy` | synchronous (web, macOS, server) | the target is **live** | smoke the live target (`post-merge/refs/verify-deploy.md`) | redeploy the last-good build |
+| `submission` | asynchronous (iOS, Android) | **submitted** to store review — never "live" | submission accepted; a configured smoke is **backend/build health**, never app liveness (`post-merge/refs/submission.md`) | halt the rollout |
+
+**Resolution + inference (AC-RM1).** For each shipping platform, resolve
+`release_model` from its PLATFORMS.md row. **Missing / blank → infer from platform
+identity** (`web`/`macos`/`server` → `deploy`; `ios`/`android` → `submission`) and
+emit a **warn in the resolution output** naming the platform and the inferred
+value — never guess silently. An unknown platform with no `release_model` defaults
+to `deploy` with the same warn.
+
+**Mirrored into the resolved manifest (D7).** This follows the authored-source →
+resolved-consumer pattern `tolerance` already uses (a PLATFORMS.md profile that
+resolves into a component's `criticality`, §`components[]`). When post-merge
+becomes component-driven (its own executor phase), each shipping platform's
+resolved `release_model` is **mirrored into that platform's resolved
+`components[]` entry** — the executor reads the identical value, no second read
+path. Until then post-merge reads the PLATFORMS.md column directly.

@@ -20,10 +20,28 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
   "merge_commit": "<sha>",
   "deploy": { "ran": true, "target": "<url/build id>", "skipped": [] },
   "verify": { "ran": true, "passed": true, "skipped": [] },
+  "platforms": [                        // ADDITIVE (C1/CV2/AC-CONTRACT1) — per-platform release model + outcome; absent on pre-C1 runs
+    { "platform": "web", "release_model": "deploy",     "outcome": "deployed" },   // deploy model: exit 0 ⇒ live
+    { "platform": "ios", "release_model": "submission", "outcome": "submitted", "track": "App Store review" }  // submission model: exit 0 ⇒ submitted, never "live"
+  ],
   "staging_signoff": "2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",  // <date>@<certified sha>; --staging only, on approval; null otherwise
   "report": "features/prd-101-.../reports/report-3.md"
 }
 ```
+
+**`platforms[]` — additive per-platform release-model surface (C1).** New fields
+only — nothing above is renamed or reshaped (CV2/AC-CONTRACT1). Each entry carries
+the resolved `release_model` (`deploy` | `submission`) and an `outcome`:
+
+| `outcome` | Meaning | Applies to |
+|---|---|---|
+| `deployed` | the target is live and (if smoked) verified | `deploy` model |
+| `submitted` | the artifact was submitted to its store track — **never** "live" (AC-RM3/AC-SB1); `track` names the target | `submission` model |
+| `skipped` | no deploy command configured | either |
+
+A `submission` entry additionally carries `track`. The richer submission-lifecycle
+state (`live_status` polling seam, AC-SB5) is added by the submission-lifecycle
+phase as a further additive field — it does not reshape `platforms[]`.
 
 ## Deploy-failure finding
 

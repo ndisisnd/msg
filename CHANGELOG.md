@@ -2,6 +2,17 @@
 
 ## 2026-07-21
 
+### [28] — v4 P1: per-platform `release_model` split (`deploy` vs `submission`)
+
+- `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`: Changed (**C1**, AC-RM1, I6) — the platforms contract gains a `release_model` column (`deploy` | `submission`; defaults web/macos→`deploy`, ios/android→`submission`). `smoke_cmd`'s contract is now release-model-aware, and the ios/android examples say **backend/build health only** — closing the contradiction where the template and `verify-deploy.md` disagreed about what a mobile smoke verifies
+- `.claude/skills/shared/refs/policy-schema.md`: Added (**C1/D7**, AC-RM1) — new §4: `release_model` is authored in `PLATFORMS.md` and mirrored into the resolved manifest per platform (the tolerance/preview authored-source→resolved-consumer pattern); missing → inferred from platform identity **with a warn, never silently**
+- `.claude/skills/post-merge/SKILL.md`: Changed (**C1**, AC-RM2/RM3) — new `## Release model` section (orthogonal to `release_flow`); `--staging` Steps 4–5 and `--production` Steps 6–7 branch on it: deploy-model rows unchanged, submission-model rows route to `refs/submission.md` and report **`submitted`, never `live`**. § Release flow's staging-scoped enumeration and the sign-off machinery untouched
+- `.claude/skills/post-merge/refs/submission.md`: Added (**C1**) — the submission-model primitive: deploy-cmd exit 0 = submitted (+ target track), verification = submission *accepted*, smoke labeled backend health; § Deferred marks the full lifecycle, monitor-handoff, completed-on-submit note, and the `live_status` polling seam as P2/C5
+- `.claude/skills/post-merge/refs/deploy.md`: Changed (**C1**, AC-RM4) — resolution resolves `release_model` per platform (inference-with-warn); exit-0 meaning defined per model; per-platform resolution independent — a mixed web+ios repo verifies web as live and ios as submitted in one pass
+- `.claude/skills/post-merge/refs/verify-deploy.md`: Changed (**C1**, AC-RM2/RM3, I6) — verification split by model: deploy path explicitly unchanged; submission path verifies submission-accepted and reports any smoke as backend/build health — the "release is actually up" framing no longer applies to submission platforms
+- `.claude/skills/post-merge/refs/output-schema.md`: Added (**C1**, CV2) — additive `platforms[]` block (per-platform `release_model` + `outcome` incl. `submitted`, `track`); no existing field renamed or reshaped
+- `.claude/skills/post-merge/refs/production.md` + `refs/staging.md`: Changed (**C1**) — `## What to expect` liveness claims made release-model-conditional (submission → submitted-not-live)
+
 ### [27] — v4 P-Hotfix: staging sign-off pinned to the certified commit; direct flow inactive-not-waived
 
 - `.claude/skills/post-merge/refs/staging.md`: Changed (**C2**, AC-SO1) — Step 3 resolves `CERTIFIED_SHA` (full 40-char `origin/staging` at merge) once and carries it through the run; Step 7 stamps `staging-signoff: <date>@<sha>`, never a sha other than the one deployed and human-tested; commits landing during the test window are stamped-around and noted `low`, not silently certified

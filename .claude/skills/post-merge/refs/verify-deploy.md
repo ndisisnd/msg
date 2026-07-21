@@ -1,16 +1,27 @@
 ---
 name: post-merge-verify-deploy
-description: Post-deploy verification — run each platform's smoke_cmd from devkit/PLATFORMS.md against the deployed target after every staging/production deploy. Exit 0 = verified; non-zero = a high `smoke-failed` finding that fails the run. Unconfigured ⇒ skipped with a note, never invented.
+description: Post-deploy verification per release_model. deploy platforms — run smoke_cmd against the live target (exit 0 = verified). submission platforms — verification = submission accepted; a configured smoke_cmd is reported as backend/build health, never app liveness. Non-zero smoke = a high `smoke-failed` finding that fails the run. Unconfigured ⇒ skipped with a note, never invented.
 ---
 
-# Verify the deploy — smoke check against the live target
+# Verify the deploy — verification per `release_model`
 
-"The deploy command exited 0" is not "the app works". After every deploy —
-`--staging` Step 5 and `--production` Step 7 — post-merge runs each platform's
-`smoke_cmd` against the **deployed** environment and treats its exit code as the
-verdict on whether the release is actually up. This is the pipeline's only look
-at the running system; without it a mechanically-clean deploy of a broken app
-reports `pass`.
+"The deploy command exited 0" is not "the release is verified". After every
+deploy — `--staging` Step 5 and `--production` Step 7 — post-merge verifies each
+platform **according to its `release_model`** (`../shared/refs/policy-schema.md`
+§4):
+
+- **`deploy`** (web, macOS, server) → the target is live, so post-merge runs the
+  platform's `smoke_cmd` **against the live target** and treats its exit code as
+  the verdict on whether the release is actually up. This is the pipeline's only
+  look at the running system; without it a mechanically-clean deploy of a broken
+  app reports `pass`. This path is **unchanged from before the release-model
+  split** (AC-RM2).
+- **`submission`** (iOS, Android) → **nothing is live yet** — the artifact is in
+  store review. "Smoke the live target" does not apply. Verification is that the
+  **submission was accepted** (deploy exit 0 + track recorded, `refs/deploy.md`).
+  A configured `smoke_cmd` still runs, but it is checking the **backend or the
+  build** and is **reported as backend/build health, never as "the app is live"**
+  (AC-RM3, AC-SB2). See `refs/submission.md`.
 
 ## Resolve
 
@@ -30,9 +41,15 @@ For each platform with a resolved command:
 
 - Run `smoke_cmd` from the repo root, after the deploy completes; capture
   stdout/stderr to a log alongside the deploy log.
-- **Exit 0** → verified. Record it.
-- **Non-zero exit** → the deploy is live but broken. Emit a canonical finding
-  (`../shared/refs/finding-schema.md`):
+- **Exit 0** → for a `deploy` platform, the live target is **verified**; for a
+  `submission` platform, the **backend/build is healthy** (never "the app is
+  live" — nothing is live pre-review, `refs/submission.md`). Record it under the
+  right label.
+- **Non-zero exit** → for a `deploy` platform the deploy is live but broken; for a
+  `submission` platform the **backend/build check failed** (the submission itself
+  may still be valid — the two are unrelated targets). Emit a canonical finding
+  (`../shared/refs/finding-schema.md`) — set `message` to name the actual target
+  checked (live target vs backend/build health), never "app is live":
 
 ```json
 {
@@ -76,5 +93,7 @@ Carry the outcome into the clean-run summary (`refs/output-schema.md`):
 - `passed: false` (with the finding) on any smoke failure; `null` when `ran` is false.
 - `skipped` lists platforms with no usable `smoke_cmd`.
 
-The run report's `## Test results` gets one line per platform: verified /
-smoke-failed / skipped (no smoke_cmd configured).
+The run report's `## Test results` gets one line per platform: for `deploy`
+platforms — verified / smoke-failed / skipped (no smoke_cmd configured); for
+`submission` platforms — submitted (+ track) / backend-health-ok /
+backend-health-failed / skipped, never "live" (`refs/submission.md`).

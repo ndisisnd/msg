@@ -1,6 +1,6 @@
 ---
 name: post-merge-production
-description: post-merge --production — the double-confirmed staging→main release. Preconditions (green staging + signoff stamp), two separate approvals, release-style PR, merge only on green CI + human review, production deploy, smoke verification of the live target.
+description: post-merge --production — the double-confirmed staging→main release. Preconditions (green staging + signoff stamp), two separate approvals, release-style PR, merge only on green CI + human review, production deploy, and per-release_model verification (smoke the live target for deploy platforms; submission-accepted + backend-health for submission platforms).
 ---
 
 # `--production` — the double-confirmed release to main
@@ -184,5 +184,5 @@ Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — relea
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.
 - `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
-- `## What to expect` — production is live; **rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
+- `## What to expect` — **per `release_model`** (`../shared/refs/policy-schema.md` §4): `deploy` platforms — production is live; `submission` platforms — **submitted to store review, not yet live** (live-to-users is downstream and out-of-band; the full monitor-handoff and the `completed`-on-submit note are added by the submission-lifecycle phase, `refs/submission.md`). Never report a `submission` platform as live (AC-RM3/AC-SB1). **Rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
 - `## Links` — the release PR, the merge commit, per-platform deploy logs.
