@@ -2,6 +2,16 @@
 
 ## 2026-07-21
 
+### [30] — v4 P2: the mobile submission lifecycle — honest handoff, not fake liveness
+
+- `.claude/skills/post-merge/refs/submission.md`: Changed (**C5/D2**, AC-SB1/SB3/SB4/SB5, CV5) — the § Deferred seam becomes the full lifecycle: **submit → (store processing) → review → phased rollout**, with the ownership boundary drawn (post-merge owns through submit-accepted; represents-and-hands-off everything after). Accepted vs **rejected-at-upload** distinguished via fixture-derived worked output shapes (altool/deliver, Play staged-rollout). The **monitor-handoff block** names the real consoles (App Store Connect / Google Play Console) and the future `rollout_halt_cmd` lever (C3). `live_status` polling seam documented (default `handed_off`; v4.1 fills real store states without a breaking change). New § Submission in `direct` flow (CV5): a no-staging mobile repo ships feature→prod as a submission with the staging-scoped stages inactive — cited to `SKILL.md § Release flow`, never re-enumerated
+- `.claude/skills/post-merge/SKILL.md`: Changed (**C5**, AC-SB1) — frontmatter description tail now release-model-honest ("smoke the live target, or submission-accepted + monitor-handoff for store apps") — the P1 residual closed; submission rows in both mode tables route through the lifecycle (submitted + track + handoff, never live); rejected-at-upload named a deploy-step failure
+- `.claude/skills/post-merge/refs/production.md`: Changed (**C5/D2**, AC-SB3/SB4, CV5) — Step 8 keeps `completed` stamped **on submit** but now carries the required note: live-to-users is downstream + out-of-band, with the monitor pointer; § What to expect gives submission platforms the full handoff block; Step 1's direct-flow paragraph gains the CV5 line (submission lifecycle runs on the direct ship; double-confirm + inline human-test stay active)
+- `.claude/skills/post-merge/refs/output-schema.md`: Added (**C5**, AC-SB5, CV2) — additive submission fields on `platforms[]` entries: `track`, `submitted_at`, `monitor`, `live_status` (absence = `handed_off`; v4.1 enum reserved); deploy entries carry none; nothing reshaped
+- `.claude/skills/post-merge/refs/verify-deploy.md`: Changed (**C5**) — submission-accepted (exit 0) vs rejected-at-upload (non-zero → deploy-step failure, **not** a smoke failure) made distinct outcomes; review rejection noted as out-of-band
+
+  **Known coupling (pre-existing, flagged not fixed):** a backend smoke failure still sets verdict `fail` and skips the Step 8 stamp even when the submission was accepted — predates C5, outside AC-SB scope, recorded in the P2 re-derivation
+
 ### [29] — v4 P1b: `--init` verifies staging is actually set up, not just a branch
 
 - `.claude/skills/post-merge/refs/protocol-init.md`: Added (**C9/D14**, AC-SR1/SR2/SR4) — detection **item 6 · Staging readiness**: per-platform declared-artifact checks (staging cmd/target non-placeholder; declared `staging_config` file exists on disk; submission platforms name an internal/TestFlight/Play track; macOS a staging channel) — release-model-shaped, `staged` flow only, no probing/pings/credentials. Reports `ready`/`gaps[]` per platform with the **exact missing artifact and exact fix**; persists `staging_ready`; item 1 gains the "a branch is not a ready environment" caveat; in `direct` flow the whole item is inactive and writes no record

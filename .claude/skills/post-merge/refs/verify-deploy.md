@@ -19,9 +19,13 @@ platform **according to its `release_model`** (`../shared/refs/policy-schema.md`
 - **`submission`** (iOS, Android) → **nothing is live yet** — the artifact is in
   store review. "Smoke the live target" does not apply. Verification is that the
   **submission was accepted** (deploy exit 0 + track recorded, `refs/deploy.md`).
-  A configured `smoke_cmd` still runs, but it is checking the **backend or the
-  build** and is **reported as backend/build health, never as "the app is live"**
-  (AC-RM3, AC-SB2). See `refs/submission.md`.
+  The accept/reject verdict is the deploy-cmd's **exit code**: exit 0 = accepted;
+  a non-zero exit = **rejected-at-upload**, which is a **deploy-step failure**
+  (`refs/deploy.md`), not a smoke failure. A later **review** rejection is
+  out-of-band — post-merge never sees it (`refs/submission.md`). A configured
+  `smoke_cmd` still runs, but it is checking the **backend or the build** and is
+  **reported as backend/build health, never as "the app is live"** (AC-RM3,
+  AC-SB2). See `refs/submission.md`.
 
 ## Resolve
 

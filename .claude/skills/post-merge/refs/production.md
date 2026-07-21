@@ -81,6 +81,13 @@ relaxed (`SKILL.md` § *Release flow*; AC-RF3, AC-SO3, AC-NS1/NS4). The human
 judgment the sign-off represents is **not** dropped — it moves to the inline
 human-test approval before the production deploy, which is active in this flow.
 
+A `submission`-model platform under `direct` flow (a mobile repo with no staging)
+still runs the **full submission lifecycle** on the single feature→`prod` ship
+(submit → accepted → monitor-handoff, `refs/submission.md` § *Submission in
+`direct` flow*) — `release_model` is orthogonal to `release_flow`. The
+staging-scoped stages are inactive, but the double-confirmation (Step 3) and the
+inline human-test approval remain active (CV5).
+
 ## Step 2 — Branch protection
 
 Per `refs/protection.md`: `post-merge-protection.sh --verify main`. Anything but
@@ -175,6 +182,16 @@ tab render the idea as shipped. Missing `INTAKE.md`, or a PRD whose `prd` cell
 matches no row → **skip that PRD with a one-line note** in the run report (an
 unmapped or no-intake-ancestor PRD is not an error).
 
+**`submission` platforms — `completed` stamps on submit (D2/AC-SB4).** For a
+`submission`-model PRD, "verified deploy" means submission accepted (Step 7), so
+this stamp fires **on submit** — the pipeline's last controllable moment. It is
+**not** deferred until the app is live to users, which would require store-status
+polling post-merge does not do. Whenever this stamp closes a `submission` PRD, the
+run report must carry the note that **live-to-users is downstream and out-of-band**
+(store review + rollout), pointing at the monitor-handoff (§ *What to expect*;
+`refs/submission.md`). Stamp-on-submit + honest note — never a silent "shipped =
+live".
+
 ## Run report
 
 Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — release-style:
@@ -184,5 +201,5 @@ Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — relea
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.
 - `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
-- `## What to expect` — **per `release_model`** (`../shared/refs/policy-schema.md` §4): `deploy` platforms — production is live; `submission` platforms — **submitted to store review, not yet live** (live-to-users is downstream and out-of-band; the full monitor-handoff and the `completed`-on-submit note are added by the submission-lifecycle phase, `refs/submission.md`). Never report a `submission` platform as live (AC-RM3/AC-SB1). **Rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
+- `## What to expect` — **per `release_model`** (`../shared/refs/policy-schema.md` §4): `deploy` platforms — production is live; `submission` platforms — carry the **full monitor-handoff block** (AC-SB3, `refs/submission.md` § *Monitor-handoff*): submitted to `<track>` at `<submitted_at>`, **now in Apple App Store / Google Play review, not yet live to users**, monitor at **App Store Connect** / **Google Play Console**, halt via `rollout_halt_cmd`. Never report a `submission` platform as live (AC-RM3/AC-SB1), and never reduce it to a bare "submitted-not-live" — the human needs the monitor pointer + halt lever. **Rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
 - `## Links` — the release PR, the merge commit, per-platform deploy logs.

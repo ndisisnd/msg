@@ -20,9 +20,13 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
   "merge_commit": "<sha>",
   "deploy": { "ran": true, "target": "<url/build id>", "skipped": [] },
   "verify": { "ran": true, "passed": true, "skipped": [] },
-  "platforms": [                        // ADDITIVE (C1/CV2/AC-CONTRACT1) — per-platform release model + outcome; absent on pre-C1 runs
+  "platforms": [                        // ADDITIVE (C1/C5/CV2/AC-CONTRACT1) — per-platform release model + outcome; absent on pre-C1 runs
     { "platform": "web", "release_model": "deploy",     "outcome": "deployed" },   // deploy model: exit 0 ⇒ live
-    { "platform": "ios", "release_model": "submission", "outcome": "submitted", "track": "App Store review" }  // submission model: exit 0 ⇒ submitted, never "live"
+    { "platform": "ios", "release_model": "submission", "outcome": "submitted",    // submission model: exit 0 ⇒ submitted, never "live"
+      "track": "App Store review (Waiting for Review)",                            // C5 lifecycle fields (additive)
+      "submitted_at": "2026-07-21T11:07:18Z",
+      "monitor": "App Store Connect",                                             // console name for the handoff
+      "live_status": "handed_off" }                                              // AC-SB5 polling seam; default "handed_off"
   ],
   "staging_signoff": "2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",  // <date>@<certified sha>; --staging only, on approval; null otherwise
   "report": "features/prd-101-.../reports/report-3.md"
@@ -39,9 +43,18 @@ the resolved `release_model` (`deploy` | `submission`) and an `outcome`:
 | `submitted` | the artifact was submitted to its store track — **never** "live" (AC-RM3/AC-SB1); `track` names the target | `submission` model |
 | `skipped` | no deploy command configured | either |
 
-A `submission` entry additionally carries `track`. The richer submission-lifecycle
-state (`live_status` polling seam, AC-SB5) is added by the submission-lifecycle
-phase as a further additive field — it does not reshape `platforms[]`.
+A `submission` entry additionally carries the C5 lifecycle fields, all **additive**
+— none renames or reshapes the fields above (CV2/AC-CONTRACT1):
+
+| Field | Meaning |
+|---|---|
+| `track` | the store track the artifact was submitted to (e.g. `App Store review (Waiting for Review)`, `Play production (staged rollout 10%, pending review)`) |
+| `submitted_at` | ISO-8601 timestamp of the accepted submit |
+| `monitor` | the console name for the handoff (`App Store Connect` / `Google Play Console`) — the human pointer, AC-SB3 |
+| `live_status` | the **polling seam** (AC-SB5): defaults to **`handed_off`**; v4 always emits this (post-merge does not poll, D2). Reserved values for v4.1 store-status polling — `processing` \| `in_review` \| `rejected` \| `rolling_out` \| `live` — can populate it **without a breaking change**. Readers treat an unknown value as opaque and **absence as `handed_off`**. |
+
+`deploy` entries carry none of these — they are `submission`-only, so a
+`deploy`-model reader is unaffected.
 
 ## Deploy-failure finding
 
