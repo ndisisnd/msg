@@ -9,6 +9,24 @@ Ships everything currently on `staging` to `main` (production). This is the
 harness's single path to `main` — it is **always human-initiated** (the roadmap
 orchestrator never invokes it) and its gates never relax, in any mode.
 
+## Release identity (resolved early — `refs/release-identity.md`)
+
+Before the double-confirm (so the human sees exactly what will be tagged), resolve
+the release identity from the **last `v*` tag on prod** (the read-only source of
+truth, D8):
+
+- `CURRENT_TAG` = newest `v*` tag reachable on prod; `NEXT_VERSION` = default
+  **minor** bump (overridable via `--bump` / `--version`); `BUILD` = commit count
+  on prod (`git rev-list --count origin/$PROD`), monotonic by construction.
+- These flow into: the Step 3 final-confirm (shows `v<x.y.z>+<build>`), the Step 6
+  **build-number monotonicity** gate for `submission` platforms, the Step 7
+  **provenance** check, and the post-success **tag** (Step 9).
+- post-merge **never writes a VERSION file or a bump commit** — the only new write
+  is the git tag at Step 9, which changes no tracked file (safety floor holds).
+
+Full contract — bump rule, build derivation, provenance read, tag command, release
+notes — in `refs/release-identity.md`.
+
 ## Step 1 — Preconditions (refuse without all three)
 
 For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
@@ -111,10 +129,11 @@ On Cancel → stop (verdict `skipped`, no findings).
 computed from `staging..main`:
 
 > header **Confirm release**, question "Confirm — this ships to production:"
+> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>`, `<bump-level>` bump — `refs/release-identity.md`) — this tag is cut on prod only on success
 > - **PRDs:** `<prd-ids + features>`
 > - **Commits:** `<git rev-list --count main..staging>` commits (`<short shas / titles>`)
 > - **Platforms:** `<from devkit/PLATFORMS.md>`
-> - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`
+> - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`; the halt/redeploy lever is **offered on failure** (Step 7)
 > Options: **Ship it** / **Cancel**
 
 On Cancel → stop (`skipped`). Only **Ship it** proceeds. Never infer approval —
@@ -132,13 +151,16 @@ render from):
 - **PRDs shipped** — one line per PRD (id · feature · linked `reports/report-*.md`).
 - **Reports** — link each shipped PRD's staging report(s).
 - **Commits** — `git log --oneline main..staging`.
-- **Rollback notes — per platform**, from `devkit/PLATFORMS.md` `rollback_possible`:
+- **Rollback notes — per platform**, from `devkit/PLATFORMS.md` `rollback_possible`.
+  These notes are **documentation** in the release body (the *executable* lever is
+  **offered on a failed ship** — Step 7 → the failed-ship loop's rollback offer,
+  `SKILL.md`):
   | rollback_possible | note |
   |---|---|
-  | `yes` | Rollback = redeploy the previous build. |
-  | `limited` | Partial rollback — see the platform's notes. |
-  | `no` | **IRREVERSIBLE** — shipped is permanent (app-store review). Flag iOS/Android here. |
-  - Any platform with `rollback_possible: no` (iOS by default) is flagged **`IRREVERSIBLE`** in bold — the GUI surfaces this as a prominent badge/callout (H4).
+  | `yes` | Rollback = redeploy the previous build (`rollback_cmd`). |
+  | `limited` | Partial rollback — a lever exists but does not fully un-ship: `deploy` (macOS) → re-publish the prior build; `submission` (Android) → **halt the staged rollout** (`rollout_halt_cmd`) — stops further exposure, the approved build stays out. |
+  | `no` | **IRREVERSIBLE** — an approved app-store release is permanent. The *phased release* can still be halted (`rollout_halt_cmd`) but the build is not recallable. Flag iOS here (default). |
+  - Any platform with `rollback_possible: no` (iOS by default) is flagged **`IRREVERSIBLE`** in bold — the GUI surfaces this as a prominent badge/callout (H4). Android is `limited` (I6), not `no` — its staged-rollout halt is a real lever.
 
 ## Step 5 — Merge on green CI + human review
 
@@ -154,20 +176,44 @@ Branch protection enforces both; post-merge checks them, then merges:
 
 ## Step 6 — Production deploy
 
-Per `refs/deploy.md` (`production_deploy_cmd` per platform). Run each platform's
-command; capture logs. A deploy failure emits a `post-merge` finding
-(`refs/output-schema.md`) and is reported — the merge already happened, so this
-is surfaced, not silently swallowed.
+**Build-number monotonicity — `submission` platforms, checked BEFORE submit
+(AC-RI3).** For each `submission`-model platform, compare the resolved `BUILD`
+(release identity, above) against the build integer in `CURRENT_TAG`: `BUILD ≤
+last_tag_build` → **refuse `nonmonotonic_build`** (`refs/refusal-patterns.md`)
+before running its `production_deploy_cmd` — a store rejects a non-increasing build
+number, so post-merge stops rather than pushing a doomed submission. `deploy`
+platforms are not build-gated (`refs/release-identity.md`).
 
-## Step 7 — Verify the deploy
+Then, per `refs/deploy.md` (`production_deploy_cmd` per platform). Run each
+platform's command; capture logs. A deploy failure emits a `post-merge` finding
+(`refs/output-schema.md`) and is reported — the merge already happened, so this
+is surfaced, not silently swallowed. On a **deploy failure**, the failed-ship loop
+runs — including the **rollback/rollout-halt offer** (`SKILL.md` § *Failed-ship
+loop*) before the fix loop.
+
+## Step 7 — Verify the deploy + provenance
 
 Per `refs/verify-deploy.md`: run each platform's `smoke_cmd` against the deployed
-production target. Verified (or skipped-with-note) → continue to Step 8. **Smoke
-failure** → emit the `smoke-failed` finding, set verdict `fail`, **skip Step 8**
-(a release that isn't verifiably live doesn't close its PRD), and surface the
-per-platform rollback notes (`rollback_possible`, iOS `IRREVERSIBLE`) prominently
-in the report so the human can restore manually. The merge stands — never pretend
-to un-ship.
+production target. Verified (or skipped-with-note) → continue.
+
+**Provenance (AC-RI2, `refs/release-identity.md`).** For each platform with a
+declared `version_probe`, read the deployed/submitted artifact's source commit and
+assert it is within the signed-off release (equals the certified sha, or is an
+ancestor of prod). A probe commit **outside** the signed-off release → emit a
+**provenance finding**, verdict `fail` (the artifact shipped was built from a
+commit no human certified). No `version_probe` → provenance is `asserted
+(unverified)` with a note, never a fail. A provenance `fail` skips Step 8 and the
+tag, exactly like a smoke failure.
+
+**Smoke failure** → emit the `smoke-failed` finding, set verdict `fail`, **skip
+Step 8** (a release that isn't verifiably live doesn't close its PRD). The
+failed-ship loop then runs, and its **first action is the rollback/rollout-halt
+offer** (`SKILL.md` § *Failed-ship loop*): with a configured `rollback_cmd`
+(`deploy`) / `rollout_halt_cmd` (`submission`, once a rollout exists) post-merge
+**offers to execute it** via `AskUserQuestion` *before* the fix loop, never auto
+(D12, AC-RB1/RB3); unconfigured → the per-platform rollback notes
+(`rollback_possible`, iOS `IRREVERSIBLE`) are surfaced for **manual** restore and
+flagged as a gap (AC-RB2). The merge stands — never pretend to un-ship.
 
 ## Step 8 — Stamp the intake ledger `completed` (D14/F4)
 
@@ -192,11 +238,34 @@ run report must carry the note that **live-to-users is downstream and out-of-ban
 `refs/submission.md`). Stamp-on-submit + honest note — never a silent "shipped =
 live".
 
+## Step 9 — Tag the release (AC-RI1, `refs/release-identity.md`)
+
+Only on a **successful** release — the same success condition as Step 8 (merged +
+deployed-or-skipped-with-note + verified-or-skipped-with-note, and provenance not
+`fail`). Cut the annotated tag on the prod release commit with the generated
+release notes, then push it:
+
+```bash
+git tag -a "v${NEXT_VERSION}+${BUILD}" "origin/$PROD" -m "<release notes from the shipping PRDs>"
+git push origin "v${NEXT_VERSION}+${BUILD}"
+```
+
+- **This is the only new write C4 adds, and it touches no tracked file** — the tag
+  is metadata on a commit, so the safety floor holds (D8). post-merge never writes a
+  VERSION file, never makes a bump commit.
+- A **failed** release (deploy/smoke/provenance `fail`) does **not** tag — an
+  unverified release gets no version identity, mirroring the skipped Step 8 stamp.
+- No remote / push rejected → **skip the tag with a note** (the release shipped;
+  the tag is metadata), never a hard failure.
+- Record `version` / `tag` / `build` / per-platform `provenance` in the clean-run
+  summary (`refs/output-schema.md`).
+
 ## Run report
 
 Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — release-style:
 
-- `verdict: pass` on a clean release; `fail` if a production deploy errored **or its smoke check failed** (Step 7).
+- `verdict: pass` on a clean release; `fail` if a production deploy errored, its smoke check failed, **or provenance mismatched** (Step 7).
+- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success — Step 9; skipped-with-note or absent on a failed release), the bump level, and per-platform provenance (`verified` / `asserted (unverified)` / `fail`) (`refs/release-identity.md`). On a failed ship, also carry the **rollback offer outcome** (offered/executed/declined + cmd exit) surfaced by the failed-ship loop (`refs/output-schema.md`).
 - `## Work done` — PRDs shipped, commit count, platforms deployed. **Under `release_flow=direct`, open with one `Stages` line** naming what did not run and why, so the reduced set is visible rather than invisible (AC-NS1):
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.

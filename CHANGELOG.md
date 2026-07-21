@@ -2,6 +2,16 @@
 
 ## 2026-07-21
 
+### [32] — v4 P3: executable rollback + release artifact identity
+
+- `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`: Changed (**C3/D12**, I6) — new `rollback_cmd` (deploy model: restore last-good) and `rollout_halt_cmd` (submission model: pause the staged rollout) columns with per-platform examples, mutually exclusive by release model. I6 fix: Android `rollback_possible` `no → limited` (the halt lever exists); iOS stays `no`/`IRREVERSIBLE` (a released build is permanent) **and** gains a `rollout_halt_cmd` — halt ≠ un-ship
+- `.claude/skills/post-merge/SKILL.md`: Changed (**C3/C4**, AC-RB1/RB3, AC-RI1) — failed-ship loop restructured: **step 1 is the rollback/rollout-halt offer via `AskUserQuestion`, before the fix loop, never auto** (D12; autonomous runs default to decline); unconfigured lever → notes-only + gap (AC-RB2). `--production` grows to Steps 1–9 (identity resolution, monotonicity, provenance, tag); the release tag joins the sanctioned-writes list; `--bump`/`--version` override documented in usage + argument-hint
+- `.claude/skills/post-merge/refs/release-identity.md`: Added (**C4/D8**) — the identity contract: version source of truth = newest `v*` tag reachable on prod, **read-only** (no VERSION file, no bump commit — safety floor); default bump minor, `--bump`/`--version` override; build number = commit count on prod (monotonic by construction, credential-free, platform-shared); tag `v<x.y.z>+<build>` stamped at release — justified as release metadata, not a source modification
+- `.claude/skills/post-merge/refs/production.md`: Changed (**C4**, AC-RI1/RI2/RI3) — early identity resolution (resolved tag surfaces in the double-confirm, no third ask); Step 6 build-number monotonicity gate **before** any store submit; Step 7 provenance check — the declared `version_probe` prints the shipped artifact's source commit, checked against C2's certified-sha pin (mismatch → `fail` finding; no probe → `asserted_unverified`, never a fail); Step 9 tags prod on success
+- `.claude/skills/post-merge/refs/refusal-patterns.md`: Changed (**C4**, AC-RI3) — new `nonmonotonic_build` refusal
+- `.claude/skills/post-merge/refs/output-schema.md`: Added (**C3/C4**, CV2) — additive per-platform `rollback` object (`offered`/`lever`/`approved`/`cmd_exit`/`outcome`), `release_identity` block, `build_number`, `provenance` + provenance-failure finding
+- `.claude/skills/post-merge/refs/{deploy,verify-deploy,submission}.md` + `shared/refs/{fix-loop,policy-schema}.md`: Changed (**C3**) — failure paths route to the executable offer before fix-forward; fix-loop.md states the ordering contract (the offer precedes, never replaces); halt-lever wording "offered on failure"
+
 ### [31] — v4 P6/C11: the intake update log moves to its own file (`INTAKE-UPDATE.md`)
 
 - `.claude/skills/intake/refs/protocol-update.md`: Changed (**C11**, AC-LS1/LS2/LS5) — log writes target `INTAKE-UPDATE.md` (lazy-created with the canonical header on first write — no template); **migration rule**: first touch of a ledger with an in-file `## Update log` moves the section verbatim, strips it from `INTAKE.md`, idempotently; the blank-line-leak note reframed — unreachable by construction once split

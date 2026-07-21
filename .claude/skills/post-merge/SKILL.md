@@ -10,7 +10,7 @@ description: >
   store apps). The ONLY skill that merges. Never
   self-certifies staging; nothing reaches `main` any other way. Activates on
   /post-merge after pre-merge's PR exists.
-argument-hint: "<--staging | --production> [--prd <path>]"
+argument-hint: "<--staging | --production> [--prd <path>] [--bump <major|minor|patch>] [--version <x.y.z>]"
 allowed_tools:
   - Bash
   - Read
@@ -38,6 +38,7 @@ pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests s
 - `/post-merge --staging --prd <path>` — name the shipped PRD explicitly (else resolved from the PR head branch `feat/prd-<n>-*`)
 - `/post-merge --production` — open + merge the double-confirmed staging→main release PR and run the production deploy
 - `/post-merge --production --prd <path>` (repeatable) — the PRD(s) this release ships; used for the release body + sign-off precondition
+- `/post-merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod; `--version` must be strictly greater); the resolved `v<x.y.z>+<build>` tag is shown in the confirm before it's cut (`refs/release-identity.md`)
 - `/post-merge --init` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --init`'s job) (`refs/protocol-init.md`)
   - `/post-merge --doctor` — **deprecated alias for one release**: runs `--init` and prints a deprecation note naming `--init`/`--update`
 
@@ -55,7 +56,7 @@ other gate holds. See **Release flow** below.)
 - Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals.
 - Does NOT run when `post-merge-protection.sh --verify` reports the branch unprotected **and** the `branch_protection` policy resolves to `enforced` (the default / no-file case) — refuses with the bootstrap instruction; `optional` warns + proceeds, `skip` doesn't verify (`../shared/refs/policy-schema.md` §2). `NO_GH`/`NO_REMOTE` refuse regardless of mode.
 - Does NOT run `--staging` into a staging environment `--init` recorded as **unready** (a platform with `gaps[]` in `staging_ready`) **when `staging_readiness` resolves to `enforced`** (the default) — refuses `staging_unready`, naming the exact missing artifact + fix; `optional` warns + proceeds, `skip` doesn't guard, and a **missing** record (pre-C9 init) only warns, never refuses (`../shared/refs/policy-schema.md` §5, `refs/staging.md`).
-- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), and its run report.
+- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), the release **git tag** `v<x.y.z>+<build>` on prod at a successful `--production` (metadata on a commit — writes **no tracked file**, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), and its run report.
 - Does NOT report a deploy as shipped without running the platform's `smoke_cmd` against the deployed target (unconfigured → recorded as skipped with a note, per `refs/verify-deploy.md`).
 - A failed ship is **not** a refusal — the merge already happened; on a deploy/smoke failure post-merge writes the colocated issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` and enters the fix loop (`../shared/refs/fix-loop.md`) rather than dead-ending.
 
@@ -191,9 +192,12 @@ Loads `refs/staging.md`. Run in order; any refusal emits `refs/refusal-patterns.
 
 Then write the run report (`skill: post-merge`, staging flavor — carries the human test script, and the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
 
-## Mode: `--production` (Steps 1–8)
+## Mode: `--production` (Steps 1–9)
 
-Loads `refs/production.md`. The gates here never relax.
+Loads `refs/production.md` (+ `refs/release-identity.md` for version/build/tag).
+The gates here never relax. Release identity — the next version + build from the
+last `v*` tag on prod (read-only, D8) — is resolved **early** (before Step 3, so
+the confirm shows the tag) and threaded through Steps 6/7/9.
 
 | # | Step | Ref |
 |---|------|-----|
@@ -202,9 +206,10 @@ Loads `refs/production.md`. The gates here never relax.
 | 3 | **Double-confirmation** — two separately-asked `AskUserQuestion`s: (a) intent — "ship staging to production?"; (b) final confirm listing exactly what ships (PRDs, commits, platforms, rollback notes) | `refs/production.md` |
 | 4 | **Open release PR** — `gh pr create --base main --head staging`, release-style body: PRDs, linked reports, per-platform rollback notes from `PLATFORMS.md` `rollback_possible` (iOS flagged `IRREVERSIBLE`) | `refs/production.md` |
 | 5 | **Merge on green CI + human review** — branch protection enforces both; post-merge checks then `gh pr merge --merge`; red/pending/unreviewed → refuse | `refs/production.md` |
-| 6 | **Production deploy** — run each platform's `production_deploy_cmd` from `devkit/PLATFORMS.md`. Exit 0 means **live** (`deploy` model) or **submitted to store review** (`submission` model — report `submitted` + track, never `live`; the app goes live downstream, out-of-band; **emit the monitor-handoff** — now in Apple/Google review, monitor at App Store Connect / Play Console, halt via `rollout_halt_cmd`; non-zero = rejected-at-upload, a deploy failure) | `refs/deploy.md`, `refs/submission.md` |
-| 7 | **Verify the deploy** — **`deploy` model:** run each platform's `smoke_cmd` against the live target (unchanged, AC-RM2). **`submission` model:** verification = submission accepted; a configured `smoke_cmd` is reported as backend/build health, never app liveness (AC-RM3). Failure → `smoke-failed` finding, verdict `fail`, skip Step 8, surface rollback notes; unconfigured → skipped with a note | `refs/verify-deploy.md`, `refs/submission.md` |
+| 6 | **Production deploy** — **first: build-number monotonicity for `submission` platforms** (`BUILD ≤ last tag's build → refuse `nonmonotonic_build` before submit, AC-RI3). Then run each platform's `production_deploy_cmd`. Exit 0 means **live** (`deploy` model) or **submitted to store review** (`submission` model — report `submitted` + track, never `live`; the app goes live downstream, out-of-band; **emit the monitor-handoff** — now in Apple/Google review, monitor at App Store Connect / Play Console, halt via `rollout_halt_cmd`; non-zero = rejected-at-upload, a deploy failure) | `refs/deploy.md`, `refs/submission.md`, `refs/release-identity.md` |
+| 7 | **Verify the deploy + provenance** — **`deploy` model:** run each platform's `smoke_cmd` against the live target (unchanged, AC-RM2). **`submission` model:** verification = submission accepted; a configured `smoke_cmd` is reported as backend/build health, never app liveness (AC-RM3). **Provenance (AC-RI2):** a declared `version_probe` reporting a commit outside the signed-off release → `fail`; no probe → asserted-unverified note. Failure (smoke or provenance) → verdict `fail`, skip Steps 8–9; the failed-ship loop **offers the rollback/rollout-halt before the fix loop** (AC-RB1/RB3); unconfigured lever → notes-only + gap (AC-RB2) | `refs/verify-deploy.md`, `refs/submission.md`, `refs/release-identity.md` |
 | 8 | **Stamp intake `completed`** — only on a verified (or verify-skipped) deploy; for each shipped PRD, set its mapped `INTAKE.md` row's `status` to `completed` (D14); unmapped / no `INTAKE.md` → skip with a note | `refs/production.md` |
+| 9 | **Tag the release** — only on success (same condition as Step 8, provenance not `fail`): `git tag -a v<x.y.z>+<build>` on prod with generated release notes, then push (AC-RI1). A tag writes **no tracked file** — safety floor holds (D8); no VERSION file, no bump commit. Failed release → no tag; no remote / push rejected → skip with a note | `refs/release-identity.md`, `refs/production.md` |
 
 Then write the run report (`skill: post-merge`, production flavor — release-style, iOS `IRREVERSIBLE` surfaced, carrying the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
 
@@ -214,7 +219,33 @@ When a ship **fails** — a non-zero deploy (`deploy` finding) or a smoke-check
 failure (`smoke-failed` finding), verdict `fail`, in **either** mode — the merge
 already happened, so post-merge does not dead-end on the failure. In order:
 
-1. **Write the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`**
+1. **Offer the rollback / rollout-halt — BEFORE the fix loop, always-ask, never
+   auto (D12; AC-RB1/RB2/RB3).** The highest-value action after a broken ship is to
+   restore last-good (deploy model) or halt the rollout (submission model). Resolve
+   the failing platform's lever from `devkit/PLATFORMS.md`:
+   - **`deploy` model with a configured `rollback_cmd`** → `AskUserQuestion` (header
+     **Rollback**): "The `<platform>` `<staging|production>` deploy failed. Restore
+     the last-good build now (`rollback_cmd`)?" — **Yes, roll back** runs the cmd
+     and records its exit / outcome; **No, continue to fixes** proceeds.
+   - **`submission` model with a configured `rollout_halt_cmd`, once a rollout
+     exists** (a `--production` submission in staged rollout / phased release — not
+     `--staging`'s internal track, not a rejected-at-upload where nothing was
+     submitted) → `AskUserQuestion` (header **Halt rollout**): "The `<platform>`
+     rollout is live/pending (`<track>`). Halt the staged rollout / phased release
+     now (`rollout_halt_cmd`)?" — halt ≠ full un-ship (the approved build stays out;
+     `refs/submission.md`). If the rollout is not yet live, note that the halt may
+     need re-running once it begins.
+   - **Unconfigured** (no `rollback_cmd` / `rollout_halt_cmd`, or a `[USER: …]`
+     placeholder) → **today's notes-only behavior**: surface the `rollback_possible`
+     note for manual restore and **flag the missing lever as a gap** (AC-RB2). No
+     offer is fabricated.
+   - **Never auto-run** any lever (D12) — a false-positive smoke must not revert a
+     good release; the offer is the only path, and it is **always presented before**
+     the fix loop, never instead of it (AC-RB3). Under an autonomy contract with no
+     human present, default to **decline** (do not roll back unattended) and record
+     the offer as declined. Capture `{offered, lever, approved, cmd_exit, outcome}`
+     per platform into the run report (`refs/output-schema.md`).
+2. **Write the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`**
    — colocated in the PRD's `reports/` folder, sharing `N`/`K` with the run
    report `.md` (NO-PRD fallback: `features/reports/report-<K>.json`). Same
    canonical-finding `issues[]` shape pre-merge writes (`followUp.status`
@@ -222,11 +253,14 @@ already happened, so post-merge does not dead-end on the failure. In order:
    board reads). `followUp.suggested_command` =
    `eng --build report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` —
    the deep-link fallback `fix-loop.md` resumes from if the user declines.
-2. **Write the run report** (above) — it carries the `## Issue summary` block.
-3. **Print the terminal `Issue summary` block** (above).
-4. **Hand off to `../shared/refs/fix-loop.md`** — it runs Offer #1 (plan the
+3. **Write the run report** (above) — it carries the `## Issue summary` block and
+   the rollback-offer outcome from step 1.
+4. **Print the terminal `Issue summary` block** (above).
+5. **Hand off to `../shared/refs/fix-loop.md`** — it runs Offer #1 (plan the
    fixes with `eng --plan`) → Offer #2 (orchestrated `eng --build`) off this same
    issues file. Do **not** re-spell the offer wording here; fix-loop.md owns it.
+   The rollback offer (step 1) **precedes** this and never replaces it — a rolled-back
+   release still has a broken commit to fix forward.
 
 Applies identically to `--staging` (Step 5 smoke failure / Step 4 deploy failure)
 and `--production` (Step 7 smoke failure / Step 6 deploy failure) — the mode's
@@ -239,8 +273,9 @@ through `/pre-merge` and this gate; the gate does not dead-end on the issues fil
 - `refs/production.md` — `--production` preconditions, double-confirmation, release PR, merge
 - `refs/protection.md` — Step 1/2 branch-protection verify via `post-merge-protection.sh` (policy-conditional: `enforced` refuses, `optional` warns + proceeds, `skip` doesn't verify)
 - `refs/protocol-init.md` — `--init` mode (protection policy, deploy/smoke CLIs, PLATFORMS.md gap delegation; no merge/PR/deploy); `--doctor` is a deprecated one-release alias
-- `refs/deploy.md` — per-platform staging/production deploy resolution from `devkit/PLATFORMS.md`; what deploy-cmd exit 0 means per `release_model` (live vs submitted)
-- `refs/verify-deploy.md` — post-deploy verification per `release_model` (`deploy`: smoke the live target; `submission`: submission accepted + backend-health-labeled smoke)
+- `refs/deploy.md` — per-platform staging/production deploy resolution from `devkit/PLATFORMS.md`; what deploy-cmd exit 0 means per `release_model` (live vs submitted); on a deploy failure the failed-ship loop offers the executable rollback/rollout-halt
+- `refs/verify-deploy.md` — post-deploy verification per `release_model` (`deploy`: smoke the live target; `submission`: submission accepted + backend-health-labeled smoke); on a smoke failure the failed-ship loop offers the executable rollback/rollout-halt before the fix loop
+- `refs/release-identity.md` — version/build/tag identity for `--production` (C4): version = last `v*` tag on prod (read-only, D8); default-minor bump; build derived from commit count; provenance vs the signed-off commit (AC-RI2); build-number monotonicity for submission platforms (AC-RI3); tag `v<x.y.z>+<build>` on success (AC-RI1)
 - `refs/submission.md` — the `submission` release model (iOS/Android): exit 0 = submitted (+ track), never live; verification = submission accepted; smoke = backend/build health. Carries the full lifecycle (submit → processing → review → phased rollout), the monitor-handoff, `completed`-on-submit, the `live_status` polling seam, and submission-in-`direct`-flow (CV5)
 - `refs/human-test-script.md` — deriving the staging human test script (D11 human gate)
 - `refs/refusal-patterns.md` — refusal shapes (red CI, missing sign-off, unconfirmed, conditional `unprotected`, direct-mode `no_staging_stage`)

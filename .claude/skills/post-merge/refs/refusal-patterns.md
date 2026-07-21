@@ -1,6 +1,6 @@
 ---
 name: post-merge-refusal-patterns
-description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
+description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), a non-increasing store build number before submit (nonmonotonic_build), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
 ---
 
 # Refusal Patterns
@@ -36,7 +36,8 @@ Common shape:
 | `stale_signoff` | production | Step 1 — the sign-off no longer covers `staging`: **either** a stamped sha is not an ancestor of `origin/staging` (rewritten history), **or** `origin/staging` has advanced past every stamped sha (commits merged after sign-off) | list the uncertified commits (`git log --oneline <newest-stamped-sha>..origin/staging`) and name the PRD(s) owning them — each needs its own `/post-merge --staging` sign-off before the release can go |
 | `no_review` | production | Step 5 — release PR lacks the required approving review | a human must review-approve the staging→main PR on GitHub |
 | `no_prd` | production | no `--prd` and none resolvable for the release body | pass `--prd <path>` |
-| `out_of_scope_modify` | both | asked to edit source code | post-merge only merges, stamps sign-off, and deploys — it never edits source |
+| `nonmonotonic_build` | production | Step 6 — a `submission` platform's resolved `BUILD` (commit count on prod) is ≤ the build in the last `v*` tag, checked **before** submit (`refs/release-identity.md`, AC-RI3) | name the resolved build + the last tagged build; a store rejects a non-increasing build. On an append-only prod this means the release commit is not ahead of the last tag (re-releasing the same commit, or rewound/divergent history) — resolve the branch state, don't force a lower build |
+| `out_of_scope_modify` | both | asked to edit source code | post-merge only merges, stamps sign-off, deploys, and tags the release (metadata only) — it never edits source |
 
 ## `skipped` (not a refusal)
 
@@ -61,4 +62,4 @@ Emitted when a human cancels at a gate — exits **0**, carries no findings:
 - **Never open or merge a staging→main PR without both double-confirmation approvals.**
 - **Never stamp `staging-signoff:` without the explicit approval question returning "Staging works".**
 - **Never stamp a sign-off without its certified sha**, and never pin it to a commit other than the one that was deployed and human-tested. An unpinned stamp is unverifiable — it is exactly the hole `stale_signoff` exists to close.
-- **Never modify source code** — the only writes are the merges, the sign-off frontmatter stamp, and the run report.
+- **Never modify source code** — the only writes are the merges, the sign-off frontmatter stamp, the `INTAKE.md` `completed` stamp, the release **git tag** (metadata on a commit — no tracked file changes, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), and the run report.

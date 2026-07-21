@@ -29,6 +29,12 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
       "live_status": "handed_off" }                                              // AC-SB5 polling seam; default "handed_off"
   ],
   "staging_signoff": "2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",  // <date>@<certified sha>; --staging only, on approval; null otherwise
+  "release_identity": {                 // ADDITIVE (C4/CV2) — --production only; absent on --staging & pre-C4 runs
+    "version": "2.3.0",                 // resolved next version (default minor bump from the last v* tag on prod)
+    "build": 418,                       // commit count on prod at release — monotonic by construction
+    "tag": "v2.3.0+418",                // cut on prod ONLY on a successful release (Step 9); null on a failed/skipped tag
+    "bump": "minor"                     // "major" | "minor" (default) | "patch" | "explicit"
+  },
   "report": "features/prd-101-.../reports/report-3.md"
 }
 ```
@@ -55,6 +61,38 @@ A `submission` entry additionally carries the C5 lifecycle fields, all **additiv
 
 `deploy` entries carry none of these — they are `submission`-only, so a
 `deploy`-model reader is unaffected.
+
+**Release-identity per-platform fields (C4/CV2/AC-CONTRACT1 — additive).** On a
+`--production` run each `platforms[]` entry may additionally carry (all optional,
+absent on `--staging` and pre-C4 runs):
+
+| Field | Meaning |
+|---|---|
+| `build_number` | the build derived for this release (all platforms share the repo-wide `release_identity.build`) — surfaced per platform because stores gate on it |
+| `provenance` | `verified` (a `version_probe` reported a commit inside the signed-off release), `asserted_unverified` (no `version_probe` declared — structural assertion only), or `fail` (probe reported a commit **outside** the signed-off release — AC-RI2; drives verdict `fail`) |
+
+**Rollback-offer fields (C3/CV2/AC-CONTRACT1 — additive, failed-ship only).** On a
+failed ship, each failing `platforms[]` entry carries a `rollback` object recording
+the always-ask offer (`SKILL.md` § *Failed-ship loop* step 1) — present only when a
+rollback was offered, absent on a clean run:
+
+```json
+"rollback": {
+  "offered": true,                 // was the lever offered (a configured rollback_cmd / rollout_halt_cmd)
+  "lever": "rollback_cmd",         // "rollback_cmd" (deploy) | "rollout_halt_cmd" (submission) | null (unconfigured → notes-only gap, AC-RB2)
+  "approved": false,               // did the human approve running it (never auto — D12); false = declined / autonomy-default-decline
+  "cmd_exit": null,                // the lever's exit code when approved+run; null when declined or unconfigured
+  "outcome": "declined"            // "rolled_back" | "halted" | "declined" | "unconfigured_gap" | "failed" (lever ran non-zero)
+}
+```
+
+| `outcome` | Meaning |
+|---|---|
+| `rolled_back` | `deploy` platform: `rollback_cmd` ran, exit 0 — last-good restored |
+| `halted` | `submission` platform: `rollout_halt_cmd` ran, exit 0 — staged rollout / phased release halted |
+| `declined` | offered, human said no (or autonomy-default-decline) — the fix loop still runs (AC-RB3) |
+| `unconfigured_gap` | no lever configured — notes-only, flagged as a gap (AC-RB2) |
+| `failed` | the lever ran but exited non-zero — surfaced with its `cmd_exit` |
 
 ## Deploy-failure finding
 
@@ -94,11 +132,21 @@ outcome either way: `ran: false` / `passed: null` when nothing was configured,
 `passed: false` alongside the finding on a failure, `skipped` listing platforms
 with no usable `smoke_cmd`.
 
+## Provenance-failure finding (`--production`, C4/AC-RI2)
+
+A declared `version_probe` reporting a commit **outside** the signed-off release
+(not the certified sha, not an ancestor of prod) emits the canonical shape with
+`category: deploy`, `rule: "provenance-mismatch"`, `severity: high` — the artifact
+that shipped was built from a commit no human certified (`refs/release-identity.md`).
+Sets verdict `fail` and skips the intake stamp (Step 8) and the release tag
+(Step 9). No `version_probe` declared → no finding; provenance is recorded as
+`asserted_unverified` in the platform entry, never a fail.
+
 ## Verdict values
 
 | Verdict | Meaning | Exit |
 |---|---|---|
-| `pass` | merged (+ deployed or deploy-skipped-with-note, + smoke verified or verify-skipped-with-note) | 0 |
-| `fail` | merged but a deploy errored or failed its smoke check (finding emitted) | 1 |
-| `refused` | a precondition/gate blocked before the sanctioned action | 1 |
+| `pass` | merged (+ deployed or deploy-skipped-with-note, + smoke verified or verify-skipped-with-note, + provenance verified/asserted, + tagged) | 0 |
+| `fail` | merged but a deploy errored, failed its smoke check, or failed provenance (finding emitted) — no tag cut | 1 |
+| `refused` | a precondition/gate blocked before the sanctioned action (incl. `nonmonotonic_build` before a submission submit) | 1 |
 | `skipped` | a human cancelled at a gate | 0 |

@@ -20,6 +20,18 @@ human `.md` under the same `reports/` folder and stem (canonical-finding
 `report-schema.md`). The same `N`/`K` threads the fix plan and the fix build
 below.
 
+## Ordering — a caller's pre-loop rollback offer runs first (post-merge)
+
+This loop is entered **after** any caller-owned recovery offer, never instead of
+one. On a failed **ship**, `post-merge` presents its **rollback / rollout-halt
+offer first** (restore last-good for a `deploy` platform, halt the staged rollout
+for a `submission` platform — always-ask, never auto, D12; `post-merge/SKILL.md`
+§ *Failed-ship loop* step 1), and only then hands off here. The two are
+complementary, not alternatives: rolling back mitigates the live blast radius;
+this loop still fixes the broken commit forward. A rolled-back release therefore
+**still runs Offer #1 → Offer #2** (AC-RB3). This ref owns only the fix offers; it
+never rolls anything back.
+
 ## Offer #1 — plan the fixes
 
 After the report + issues file are written, present via **AskUserQuestion**:

@@ -408,8 +408,8 @@ decision on it (`post-merge/SKILL.md` § *Release model*):
 
 | `release_model` | Meaning | Deploy-cmd exit 0 means | Verification | Rollback lever |
 |---|---|---|---|---|
-| `deploy` | synchronous (web, macOS, server) | the target is **live** | smoke the live target (`post-merge/refs/verify-deploy.md`) | redeploy the last-good build |
-| `submission` | asynchronous (iOS, Android) | **submitted** to store review — never "live" | submission accepted; a configured smoke is **backend/build health**, never app liveness (`post-merge/refs/submission.md`) | halt the rollout |
+| `deploy` | synchronous (web, macOS, server) | the target is **live** | smoke the live target (`post-merge/refs/verify-deploy.md`) | redeploy the last-good build — **`rollback_cmd`**, offered on a failed ship before the fix loop (C3, `post-merge/SKILL.md`) |
+| `submission` | asynchronous (iOS, Android) | **submitted** to store review — never "live" | submission accepted; a configured smoke is **backend/build health**, never app liveness (`post-merge/refs/submission.md`) | halt the rollout — **`rollout_halt_cmd`**, offered once a rollout exists (C3) |
 
 **Resolution + inference (AC-RM1).** For each shipping platform, resolve
 `release_model` from its PLATFORMS.md row. **Missing / blank → infer from platform

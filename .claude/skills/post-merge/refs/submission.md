@@ -93,7 +93,9 @@ console and the halt lever, generically:
 > Monitor here: **App Store Connect** (Apple) / **Google Play Console** (Google) —
 > review status and (Play) staged-rollout percentage show there.
 > Halt lever: **`rollout_halt_cmd`** halts the staged rollout / phased release —
-> offered on failure once C3/P3 lands; until then, halt manually in the console.
+> **offered for execution on a failed ship, before the fix loop** (always-ask,
+> never auto — `SKILL.md` § *Failed-ship loop*); when unconfigured, halt manually
+> in the console (the missing lever is flagged as a gap, AC-RB2).
 
 Never render a `submission` platform as `live` anywhere (AC-RM3/AC-SB1). The
 `--staging` handoff is lighter (internal/TestFlight track — "processing; testers

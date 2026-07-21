@@ -69,7 +69,7 @@ For each platform with a resolved command:
     "tool": "post-merge",
     "snippet": "<last lines of the smoke log — redact secrets>"
   },
-  "suggestion": "The deployed target is not healthy. Fix forward via /pre-merge, or redeploy the previous build per the platform's rollback notes.",
+  "suggestion": "The deployed target is not healthy. The failed-ship loop offers to run the platform's rollback_cmd / rollout_halt_cmd (if configured) before the fix loop; then fix forward via /pre-merge.",
   "repro": "<the exact smoke_cmd>",
   "regression_of": null
 }
@@ -80,10 +80,12 @@ For each platform with a resolved command:
 | Mode | On smoke failure |
 |---|---|
 | `--staging` | Verdict `fail`. **Skip the human test script and the sign-off ask** (Steps 6–7) — never hand a human a script for a broken environment. The report points at fixing forward through `/pre-merge`. |
-| `--production` | Verdict `fail`. **Skip the intake `completed` stamp** (Step 8) — a release that isn't verifiably live doesn't close its PRD. Surface the per-platform rollback notes (`rollback_possible`) prominently so the human can restore manually. |
+| `--production` | Verdict `fail`. **Skip the intake `completed` stamp** (Step 8) **and the release tag** (Step 9) — a release that isn't verifiably live doesn't close its PRD or earn a version identity. The failed-ship loop **offers to execute the rollback / rollout-halt** (`rollback_cmd` / `rollout_halt_cmd`) before the fix loop (`SKILL.md`, D12/AC-RB1/RB3); an unconfigured lever falls back to the `rollback_possible` notes for manual restore, flagged as a gap (AC-RB2). |
 
 The merge already happened in both cases — verification failure is surfaced
-loudly, never silently swallowed, and never pretends to un-merge anything.
+loudly, never silently swallowed, and never pretends to un-merge anything. The
+rollback offer is **always-ask, never auto** (D12): a false-positive smoke must not
+revert a good release.
 
 ## Record
 

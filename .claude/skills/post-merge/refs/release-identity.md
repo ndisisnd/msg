@@ -1,0 +1,159 @@
+---
+name: post-merge-release-identity
+description: The release identity contract for post-merge --production. Version source of truth = the last v* tag reachable on the prod branch (READ-ONLY — post-merge never writes a VERSION file or a bump commit, per the safety floor). Next version computed from it (default minor bump, overridable); per-platform build numbers derived from the tag; provenance asserted against the signed-off commit; and, only after a successful release, a git tag v<x.y.z>+<build> is cut on prod (a tag is release metadata, not a source modification). Release notes generated for the tag from the shipping PRDs.
+---
+
+# Release identity — version, build number, provenance, tag
+
+A release needs an **identity**: what version is this, what build number rides to
+each store, was the deployed artifact actually built from the commit a human
+signed off, and a durable marker on `prod` recording the answer. post-merge tracks
+commits and PRs but had no artifact identity — for mobile/desktop the artifact is
+the release unit and store-monotonic build numbers are ship-blocking. This ref is
+the identity contract for `--production` (`refs/production.md` wires the steps).
+
+## Source of truth: the last `v*` tag on `prod` — READ-ONLY (D8)
+
+The authoritative version is **the newest `v*` tag reachable on the prod branch**.
+Nothing else — no `VERSION` file, no manifest, no bump commit. This is decisive,
+not incidental: post-merge is **forbidden from modifying source** (`../shared/refs/safety-floor.md`
+— its only sanctioned writes are the two merges, the sign-off stamp, the intake
+`completed` stamp, and its run report). A file-based version would force post-merge
+to make a bump commit it may not make (I3). Git tags sidestep that entirely — a tag
+is **release metadata attached to a commit, not a change to any tracked file** (the
+tree is untouched), so tagging is consistent with the floor. post-merge **reads**
+the tag to resolve the current version and **writes exactly one new tag** at
+release; it never rewrites or deletes tags.
+
+```bash
+git fetch origin "$PROD" --tags --quiet
+CURRENT_TAG=$(git tag --list 'v*' --merged "origin/$PROD" --sort=-v:refname | head -1)
+#   e.g. v2.2.0+417   → version 2.2.0, build 417
+#   none              → no release yet; treat CURRENT as v0.0.0, build 0
+```
+
+`--merged origin/$PROD` scopes to tags reachable on prod (a tag on an unmerged
+branch is not a release). `--sort=-v:refname` gives newest-semver-first; take the
+head. Parse `v<major>.<minor>.<patch>[+<build>]` — the `+<build>` metadata is
+informational for the version compare (semver ignores build metadata in ordering);
+the build integer is read separately for the monotonicity check below.
+
+## Next version — default **minor** bump, overridable
+
+post-merge ships PRDs (features), so the default bump is **minor**:
+`v<major>.<minor>.<patch>` → `v<major>.<minor+1>.0`. From `v0.0.0` (no prior tag)
+the first release is `v0.1.0`.
+
+Override on the `--production` invocation (both additive, no new required arg):
+
+| Override | Effect |
+|---|---|
+| `--bump major` \| `minor` \| `patch` | pick the semver level; `major` → `v<major+1>.0.0`, `patch` → `v<major>.<minor>.<patch+1>` |
+| `--version <x.y.z>` | set the exact next version; must be **strictly greater** than `CURRENT_TAG`'s version (else refuse — a release never goes backward) |
+
+Neither given → **minor**. The resolved next version + tag is surfaced in the
+Step 3 final-confirm and the release-PR body **before** anything ships, so the
+human sees exactly which tag will be cut and can cancel.
+
+## Per-platform build number — derived from history, monotonic by construction
+
+The build number is **derived**, not authored: it is the **commit count reachable
+on prod at the commit being released**, shared by every platform.
+
+```bash
+BUILD=$(git rev-list --count "origin/$PROD")   # total commits on prod at release
+```
+
+Chosen over a per-tag counter because it is **monotonic by construction** on an
+append-only prod branch (every release adds ≥1 commit, so `BUILD` strictly
+increases release-over-release) and needs **no state** beyond git history —
+credential-free and deterministic, the small-team fit. All platforms share the one
+`BUILD`; the new tag encodes it as `v<x.y.z>+<BUILD>`.
+
+**Monotonicity check — `submission` platforms, BEFORE submit (AC-RI3).** Stores
+reject a build number ≤ the last accepted one, so this is checked *before* running
+`production_deploy_cmd` for any `submission` platform. Compare the resolved `BUILD`
+against the build integer parsed from `CURRENT_TAG`:
+
+- `BUILD > last_tag_build` → proceed.
+- `BUILD ≤ last_tag_build` → **refuse `nonmonotonic_build`** (`refs/refusal-patterns.md`)
+  before submitting — name the resolved build, the last tagged build, and that a
+  store will reject a non-increasing build. On an append-only prod this can only
+  happen when the release commit is not ahead of the last tag (re-releasing the
+  same commit, or rewound/divergent history) — a genuine stop, not a nuisance.
+
+`deploy` platforms are not build-number-gated (no store monotonicity contract) —
+the check is `submission`-only.
+
+## Provenance — the deployed artifact came from the signed-off commit (AC-RI2)
+
+Staging and prod are built by **separate cmd runs**; nothing structurally forces
+the artifact `production_deploy_cmd` ships to be the commit a human tested. The
+provenance anchor is **C2's sign-off pin** — `staging-signoff: <date>@<certified_sha>`
+records the exact commit certified (`refs/staging.md`, `refs/production.md`
+§ *Sign-off coverage*). The release commit is that certified sha (the coverage
+check guarantees `origin/staging`'s content == the newest stamped sha, and prod is
+the merge of it).
+
+**The read is declared, not probed** — declared-artifact style, no new infra. A
+platform's optional `version_probe` (`template-PLATFORMS.md`) prints the
+**deployed/submitted artifact's source commit**. After deploy (`refs/production.md`
+Step 7), for each platform with a `version_probe`:
+
+```bash
+PROBE_SHA=$( <version_probe> )    # e.g. curl -fsS https://app/version → the live commit
+```
+
+- `PROBE_SHA` equals a signed-off release sha, or `git merge-base --is-ancestor
+  "$PROBE_SHA" origin/$PROD` succeeds (the probe reports the source commit, which a
+  merge does not change) → **provenance verified**.
+- `PROBE_SHA` is **outside** the signed-off release (not the certified sha and not
+  an ancestor of prod) → **`fail`** with a provenance finding (`refs/output-schema.md`)
+  — the artifact shipped was built from a commit no human certified (stale CI
+  cache, wrong branch, a hand-built `.ipa` from an old checkout). This fails the
+  run; it is **not** a refusal (the merge already stands).
+- **No `version_probe` declared** → provenance is **asserted structurally**
+  (post-merge deployed from the merged prod branch it controls) and recorded as
+  `asserted (unverified)` with a note — never a fail. Declaring a probe upgrades
+  the assertion to a verified check.
+
+## Tag at release — the one new write, only after success (AC-RI1)
+
+After a **successful** `--production` — merged, deployed (or deploy-skipped-with-note),
+and verified (or verify-skipped-with-note), i.e. the same success condition that
+lets Step 8 stamp intake `completed` — post-merge cuts the release tag on prod:
+
+```bash
+git tag -a "v${NEXT_VERSION}+${BUILD}" "origin/$PROD" -m "<release notes>"
+git push origin "v${NEXT_VERSION}+${BUILD}"
+```
+
+- Annotated tag on the prod release commit. **This is the only new write C4 adds**,
+  and it writes **no tracked file** — the tree is unchanged, so the safety floor
+  holds (stated again because it is the crux of D8).
+- A **failed** release (deploy/smoke failure, or a provenance `fail`) does **not**
+  tag — an unverified release gets no version identity, mirroring the skipped
+  intake stamp. Never tag on `fail`.
+- The tag is **skipped with a note** (never a hard failure) if there is no remote
+  or `git push` is rejected — the release shipped; the tag is metadata, so a push
+  failure is surfaced, not treated as an un-ship.
+
+## Release notes — generated for the tag from the shipping PRDs
+
+The annotated tag's message (and the release-PR body reuse it) is generated from
+the PRDs this release ships — not hand-typed:
+
+- One line per shipped PRD: `prd-<n> · <feature>` + its linked report.
+- The commit list `git log --oneline <CURRENT_TAG>..origin/$PROD` (or `main..staging`
+  pre-merge for the PR body).
+- The resolved `v<x.y.z>+<build>` and, per `submission` platform, the submitted
+  track + the monitor-handoff pointer (`refs/submission.md`).
+
+## What this ref does NOT do
+
+- No `VERSION`/manifest file, ever (I3/D8) — tags only.
+- No bump **commit** — the version is computed and tagged, never committed.
+- No auto-bump beyond the default-minor rule; the human sees and can override the
+  resolved version at the double-confirm before any tag is cut.
+- No store-number probing — build numbers are derived from git history, and the
+  monotonicity check compares against post-merge's own last tag, not a store query.
