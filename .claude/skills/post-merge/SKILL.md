@@ -50,7 +50,7 @@ other gate holds. See **Release flow** below.)
 
 **Hard refusals** (`refs/refusal-patterns.md`):
 - Does NOT merge on red or pending CI — branch protection is the enforcement; this skill's checks refuse and list the failing checks.
-- Does NOT run `--production` without staging-green **and** a `staging-signoff:` stamp in the PRD frontmatter.
+- Does NOT run `--production` without staging-green **and** a `staging-signoff:` stamp in the PRD frontmatter **whose pinned sha still covers `staging`'s tip** — commits merged after sign-off refuse (`stale_signoff`), never ride along uncertified.
 - Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals.
 - Does NOT run when `post-merge-protection.sh --verify` reports the branch unprotected **and** the `branch_protection` policy resolves to `enforced` (the default / no-file case) — refuses with the bootstrap instruction; `optional` warns + proceeds, `skip` doesn't verify (`../shared/refs/policy-schema.md` §2). `NO_GH`/`NO_REMOTE` refuse regardless of mode.
 - Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), and its run report.
@@ -64,7 +64,7 @@ other gate holds. See **Release flow** below.)
 | In | mode | `--staging` or `--production` (exactly one) |
 | In | prd_paths | `--prd` (repeatable); else resolved from the PR head branch |
 | In | pr | the open feature→staging PR (`--staging`) resolved via `gh pr list` |
-| Out | staging_signoff | `staging-signoff: <YYYY-MM-DD>` stamped into PRD frontmatter (`--staging`, on approval) |
+| Out | staging_signoff | `staging-signoff: <YYYY-MM-DD>@<certified sha>` stamped into PRD frontmatter (`--staging`, on approval) — the sha is the staging commit that was deployed and human-tested |
 | Out | human_test_script | printed + carried in the run report (`--staging`) |
 | Out | release_pr | PR staging→main, release-style body (`--production`) |
 | Out | run_report | `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: post-merge`) |
@@ -117,10 +117,34 @@ Resolve `release_flow` from the policy file (`../shared/refs/policy-schema.md`
 
 **`direct` + `--production`** — a single feature→`prod` ship that still runs the
 double-confirmation (Step 3), an inline human-test approval, the production deploy
-(Step 6), and smoke (Step 7) — but **waives** the `staging-signoff:` precondition
-(Step 1: there is no staging to sign off) and runs **no** staging deploy. Nothing
-that protects the human is dropped; only the staging *stage* is gone (AC-RF3,
-AC-RF4).
+(Step 6), and smoke (Step 7). The staging-scoped stages are **inactive**, not
+relaxed: there is no staging to deploy, test, or sign off, so those questions do
+not apply. Every question that *does* still apply is answered at full rigor
+(AC-RF3, AC-RF4, AC-NS2).
+
+**Fewer checks, never weaker ones.** In `direct` flow post-merge is answering a
+narrower question — *is this allowed to merge to `prod`, and does it pass?* — with
+undiminished strictness on everything still in scope. Three states, never
+conflated (AC-NS1):
+
+| State | Meaning | Example |
+|---|---|---|
+| **inactive** | the stage does not apply to this configuration — there is nothing for it to check | staging deploy / staging smoke / staging human-test / `staging-signoff` under `release_flow=direct` |
+| **skipped** | the stage applies but its tooling is absent — recorded with a note, surfaced as a gap | no `smoke_cmd` configured for a platform |
+| **relaxed** | a threshold was deliberately lowered by policy | `branch_protection: optional` warning instead of refusing |
+
+**The safety floor is never inactive** (AC-NS3). Security, migration, and the
+human double-confirmation are not staging-scoped — no `release_flow` value
+deactivates them. A change that would move one of them into the inactive column
+is a floor violation (`../shared/refs/safety-floor.md`), not a configuration.
+
+The sign-off is inactive **because its stage is** — which is also why C2's
+commit-pin has nothing to pin, consistently rather than as a special case
+(AC-NS4). Deferred to the post-merge executor phase: declaring this activation
+set as catalog data (AC-NS5) — post-merge is not component-driven yet
+(`../shared/refs/policy-schema.md` § `components[]`), so today the staging-scoped
+set is named **once**, here, and every ref defers to this section rather than
+restating it.
 
 ## Mode: `--staging` (Steps 1–7)
 
@@ -138,7 +162,7 @@ Loads `refs/staging.md`. Run in order; any refusal emits `refs/refusal-patterns.
 | 4 | **Deploy staging** — run the per-platform `staging_deploy_cmd` from `devkit/PLATFORMS.md`; empty ⇒ ask or skip with a note | `refs/deploy.md` |
 | 5 | **Verify the deploy** — run each platform's `smoke_cmd` against the deployed staging target; failure → `smoke-failed` finding, verdict `fail`, skip Steps 6–7; unconfigured → skipped with a note | `refs/verify-deploy.md` |
 | 6 | **Emit human test script + STOP** — derive from the shipped PRD report's `## How to verify` sections + acceptance criteria; post-merge never self-certifies staging | `refs/human-test-script.md` |
-| 7 | **Stamp sign-off (on approval)** — explicit `AskUserQuestion` ("staging works"); on yes stamp `staging-signoff: <YYYY-MM-DD>` into the PRD frontmatter (D11) | `refs/staging.md` |
+| 7 | **Stamp sign-off (on approval)** — explicit `AskUserQuestion` ("staging works"); on yes stamp `staging-signoff: <YYYY-MM-DD>@<certified sha>` into the PRD frontmatter (D11), pinned to Step 3's merge sha — the commit that was actually deployed and tested | `refs/staging.md` |
 
 Then write the run report (`skill: post-merge`, staging flavor — carries the human test script, and the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
 
@@ -148,7 +172,7 @@ Loads `refs/production.md`. The gates here never relax.
 
 | # | Step | Ref |
 |---|------|-----|
-| 1 | **Preconditions** — `staging` CI green AND `staging-signoff:` present in the PRD frontmatter; refuse without either. **`release_flow=direct` waives this whole step** — there is no staging to sign off (see **Release flow** above); the ship goes feature→`prod` with every human gate preserved (AC-RF3) | `refs/production.md` |
+| 1 | **Preconditions** — `staging` CI green AND `staging-signoff:` present in the PRD frontmatter AND the sign-off still **covers** `staging`'s tip (every stamped sha an ancestor of `origin/staging`, and `origin/staging` == the newest stamped sha); refuse without any (`staging_not_green` / `no_signoff` / `stale_signoff`). An unpinned legacy stamp re-asks the human rather than dead-ending. **Under `release_flow=direct` this whole step is *inactive*, not waived** — there is no staging to sign off (see **Release flow** above); the ship goes feature→`prod` with every human gate preserved (AC-RF3, AC-NS4) | `refs/production.md` |
 | 2 | **Branch protection (policy-conditional)** — resolve `mode_main = overrides[main] ?? branch_protection.mode ?? "enforced"` (`../shared/refs/policy-schema.md` §2), then `post-merge-protection.sh --verify main`: `enforced` → `UNPROTECTED` **refuses** (`unprotected`); `optional` → `UNPROTECTED` **warns + proceeds** (one `low` note); `skip` → don't verify. `NO_GH`/`NO_REMOTE` **refuse regardless of mode**. No file → `enforced` (= today) | `refs/protection.md` |
 | 3 | **Double-confirmation** — two separately-asked `AskUserQuestion`s: (a) intent — "ship staging to production?"; (b) final confirm listing exactly what ships (PRDs, commits, platforms, rollback notes) | `refs/production.md` |
 | 4 | **Open release PR** — `gh pr create --base main --head staging`, release-style body: PRDs, linked reports, per-platform rollback notes from `PLATFORMS.md` `rollback_possible` (iOS flagged `IRREVERSIBLE`) | `refs/production.md` |

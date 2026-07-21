@@ -9,14 +9,77 @@ Ships everything currently on `staging` to `main` (production). This is the
 harness's single path to `main` — it is **always human-initiated** (the roadmap
 orchestrator never invokes it) and its gates never relax, in any mode.
 
-## Step 1 — Preconditions (refuse without both)
+## Step 1 — Preconditions (refuse without all three)
 
 For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
 
 1. **Staging CI is green.** Check the latest CI on `staging` (`gh api repos/{owner}/{repo}/commits/staging/status` or `gh run list --branch staging --limit 1`). Not green → refuse (`staging_not_green`).
-2. **`staging-signoff:` stamp present** in the PRD frontmatter (stamped by `--staging` Step 6, D11). Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
+2. **`staging-signoff:` stamp present** in the PRD frontmatter (stamped by `--staging` Step 7, D11). Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
+3. **The sign-off covers what is about to ship** (§ *Sign-off coverage* below). Staging advanced past every stamped sha → refuse (`stale_signoff`).
 
-Both missing/failing conditions refuse before any question is asked.
+All missing/failing conditions refuse before any question is asked.
+
+### Sign-off coverage (the commit pin)
+
+A stamp is `staging-signoff: <YYYY-MM-DD>@<sha>` — the sha is the staging commit
+the human actually tested (`--staging` Step 3/7). A bare date proves only that
+*someone signed off once*; it cannot prove that nothing landed on `staging`
+afterwards. The pin closes that hole.
+
+```bash
+git fetch origin staging --quiet
+STAGING_HEAD=$(git rev-parse origin/staging)
+```
+
+Collect each PRD's `staging-signoff` sha (resolve any **unpinned** stamps first —
+see below — so the set is fully pinned before these checks run), then:
+
+| Check | Rule | On failure |
+|---|---|---|
+| **Ancestry** | every stamped sha is an ancestor of (or equal to) `STAGING_HEAD` — `git merge-base --is-ancestor <sha> $STAGING_HEAD` (exit 0 = ok; a sha is its own ancestor, so equality passes) | refuse (`stale_signoff`) — the stamp certifies a commit that is not on `staging` (force-push / rewritten history); name the PRD and its sha |
+| **Coverage** | `STAGING_HEAD` equals **at least one** stamped sha in the release set | refuse (`stale_signoff`) — list the uncertified commits (`git log --oneline $NEWEST..$STAGING_HEAD`) and name the PRD(s) owning them, each of which needs its own `/post-merge --staging` sign-off |
+
+`$NEWEST` — the **topologically newest** stamped sha: the one every other stamped
+sha is an ancestor of. It is defined independently of whether coverage passed
+(that is the whole point — on failure no stamp equals the tip, so "newest" cannot
+be defined by equality):
+
+```bash
+NEWEST=$(git rev-list --topo-order --no-walk $ALL_STAMPED_SHAS | head -1)
+```
+
+Ancestry having already passed, every stamp is on `staging`'s first-parent
+history, so this total order is well defined. If it somehow is not (stamps on
+divergent lines — only reachable via a rewrite that ancestry should have caught),
+refuse `stale_signoff` rather than guessing which stamp is newest.
+
+**Why coverage and not per-PRD equality.** A multi-PRD release stamps each PRD at
+*its own* merge sha, so older stamps legitimately lag `STAGING_HEAD`. What must
+hold is that the **newest** sign-off is the tip: every commit on `staging` is at
+or below a sha a human certified. Requiring every stamp to equal the tip would
+refuse almost every multi-PRD release; requiring none would let post-sign-off
+commits ride to production — which is exactly the hole being closed.
+
+**Unpinned (legacy) stamp.** A stamp with no `@<sha>` predates the pin. Do not
+refuse — the PRD's feature→staging PR is already merged, so `--staging` cannot be
+re-run to produce a pinned stamp, and refusing would dead-end the release. Ask
+once instead:
+
+> `AskUserQuestion` — header **Sign-off**, question "This PRD's sign-off is
+> unpinned (no commit recorded). Staging is now at `<short STAGING_HEAD>`. Does
+> staging still pass your testing at this commit?"
+> - **Yes, staging works** — re-stamp `<today>@<STAGING_HEAD>` and continue
+> - **Cancel** — stop (`skipped` / `signoff_declined`)
+
+The human gate is preserved, not waived. Record a `low` `unpinned-signoff` note
+in the run report either way.
+
+**`direct` flow** (`release_flow.mode = direct`) — this whole step is **inactive**,
+not waived: there is no staging, so there is no sign-off to check and nothing to
+pin. Record it as `inactive (no staging)` in the run report, never as skipped or
+relaxed (`SKILL.md` § *Release flow*; AC-RF3, AC-SO3, AC-NS1/NS4). The human
+judgment the sign-off represents is **not** dropped — it moves to the inline
+human-test approval before the production deploy, which is active in this flow.
 
 ## Step 2 — Branch protection
 
@@ -117,7 +180,9 @@ unmapped or no-intake-ancestor PRD is not an error).
 Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored **or its smoke check failed** (Step 7).
-- `## Work done` — PRDs shipped, commit count, platforms deployed.
+- `## Work done` — PRDs shipped, commit count, platforms deployed. **Under `release_flow=direct`, open with one `Stages` line** naming what did not run and why, so the reduced set is visible rather than invisible (AC-NS1):
+  `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
+  Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.
 - `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
 - `## What to expect` — production is live; **rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
 - `## Links` — the release PR, the merge commit, per-platform deploy logs.

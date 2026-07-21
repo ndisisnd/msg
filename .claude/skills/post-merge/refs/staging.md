@@ -48,6 +48,15 @@ never `--squash`/`--rebase` unless the user asks. On merge failure (protection
 rejected it, conflict) → refuse (`merge_failed`) with gh's message. Record the
 merge commit sha.
 
+**This sha is the certified sha.** It is what Step 4 deploys, what the human
+tests in Step 6, and what Step 7 pins the sign-off to. Resolve it once, in full
+40-char form, and carry it through the run:
+
+```bash
+git fetch origin staging --quiet
+CERTIFIED_SHA=$(git rev-parse origin/staging)   # == the merge commit just created
+```
+
 ## Step 4 — Deploy staging
 
 Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`).
@@ -78,20 +87,32 @@ Only after the human returns. Ask once:
 On **Staging works**, stamp the PRD frontmatter (the harness-readable half of
 D11 — `--production` Step 1 reads it, the GUI ladder reads it):
 
-- Key: `staging-signoff`, value: today's date, `date -u +%Y-%m-%d` (`<YYYY-MM-DD>`).
+- Key: `staging-signoff`, value: `<YYYY-MM-DD>@<sha>` — today's date **and the
+  certified sha** (Step 3's `CERTIFIED_SHA`, full 40 chars). The sha is what
+  makes the stamp verifiable: `--production` Step 1 refuses if `staging` has
+  advanced past every stamped sha, so commits merged after sign-off cannot ride
+  to production uncertified (AC-SO1).
 - Idempotent: if the key exists, overwrite its value; else append it inside the `---` frontmatter block.
 - Write only the frontmatter line — never touch the PRD body.
 
 ```bash
-# resolve today once
+# resolve both halves once
 SIGNOFF_DATE=$(date -u +%Y-%m-%d)
+SIGNOFF="${SIGNOFF_DATE}@${CERTIFIED_SHA}"       # CERTIFIED_SHA from Step 3
 ```
 
 Frontmatter edit shape (preserve every other line verbatim):
 
 ```yaml
-staging-signoff: 2026-07-13
+staging-signoff: 2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8
 ```
+
+**Never stamp a sha other than the one that was deployed and tested.** If
+`git rev-parse origin/staging` no longer equals `CERTIFIED_SHA` at stamp time,
+something landed on `staging` during the human's test window: still stamp
+`CERTIFIED_SHA` (that is what the human actually tested) and add a `low` note to
+the run report naming the commits that arrived after it — they are uncertified
+and `--production` will say so.
 
 On **Not yet**, do not stamp; note it in the run report and stop.
 

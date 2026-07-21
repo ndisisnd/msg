@@ -161,8 +161,10 @@ When `release_flow.mode:"direct"`, there is no staging branch: `/post-merge --st
 **refuses** with `no_staging_stage` (naming both `/post-merge --production` and
 `/msg --init-staging`). The whole ship collapses into `--production` against `prod_branch`
 — **every human gate is preserved** (double-confirmation, inline human-test approval,
-deploy, smoke); only the staging *stage* is gone. The `staging-signoff:` precondition is
-**waived** and no staging deploy runs. This is the read-contract's behavior
+deploy, smoke); only the staging *stage* is gone. The **staging-scoped stages**
+(enumerated once in `SKILL.md` § *Release flow*) are **inactive because they do
+not apply** — not waived and not relaxed; every stage that still applies runs at
+full rigor (AC-NS1/NS2). This is the read-contract's behavior
 (`policy-schema.md` §1, AC-RF3/AC-RF4); `--init`'s job is only to *record* `mode:"direct"`
 so the gate collapses correctly.
 

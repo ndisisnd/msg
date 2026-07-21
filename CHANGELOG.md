@@ -2,6 +2,17 @@
 
 ## 2026-07-21
 
+### [27] — v4 P-Hotfix: staging sign-off pinned to the certified commit; direct flow inactive-not-waived
+
+- `.claude/skills/post-merge/refs/staging.md`: Changed (**C2**, AC-SO1) — Step 3 resolves `CERTIFIED_SHA` (full 40-char `origin/staging` at merge) once and carries it through the run; Step 7 stamps `staging-signoff: <date>@<sha>`, never a sha other than the one deployed and human-tested; commits landing during the test window are stamped-around and noted `low`, not silently certified
+- `.claude/skills/post-merge/refs/production.md`: Changed (**C2/C10**, AC-SO2-refined, AC-NS1) — Step 1 gains the **sign-off coverage gate**: ancestry (every stamped sha an ancestor of `origin/staging` — catches rewritten history) + coverage (`origin/staging` equals the topologically newest stamped sha — catches commits merged after sign-off) ⇒ `stale_signoff`, replacing the drafted per-PRD equality rule that would have falsely refused every multi-PRD release (I2). Unpinned legacy stamps **re-ask the human once and re-stamp pinned** instead of dead-ending the release (I4). Direct-flow run reports open `## Work done` with a `Stages:` line naming the inactive set
+- `.claude/skills/post-merge/refs/refusal-patterns.md`: Changed (**C2**) — new `stale_signoff` row (both failure shapes, remediation = per-PRD re-sign-off) and a new Never: never stamp a sign-off without its certified sha
+- `.claude/skills/post-merge/refs/output-schema.md`: Changed (**C2**) — `staging_signoff` value shape is now `<date>@<sha>`
+- `.claude/skills/post-merge/SKILL.md`: Changed (**C2/C10**, AC-NS1–NS4) — hard-refusal line and I/O table pin the sha; § Release flow rewritten around the **three-state vocabulary** (`inactive` = stage doesn't apply ≠ `skipped` = tooling absent ≠ `relaxed` = threshold lowered by policy); the staging-scoped set enumerated **once** here (D11/R1 — every other ref defers, AC-NS5's catalog mechanism deferred to the executor phase); the safety floor declared never-inactive (AC-NS3); the sign-off's inactivity in direct flow derived from its stage's, not special-cased (AC-NS4)
+- `.claude/skills/post-merge/refs/protocol-init.md`: Changed (**C10**) — direct flow reframed from "waives the signoff" to "staging-scoped stages inactive because they do not apply, everything applicable at full rigor"
+- `.claude/skills/shared/refs/policy-schema.md`: Changed (**C10**) — direct-mode human-gate note defers to `post-merge/SKILL.md` § Release flow as the single authority instead of re-listing the staging-scoped set
+- `README.md`: Changed — post-merge row documents the pinned stamp and the `stale_signoff` refusal
+
 ### [26] — Publish the v2.2.0 user-facing release notes
 
 - `RELEASES.md`: Added — the `v2.2.0 — 2026-07-21` section (user-facing notes covering entry [25]: intake's new `--update` and `--delete` modes, the ignored ledger, the update log, and `argument-hint` autocomplete across every skill)

@@ -343,7 +343,7 @@ stg  = policies.release_flow.staging_branch ?? "staging"
 | `staged` | `stg` (→ `prod` if `stg` absent — existing SKILL fallback) | merge feature→`stg` | PR `stg`→`prod` |
 | `direct` | `prod` | **refuse** `no_staging_stage` (name `/post-merge --production` + `/msg --init-staging`) | single ship feature→`prod` |
 
-**Direct-mode human-gate note.** In `direct` mode the `--production` ship **preserves every human gate** — double-confirmation, an inline human-test approval, deploy, and smoke — but **waives** the `staging-signoff:` precondition (there is no staging to sign off) and runs **no** staging deploy. Nothing that protects the human is dropped; only the staging *stage* is gone. (AC-RF3, AC-RF4)
+**Direct-mode human-gate note.** In `direct` mode the `--production` ship **preserves every human gate** — double-confirmation, an inline human-test approval, deploy, and smoke. The **staging-scoped stages** — enumerated once in `post-merge/SKILL.md` § *Release flow*, never re-listed here — are **inactive because they do not apply**: there is no staging to deploy, test, or sign off. Inactive is not *skipped* (tooling missing) and not *relaxed* (threshold lowered): every stage that still applies runs at **full rigor**, and the safety floor is never among the inactive set. Fewer checks, never weaker ones. (AC-RF3, AC-RF4, AC-NS1/NS2/NS3) — canonical definition in `post-merge/SKILL.md` § *Release flow*.
 
 ## 2 · `branch_protection` (post-merge Step 1 `--staging` / Step 2 `--production`)
 

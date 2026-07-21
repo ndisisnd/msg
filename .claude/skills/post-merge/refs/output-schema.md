@@ -20,7 +20,7 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
   "merge_commit": "<sha>",
   "deploy": { "ran": true, "target": "<url/build id>", "skipped": [] },
   "verify": { "ran": true, "passed": true, "skipped": [] },
-  "staging_signoff": "2026-07-13",   // --staging only, on approval; null otherwise
+  "staging_signoff": "2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",  // <date>@<certified sha>; --staging only, on approval; null otherwise
   "report": "features/prd-101-.../reports/report-3.md"
 }
 ```
