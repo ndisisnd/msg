@@ -94,6 +94,25 @@ rollback was offered, absent on a clean run:
 | `unconfigured_gap` | no lever configured — notes-only, flagged as a gap (AC-RB2) |
 | `failed` | the lever ran but exited non-zero — surfaced with its `cmd_exit` |
 
+**Smoke v2 fields (C7/CV2/AC-CONTRACT1 — additive).** Each `platforms[]` entry
+carries the smoke verification mode, recording how the v2 contract ran
+(`refs/verify-deploy.md` § *Smoke contract v2*). All additive — a bare one-shot
+smoke emits the defaults below, so a pre-v2 reader is unaffected (AC-SM1):
+
+```json
+"smoke": {
+  "mode": "one_shot",      // "one_shot" | "poll" | "watch" | "poll+watch"
+  "attempts": 1,           // how many times `cmd` ran (poll retries + watch re-checks + 1)
+  "window": null           // "held" | "degraded" | "timed_out" | null (one-shot / no window)
+}
+```
+
+| Field | Meaning |
+|---|---|
+| `mode` | `one_shot` (bare `smoke_cmd`, AC-SM1) · `poll` (waited for a late-live target, AC-SM3) · `watch` (re-checked health over a window, AC-SM2) · `poll+watch` (both — poll then watch) |
+| `attempts` | total `cmd` invocations: `1` for one-shot; `1 + poll-retries`; `1 + watch-re-checks`; summed when composed |
+| `window` | `held` (every watch re-check passed) · `degraded` (a watch re-check failed → `smoke-failed`, routes to the rollback offer) · `timed_out` (a poll never saw exit 0 within the bound → `smoke-never-live`) · `null` (one-shot, or poll-that-passed with no watch declared) |
+
 ## Deploy-failure finding
 
 A non-zero deploy exit does not un-merge anything — the merge already happened —
@@ -123,14 +142,66 @@ so post-merge surfaces it as a finding rather than swallowing it. Conforms to
 - `source` is `post-merge` (the value added to the finding-schema source enum in P5).
 - `category: deploy` is used for deploy failures; a refusal uses the refusal JSON shape instead (it carries no findings).
 
-## Smoke-verification failure finding
+## Smoke-verification failure finding (incl. v2 verdicts)
 
-A deploy that succeeds but fails its `smoke_cmd` emits the same canonical shape
-with `rule: "smoke-failed"` — full example and consequences in
-`refs/verify-deploy.md`. The clean-run summary's `verify` block records the
-outcome either way: `ran: false` / `passed: null` when nothing was configured,
-`passed: false` alongside the finding on a failure, `skipped` listing platforms
-with no usable `smoke_cmd`.
+A deploy that succeeds but fails its smoke emits the same canonical shape — full
+example and consequences in `refs/verify-deploy.md`. The v2 contract adds two
+**distinct** failure rules alongside the plain one; all `category: deploy`,
+`severity: high`, verdict `fail`:
+
+| `rule` | When (v2, `refs/verify-deploy.md` § *Smoke contract v2*) |
+|---|---|
+| `smoke-failed` | the first-verdict `cmd` ran and exited non-zero (one-shot or the first poll pass), **or** a `watch_window` re-check degraded after an initial pass (`window: "degraded"`) — the target is up but unhealthy |
+| `smoke-never-live` | a `poll` ran to its `<timeout>` without a single exit 0 (`window: "timed_out"`) — the target **never came up within the bounded wait**; a different diagnosis than *up-but-broken*, so a distinct rule (AC-SM3) |
+
+The clean-run summary's `verify` block records the outcome either way: `ran: false`
+/ `passed: null` when nothing was configured, `passed: false` alongside the finding
+on a failure, `skipped` listing platforms with no usable `smoke_cmd`. The
+per-platform `smoke: {mode, attempts, window}` object (above) records which v2 mode
+ran.
+
+## macOS release-check findings (`--staging` / `--production`, C6, `deploy` model)
+
+macOS (`release_model: deploy`) carries three config-gated checks
+(`refs/verify-deploy.md` § *macOS release checks*). Each undeclared surface runs
+**nothing** and emits **no finding** (D13). When declared and failing, each emits a
+**distinct, specific** finding — never a generic deploy failure (AC-MAC1) — all
+`source: post-merge`, `category: deploy`, `severity: high`, verdict `fail`, routed
+through the same failed-ship loop (rollback offer before the fix loop):
+
+| `rule` | Check | Fires when | AC |
+|---|---|---|---|
+| `notarization-stall` | notarization (`notarize_status_cmd`, polled via the C7 poll primitive) | the notary status is still non-terminal (`In Progress`) at the poll ceiling — a **stall**, distinct from a reject and from a build break (the P0 finding #4 defect) | AC-MAC1 |
+| `notarization-invalid` | notarization | the notary reached a terminal `Invalid` / `Rejected` status | AC-MAC1 |
+| `signing-fail` | signing / Gatekeeper (`signing_smoke_cmd`) | `spctl --assess` / `codesign --verify` rejected the built artifact — the shipped `.app` will not open on a user's Mac | AC-MAC2 |
+| `appcast-stale` | appcast (`appcast_url`) | the Sparkle feed is unreachable **or** missing the release-identity `NEXT_VERSION` — the update channel did not publish the new version | AC-MAC3 |
+
+Canonical shape (notarization-stall shown; the others differ only in `rule` /
+`message` / `repro`):
+
+```json
+{
+  "id": "notarize-001",
+  "source": "post-merge",
+  "severity": "high",
+  "category": "deploy",
+  "rule": "notarization-stall",
+  "message": "macOS notarization did not reach a terminal status within 10m (last: In Progress, submission 7b1d4c30-99aa-4e21-b7f3-1c2d3e4f5a6b)",
+  "file": null,
+  "line": null,
+  "evidence": {
+    "tool": "post-merge",
+    "snippet": "<last lines of the notarize_status_cmd output — the `status:` line>"
+  },
+  "suggestion": "Notarization is stalled, not failed — re-poll `xcrun notarytool info <id>` or check Apple's notary service status; the failed-ship loop offers the deploy rollback (re-publish the prior appcast build) before the fix loop.",
+  "repro": "<the exact notarize_status_cmd>",
+  "regression_of": null
+}
+```
+
+The notarization async shape **mirrors a `submission`'s *processing* state**
+(`refs/submission.md`) — the vocabulary (submit → processing → terminal) and the
+poll primitive are shared, not re-invented.
 
 ## Provenance-failure finding (`--production`, C4/AC-RI2)
 

@@ -193,8 +193,17 @@ loop*) before the fix loop.
 
 ## Step 7 — Verify the deploy + provenance
 
-Per `refs/verify-deploy.md`: run each platform's `smoke_cmd` against the deployed
-production target. Verified (or skipped-with-note) → continue.
+Per `refs/verify-deploy.md`: run each platform's smoke against the deployed
+production target — the **v2 smoke contract** (`smoke: {cmd, watch_window?, poll?}`):
+a bare `smoke_cmd` is one-shot (unchanged); a declared `poll` waits for a late-live
+target (CDN/DNS propagation, notarization, store processing) before the first
+verdict, a declared `watch_window` re-checks health over a bounded window after it
+passes and **fails the verdict if health degrades** (routing to the same
+rollback offer below). Verified (or skipped-with-note) → continue. For a macOS
+platform, the config-gated notarization / signing / appcast checks
+(`refs/verify-deploy.md` § *macOS release checks*) run here too — each a distinct
+finding (`notarization-stall` / `notarization-invalid` / `signing-fail` /
+`appcast-stale`), silent when undeclared.
 
 **Provenance (AC-RI2, `refs/release-identity.md`).** For each platform with a
 declared `version_probe`, read the deployed/submitted artifact's source commit and
@@ -205,10 +214,12 @@ commit no human certified). No `version_probe` → provenance is `asserted
 (unverified)` with a note, never a fail. A provenance `fail` skips Step 8 and the
 tag, exactly like a smoke failure.
 
-**Smoke failure** → emit the `smoke-failed` finding, set verdict `fail`, **skip
-Step 8** (a release that isn't verifiably live doesn't close its PRD). The
-failed-ship loop then runs, and its **first action is the rollback/rollout-halt
-offer** (`SKILL.md` § *Failed-ship loop*): with a configured `rollback_cmd`
+**Any verification failure** — a plain `smoke-failed`, a poll timeout
+(`smoke-never-live`), a watch-window degrade, **or** a macOS release-check finding
+(`notarization-stall` / `notarization-invalid` / `signing-fail` / `appcast-stale`) —
+sets verdict `fail`, **skips Step 8** (a release that isn't verifiably live doesn't
+close its PRD). The failed-ship loop then runs, and its **first action is the
+rollback/rollout-halt offer** (`SKILL.md` § *Failed-ship loop*): with a configured `rollback_cmd`
 (`deploy`) / `rollout_halt_cmd` (`submission`, once a rollout exists) post-merge
 **offers to execute it** via `AskUserQuestion` *before* the fix loop, never auto
 (D12, AC-RB1/RB3); unconfigured → the per-platform rollback notes

@@ -2,6 +2,16 @@
 
 ## 2026-07-21
 
+### [33] — v4 P4: macOS notarization/signing/appcast + smoke contract v2
+
+- `.claude/skills/post-merge/refs/verify-deploy.md`: Changed (**C7/D9**, AC-SM1/SM2/SM3) — new **§ Smoke contract v2**: `smoke_cmd` extends to `{cmd, watch_window?, poll?}` while a bare string stays byte-for-byte one-shot; `watch_window` (`<duration>/<interval>`, e.g. `5m/30s`) re-checks health after a passing first verdict — degradation → `smoke-failed` + the P3 rollback offer; `poll` (`<timeout>/<interval>`) waits for late-live targets (CDN/DNS, store processing, notarization) with a **distinct `smoke-never-live` timeout verdict**, never a generic fail; canary/progressive-delivery stated as explicit non-goals. (**C6/D13**, AC-MAC1/2/3) — new **§ macOS release checks**, config-gated, declared-artifact style: `notarize_status_cmd` polled via C7's primitive (terminal `Accepted` = verified, `Invalid` = `notarization-invalid`, stall = `notarization-stall` — never a generic deploy failure; async shape shares `submission.md`'s processing vocabulary), `signing_smoke_cmd` (`spctl`/`codesign`) → distinct `signing-fail`, `appcast_url` → reachable + release-identity's `NEXT_VERSION` present, else `appcast-stale`; undeclared ⇒ nothing runs, nothing flagged
+- `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`: Changed (**C6/C7**) — five new columns (`smoke_watch_window`, `smoke_poll`, `notarize_status_cmd`, `signing_smoke_cmd`, `appcast_url`; 14→19, `—` where N/A); the **macos row unfolded** — deploy cmd is now async `notarytool submit` without `--wait`, notarization verified as its own step instead of stalling inside the deploy
+- `.claude/skills/post-merge/refs/output-schema.md`: Added (**C6/C7**, CV2) — additive per-platform `smoke: {mode: one_shot|poll|watch, attempts, window}` (defaults preserve the bare path), `smoke-never-live` rule, macOS finding table + canonical `notarization-stall` shape
+- `.claude/skills/post-merge/refs/refusal-patterns.md`: Changed (**C6**) — new § stating the macOS release checks are **findings, not refusals** (they fire post-merge; only `nonmonotonic_build` is genuinely pre-flight)
+- `.claude/skills/post-merge/refs/{staging,production,deploy}.md` + `SKILL.md`: Changed (**C6/C7**) — smoke steps aligned to the v2 contract (no ref implies one-shot-only); macOS-check and notarization-unfold notes in the deploy/verify steps
+
+  **Exit gate: all five P0 wrong-model findings now closed** (#1/#2→C1, #3→C5, #5→C3, #4→C6). On macOS, `smoke_poll` deliberately serves double duty as the notarization poll bound — one primitive, no parallel mechanism
+
 ### [32] — v4 P3: executable rollback + release artifact identity
 
 - `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`: Changed (**C3/D12**, I6) — new `rollback_cmd` (deploy model: restore last-good) and `rollout_halt_cmd` (submission model: pause the staged rollout) columns with per-platform examples, mutually exclusive by release model. I6 fix: Android `rollback_possible` `no → limited` (the halt lever exists); iOS stays `no`/`IRREVERSIBLE` (a released build is permanent) **and** gains a `rollout_halt_cmd` — halt ≠ un-ship

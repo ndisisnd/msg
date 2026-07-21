@@ -86,12 +86,18 @@ Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`).
 
 ## Step 5 — Verify the deploy
 
-Per `refs/verify-deploy.md`: run each platform's `smoke_cmd` against the deployed
-staging target. Verified (or skipped-with-note) → continue. **Smoke failure** →
-emit the `smoke-failed` finding, set verdict `fail`, and **stop here** — skip
-Steps 6–7. Never hand a human a test script for an environment that is already
-failing its own health check; the report points at fixing forward via
-`/pre-merge` (the merge stands).
+Per `refs/verify-deploy.md`: run each platform's smoke against the deployed staging
+target — the **v2 smoke contract** (`smoke: {cmd, watch_window?, poll?}`): a bare
+`smoke_cmd` is one-shot (unchanged); a declared `poll` waits for a late-live target
+first, a declared `watch_window` re-checks health after it passes. Verified (or
+skipped-with-note) → continue. **Any smoke failure** — a plain non-zero, a poll
+timeout (`smoke-never-live`), or a watch-window degrade — emits the finding, sets
+verdict `fail`, and **stops here** — skip Steps 6–7. Never hand a human a test
+script for an environment that is already failing its own health check; the report
+points at fixing forward via `/pre-merge` (the merge stands). For a macOS platform,
+the config-gated notarization / signing / appcast checks (`refs/verify-deploy.md`
+§ *macOS release checks*) run here too — each a distinct finding, silent when
+undeclared.
 
 ## Step 6 — Human test script + STOP
 

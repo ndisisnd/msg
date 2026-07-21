@@ -56,6 +56,21 @@ Emitted when a human cancels at a gate — exits **0**, carries no findings:
 - `signoff_declined` — the `--staging` sign-off ask returned "Not yet"; the merge/deploy still stand, only the stamp was withheld.
 - `deploy_skipped` — no deploy command configured and the human chose to skip (not a failure).
 
+## macOS release-check findings (NOT refusals — C6)
+
+The macOS notarization / signing / appcast checks (`refs/verify-deploy.md`
+§ *macOS release checks*) and the smoke-v2 verdicts (`smoke-never-live` on a poll
+timeout, a watch-window degrade) run **after the merge and deploy** — the
+irreversible action has already happened. So a `notarization-stall` /
+`notarization-invalid` / `signing-fail` / `appcast-stale` / `smoke-never-live` is a
+**deploy-step failure** (a `category: deploy` finding, verdict `fail`,
+`refs/output-schema.md`), routed through the failed-ship loop — **never a
+refusal**. Refusals only fire **before** a sanctioned action; these fire after, so
+they cannot un-do anything and must not masquerade as a pre-flight stop. (The one
+release-check-adjacent *refusal* is `nonmonotonic_build` — the build-number gate,
+which correctly fires **before** a submission's submit; the macOS checks have no
+such pre-flight case.)
+
 ## Never
 
 - **Never merge on red or pending CI.** Branch protection would reject it; post-merge refuses first with the clearer reason.
