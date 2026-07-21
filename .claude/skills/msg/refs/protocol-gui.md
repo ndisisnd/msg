@@ -294,6 +294,16 @@ across every project (light + dark, responsive); it is **not** sourced from
   /api/intake/status {num, status}`. Nothing else on the card is editable — `idea`, `goal`,
   `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`. Static mode renders the
   board read-only (no drag, no buttons).
+- **This tab is the status-override surface.** It is the *only* way to move a row backwards
+  through the D14 lifecycle — no skill does that. `/intake --update` refuses to edit an
+  `in-progress` row (its PRD is the source of truth); dragging that card back to **Backlog**
+  here is the sanctioned escape hatch, after which `--update` will edit it. The two surfaces
+  are deliberately asymmetric: this tab owns `status`, `--update` owns content
+  (`idea`/`goal`/`type`) plus the re-grade, and `/intake --delete` owns removal
+  (behind a warning pass and a confirm). This tab never deletes a row.
+- **Content edits are not offered here on purpose.** A hand-edited `idea` would leave the
+  `grade` cell asserting a judgment of text that no longer exists. `/intake --update`
+  re-derives the grade on a material change; this tab cannot, so it does not offer the edit.
 
 ## Reports tab (rendering)
 

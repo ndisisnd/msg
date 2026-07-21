@@ -8,6 +8,7 @@ description: >
   files via a batched interview; idempotent, never overwrites). Other
   modes: `--init-staging` (add a staging branch + flip release flow to staged),
   `--gui` (local PRD board), `--help` (guided skill picker).
+argument-hint: "[--init | --init-staging | --gui | --help]"
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -30,7 +31,7 @@ allowed_tools:
 | Category | Skill | Description |
 |----------|-------|-------------|
 | Planning | msg --init | One-time project bootstrap |
-| Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door) |
+| Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
 | Planning | plan-tune | PRD contract certifier — seven consumer-bound checks, product/eng |
 | Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |
@@ -266,6 +267,8 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 |-------|----------|--------|-------|
 | Starting fresh | any | any | msg --init |
 | Planning | A rough idea or notes | any | intake |
+| Planning | A backlog row that needs changing | an edited INTAKE.md row | intake --update |
+| Planning | A backlog row logged by mistake | it removed from INTAKE.md | intake --delete |
 | Planning | Nothing yet / rough idea | A project spec | plan-pm |
 | Planning | Nothing yet / rough idea | An engineering plan | plan-pm |
 | Planning | A PRD or spec | A project spec | plan-tune |

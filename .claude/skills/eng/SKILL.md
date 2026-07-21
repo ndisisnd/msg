@@ -2,6 +2,7 @@
 name: eng
 description: >
   Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todos, falling back to exec-table rows). Invoked by plan-em or directly by the user.
+argument-hint: "<--plan | --build> [report=<path> | roadmap=<path>]"
 allowed_tools:
   - Bash
   - Read

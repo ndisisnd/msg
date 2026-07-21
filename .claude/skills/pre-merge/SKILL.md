@@ -8,6 +8,7 @@ description: >
   security/migration → PRD-consistency → preview deploy (human gate) → open PR.
   Emits a severity-graded verdict JSON. Absorbs the old /review and /test.
   Activates on /pre-merge after eng --build.
+argument-hint: "[--init | --update] [--prd <path>] [--flaky <n>]"
 allowed_tools:
   - Bash
   - Read

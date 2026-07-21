@@ -7,6 +7,7 @@ description: >
   features/prd-[n]-[feature-slug]/. The requirements interview lives in /intake now,
   not here. Pauses ONLY for batched open questions the draft couldn't resolve and for
   breaking/critical touches. Refuses requests that would skip the PRD stage entirely.
+argument-hint: "[#<n> | --sub <prd-path> | --roadmap]"
 allowed_tools:
   - AskUserQuestion
   - Bash

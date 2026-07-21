@@ -7,6 +7,7 @@ description: >
   ask), identifies specialist agents to activate (roster approval — the single human
   gate), spins them up to write engineering sections directly into the PRD, then
   synthesises the full output. Refuses without a referenced PRD .md path.
+argument-hint: "<prd-path>"
 allowed_tools:
   - Agent
   - AskUserQuestion

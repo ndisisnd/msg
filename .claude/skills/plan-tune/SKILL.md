@@ -11,6 +11,7 @@ description: >
   Each auto-fixed Critical/Major writes a category-tagged learning to
   devkit/AHA.md so the next plan-pm draft self-heals. Applies all fixes directly
   to the PRD file. No separate report file.
+argument-hint: "[<prd-path>] [--product | --eng]"
 allowed_tools:
   - AskUserQuestion
   - Bash

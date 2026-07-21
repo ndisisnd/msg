@@ -9,6 +9,7 @@ description: >
   live target). The ONLY skill that merges. Never
   self-certifies staging; nothing reaches `main` any other way. Activates on
   /post-merge after pre-merge's PR exists.
+argument-hint: "<--staging | --production> [--prd <path>]"
 allowed_tools:
   - Bash
   - Read

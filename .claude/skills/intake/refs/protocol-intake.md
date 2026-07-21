@@ -6,7 +6,13 @@ type: reference
 
 # Intake Protocol
 
-The end-to-end flow `/intake` follows. Emit `Step X/5 — <title>` at the start of
+The end-to-end flow **capture mode** (`/intake`, `/intake <idea text>`) follows.
+Update mode (`/intake --update`) is a separate protocol —
+[`protocol-update.md`](protocol-update.md) — which reuses this file's Step 2
+hybrid-split, Step 3 flesh-out, and Step 4 grading passes rather than restating
+them.
+
+Emit `Step X/5 — <title>` at the start of
 each step. The whole run stays **≤2 `AskUserQuestion` calls for a well-formed idea**
 (batch questions, ≤4 per call). Never read the codebase; never draft a PRD.
 
@@ -109,7 +115,13 @@ Append each confirmed, graded idea as a row to `INTAKE.md`'s table, in capture o
 - `status` — `backlog` (always, on capture — intake never advances a row).
 - `prd` — empty (filled by `plan-pm` when it plans the row).
 
-Preserve every existing row verbatim; only append. Then emit a compact summary:
+Preserve every existing row verbatim; only append. **Capture writes no
+`## Update log` entries** — the row's own `date` cell already records when it
+entered, and logging captures would duplicate the whole ledger into the log. The
+log is update-mode-only. If the ledger carries a `## Update log` section, append
+rows **above** it, inside the row table.
+
+Then emit a compact summary:
 
 ```
 Captured <N> row(s) into INTAKE.md: #<a> <idea> (<grade>), #<b> …
