@@ -1,6 +1,6 @@
 ---
 name: post-merge-refusal-patterns
-description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), a non-increasing store build number before submit (nonmonotonic_build), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
+description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), a non-increasing store build number before submit (nonmonotonic_build), a production release already in flight (release_in_flight, the concurrency lock), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
 ---
 
 # Refusal Patterns
@@ -37,7 +37,45 @@ Common shape:
 | `no_review` | production | Step 5 — release PR lacks the required approving review | a human must review-approve the staging→main PR on GitHub |
 | `no_prd` | production | no `--prd` and none resolvable for the release body | pass `--prd <path>` |
 | `nonmonotonic_build` | production | Step 6 — a `submission` platform's resolved `BUILD` (commit count on prod) is ≤ the build in the last `v*` tag, checked **before** submit (`refs/release-identity.md`, AC-RI3) | name the resolved build + the last tagged build; a store rejects a non-increasing build. On an append-only prod this means the release commit is not ahead of the last tag (re-releasing the same commit, or rewound/divergent history) — resolve the branch state, don't force a lower build |
-| `out_of_scope_modify` | both | asked to edit source code | post-merge only merges, stamps sign-off, deploys, and tags the release (metadata only) — it never edits source |
+| `release_in_flight` | both | The **release lock** is held by another production ship (`refs/production.md` § *Release lock*, `../shared/refs/policy-schema.md` §6). `--production`: its acquire-tag push (after Step 3, before Step 4) was rejected because the lock tag already exists. `--staging`: its pre-flight lock read (before Step 2) found a held lock — a staging merge mid-production-ship would advance `staging` past the certified/confirmed window (C2). Fires only when the lock is **not stale** (age ≤ 2h) | name the in-flight run — **holder / when / sha** read off the lock tag message (the additive `lock` block below) — and say to wait for it to complete. If it is actually a wedged run, the **stale** path (below) prints the manual unlock; never suggest `--force`-stealing a live lock |
+| `out_of_scope_modify` | both | asked to edit source code | post-merge only merges, stamps sign-off, deploys, and tags the release + the release-lock tag (metadata only, no tracked file) — it never edits source |
+
+## `release_in_flight` — the held lock + the stale variant (C8)
+
+`release_in_flight` carries an additive `lock` block naming the holder (never a
+bare "someone is shipping"):
+
+```json
+{
+  "verdict": "refused",
+  "reason": "release_in_flight",
+  "mode": "production" | "staging",
+  "detail": "A production release is in flight, held by Ada <ada@x.io> since 2026-07-21T11:07:18Z on sha 4f2c9a1. Wait for it to finish, then re-run.",
+  "lock": {
+    "ref": "release-lock-main",
+    "held_by": "Ada <ada@x.io>",
+    "acquired_at": "2026-07-21T11:07:18Z",
+    "sha": "4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",
+    "prds": ["prd-101-task-crud"],
+    "age_seconds": 214,
+    "stale": false
+  },
+  "issues": []
+}
+```
+
+**Stale variant (`stale: true`, age > 2h TTL).** A lock older than the TTL is
+almost certainly an aborted/crashed run, not one still working. It is **not** a
+permanent dead-end and it is **never auto-stolen** (that reopens the race). Refuse
+*with the manual unlock*, so a solo dev is never wedged (CV1):
+
+> **Release lock is stale** — held by `<held_by>` since `<acquired_at>` (> 2h ago),
+> likely an aborted run. If no release is actually in flight, clear it and re-run:
+> `git push origin :refs/tags/release-lock-<prod>` (then `git tag -d release-lock-<prod>`).
+
+The same stale text is emitted by both `--production` (acquire rejected) and
+`--staging` (pre-flight read). A **non**-stale held lock refuses cleanly with "wait
+for it to finish" and no unlock command — a live lock must not be `--force`-stolen.
 
 ## `skipped` (not a refusal)
 
@@ -77,4 +115,5 @@ such pre-flight case.)
 - **Never open or merge a staging→main PR without both double-confirmation approvals.**
 - **Never stamp `staging-signoff:` without the explicit approval question returning "Staging works".**
 - **Never stamp a sign-off without its certified sha**, and never pin it to a commit other than the one that was deployed and human-tested. An unpinned stamp is unverifiable — it is exactly the hole `stale_signoff` exists to close.
-- **Never modify source code** — the only writes are the merges, the sign-off frontmatter stamp, the `INTAKE.md` `completed` stamp, the release **git tag** (metadata on a commit — no tracked file changes, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), and the run report.
+- **Never `--force`-steal a live (non-stale) release lock.** A held lock < 2h old is a running ship; only its own run releases it, or the human clears a stale one manually. Auto-stealing reopens the exact race the lock closes.
+- **Never modify source code** — the only writes are the merges, the sign-off frontmatter stamp, the `INTAKE.md` `completed` stamp, the release **git tag** and the transient **release-lock tag** (both metadata on a commit — no tracked file changes, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), and the run report.

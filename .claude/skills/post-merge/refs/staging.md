@@ -39,6 +39,37 @@ not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"
 This guard only bites under `release_flow=staged`; in `direct` flow `--staging`
 has already refused `no_staging_stage` (there is no staging to check).
 
+## In-flight-production check (pre-flight, before Step 2) — C8
+
+A `--staging` merge lands new commits on `staging` **while** a `--production` run
+may be mid-flight — the exact race the release lock names. If a production ship has
+already opened its `staging→main` PR (Step 4) and is between merge and verify,
+merging into `staging` now advances the branch the release is shipping: the PR
+silently grows past what the human double-confirmed, and past the commit the
+sign-off certified — **reopening C2's uncertified-commit hole at the concurrency
+level**. So `--staging` **reads** the production release lock and refuses if one is
+held (`../shared/refs/policy-schema.md` §6):
+
+```bash
+PROD=${prod_branch:-main}; LOCK="release-lock-$PROD"
+git fetch origin "refs/tags/$LOCK:refs/tags/$LOCK" --force --quiet 2>/dev/null
+git rev-parse -q --verify "refs/tags/$LOCK" >/dev/null   # exists ⇒ a production release holds the lock
+```
+
+- **Lock held, not stale** (age ≤ 2h) → **refuse** `release_in_flight`
+  (`refs/refusal-patterns.md`), naming the in-flight production run (holder/when/sha
+  from the tag message). The merge has not happened — refusing here keeps the
+  running release's certified window intact. Wait for it to finish, then re-run.
+- **Lock held, stale** (age > 2h) → same stale handling as `--production`: report it
+  as stale with the one-line manual unlock, never a blind permanent refusal.
+- **No lock** → proceed to Step 2.
+
+**Asymmetric by design:** `--staging` **reads** the lock but never **acquires** one.
+A staging merge (a single `gh pr merge`) is near-atomic — the reverse window (a
+production ship starting mid-staging-merge) is sub-second and not worth the machinery
+or the friction (AC-LK3). The production ship is the long-lived hold; it is the only
+acquirer.
+
 ## Step 2 — Locate the PR + verify green CI
 
 1. Resolve the feature branch: from `--prd`'s `feat/prd-<n>-<slug>`, else the current branch, else the single open `--base staging` PR.

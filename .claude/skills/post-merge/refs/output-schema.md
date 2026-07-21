@@ -35,6 +35,14 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
     "tag": "v2.3.0+418",                // cut on prod ONLY on a successful release (Step 9); null on a failed/skipped tag
     "bump": "minor"                     // "major" | "minor" (default) | "patch" | "explicit"
   },
+  "release_lock": {                     // ADDITIVE (C8/P5/CV2) — --production only; absent on --staging & pre-P5 runs
+    "ref": "release-lock-main",         // the lock tag (release-lock-<prod>)
+    "acquired": true,                   // did THIS run acquire the lock (false on infra-error fail-open)
+    "acquired_at": "2026-07-21T11:07:18Z",  // tagger date of the acquire; null if not acquired
+    "released": true,                   // released at termination; false ONLY on a hard-kill dangle (TTL then reclaims)
+    "released_at": "2026-07-21T11:14:02Z",  // when this run released it; null if still held / never acquired
+    "stale_detected": false             // true when a prior stale lock (age > TTL) was reported to the human this run
+  },
   "report": "features/prd-101-.../reports/report-3.md"
 }
 ```
@@ -112,6 +120,25 @@ smoke emits the defaults below, so a pre-v2 reader is unaffected (AC-SM1):
 | `mode` | `one_shot` (bare `smoke_cmd`, AC-SM1) · `poll` (waited for a late-live target, AC-SM3) · `watch` (re-checked health over a window, AC-SM2) · `poll+watch` (both — poll then watch) |
 | `attempts` | total `cmd` invocations: `1` for one-shot; `1 + poll-retries`; `1 + watch-re-checks`; summed when composed |
 | `window` | `held` (every watch re-check passed) · `degraded` (a watch re-check failed → `smoke-failed`, routes to the rollback offer) · `timed_out` (a poll never saw exit 0 within the bound → `smoke-never-live`) · `null` (one-shot, or poll-that-passed with no watch declared) |
+
+**Release-lock fields (C8/CV2/AC-CONTRACT1 — additive, `--production` only).** The
+`release_lock` block (above) records the concurrency lock's per-run state
+(`refs/production.md` § *Release lock*, `../shared/refs/policy-schema.md` §6). All
+additive — absent on `--staging` and pre-P5 runs, so no existing reader is affected:
+
+| Field | Meaning |
+|---|---|
+| `ref` | the lock tag name, `release-lock-<prod>` (e.g. `release-lock-main`) |
+| `acquired` | did **this** run acquire the lock. `false` only on the infra-error fail-open (a non-contention push error → proceed without the guard, one `low` note) |
+| `acquired_at` | ISO-8601 tagger date of the acquire; `null` when not acquired |
+| `released` | did this run release it at termination (AC-LK2). `true` on every graceful exit — success, failed ship, refusal-after-acquire; `false` **only** on a hard process kill, which the 2h TTL + manual unlock then reclaim |
+| `released_at` | when this run released it; `null` if never acquired or still held |
+| `stale_detected` | `true` when a **prior** stale lock (age > 2h TTL) was surfaced to the human with the manual-unlock instruction this run (CV1 escape hatch) |
+
+A **contended** acquire does not produce this block — it produces the
+`release_in_flight` **refusal** instead (its own `lock` block names the holder,
+`refs/refusal-patterns.md`). The clean-run `release_lock` block is for the run that
+**held** the lock; the refusal's `lock` block is for the run that was **blocked**.
 
 ## Deploy-failure finding
 

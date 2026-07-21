@@ -472,3 +472,30 @@ flow it is **absent** — there is no staging to verify (AC-SR4).
 
 The guard is **inactive under `release_flow=direct`** (there is no staging — the
 staging-scoped stages do not apply; `post-merge/SKILL.md` § *Release flow*).
+
+## 6 · Release lock (post-merge `--production`) — C8
+
+The **release lock** serializes production ships so two `--production` runs (two
+terminals, two teammates, a retry over a live ship) cannot race on `prod`
+(`post-merge/refs/production.md` § *Release lock*). It is **runtime state on the
+remote, not a `policy.json` decision** — like a resolved `release_model` and unlike
+`branch_protection`, it is derived/held per run, never persisted as settled policy.
+Documented here because policy-schema is the canonical home for post-merge's
+release-shape contract (`release_flow` §1, `release_model` §4, `staging_ready` §5).
+
+| Aspect | Value |
+|---|---|
+| **Mechanism** | an **annotated git tag** `release-lock-<prod>` (e.g. `release-lock-main`) pushed to the remote — reuses P3's pushed-tag primitive; a tag is metadata on a commit, writes **no tracked file**, so the safety floor holds (D8) |
+| **Where the state lives** | the **remote** (`refs/tags/release-lock-<prod>`) — survives across machines, so a teammate on another laptop sees the same lock. Not in `policy.json`, not a local file |
+| **Atomicity** | a tag ref is never fast-forwarded — pushing an existing tag name is **rejected** without `--force`; that rejection is the atomic compare-and-swap-to-absent (create ⇒ acquired, reject ⇒ someone holds it) |
+| **Holder metadata** | the annotated tag message carries `held-by` / `mode` / `at` / `sha` / `prds` — read to name the in-flight run in a `release_in_flight` refusal (AC-LK1) |
+| **Acquire point** | `--production` only, **after Step 3 (double-confirm), before Step 4 (open PR)** — late enough that every pre-flight refusal (Steps 1–2, a Step 3 cancel) skips the lock, early enough to cover the mutating window (Steps 4–9). Both flows (`staged` + `direct`) acquire — a direct feature→`prod` ship races the same way |
+| **Release** | unconditional at run termination for any run that acquired it — success, failed ship, **or refusal-after-acquire** (Step 5 `red_ci`/`no_review`/`merge_failed`, Step 6 `nonmonotonic_build`). Deletes the remote tag. Never dangles on a graceful exit (AC-LK2) |
+| **TTL / staleness** | **120 minutes (2h)**, from the tagger date. A lock older than the TTL is **stale** — reported with the manual-unlock instruction, **never** blindly refused forever and **never** auto-stolen (auto-steal reopens the race). Fixed constant in v4 (no new config surface — CV1/D4); a `policies.release_lock` knob is a v4.1 option if a team needs it |
+| **Manual unlock (escape hatch)** | `git push origin :refs/tags/release-lock-<prod>` (delete the remote tag), then `git tag -d release-lock-<prod>` locally. A wedged lock must never dead-end a solo dev (CV1) — this one-liner is documented prominently in `production.md`, `staging.md`, and `refusal-patterns.md` |
+| **`--staging` interaction** | `--staging` **reads** the lock as a pre-flight (before Step 2) and **refuses** `release_in_flight` if a non-stale production release holds it — a staging merge mid-production-ship advances `staging` past the certified window (C2). Asymmetric: `--staging` never **acquires** (its merge is near-atomic) |
+| **Infra-error fail-open** | an acquire push that fails for a **non-contention** reason (network/permission, not "already exists") emits one `low` note and **proceeds without the guard** — the lock is a safety *assist*, not a floor; a flaky network must not block the one dev (CV1) |
+
+The lock is **absent from `policy.json`** and adds **no required field** (CV2 — the
+schema change is purely documentary/additive). Its per-run state surfaces in the
+run report's additive `release_lock` block (`post-merge/refs/output-schema.md`).

@@ -139,6 +139,138 @@ computed from `staging..main`:
 On Cancel → stop (`skipped`). Only **Ship it** proceeds. Never infer approval —
 both asks must return an affirmative.
 
+## Release lock (acquire after Step 3, release on every exit) — C8
+
+A production ship is the one path that mutates `prod`. Two `--production` runs in
+flight at once — two terminals, two teammates, or a retry over a still-running ship
+— race on that branch: both open a `staging→main` PR, both merge, both deploy. The
+lock serializes them. It applies to **`--production` in both flows** (`staged` *and*
+`direct` — a `direct` feature→`prod` ship races on `prod` exactly the same way),
+and it is **silent when uncontended**: an uncontended acquire + release adds no
+prompt and no gate, so a solo dev shipping one release at a time never sees it
+(AC-LK3). Friction appears **only** on a real collision.
+
+### Mechanism — a remote git tag (`refs/release-identity.md` machinery, `../shared/refs/policy-schema.md` §6)
+
+The lock is an **annotated git tag** `release-lock-<prod>` (e.g. `release-lock-main`)
+pushed to the remote — the **same pushed-tag primitive P3's release tag already
+uses** (D8): a tag is metadata on a commit, writes **no tracked file**, so the safety
+floor holds. Storage is the **remote**, so the lock survives across machines
+(the open question) — a teammate on another laptop sees the same lock. No committed
+file (which would violate the source-write floor), no GitHub deployment/issue (no
+atomic single-holder guarantee), no new credentials (it reuses the push post-merge
+already does at Step 9).
+
+**Atomic acquire.** A tag ref is never fast-forwarded — pushing a tag name the
+remote already holds is **rejected** without `--force`. That rejection *is* the
+compare-and-swap-to-absent: the push either creates the tag (you hold the lock) or
+fails because someone else holds it. Acquire, then re-read to confirm you own it:
+
+```bash
+PROD=${prod_branch:-main}
+LOCK="release-lock-$PROD"
+# holder metadata rides in the annotated message → names the in-flight run (AC-LK1)
+git tag -a "$LOCK" "origin/$PROD" -m "held-by: $(git config user.name) <$(git config user.email)>
+mode: production
+at: $(date -u +%Y-%m-%dT%H:%M:%SZ)
+sha: $(git rev-parse origin/$PROD)
+prds: <prd ids this ship carries>"
+if git push origin "$LOCK" 2>/tmp/lock.err; then
+  :   # acquired — proceed to Step 4
+elif grep -qiE 'already exists|non-fast-forward|rejected|stale info' /tmp/lock.err; then
+  git tag -d "$LOCK"                      # drop the local tag; we did NOT acquire
+  # read the holder off the existing remote tag → refuse release_in_flight (below)
+else
+  git tag -d "$LOCK"                      # infra/network error, not a contention
+  # fail-open: one `low` note "lock not acquired (push error) — proceeding without
+  # concurrency guard", then proceed. The lock is a safety ASSIST, not a floor; a
+  # flaky network must not dead-end a legit solo ship (CV1).
+fi
+```
+
+**Acquire happens here — after Step 3, before Step 4 — deliberately (AC-LK2, AC-LK3):**
+
+- **Late enough** that no *pre-flight refusal* ever touches the lock: Step 1
+  (`staging_not_green` / `no_signoff` / `stale_signoff`), Step 2 (`unprotected`),
+  and a Step 3 double-confirm **Cancel** all exit *before* acquisition — those runs
+  never acquire, so there is nothing to release and no friction on the common
+  refusal paths (AC-LK3).
+- **Early enough** to cover the whole mutating window: Step 4 (open release PR),
+  Step 5 (the irreversible merge to `prod`), and Steps 6–9 (deploy/verify/stamp/tag)
+  all run **inside** the lock. Two runs can both clear Step 3 concurrently (two humans
+  each confirm); the acquire at the top of this window is what serializes them —
+  first to push the tag proceeds, the second's push is rejected and it refuses
+  `release_in_flight` naming the first (AC-LK1).
+
+### If acquire is rejected → `release_in_flight` (`refs/refusal-patterns.md`)
+
+Read the holder off the existing remote tag and refuse, naming who/when/sha:
+
+```bash
+git fetch origin "refs/tags/$LOCK:refs/tags/$LOCK" --force --quiet
+git for-each-ref --format='%(contents)' "refs/tags/$LOCK"   # held-by / at / sha / prds
+```
+
+Emit `release_in_flight` (verdict `refused`, exits non-zero) with the holder in
+`detail` + the additive `lock` block (`refs/output-schema.md`). This is a refusal,
+not a failed ship — it fires **before** Step 4's sanctioned mutating action, so it
+un-does nothing (`refs/refusal-patterns.md`).
+
+### Staleness — bounded TTL, never a permanent dead-end
+
+A lock older than **120 minutes (2h)** is **stale**. TTL rationale: the in-lock
+window is merge + deploy + verify — the longest bounded async waits are macOS
+notarization (~10m ceiling, C6) and the smoke `poll`/`watch_window` (C7), summed
+with a slow local deploy; 2h clears that with wide margin, yet a lock alive past 2h
+is almost certainly a **crashed or abandoned** run, not one still working. Read the
+tagger date and compare:
+
+```bash
+LOCK_AGE=$(( $(date +%s) - $(git log -1 --format=%ct "refs/tags/$LOCK") ))
+# LOCK_AGE > 7200  ⇒ stale
+```
+
+On a **stale** lock, do **not** blindly refuse forever and do **not** auto-steal
+(auto-stealing re-opens the race). Report it as stale with the one-line manual
+unlock and let the human decide (the CV1 escape hatch — a wedged lock must never
+dead-end a solo dev):
+
+> **Release lock is stale** — held by `<holder>` since `<at>` (> 2h ago), likely an
+> aborted run. If no release is actually in flight, clear it and re-run:
+> `git push origin :refs/tags/release-lock-<prod>`  (then `git tag -d release-lock-<prod>` locally)
+
+### Release — unconditional, on every exit of a run that acquired it (AC-LK2)
+
+**Invariant: any `--production` run that acquired the lock releases it as the last
+action before its terminal output — on success, on a failed ship, and on a
+refusal-after-acquire — with no exception path.** Release deletes the remote tag:
+
+```bash
+git push origin ":refs/tags/$LOCK" && git tag -d "$LOCK"   # release; failure → low note, tag TTL-expires anyway
+```
+
+Every exit path of `--production` **after acquisition**, and where the lock releases:
+
+| # | Exit path (post-acquire) | Outcome | Lock release |
+|---|---|---|---|
+| 1 | Step 4 `gh pr create` errors | reported failure | **release**, then surface the error |
+| 2 | Step 5 `red_ci` / `pending_ci` | refused | **release** before emitting the refusal |
+| 3 | Step 5 `no_review` | refused | **release** before the refusal |
+| 4 | Step 5 `merge_failed` | refused | **release** before the refusal |
+| 5 | Step 6 `nonmonotonic_build` (before submit) | refused | **release** before the refusal |
+| 6 | Step 6 deploy failure | failed ship (terminal) | **release** at ship termination (after the failed-ship loop) |
+| 7 | Step 7 smoke / poll-timeout / watch-degrade / macOS-check / provenance failure | failed ship (terminal) | **release** at ship termination |
+| 8 | Human declines the Step 7 rollback offer | still a terminal ship outcome | **release** at ship termination |
+| 9 | Steps 6–9 all pass | success (tagged) | **release** after Step 9 |
+| 10 | **Hard process kill** (SIGKILL / crash) between acquire and any release | dangling lock | **not** releasable by code — the **TTL (2h) + manual unlock** cover it (the one path graceful release cannot, by physics) |
+
+Rows 2–5 are refusals that fire *after* acquisition — each releases the lock first,
+so a refused release never leaves the lock dangling. Row 10 is the only path a
+`finally`-style release cannot reach; it is exactly why the TTL + manual-unlock
+escape hatch exists, and it is documented honestly rather than pretended away.
+Record `{ref, acquired, acquired_at, released, released_at, stale_detected}` into
+the run report's `release_lock` block (`refs/output-schema.md`).
+
 ## Step 4 — Open the release PR (staging → main)
 
 ```bash
@@ -276,7 +408,7 @@ git push origin "v${NEXT_VERSION}+${BUILD}"
 Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored, its smoke check failed, **or provenance mismatched** (Step 7).
-- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success — Step 9; skipped-with-note or absent on a failed release), the bump level, and per-platform provenance (`verified` / `asserted (unverified)` / `fail`) (`refs/release-identity.md`). On a failed ship, also carry the **rollback offer outcome** (offered/executed/declined + cmd exit) surfaced by the failed-ship loop (`refs/output-schema.md`).
+- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success — Step 9; skipped-with-note or absent on a failed release), the bump level, and per-platform provenance (`verified` / `asserted (unverified)` / `fail`) (`refs/release-identity.md`). On a failed ship, also carry the **rollback offer outcome** (offered/executed/declined + cmd exit) surfaced by the failed-ship loop (`refs/output-schema.md`). If a **stale lock** was reported and cleared this run, carry the `low` note; a clean uncontended acquire/release adds nothing here (silent — AC-LK3).
 - `## Work done` — PRDs shipped, commit count, platforms deployed. **Under `release_flow=direct`, open with one `Stages` line** naming what did not run and why, so the reduced set is visible rather than invisible (AC-NS1):
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.

@@ -54,9 +54,10 @@ other gate holds. See **Release flow** below.)
 - Does NOT merge on red or pending CI — branch protection is the enforcement; this skill's checks refuse and list the failing checks.
 - Does NOT run `--production` without staging-green **and** a `staging-signoff:` stamp in the PRD frontmatter **whose pinned sha still covers `staging`'s tip** — commits merged after sign-off refuse (`stale_signoff`), never ride along uncertified.
 - Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals.
+- Does NOT run a second `--production` while one is in flight — the **release lock** (a remote `release-lock-<prod>` git tag, `refs/production.md` § *Release lock*) refuses `release_in_flight`, naming the holder (who/when/sha); it releases on every exit of the acquiring run (success, failed ship, or refusal-after-acquire) and a stale lock (> 2h) prints the manual unlock rather than dead-ending (`refs/refusal-patterns.md`, `../shared/refs/policy-schema.md` §6). A `--staging` merge during an in-flight production ship refuses the same way (it would advance `staging` past the certified window). Uncontended acquire/release is silent — solo single-run and `direct` flow feel no friction.
 - Does NOT run when `post-merge-protection.sh --verify` reports the branch unprotected **and** the `branch_protection` policy resolves to `enforced` (the default / no-file case) — refuses with the bootstrap instruction; `optional` warns + proceeds, `skip` doesn't verify (`../shared/refs/policy-schema.md` §2). `NO_GH`/`NO_REMOTE` refuse regardless of mode.
 - Does NOT run `--staging` into a staging environment `--init` recorded as **unready** (a platform with `gaps[]` in `staging_ready`) **when `staging_readiness` resolves to `enforced`** (the default) — refuses `staging_unready`, naming the exact missing artifact + fix; `optional` warns + proceeds, `skip` doesn't guard, and a **missing** record (pre-C9 init) only warns, never refuses (`../shared/refs/policy-schema.md` §5, `refs/staging.md`).
-- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), the release **git tag** `v<x.y.z>+<build>` on prod at a successful `--production` (metadata on a commit — writes **no tracked file**, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), and its run report.
+- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), the release **git tag** `v<x.y.z>+<build>` on prod at a successful `--production` (metadata on a commit — writes **no tracked file**, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), the transient **release-lock tag** `release-lock-<prod>` pushed on acquire and deleted on release around a `--production` ship (`refs/production.md` § *Release lock*, C8 — also metadata on a commit, no tracked file), and its run report.
 - Does NOT report a deploy as shipped without running the platform's `smoke_cmd` against the deployed target (unconfigured → recorded as skipped with a note, per `refs/verify-deploy.md`).
 - A failed ship is **not** a refusal — the merge already happened; on a deploy/smoke failure post-merge writes the colocated issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` and enters the fix loop (`../shared/refs/fix-loop.md`) rather than dead-ending.
 
@@ -197,7 +198,9 @@ Then write the run report (`skill: post-merge`, staging flavor — carries the h
 Loads `refs/production.md` (+ `refs/release-identity.md` for version/build/tag).
 The gates here never relax. Release identity — the next version + build from the
 last `v*` tag on prod (read-only, D8) — is resolved **early** (before Step 3, so
-the confirm shows the tag) and threaded through Steps 6/7/9.
+the confirm shows the tag) and threaded through Steps 6/7/9. The **release lock**
+is acquired between Step 3 and Step 4 and released on every exit — see
+`refs/production.md` § *Release lock* (C8).
 
 | # | Step | Ref |
 |---|------|-----|
@@ -270,7 +273,7 @@ through `/pre-merge` and this gate; the gate does not dead-end on the issues fil
 ## References
 
 - `refs/staging.md` — `--staging` steps 2/3/7 (PR locate, green-CI check, merge, sign-off stamp)
-- `refs/production.md` — `--production` preconditions, double-confirmation, release PR, merge
+- `refs/production.md` — `--production` preconditions, double-confirmation, **release lock** (acquire after Step 3 / release on every exit / TTL + manual unlock, C8), release PR, merge
 - `refs/protection.md` — Step 1/2 branch-protection verify via `post-merge-protection.sh` (policy-conditional: `enforced` refuses, `optional` warns + proceeds, `skip` doesn't verify)
 - `refs/protocol-init.md` — `--init` mode (protection policy, deploy/smoke CLIs, PLATFORMS.md gap delegation; no merge/PR/deploy); `--doctor` is a deprecated one-release alias
 - `refs/deploy.md` — per-platform staging/production deploy resolution from `devkit/PLATFORMS.md`; what deploy-cmd exit 0 means per `release_model` (live vs submitted); on a deploy failure the failed-ship loop offers the executable rollback/rollout-halt
@@ -279,7 +282,7 @@ through `/pre-merge` and this gate; the gate does not dead-end on the issues fil
 - `refs/submission.md` — the `submission` release model (iOS/Android): exit 0 = submitted (+ track), never live; verification = submission accepted; smoke = backend/build health. Carries the full lifecycle (submit → processing → review → phased rollout), the monitor-handoff, `completed`-on-submit, the `live_status` polling seam, and submission-in-`direct`-flow (CV5)
 - `refs/human-test-script.md` — deriving the staging human test script (D11 human gate)
 - `refs/refusal-patterns.md` — refusal shapes (red CI, missing sign-off, unconfirmed, conditional `unprotected`, direct-mode `no_staging_stage`)
-- `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (§0 `init` lifecycle, §1 `release_flow`, §2 `branch_protection`)
+- `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (§0 `init` lifecycle, §1 `release_flow`, §2 `branch_protection`, §4 `release_model`, §5 `staging_ready`, §6 release lock)
 - `refs/output-schema.md` — finding/verdict emission on refusal or deploy failure
 - `../shared/refs/fix-loop.md` — the post-failure Offer #1 → Offer #2 sequence run on a failed ship
 - `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` — the issues file written on a failed ship (canonical `issues[]`, `followUp` contract)
