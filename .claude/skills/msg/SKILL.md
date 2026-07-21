@@ -164,9 +164,14 @@ Do **not** rewrite the file from scratch; edit only these fields. After this, `p
 [`shared/refs/policy-schema.md`](../shared/refs/policy-schema.md) (writers table — `/msg --init-staging`
 performs the "flow flip").
 
-**Step 4 — Summary.** Print what happened: branch created (or already present), protection applied
-(or skipped), and the new `staged` flow. Suggest next: `/pre-merge` now opens PRs against `staging`.
-This mode never merges, deploys, or opens PRs.
+**Step 4 — Summary + readiness handoff.** Print what happened: branch created (or already present),
+protection applied (or skipped), and the new `staged` flow. **Creating the branch does not make
+staging ready** — each shipping platform still needs its staging environment declared (a
+non-placeholder `staging_deploy_cmd` + target, any staging config file, and a named internal/
+TestFlight track for store-submission platforms). Hand off: run **`/post-merge --init`**, which
+verifies that per-platform readiness and flags every gap with its exact fix (fill the gap in
+`devkit/PLATFORMS.md`, then re-run `--init`). Then `/pre-merge` opens PRs against `staging`. This
+mode never merges, deploys, or opens PRs.
 
 ---
 

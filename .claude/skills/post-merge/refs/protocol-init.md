@@ -30,7 +30,7 @@ Steps 1–5 all lean on `gh`. If absent, offer `brew install jq gh` and prompt
 `gh auth login`; without a git remote, note that protection/PR steps are inert. Record
 `gh` presence so the coverage map below is honest (a `◐` step that has no `gh` is dead).
 
-## The five detection items
+## The six detection items
 
 ### 1 · Release flow (branch topology) → `release_flow`
 
@@ -48,6 +48,12 @@ git show-ref --verify --quiet refs/heads/staging   # or gh api on the remote
 `--init` **records the choice**; it **never creates the branch** — that is
 `/msg --init-staging`'s job alone (AC-DR6, AC-RF5, AC-OW3). See `policy-schema.md`
 §`policies.release_flow`.
+
+**A branch is not a ready staging environment.** Detecting `staging` present is
+only the *topology* half — it says the flow is `staged`, not that the environment
+each platform deploys into actually exists. Under `staged`, item 6 below runs the
+per-platform **staging-readiness** detection; branch-exists is never treated as
+"staging ready" (AC-SR1).
 
 ### 2 · Branch protection → `branch_protection`
 
@@ -130,10 +136,55 @@ filled them in. `--init` **reports** these gaps and **delegates to `/msg --init`
 **does not write `devkit/PLATFORMS.md`** (AC-DR1, AC-OW2). PLATFORMS.md command
 declarations stay owned by `/msg --init`; post-merge `--init` is read-only to that file.
 
+### 6 · Staging readiness (per shipping platform) → `staging_ready`
+
+**Only under `release_flow=staged`.** In `direct` flow the staging-scoped stages
+are **inactive because they do not apply** (there is nothing to deploy, test, or
+sign off) — this whole detection is inactive, not skipped and not relaxed
+(`../SKILL.md` § *Release flow*, three-state vocabulary; AC-SR4). Write **no**
+`staging_ready` record in `direct`.
+
+Today "staging ready" too often means "the branch exists" — a false promise
+discovered at deploy time. `--init` moves that failure left: for each shipping
+platform in `devkit/PLATFORMS.md`, verify the **declared** staging artifacts are
+present and non-placeholder (D14 — **declared-artifact checks only**; no
+stack-specific probing, no network pings, no store-CLI queries, no credentials).
+
+Resolve each platform's `release_model` first (the P1 path — from the PLATFORMS.md
+column, else inferred from platform identity with a warn; `../SKILL.md` § *Release
+model*, `policy-schema.md` §4). What "ready" means is model-shaped:
+
+| `release_model` | Ready when the row declares… | Checked (declared-artifact only) |
+|---|---|---|
+| `deploy` (web, macOS) | a non-placeholder `staging_deploy_cmd` **and** target; **and** if `staging_config` names a file, that file exists on disk; macOS additionally names a **staging channel/target** in the cmd | `staging_deploy_cmd` ≠ blank/`[USER: …]`; declared `staging_config` path present via `[ -f <path> ]` |
+| `submission` (iOS, Android) | a non-placeholder `staging_deploy_cmd` that **names an internal / TestFlight track** (e.g. `fastlane beta` (TestFlight), `./gradlew publishStaging` (internal track)) | `staging_deploy_cmd` ≠ blank/`[USER: …]` and the track is named in the cell |
+
+A cell is a **placeholder** (⇒ not declared / not ready) when it is empty or a
+`[USER: …]` stub. A `staging_config` cell that is blank/`[USER: …]` means *no
+config file is declared* — that platform simply has no config-file check (many
+need none); only a **real path** that is **missing on disk** is a gap.
+
+**Report per platform** — `ready` or a `gaps[]` list; each gap names the **exact
+missing artifact and the exact fix** (AC-SR1, AC-SR2), e.g.:
+
+- *web* — `no `.env.staging` on disk (declared in `staging_config`) and
+  `staging_deploy_cmd` is a `[USER: …]` placeholder — fill both in
+  `devkit/PLATFORMS.md`, then re-run `/post-merge --init`.*
+- *ios* — `staging_deploy_cmd` is a `[USER: …]` placeholder — set it to your
+  internal/TestFlight track deploy (e.g. `fastlane beta`), then re-run
+  `/post-merge --init`.*
+
+**Persist** the result to `policy.json` as the `staging_ready` record
+(`../../shared/refs/policy-schema.md` §5) — a resolved **fact**, re-derived on every
+re-init, that `--staging` reads to guard the ship (AC-SR3). `--init` performs no
+merge/deploy here; it only reads what the row declares and records readiness.
+
 ## Step-coverage map
 
 `--init` reaches three clusters (branch protection, deploy, smoke) plus the cross-cutting
-`gh` prerequisite. The rest are pure logic / content / human gates with nothing to set up.
+`gh` prerequisite, and — under `staged` flow — records the per-platform
+**staging-readiness** fact (item 6) that `--staging`'s guard reads. The rest are pure
+logic / content / human gates with nothing to set up.
 
 **Legend:** ✅ covered · ◐ indirect (via the `gh` prerequisite only) · ➖ not covered.
 
@@ -166,7 +217,9 @@ deploy, smoke); only the staging *stage* is gone. The **staging-scoped stages**
 not apply** — not waived and not relaxed; every stage that still applies runs at
 full rigor (AC-NS1/NS2). This is the read-contract's behavior
 (`policy-schema.md` §1, AC-RF3/AC-RF4); `--init`'s job is only to *record* `mode:"direct"`
-so the gate collapses correctly.
+so the gate collapses correctly. The **staging-readiness detection** (item 6) is
+likewise inactive here — there is no staging environment to verify — so `--init`
+writes no `staging_ready` record in `direct` (AC-SR4).
 
 ## What `--init` writes
 
@@ -176,6 +229,9 @@ so the gate collapses correctly.
 - `steps.smoke` — smoke-binary readiness (item 4).
 - `policies.branch_protection` — mode + `reason` + `overrides` (item 2).
 - `policies.release_flow` — completes/confirms the topology (item 1).
+- `staging_ready` — per-platform staging-readiness fact (item 6; **`staged` flow
+  only** — omitted in `direct`). A resolved fact, re-derived each re-init, read by
+  `--staging` (`../../shared/refs/policy-schema.md` §5).
 - flips **`init:true`** on completion, stamps `generated` + `generated_by:"post-merge --init"`.
 
 The written file must pass its own validation and re-load with **zero** warnings (AC-DR5,

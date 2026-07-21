@@ -2,6 +2,15 @@
 
 ## 2026-07-21
 
+### [29] — v4 P1b: `--init` verifies staging is actually set up, not just a branch
+
+- `.claude/skills/post-merge/refs/protocol-init.md`: Added (**C9/D14**, AC-SR1/SR2/SR4) — detection **item 6 · Staging readiness**: per-platform declared-artifact checks (staging cmd/target non-placeholder; declared `staging_config` file exists on disk; submission platforms name an internal/TestFlight/Play track; macOS a staging channel) — release-model-shaped, `staged` flow only, no probing/pings/credentials. Reports `ready`/`gaps[]` per platform with the **exact missing artifact and exact fix**; persists `staging_ready`; item 1 gains the "a branch is not a ready environment" caveat; in `direct` flow the whole item is inactive and writes no record
+- `.claude/skills/shared/refs/policy-schema.md`: Added (**C9**, AC-SR3) — new **§5 `staging_ready`** read-contract: per-platform `{ready, gaps[]}` + `resolved_at`/`resolved_by`, framed as a **resolved fact** (re-derived every re-init, absent in `direct`), never settled policy; new governing knob `policies.staging_readiness.mode` ∈ `enforced` (default) | `optional` | `skip`, mirroring `branch_protection`
+- `.claude/skills/post-merge/refs/staging.md`: Added (**C9**, AC-SR3) — **staging-readiness guard** pre-flight between Steps 1–2: recorded gaps refuse (`enforced`) / warn (`optional`) / pass (`skip`); an **absent** record (pre-C9 init) always warns + proceeds regardless of mode — a record predating C9 is never grounds for refusal
+- `.claude/skills/post-merge/refs/refusal-patterns.md` + `SKILL.md`: Changed (**C9**) — new `staging_unready` refusal (lists each unready platform's gaps + fix, remediation = re-run `--init`); one conditional hard-refusal line. § Release flow / § Release model / sign-off machinery untouched
+- `.claude/skills/msg/SKILL.md`: Changed (**C9**) — `--init-staging` Step 4 is now a readiness handoff: creating the branch ≠ staging ready; points at `/post-merge --init`'s per-platform readiness + fix loop
+- `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`: Changed (**C9**, AC-SR2) — optional `staging_config` column (the declaration surface the config-file check reads — without it the `.env.staging` check had nothing to read); `staging_deploy_cmd` annotated as the track/readiness signal
+
 ### [28] — v4 P1: per-platform `release_model` split (`deploy` vs `submission`)
 
 - `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`: Changed (**C1**, AC-RM1, I6) — the platforms contract gains a `release_model` column (`deploy` | `submission`; defaults web/macos→`deploy`, ios/android→`submission`). `smoke_cmd`'s contract is now release-model-aware, and the ios/android examples say **backend/build health only** — closing the contradiction where the template and `verify-deploy.md` disagreed about what a mobile smoke verifies

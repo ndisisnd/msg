@@ -14,7 +14,7 @@ The single authoritative definition of `devkit/policy.json`: the **committed, sh
 |---|---|
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow` (nothing else) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
-| `--init` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling + `branch_protection`, flips `init:true` |
+| `--init` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling + `branch_protection`, records `staging_ready` (post-merge `--init`, `staged` flow only), flips `init:true` |
 | `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`active_when`/new-component changes, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
 
 No gate run ever writes it (AC-OW1, AC-UP6) — a gate only recomputes `source_signature`
@@ -94,6 +94,7 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `components` | object[] | ✖ | — | the **v3 preflight manifest** — the resolved per-project pipeline (catalog defaults + detection + user overrides). Purely **additive** to the same file (AC-PF5). See [`components[]`](#components--the-v3-preflight-manifest) |
 | `source_signature` | string | ✖ | — | staleness hash of the detect-section tuple across all preflight reports; stamped by `--init`/`--update` (AC-UP4). Gate recomputes it read-only to warn on drift (AC-UP5). See below |
 | `steps` | object | ✖ | `{}` | per-step decisions. **Deprecated (v3):** superseded by `components[]`; **dual-written** by `--init`/`--update` until P3 flips the gate to the executor, then dropped. The pre-P3 gate still reads it |
+| `staging_ready` | object | ✖ | — | **resolved fact** — per-platform staging-readiness recorded by post-merge `--init` (`staged` flow only), read by post-merge `--staging` to guard the ship. **Additive** (AC-SR3); re-derived on every re-init, never settled policy. See [`staging_ready`](#5--staging_ready-post-merge---staging) |
 
 ### `repo` (informational — gates never branch on it)
 
@@ -121,6 +122,21 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `mode` | enum `enforced` \| `optional` \| `skip` | ✔ | `enforced` | repo-wide default, resolved per branch |
 | `reason` | string | required when `mode` ≠ `enforced` | — | governance note; missing → honored + `unjustified-policy` warn (AC-S3) |
 | `overrides` | object `<branch, mode>` | ✖ | `{}` | per-branch mode; resolved as `overrides[b] ?? mode` |
+
+### `policies.staging_readiness` — the staging-readiness guard stance
+
+Governs how post-merge `--staging` reacts to an **unready** staging environment
+(gaps recorded in `staging_ready`, below). **Mirrors `branch_protection`'s
+vocabulary and default** — same three modes, same safe default.
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `mode` | enum `enforced` \| `optional` \| `skip` | ✖ | `enforced` | `enforced` → a recorded gap **refuses** the ship; `optional` → **warns + proceeds**; `skip` → don't guard. Default matches `branch_protection` (`enforced`) — the safe stance |
+| `reason` | string | required when `mode` ≠ `enforced` | — | governance note; missing → honored + `unjustified-policy` warn (AC-S3), as with `branch_protection` |
+
+A **missing `staging_ready` record** (pre-C9 init, or never `--init`ed) is
+handled by the guard as a *warn + proceed regardless of `mode`* — it is never a
+refusal (see §5); `mode` governs only the **recorded-gap** case.
 
 ### `steps.<key>` — one entry per canonical step-key
 
@@ -409,3 +425,50 @@ becomes component-driven (its own executor phase), each shipping platform's
 resolved `release_model` is **mirrored into that platform's resolved
 `components[]` entry** — the executor reads the identical value, no second read
 path. Until then post-merge reads the PLATFORMS.md column directly.
+
+## 5 · `staging_ready` (post-merge `--staging`)
+
+`staging_ready` is a **resolved fact, not settled policy** — the same additive
+style as `release_model`'s resolution, but persisted rather than re-derived each
+run. Post-merge `--init` writes it (item 6, `refs/protocol-init.md`) by running
+the **declared-artifact checks** per shipping platform under `release_flow=staged`;
+`--staging` **reads** it to guard the ship. Because it is a fact, it is
+**re-derived on every re-init** and carries no user decisions to preserve (unlike
+`branch_protection`/`opted_out`, which `--update` never re-grades). In `direct`
+flow it is **absent** — there is no staging to verify (AC-SR4).
+
+```json
+"staging_ready": {
+  "resolved_at": "2026-07-21",
+  "resolved_by": "post-merge --init",
+  "platforms": {
+    "web": { "ready": true,  "gaps": [] },
+    "ios": {
+      "ready": false,
+      "gaps": [
+        "staging_deploy_cmd is a [USER: …] placeholder — set it to your internal/TestFlight track deploy (e.g. `fastlane beta`), then re-run /post-merge --init"
+      ]
+    }
+  }
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `resolved_at` | `YYYY-MM-DD` | when readiness was last derived (stamped by the writing skill) |
+| `resolved_by` | string | writer provenance — `post-merge --init` (informational) |
+| `platforms` | object `<platform, {ready, gaps}>` | one entry per shipping platform in `PLATFORMS.md` |
+| `platforms.<p>.ready` | bool | `true` iff every declared staging artifact for `<p>` is present + non-placeholder (item 6) |
+| `platforms.<p>.gaps` | string[] | empty when `ready`; else each entry names the **exact missing artifact + the exact fix** (AC-SR2) |
+
+**Read-contract (post-merge `--staging` guard, `refs/staging.md`).** Resolve
+`mode = policies.staging_readiness.mode ?? "enforced"` (mirrors `branch_protection`):
+
+| Record state | Guard behavior |
+|---|---|
+| **absent** (pre-C9 init / never `--init`ed) | **warn + proceed regardless of `mode`** — one `low` note recommending `/post-merge --init`; **never a refusal** solely because the record predates C9 |
+| present, **every** shipping platform `ready:true` | proceed silently |
+| present, **any** platform with `gaps[]` | `enforced` → **refuse** (`staging_unready`), listing each platform's gaps + fix; `optional` → **warn + proceed**, one `low` note per unready platform; `skip` → don't guard |
+
+The guard is **inactive under `release_flow=direct`** (there is no staging — the
+staging-scoped stages do not apply; `post-merge/SKILL.md` § *Release flow*).

@@ -16,6 +16,29 @@ staging**: Step 6 STOPS and waits for a human.
 Per `refs/protection.md`: `post-merge-protection.sh --verify staging`. Anything
 but `PROTECTED staging` refuses (`refs/refusal-patterns.md` → `unprotected`).
 
+## Staging-readiness guard (pre-flight, after Step 1)
+
+Before locating the PR, read the `staging_ready` record `--init` wrote
+(`../shared/refs/policy-schema.md` §5) — verify staging is a **real environment**,
+not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"`
+(mirrors `branch_protection`'s stance + default). Then:
+
+- **Record absent** (pre-C9 init, or the repo was never `/post-merge --init`ed) →
+  add **one `low` note** to the run report — *"staging readiness was never
+  recorded; run `/post-merge --init` to verify the staging environment"* — and
+  **proceed**. Never refuse solely because the record predates C9.
+- **Present, every shipping platform `ready:true`** → proceed silently.
+- **Present, any platform with `gaps[]`:**
+  - `enforced` → **refuse** (`refs/refusal-patterns.md` → `staging_unready`),
+    listing each unready platform's gaps and its exact fix verbatim from the
+    record. The merge has not happened yet — refusing here is the whole point:
+    surface the gap before deploying into an environment that was never set up.
+  - `optional` → **warn + proceed**, one `low` note per unready platform.
+  - `skip` → don't guard (record "staging-readiness check skipped by policy").
+
+This guard only bites under `release_flow=staged`; in `direct` flow `--staging`
+has already refused `no_staging_stage` (there is no staging to check).
+
 ## Step 2 — Locate the PR + verify green CI
 
 1. Resolve the feature branch: from `--prd`'s `feat/prd-<n>-<slug>`, else the current branch, else the single open `--base staging` PR.

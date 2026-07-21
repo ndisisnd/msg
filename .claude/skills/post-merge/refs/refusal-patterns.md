@@ -1,6 +1,6 @@
 ---
 name: post-merge-refusal-patterns
-description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
+description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
 ---
 
 # Refusal Patterns
@@ -26,6 +26,7 @@ Common shape:
 |---|---|---|---|
 | `unprotected` | both | Step 1/2 — **only when the resolved `branch_protection` mode is `enforced`** and `--verify` returns `UNPROTECTED`; **or** `NO_GH`/`NO_REMOTE` in any mode. Under `optional` an `UNPROTECTED` **warns + proceeds** (not a refusal); `skip` doesn't verify (`../shared/refs/policy-schema.md` §2) | list the missing protection; give the exact `--bootstrap` command. For `NO_GH`/`NO_REMOTE` cite the missing prerequisite, not protection |
 | `no_staging_stage` | staging | `release_flow.mode = direct` — there is no staging branch to merge into, so `--staging` cannot run (`../shared/refs/policy-schema.md` §1) | name both `/post-merge --production` (single ship straight to `prod_branch`, all human gates preserved) and `/msg --init-staging` (add a staging stage first) |
+| `staging_unready` | staging | Staging-readiness guard (after Step 1) — the `staging_ready` record shows one or more platforms with `gaps[]` **and** `policies.staging_readiness` resolves to `enforced` (the default). `optional` warns + proceeds; `skip` doesn't guard; an **absent** record warns + proceeds, never refuses (`../shared/refs/policy-schema.md` §5) | list each unready platform's gaps and its exact fix from the record; fill the missing artifact(s) in `devkit/PLATFORMS.md`, then re-run `/post-merge --init` |
 | `no_pr` | staging | Step 2 — no open feature→staging PR to merge | run `/pre-merge` first, or the PR already merged |
 | `red_ci` | both | CI has a failing check | list each failing check name; fix + re-gate via `/pre-merge` |
 | `pending_ci` | both | CI still running | list pending checks; re-run post-merge when CI settles (post-merge does not poll) |
