@@ -121,6 +121,36 @@ gaps, never `n/a`.
 > rather than an unconditional default (see `platform/protocol-a11y.md`) — a profile
 > override still layers on top. Policy, not a tool — nothing is installed.
 
+> **Env provisioner (C23, AC-SBX6).** When any `needs_env: true` component is present
+> (catalog `env` column — integration, migration, e2e, a11y, perf, load, smoke, mobile,
+> api-live), `--init` **detects** the project's sandbox provisioner candidates —
+> `docker-compose*.yml` / a testcontainers dep / an ephemeral-DB-branch CLI (e.g.
+> Neon/`pg_tmp`) / a `preview_deploy_cmd` / a mobile simulator — and asks **one**
+> `AskUserQuestion` to confirm the pick (or declare one, or skip). When **two**
+> candidates apply at once (full-stack mobile: a simulator **and** a compose backend),
+> record a composite **`stacks[]`** — one logical sandbox, both stacks. The answer is
+> recorded as the manifest's **`env_provision`** resolution (`policy-schema.md` — the
+> neutral provision / seed / reset / teardown interface; post-merge-consumable schema,
+> pre-merge-only writer). Alongside it, `--init` detects/asks for the **committed seed
+> script** (S-Q1: migrate-from-zero + versioned fixture — never a prod-like snapshot)
+> and the optional `perf`/`load` **`scale_factor`**. **Skip / nothing detected ⇒
+> `provisioner: "none"`** — recorded, valid, and loud at gate time: every env-needing
+> component then carries a `high` `sandbox-unprovisioned` finding per run
+> (`refs/executor.md` §3b), never a silent pass. A provisioner without a seed script is
+> also recorded and flagged loudly at gate time. Same detect→catalog→record pattern as
+> every other resolution; the provisioner itself may be an install offer (e.g. Docker
+> absent) under the normal per-item gate (AC-DR2).
+
+> **Regression suite composition (C23, AC-SBX8).** When `regression` is present,
+> `--init` resolves **`regression.needs_env`** from the accumulated suite's
+> composition: contains integration-level tests (DB/network-touching — detectable from
+> the suite's imports/markers, e.g. a testcontainers/DB fixture) → `true` (its
+> accumulated-suite run executes inside the sandbox); pure-unit suite → `false`. When
+> detection is ambiguous, ask **one** `AskUserQuestion`. Recorded on the `regression`
+> component in `components[]`; `--update` re-resolves it as a fact (not a settled
+> policy choice) when the suite's composition changes. Policy, not a tool — nothing is
+> installed.
+
 > **Load read/write mix (C16, AC-LOAD2).** When `load` is active (an endpoint/data-path
 > surface), `--init` asks **one** `AskUserQuestion` for the project's realistic **read/write
 > mix** (ratio + concurrency + think-time), recorded as the `load` component's `traffic_mix`
@@ -317,8 +347,11 @@ detected) and **before** the write:
 3. **Assemble `components[]`** (AC-CAT9): start from the catalog default row for each
    `nn`; overlay the detection (`present`, `run`, `tooling`, `status`); apply user
    overrides from the interview (`opted_out`/`deferred` decisions, any user-set
-   `criticality`). Ingestion needs **zero** per-check special-casing (AC-CK7) — one
-   uniform loop keyed on `nn`.
+   `criticality`). Each row carries its catalog `needs_env` default (C23);
+   `regression.needs_env` is the one resolved value (suite composition, AC-SBX8).
+   Ingestion needs **zero** per-check special-casing (AC-CK7) — one uniform loop keyed
+   on `nn`. Write the **`env_provision`** resolution (C23, AC-SBX6) beside
+   `components[]` from the provisioner interview above.
 4. **Validate the DAG is acyclic** (AC-PF3): topo-check the union of every component's
    `depends_on`. A cycle → report it and write **no** manifest (leave `policy.json`
    unchanged).
@@ -358,7 +391,10 @@ reconciles **facts about the code**, never settled policy choices.
 4. **Apply only** (AC-UP2):
    - `present` flips (a runner appeared or disappeared),
    - `active_when` flips (a surface appeared or disappeared),
-   - **new** components, seeded with **catalog defaults**.
+   - **new** components, seeded with **catalog defaults**,
+   - `regression.needs_env` re-resolution (C23/AC-SBX8 — the suite's composition
+     changed) and `env_provision` provisioner flips (a compose file / testcontainers
+     dep appeared or vanished) — both **facts**, re-detected like `present`.
    It **never** re-prompts a settled `opted_out`/`n/a` decision and **never** changes a
    **user-set** `criticality` — those are policy, not facts.
 5. **Fill genuinely-new gaps** by reusing `--init`'s gated per-item install/scaffold

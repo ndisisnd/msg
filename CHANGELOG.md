@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-21
+
+### [23] — v3.1/C23: hermetic test runs — env-needing checks now run in one ephemeral, isolated, disposable sandbox
+
+- `.claude/skills/shared/refs/component-catalog.md`: Changed (**C23**, AC-SBX1) — every component row gains an `env` column (`needs_env`): **true** for the checks that need a running app/DB (`integration`, `e2e`, `a11y`, `perf`, `load`, `migration`, `mobile`, `smoke`), **false** for every static check; `regression` is **conditional** on its suite composition (`ᶜ`, resolved at `--init`); `api` is **live-half only** (`ˡ` — spec-diff static, live-conformance sandboxed); `preview` is the **promoted-sandbox consumer** (`ᵖ` — provisions nothing). New "env-needing tier" section carries the lifecycle, the seed strategy (migrate-from-zero + versioned fixture, never a prod snapshot), warm fix-loop reset, and the loud no-provisioner degrade
+- `.claude/skills/shared/refs/policy-schema.md`: Added (**C23**, AC-SBX6) — the `needs_env` manifest field and the **`env_provision` resolution**: a neutral provision / seed / reset / teardown verb interface with `seed_script` + `scale_factor`, `provisioner: "none"` valid-but-loud, designed **post-merge-consumable** (shared schema, never shared machinery). Composite **`stacks[]`** supports full-stack-mobile repos needing two provisioners at once (simulator + compose backend) as **one logical sandbox**; the flat shape stays valid as the single-stack case
+- `.claude/skills/pre-merge/refs/executor.md`: Added (**C23**, AC-SBX2–5) — **§3b sandbox lifecycle**: provision **only-on-green** (a `mechanical`/`unit` fail never provisions — zero env cost on fail-fast) → run the env wave inside **exactly one** sandbox per run (own DB/state/ports, concurrent-run safe) → **promote the same env** to serve as the C20 preview (fresh-provisioned after warm resets; never a second env) → teardown after every run, pass or fail. Wave scheduling splits on `needs_env`; no provisioner ⇒ ambient run + `high` `sandbox-unprovisioned` finding (destructive checks skip-with-note, never against shared state)
+- `.claude/skills/pre-merge/refs/protocol-init.md`: Changed (**C23**, AC-SBX6/SBX8) — two new resolutions: **env-provisioner detection** (compose / testcontainers / DB-branch / preview-deploy / simulator; composite → `stacks[]`) + seed-script question, and **`regression.needs_env`** resolved from the suite's composition; `--update` re-resolves both as facts, never re-prompting settled policy
+- `.claude/skills/pre-merge/refs/platform/protocol-preview.md`: Changed (**C23**, AC-SBX5) — the human-review gate now **consumes the promoted sandbox** instead of provisioning its own; the preview-scoped `preview_env` field is superseded by `env_provision`; F3 kept as lineage
+- `.claude/skills/pre-merge/SKILL.md`: Changed — the pipeline outline gains the env wave (static waves → sandboxed env wave → coverage → regression tail)
+
+  **Verified by test (14/14 assertions):** the §3b lifecycle was exercised end-to-end against a real DB-backed fixture app — only-on-green, own-port/own-DB provision, seeded integration check inside the sandbox, two concurrent sandboxes with zero state leak, warm data-only reset (same server pid), promotion with env count still 1, and full teardown with no residue. Additive throughout (AC-SBX7) — no static check's behavior changed
+
 ## 2026-07-20
 
 ### [22] — Publish the v2.0.0 user-facing release notes

@@ -155,6 +155,7 @@ pre-executor lifecycle until its own executor plan lands.
     "criticality": "critical",
     "cost": "cheap",
     "depends_on": [],
+    "needs_env": false,
     "run": "npx eslint <files>; npx tsc --noEmit",
     "tooling": { "chosen": "eslint,tsc", "version": null },
     "status": "ready",
@@ -175,6 +176,7 @@ pre-executor lifecycle until its own executor plan lands.
 | `criticality` | enum `critical`\|`blocking`\|`advisory`\|`config-driven` | grading tier + fail-fast class; a platform profile may override (Q1); **user-set values are never re-graded by `--update`** (AC-UP2) |
 | `cost` | enum `cheap`\|`moderate`\|`expensive` | wave-scheduling hint |
 | `depends_on` | string[] | hard effect edges only; the graph MUST be **acyclic** — `--init` rejects a cycle and writes no manifest (AC-PF3) |
+| `needs_env` | bool | **C23** — `true` iff the component runs inside the ephemeral test-sandbox (catalog `env` column). Catalog-defaulted; `regression`'s value is **resolved at `--init`** from its suite composition (AC-SBX8) |
 | `run` | string \| null | resolved command (script/hybrid) or `<group>/protocol-<slug>.md` ref (subagent/gate) |
 | `tooling` | `{chosen,version}` \| null | the detection overlay |
 | `status` | enum `ready`\|`no_tooling`\|`n/a`\|`opted_out`\|`deferred` | detection status (`ready`/`no_tooling`/`n/a`) or the carried-over user decision (`opted_out`/`deferred`) |
@@ -182,6 +184,63 @@ pre-executor lifecycle until its own executor plan lands.
 
 **No `order` field** — ordering is a runtime topo-sort on `depends_on` (Fork B, AC-PF4);
 the manifest never freezes a sequence.
+
+### `env_provision` — the C23 sandbox provisioner resolution
+
+Sibling of `components[]` (additive — AC-SBX7). Records *how* this project stands up
+the ephemeral test-sandbox the `needs_env: true` components run in. Detected/declared
+at `--init` (`pre-merge/refs/protocol-init.md`); the executor consumes it at §3b.
+**Neutral verb interface by design** — post-merge may *read* it later (shared schema,
+never shared machinery); pre-merge remains its only writer.
+
+```json
+"env_provision": {
+  "provisioner": "docker-compose",
+  "provision": "docker compose -f docker-compose.test.yml up -d --wait",
+  "seed": "npm run db:migrate && npm run db:seed",
+  "reset": "npm run db:reset && npm run db:seed",
+  "teardown": "docker compose -f docker-compose.test.yml down -v",
+  "seed_script": "scripts/seed-test.ts",
+  "scale_factor": null
+}
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `provisioner` | enum `docker-compose`\|`testcontainers`\|`db-branch`\|`preview-deploy`\|`simulator`\|`none` | the detected/declared mechanism; `none` = no provisioner — env-needing components degrade **loudly** at gate time (AC-SBX6), never a silent pass |
+| `provision` | string \| null | stand up the isolated stack (own DB/state/ports) |
+| `seed` | string \| null | migrate-from-zero + apply the committed seed fixture (S-Q1: never a prod-like snapshot) |
+| `reset` | string \| null | cheap data-only reset between fix-loop iterations (S-Q2: drop → remigrate → re-seed; stack stays warm) |
+| `teardown` | string \| null | full teardown — run after **every** gate run, pass or fail (AC-SBX4) |
+| `seed_script` | string \| null | the committed seed script; absent while a provisioner exists ⇒ loud D28-style note at gate time, never a silent empty-DB run |
+| `scale_factor` | number \| null | optional generated-dataset multiplier for `perf`/`load` realism (S-Q1) — produced by the seed script, never a snapshot |
+
+`provisioner: "none"` (or the whole object absent) is valid — it means `--init` found
+nothing and the user declined to declare one; the gate then emits the `high`
+`sandbox-unprovisioned` finding per run. Absence is **never** a validation error.
+
+**Composite environments — `stacks[]` (additive).** A full-stack-mobile repo needs two
+provisioners at once (a `simulator` for the app **and** a `docker-compose` backend it
+talks to). `env_provision` may therefore carry an optional **`stacks[]`** array —
+each entry is one `{provisioner, provision, seed, reset, teardown, …}` object in the
+shape above:
+
+```json
+"env_provision": {
+  "stacks": [
+    { "provisioner": "docker-compose", "provision": "docker compose -f dc.test.yml up -d --wait", "seed": "...", "reset": "...", "teardown": "docker compose -f dc.test.yml down -v" },
+    { "provisioner": "simulator", "provision": "xcrun simctl boot test-sbx && install <build>", "seed": null, "reset": "xcrun simctl erase test-sbx", "teardown": "xcrun simctl shutdown test-sbx" }
+  ]
+}
+```
+
+- The **flat shape stays valid** as the single-stack case — `stacks[]` is never
+  required, and readers MUST treat a flat object as `stacks: [<that object>]`.
+- The stacks are **one logical sandbox** (AC-SBX2/SBX5 unchanged): the executor
+  provisions all stacks together, runs the env wave against the composite, promotes
+  the composite to preview, and tears **all** stacks down together — never partially.
+- A verb null on one stack (a simulator has no `seed`) is valid; the loud
+  seed-script rule applies per-stack only where a DB exists.
 
 ### `source_signature` — staleness hash
 

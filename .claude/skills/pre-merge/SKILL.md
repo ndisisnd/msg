@@ -123,10 +123,14 @@ this file stays the spine. In outline:
 4. **Topo-sort + run in waves.** Order = topological sort on `depends_on`, ties
    broken by `criticality` then `cost` (AC-PF7). Independent components in a wave
    run as **parallel subagents**; dependents never run concurrently (AC-PF8/9).
-   For universal+prd this is `{mechanical·security·unit·integration·prd-consistency}`
-   ‖ → `{coverage}` → `{regression}` (C5, AC-SEQ1). Platform components join Wave 1;
-   `preview`/`smoke` are the only-on-green tail. Each protocol loads its ref on
-   demand (`refs/universal/*`, `refs/platform/*`, `refs/prd/*`).
+   For universal+prd this is `{mechanical·security·unit·prd-consistency}` ‖ →
+   the **env wave** `{integration·e2e·a11y·perf·load·mobile}` inside the **C23
+   test-sandbox** (one ephemeral isolated env, provisioned only-on-green after the
+   static waves, promoted to serve as the preview, torn down after — `refs/executor.md`
+   §3b) → `{coverage}` → `{regression}` (C5, AC-SEQ1). Static (`needs_env:false`)
+   components never enter the sandbox; `preview`/`smoke` are the only-on-green tail.
+   Each protocol loads its ref on demand (`refs/universal/*`, `refs/platform/*`,
+   `refs/prd/*`).
 5. **Fail-fast by `criticality`** (`refs/severity-rubric.md`): `critical` aborts the
    remaining pipeline (mechanical/security/migration short-circuit); `blocking`
    fails the verdict, marks downstream dependents `blocked`, lets independent

@@ -1,6 +1,6 @@
 ---
 name: preview
-description: The single human-review gate (component 16, kind gate, blocking) — the merged qa+preview component (C20). Captures the feature's visual states AND stands up an ephemeral isolated live/pokeable env, runs the pre-approval live-env checks (api spec-drift, migration up→down→up), then serves ONE unified approval artifact (evidence + the C22 manual-test-plan checklist) for a single Approve/Reject. R1 smoke-precondition · R2 informed approval · R3 commit-bound · R4 structured reject. Async park/notify/resume, ephemeral + isolated (F3 spike). active_when = union of UI-surface OR api/migration/deploy surface.
+description: The single human-review gate (component 16, kind gate, blocking) — the merged qa+preview component (C20). Captures the feature's visual states in the promoted C23 test-sandbox (the same ephemeral isolated env the needs_env wave ran in — this gate provisions nothing itself, AC-SBX5), runs the pre-approval live-env checks (api spec-drift, migration up→down→up), then serves ONE unified approval artifact (evidence + the C22 manual-test-plan checklist) for a single Approve/Reject. R1 smoke-precondition · R2 informed approval · R3 commit-bound · R4 structured reject. Async park/notify/resume, ephemeral + isolated. active_when = union of UI-surface OR api/migration/deploy surface.
 ---
 
 # Component 16 — PREVIEW (the single human-review gate)
@@ -34,22 +34,27 @@ paths. No trigger match (and not strict) → **skip** and record it
 (`preview: { fired: false }`). The executor only runs `preview` when this union gate is
 met — an absent surface means no gate.
 
-## The gate runs in the ephemeral isolated env (F3 spike §B)
+## The gate runs in the promoted C23 sandbox (AC-SBX5)
 
-Everything below runs against a **provisioned, isolated, torn-down** preview
-environment — own DB + own service instance, never shared/prod state — via the
-mechanism recorded at `--init` on the `preview` component's `preview_env` field
-(`docker`/compose · an ephemeral `preview_deploy_cmd` URL · a disposable DB
-schema/`pg_tmp`). **No `preview_env` provisioning declared ⇒ the gate degrades
-loudly** (a `high` `preview-env-unprovisioned` finding surfaced in the evidence,
+Everything below runs against the **promoted test-sandbox** — the same ephemeral,
+isolated environment the executor provisioned for the `needs_env` wave
+(`refs/executor.md` §3b), promoted to serve as this preview. **This gate never
+provisions an environment of its own — no second env, ever.** The mechanism is the
+manifest's `env_provision` resolution (`shared/refs/policy-schema.md` — provision /
+seed / reset / teardown; recorded at `--init`), which **supersedes** the old
+preview-scoped `preview_env` field. The promoted sandbox is a **fresh provision**
+(S-Q2): a run that arrived via warm fix-loop resets is re-provisioned before
+promotion, so the artifact the human approves is provably hermetic.
+
+**No provisioner declared (`env_provision` absent / `provisioner: "none"`) ⇒ the gate
+degrades loudly** (a `high` `sandbox-unprovisioned` finding surfaced in the evidence,
 and the destructive pre-approval checks are skipped-with-note) — it never runs
 up→down→up against shared state. The env is **torn down after the decision**
 (approve or reject), always.
 
-> **Scope (F3):** this env is **preview-scoped only** — it exists to make this gate's
-> live-env checks and up→down→up safe. **v3.1 / C23** generalizes it into the shared
-> test-sandbox for the whole `needs_env` wave; that broader sandbox is **not** built
-> here.
+> **Lineage (F3 → C23):** the F3 spike stood this env up preview-scoped; **v3.1 / C23**
+> generalized it into the shared test-sandbox for the whole `needs_env` wave. This gate
+> is now a **consumer** of that sandbox, not a provisioner.
 
 ## 1 · R1 precondition — never prompt on a broken preview
 
@@ -209,6 +214,6 @@ ends without a PR until the human resumes.
   live-env halves (#3) run here against the ephemeral preview (§3)
 - `platform/protocol-a11y.md` — a11y evidence bundled into R2
 - `../../shared/refs/name-the-user-impact.md` — the finding-framing the R2 evidence uses
-- `refs/executor.md` — how the executor sequences smoke→preview and handles the async
-  `parked` gate + `--resume`
+- `refs/executor.md` — how the executor sequences smoke→preview, provisions/promotes
+  the C23 sandbox (§3b), and handles the async `parked` gate + `--resume`
 - `refs/_common.md` — guard / error rule / output envelope

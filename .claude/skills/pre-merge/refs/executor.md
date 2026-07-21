@@ -1,6 +1,6 @@
 ---
 name: executor
-description: The preflight-driven pipeline executor (C1/C5) — reads devkit/policy.json components[], prunes by presence + flags, topo-sorts on depends_on into parallel waves, runs each component, fails fast by criticality, and aggregates the per-check result reports into the verdict JSON + universal report. Replaces the old fixed Steps 0–9 gate.
+description: The preflight-driven pipeline executor (C1/C5) — reads devkit/policy.json components[], prunes by presence + flags, topo-sorts on depends_on into parallel waves, runs each component (the needs_env wave inside the C23 ephemeral test-sandbox, provisioned only-on-green and promoted to serve as the preview), fails fast by criticality, and aggregates the per-check result reports into the verdict JSON + universal report. Replaces the old fixed Steps 0–9 gate.
 type: reference
 ---
 
@@ -133,22 +133,26 @@ Compute order every run — the manifest carries **no** frozen `order` field (AC
    loaded manifest is somehow cyclic, refuse rather than loop.
 
 The sort yields **waves** — each wave is the set of components whose dependencies
-all completed in an earlier wave (Kahn levels). For a universal+prd web-app
-manifest this collapses today's 6 serial steps into **3 waves** (C5, AC-SEQ1):
+all completed in an earlier wave (Kahn levels). **C23 splits the schedule on
+`needs_env`** (an execution-policy layer like only-on-green, not a `depends_on`
+edge): `needs_env:false` components schedule normally; `needs_env:true` components
+are deferred into the **env wave**, which runs inside the sandbox after the static
+correctness waves are green (§3b). For a universal+prd web-app manifest (C5,
+AC-SEQ1):
 
 | Wave | Components (tie-break order shown) | Why |
 |---|---|---|
-| **1** | `mechanical` (critical, short-circuits) · `security` (critical) · `unit` · `integration` · `prd-consistency` *(prd; only with `--prd`)* | need only `sync` — no effect edges among them |
-| **2** | `coverage` · `manual-test-plan` *(prd; only with `--prd`)* | `coverage depends_on {unit, integration}`; `manual-test-plan depends_on {prd-consistency}` (reuses its grades) — both parse a Wave-1 output |
-| **3** | `regression` | tail-pinned: `depends_on` all other universal/prd |
+| **1** *(static)* | `mechanical` (critical, short-circuits) · `security` (critical) · `unit` · `prd-consistency` *(prd; only with `--prd`)* · `api` *(spec-diff — its static half)* | `needs_env:false`, need only `sync` — no effect edges among them |
+| **2** *(env wave — in the C23 sandbox)* | `integration` · `e2e` · `a11y` · `perf` · `load` · `mobile` (whichever are present) | `needs_env:true` — sandbox provisioned only-on-green after Wave 1 (§3b, AC-SBX3) |
+| **3** | `coverage` · `manual-test-plan` *(prd; only with `--prd`)* | `coverage depends_on {unit, integration}`; `manual-test-plan depends_on {prd-consistency}` (reuses its grades) |
+| **4** | `regression` | tail-pinned: `depends_on` all other universal/prd; `regression.needs_env` follows its suite composition (AC-SBX8) — if `true`, its accumulated-suite run executes in the sandbox |
 
-Platform components (`e2e`, `a11y`, `perf`, `api`, `load`, `mobile`) are
-independent of the universal set (they only `depend_on sync`), so they join
-Wave 1 when present. `preview` (only-on-green, late) and `smoke` (`depends_on
-preview`) land in the tail waves alongside/after `regression`.
+`preview` (only-on-green, late — runs in the **promoted** sandbox, §3b) and `smoke`
+(`depends_on preview`) land in the tail waves alongside/after `regression`.
 
-**Smoke gates preview's expensive checks (C21).** `preview` first *fires* — provisions
-the ephemeral env + a preview handle — after which `smoke` (its `depends_on preview`
+**Smoke gates preview's expensive checks (C21).** `preview` first *fires* — takes over
+the **promoted C23 sandbox** (§3b; it provisions nothing itself) + a preview handle —
+after which `smoke` (its `depends_on preview`
 dependent) runs **before** `preview`'s expensive pre-approval work (visual captures, the
 api spec-drift + migration up→down→up live-env sweep, R2 assembly). Because `smoke` is
 `blocking` and cheap, a smoke failure **short-circuits**: the executor marks the rest of
@@ -169,9 +173,10 @@ A starts (AC-PF8) — true under every flag combination. Within a wave:
 - **Dependent components never run concurrently** — a dependent waits for its
   whole `depends_on` set.
 
-**Only-on-green tier.** `regression`'s test-authoring sub-step, `preview`, and
-`smoke` run only after the correctness components are green — never author/deploy
-onto a red branch (catalog "Only-on-green tier"; AC-SEQ3). `regression`'s
+**Only-on-green tier.** `regression`'s test-authoring sub-step, `preview`,
+`smoke`, **and the C23 sandbox provisioning (§3b)** run only after the correctness
+components are green — never author/deploy/provision onto a red branch (catalog
+"Only-on-green tier"; AC-SEQ3, AC-SBX3). `regression`'s
 *accumulated-suite run* always executes at the tail (it's the final
 "doesn't-break-production" gate before the PR); only its *authoring* is gated on
 green. `prd-consistency` is Wave 1, judges each acceptance criterion against the
@@ -190,7 +195,52 @@ old red-step short-circuit; grading in `../severity-rubric.md`):
 A component marked `blocked` (its dependency failed) is not run; it writes a
 `skipped` result report with `skip_reason: "blocked:<dep>"` (§4).
 
-## 4 · Write the per-check result report (C6 — always-write)
+## 3b · The C23 test-sandbox lifecycle (provision → env wave → promote → teardown)
+
+The `needs_env: true` components (catalog `env` column; manifest `needs_env`) run
+inside **exactly one** ephemeral, isolated sandbox per gate run — own DB/state/ports,
+concurrent-run safe (AC-SBX2/SBX4). A `needs_env: false` component **never** triggers
+provisioning and **never** enters the sandbox — the static waves run exactly as before
+(AC-SBX7). The mechanism comes from the manifest's `env_provision` resolution
+(`../../shared/refs/policy-schema.md`) — the executor never invents provisioning. A
+composite resolution (`stacks[]` — e.g. simulator + compose backend for a full-stack
+mobile repo) is still **one logical sandbox**: every verb below runs across **all**
+stacks together — provisioned together, promoted together, torn down together, never
+partially.
+
+1. **Provision — only-on-green (AC-SBX3).** Stand the sandbox up **only after** the
+   static correctness waves pass. A run that fails `mechanical`/`unit` (or aborts on a
+   `critical`) never provisions — zero env cost on a fail-fast. Run
+   `env_provision.provision`, then `env_provision.seed` (migrate-from-zero + the
+   committed seed fixture; `scale_factor` dataset for `perf`/`load` when declared).
+2. **Run the env wave.** All present `needs_env:true` components execute inside the
+   sandbox, concurrency rules unchanged (§3 — `load`/`perf` still run isolated). Each
+   writes its normal result report (§4); findings aggregate normally (§5).
+3. **Promote to preview (AC-SBX5).** When `preview` fires, the **same** sandbox is
+   promoted to serve as the C20 preview — the pokeable env the human approves
+   (`platform/protocol-preview.md`). **No second environment is ever provisioned.**
+   For the promoted run the sandbox must be a **fresh provision** (S-Q2): if the run
+   arrived via warm fix-loop resets (below), re-provision before promotion so the
+   approved artifact is provably hermetic.
+4. **Teardown — always (AC-SBX4).** Run `env_provision.teardown` after **every** run,
+   pass or fail. One exception inherited from the preview gate: a `parked` run keeps
+   the promoted env up until the human's decision returns, then tears down.
+
+**Fix-loop warm reuse (S-Q2).** Within one fix-loop, the stack stays warm between
+iterations: run `env_provision.reset` (drop → remigrate → re-seed — seconds) instead of
+a full re-provision (minutes). Freshness is restored at promotion (step 3).
+
+**No provisioner ⇒ loud degrade (AC-SBX6, D28 pattern).** `env_provision` absent or
+`provisioner: "none"`:
+
+- **Non-destructive** env-needing checks run against the **ambient** environment,
+  each carrying a `high` finding (`rule: sandbox-unprovisioned`,
+  `source: pre-merge:executor`): *"cannot run hermetically — no sandbox provisioner;
+  declare one via `/pre-merge --init`"*. Never a silent pass.
+- **Destructive** checks (the migration up→down→up round-trip) are **skipped-with-note**
+  — never run against shared state (the existing preview-gate rule, now general).
+- A provisioner **without** a `seed_script` runs the sandbox but flags the same loud
+  note for seed-dependent realism (`load`/`perf`/`integration` against an empty DB).
 
 **Every** component that runs — pass, fail, or skip — writes a normalized
 **result report** to `.pre-merge/<ts>/<check>.json` on **every** run, never

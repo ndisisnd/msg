@@ -23,7 +23,7 @@ metadata by hand.
 
 ```
 { id, nn, group, kind, criticality, cost, depends_on[], active_when,
-  platforms[], mandatory, run, ref, check }
+  platforms[], needs_env, mandatory, run, ref, check }
 ```
 
 | Field | Meaning |
@@ -37,6 +37,7 @@ metadata by hand.
 | `depends_on[]` | hard effect edges only (AC-CAT3) — see "Hard edges", below |
 | `active_when` | the presence gate — when the component runs at all |
 | `platforms[]` | **applicability**, not runner coverage (legend below) |
+| `needs_env` | **C23** — `true` iff the component requires a running app/DB and therefore runs **inside** the ephemeral test-sandbox (legend `env` column; see "The env-needing tier", below). `false` = static/in-process, runs outside, never triggers provisioning |
 | `mandatory` | `true` only for `security` and `migration` (AC-CAT4) — never opts out, only degrades per their own safety-floor rules |
 | `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
@@ -50,26 +51,26 @@ catalog below carries 18 rows for continuity with the id space, one of which is
 a retired tombstone (so 17 are live). Row 18 (`manual-test-plan`, C22) is the
 newest live component.
 
-| nn | id | group | kind | criticality | cost | depends_on | active_when | platforms | mandatory |
-|----|----|-------|------|------|------|-----------|-------------|-----------|------|
-| 01 | mechanical | universal | script | **critical** | cheap | sync | always | all | – |
-| 02 | unit | universal | script | blocking | cheap | sync | always | all | – |
-| 03 | integration | universal | script | blocking | moderate | sync | always | all | – |
-| 04 | regression | universal | hybrid | blocking | expensive | **tail (all others)** | always | all | – |
-| 05 | security | universal | hybrid | **critical** | moderate | sync | always | all | **✔** |
-| 06 | coverage | universal | script | config-driven† | moderate | **unit, integration** | always | all | – |
-| 07 | prd-consistency | **prd** | subagent | blocking | expensive | sync | **prd** | all | – |
-| 08 | e2e | platform | subagent | blocking | expensive | sync | ui-surface | **web** | – |
-| 09 | a11y | platform | subagent | **blocking** | moderate | sync | ui-surface | UI | – |
-| 10 | perf | platform | subagent | config-driven† | expensive | sync | perf-config | UI | – |
-| 11 | api | platform | subagent | blocking | moderate | sync | api-surface | srv | – |
-| 12 | load | platform | subagent | config-driven† | expensive | sync | api-surface **+ diff-scoped**ᵈ | srv | – |
-| 13 | migration | platform | hybrid | **critical** | moderate | sync | **migrations** | DB³ | **✔** |
-| 14 | mobile | platform | subagent | blocking | expensive | sync | mobile-surface | mob✦ | – |
-| **15** | ~~qa~~ | — | — | — | — | — | **retired (qa merged into preview, C20/D26); never reused** | — | — |
-| 16 | preview | platform | **gate** | blocking | expensive | sync (only-on-green, late wave) | **UI or api/migration/deploy surface** (union, C20) | all‡ | – ᵍ |
-| 17 | smoke | platform | subagent | blocking | moderate | **preview** | preview-fired | all‡ | – |
-| 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd** | all | – |
+| nn | id | group | kind | criticality | cost | depends_on | active_when | platforms | env | mandatory |
+|----|----|-------|------|------|------|-----------|-------------|-----------|-----|------|
+| 01 | mechanical | universal | script | **critical** | cheap | sync | always | all | – | – |
+| 02 | unit | universal | script | blocking | cheap | sync | always | all | – | – |
+| 03 | integration | universal | script | blocking | moderate | sync | always | all | **✔**ˢ | – |
+| 04 | regression | universal | hybrid | blocking | expensive | **tail (all others)** | always | all | condᶜ | – |
+| 05 | security | universal | hybrid | **critical** | moderate | sync | always | all | – | **✔** |
+| 06 | coverage | universal | script | config-driven† | moderate | **unit, integration** | always | all | – | – |
+| 07 | prd-consistency | **prd** | subagent | blocking | expensive | sync | **prd** | all | – | – |
+| 08 | e2e | platform | subagent | blocking | expensive | sync | ui-surface | **web** | **✔**ˢ | – |
+| 09 | a11y | platform | subagent | **blocking** | moderate | sync | ui-surface | UI | **✔**ˢ | – |
+| 10 | perf | platform | subagent | config-driven† | expensive | sync | perf-config | UI | **✔**ˢ | – |
+| 11 | api | platform | subagent | blocking | moderate | sync | api-surface | srv | liveˡ | – |
+| 12 | load | platform | subagent | config-driven† | expensive | sync | api-surface **+ diff-scoped**ᵈ | srv | **✔**ˢ | – |
+| 13 | migration | platform | hybrid | **critical** | moderate | sync | **migrations** | DB³ | **✔**ˢ | **✔** |
+| 14 | mobile | platform | subagent | blocking | expensive | sync | mobile-surface | mob✦ | **✔**ˢ | – |
+| **15** | ~~qa~~ | — | — | — | — | — | **retired (qa merged into preview, C20/D26); never reused** | — | — | — |
+| 16 | preview | platform | **gate** | blocking | expensive | sync (only-on-green, late wave) | **UI or api/migration/deploy surface** (union, C20) | all‡ | ➜ᵖ | – ᵍ |
+| 17 | smoke | platform | subagent | blocking | moderate | **preview** | preview-fired | all‡ | **✔**ˢ | – |
+| 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd** | all | – | – |
 
 ### `run` / `ref` / `check` resolution
 
@@ -129,13 +130,62 @@ web-only *runner* against a broader applicability is an **enforced
   `prd-consistency`'s per-item evidence grades) and emits it; it never contributes a
   blocker/high to the verdict. Skipped entirely on a no-PRD hotfix (like the rest of
   the `prd` group).
+- **ˢ** — **`needs_env: true`** (C23): requires a running app/DB — runs **inside** the
+  ephemeral test-sandbox (see "The env-needing tier", below). `–` in the `env` column =
+  `needs_env: false` — static/in-process, runs outside, never triggers provisioning.
+- **ᶜ** — **conditional `needs_env`** (C23, AC-SBX8): `regression.needs_env` follows its
+  **suite composition** — `true` only if the accumulated regression suite contains
+  integration-level tests; resolved at `--init`/`--update` and recorded in the manifest.
+- **ˡ** — **live-half only** (C23): the `api` **component** is `needs_env: false` — its
+  base-vs-PR **spec-diff** is static and runs outside. Only its **#3 live-conformance
+  pass** (spec-vs-implementation against a running server, parked to the preview tail)
+  runs inside the sandbox.
+- **ᵖ** — **promoted-sandbox consumer** (C23, AC-SBX5): `preview` does not provision an
+  env of its own — the executor **promotes the same C23 sandbox** the env-needing wave
+  ran in to serve as the pokeable preview. One env, whole lifecycle; never a second
+  provision.
 
 ## Only-on-green tier
 
 `regression` (its authoring sub-step), `preview`, and `smoke` run only after the
 correctness components have passed — no deploying/authoring onto a red branch.
 This is an **execution policy layered on top of `depends_on`**, not a hard edge
-in the dependency graph itself.
+in the dependency graph itself. **The C23 sandbox provisioning joins this tier**
+(below): the env-needing wave's environment is stood up only after the static
+correctness waves are green.
+
+## The env-needing tier (C23 — test-sandbox)
+
+The `needs_env: true` components (`env` column) run inside **one ephemeral, isolated
+sandbox** per gate run — own DB/state/ports, torn down after every run (pass or fail),
+concurrent-run safe. The static majority (`needs_env: false`) runs outside, exactly as
+before; a static component never triggers provisioning and never enters the sandbox
+(AC-SBX2). The lifecycle is the executor's (`pre-merge/refs/executor.md` §3b):
+
+- **Only-on-green provisioning** (AC-SBX3): the sandbox is stood up **only after** the
+  static correctness waves pass — a run that fails `mechanical`/`unit` never provisions,
+  zero env cost on a fail-fast. Same policy layer as the only-on-green tier above.
+- **One env, promoted to preview** (AC-SBX5): after the env-needing wave, the **same**
+  sandbox is promoted to serve as the C20 `preview` (legend `ᵖ`) — no second env.
+- **Seed strategy** (S-Q1 resolved): migrate-from-zero + a committed, versioned seed
+  fixture — never a prod-like snapshot. `perf`/`load` may declare a generated larger
+  dataset (scale factor in the manifest, produced by the seed script).
+- **Fix-loop reuse** (S-Q2 resolved): within one fix-loop, the stack stays warm and
+  the DB is reset (drop → remigrate → re-seed) between iterations; the final green run
+  promoted to preview gets a **fresh** provision.
+- **`env_provision`** — *how* the env comes up is project-specific (docker-compose /
+  testcontainers / ephemeral DB branch / preview-deploy / simulator), detected/declared
+  at `--init` and recorded as the manifest's `env_provision` resolution
+  (`policy-schema.md`) — a neutral provision / seed / reset / teardown interface,
+  designed post-merge-consumable (schema shared, machinery not). A repo needing two
+  provisioners at once (full-stack mobile: simulator + compose backend) records a
+  composite **`stacks[]`** — still **one logical sandbox**, all stacks provisioned and
+  torn down together.
+- **No provisioner ⇒ loud degrade** (AC-SBX6, the D28 safety-floor pattern):
+  non-destructive env-needing checks run against the ambient environment with a `high`
+  `sandbox-unprovisioned` finding ("cannot run hermetically — no sandbox provisioner");
+  **destructive** checks (migration up→down→up) are skipped-with-note — never run
+  against shared state, never a silent pass.
 
 ## Hard edges (the only ones — AC-CAT3)
 
