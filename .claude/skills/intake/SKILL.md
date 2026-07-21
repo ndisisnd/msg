@@ -57,7 +57,7 @@ row about search", "fix the idea I logged".
 Update mode edits **`idea` / `goal` / `type`** on **`backlog` rows only**. `grade`
 is not user-editable — it is **re-derived** when a change is material, and a
 re-grade re-runs the same hybrid-split and `≥8`-split gates as capture. Every edit
-is recorded in `INTAKE.md`'s `## Update log`.
+is recorded in `INTAKE-UPDATE.md`, the update log's own file.
 
 An ask with **no referent to an existing row** is a capture, never an update.
 
@@ -86,7 +86,7 @@ say so and ask which. Then read exactly one protocol and follow it end-to-end.
 - Never invents a fake-precise estimate (`~1,240 LOC`, `3.5 days`). Grades are **banded only** (§ Grading).
 - Never writes `status` or `prd`, in either mode (§ Status lifecycle).
 - `--update` refuses an **`in-progress`** row (the PRD is the source of truth — use `/plan-tune` or `/plan-pm`) and a **`completed`** row (historical record — capture a new idea instead). Neither refusal ends the run; both re-offer selection.
-- `--update` and `--delete` never scaffold a missing `INTAKE.md` — there is nothing to act on. Only capture mode scaffolds.
+- `--update` and `--delete` never scaffold a missing `INTAKE.md` — there is nothing to act on. Only capture mode scaffolds. A missing `INTAKE-UPDATE.md` is different — it is never an error, in either mode: absence means empty history, and the file is lazy-created on the first log write.
 - `--update` is **never destructive** — it edits and re-grades; removing a row is `--delete`'s job and requires that mode's warning pass and confirm.
 - `--delete` **never renumbers** surviving rows, and **never deletes anything but ledger rows** — not a PRD folder, not a file, not a branch. It reports what it orphans; it does not clean up after itself.
 - `--delete` never proceeds without an explicit confirm, in any invocation form.
@@ -152,7 +152,7 @@ is a superset of the other.
 | **Rows** | `backlog` only | any row | any row (drag between lanes) |
 | **Grade** | re-derived on a material change | n/a | never touched |
 | **Gate** | follow-up questions when unclear | warning pass + explicit confirm | none — direct manipulation |
-| **Logged** | `## Update log`, one entry per changed cell | `## Update log`, one `remove` entry | no |
+| **Logged** | `INTAKE-UPDATE.md`, one entry per changed cell | `INTAKE-UPDATE.md`, one `remove` entry | no |
 
 **They compose.** `--update` refuses an `in-progress` row because its PRD is the
 source of truth. The sanctioned escape hatch is the GUI: drag the card back to
@@ -170,20 +170,27 @@ earn a dedicated warning pass rather than a flag on an edit path.
 
 ## Update log
 
-Every `--update` edit and every `--delete` removal appends to the `## Update log`
-table at the foot of `INTAKE.md` — append-only, columns
-`when | row | change | detail`, where `change` is exactly one of `modify` (a cell
-changed, one entry per cell) / `add` (a row created by a split) / `remove` (a row
-deleted). The row table above it is the current state; the log is how it got
-there — including rows that no longer exist, whose entries are never pruned. Format and the load-bearing-heading warning:
-`.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` § Update-log format.
+Every `--update` edit and every `--delete` removal appends to `INTAKE-UPDATE.md`
+— its **own file**, at the repo root beside `INTAKE.md`, not a section inside
+the ledger. Append-only, columns `when | row | change | detail`, where `change`
+is exactly one of `modify` (a cell changed, one entry per cell) / `add` (a row
+created by a split) / `remove` (a row deleted). `INTAKE.md`'s row table is the
+current state; `INTAKE-UPDATE.md` is how it got there — including rows that no
+longer exist, whose entries are never pruned. **Lazy-created**: absence is
+never an error, and the file appears on the first log write; there is no
+`TEMPLATE-INTAKE-UPDATE.md` to scaffold from, since `/msg --init` does not
+pre-create it. A ledger that predates the split and still carries an in-file
+`## Update log` section is **migrated on first touch** by `--update`/`--delete`
+— section moved verbatim, then removed from `INTAKE.md`; idempotent. Canonical
+header + format: `refs/protocol-update.md` § *The update log*.
 
 ## References
 
 - `refs/protocol-intake.md` — end-to-end capture protocol: scaffold check, interview, hybrid/`≥8` split, grading pass, row write
-- `refs/protocol-update.md` — end-to-end update protocol: ledger scan, full review table, target resolution, lock gates, change interview, re-grade + re-split, targeted write + update log
+- `refs/protocol-update.md` — end-to-end update protocol: ledger scan, full review table, target resolution, lock gates, change interview, re-grade + re-split, targeted write + update log (canonical `INTAKE-UPDATE.md` header + migration rule)
 - `refs/protocol-delete.md` — end-to-end delete protocol: full ledger table, target resolution, the four-check warning pass, the confirm, no-renumber removal + `remove` log entry
 - `refs/rubric.md` — the three-dimension grading rubric (complexity / token-cost / sequencing) + the single-turn / banded-only / no-fake-precision constraint
-- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds (row table + `## Update log`); **capture mode** offers to scaffold from it when the ledger is missing (update mode never does), and its § Update-log format is the log's spec
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds (row table only, no log section); **capture mode** offers to scaffold from it when the ledger is missing (update mode never does)
 - `devkit/AHA.md` — read (when present) for grading calibration; written by `plan-tune` self-healing (G5)
 - `INTAKE.md` — the root ledger this skill writes; read by `plan-pm`, `plan-pm --roadmap`, and the `/msg --gui` Intake tab
+- `INTAKE-UPDATE.md` — the root update log this skill writes (`--update`/`--delete` only); lazy-created, gitignored alongside `INTAKE.md`, read by nobody downstream today (not `plan-pm`, not the GUI)

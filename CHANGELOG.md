@@ -2,6 +2,18 @@
 
 ## 2026-07-21
 
+### [31] — v4 P6/C11: the intake update log moves to its own file (`INTAKE-UPDATE.md`)
+
+- `.claude/skills/intake/refs/protocol-update.md`: Changed (**C11**, AC-LS1/LS2/LS5) — log writes target `INTAKE-UPDATE.md` (lazy-created with the canonical header on first write — no template); **migration rule**: first touch of a ledger with an in-file `## Update log` moves the section verbatim, strips it from `INTAKE.md`, idempotently; the blank-line-leak note reframed — unreachable by construction once split
+- `.claude/skills/intake/refs/protocol-delete.md`: Changed (**C11**) — same retarget; W4 now says history survives the row's deletion in the separate file; gained its own migration check so a repo whose *first* ledger touch is `--delete` still migrates
+- `.claude/skills/intake/refs/protocol-intake.md` + `intake/SKILL.md`: Changed (**C11**, AC-LS5) — file references repointed; a missing `INTAKE-UPDATE.md` is never an error
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`: Changed (**C11**) — `## Update log` dropped from the scaffolded body; writer table retargeted; the v4.1 four-layout parser-tolerance table kept as a condensed historical note (the tested evidence that motivated the split)
+- `.claude/skills/msg/refs/init/templates/template-gitignore.md` + `msg/refs/protocol-init.md`: Changed (**C11**, AC-LS3) — `INTAKE-UPDATE.md` gitignored beside `INTAKE.md` (rides v4.1's D4); scaffold rows note lazy-creation
+- `.claude/skills/msg/refs/protocol-gui.md`: Changed (**C11**) — `server.py` never reads or writes `INTAKE-UPDATE.md`; status writes touch `INTAKE.md` only
+- `README.md`: Changed — `/intake --update` row names the new file
+
+  **Verified by executed test (10/10 PASS**, real `server.py` `build_intake`/`set_intake_status`): post-split ledger parses 3/3; status write preserves the file; a sibling `INTAKE-UPDATE.md` never affects the row scan (server opens only `INTAKE.md`); all four v4.1 legacy layouts reproduce the original table exactly (incl. the 7-row leak case) — parsers stay tolerant of pre-migration files while the split makes the leak unreachable for migrated ones
+
 ### [30] — v4 P2: the mobile submission lifecycle — honest handoff, not fake liveness
 
 - `.claude/skills/post-merge/refs/submission.md`: Changed (**C5/D2**, AC-SB1/SB3/SB4/SB5, CV5) — the § Deferred seam becomes the full lifecycle: **submit → (store processing) → review → phased rollout**, with the ownership boundary drawn (post-merge owns through submit-accepted; represents-and-hands-off everything after). Accepted vs **rejected-at-upload** distinguished via fixture-derived worked output shapes (altool/deliver, Play staged-rollout). The **monitor-handoff block** names the real consoles (App Store Connect / Google Play Console) and the future `rollout_halt_cmd` lever (C3). `live_status` polling seam documented (default `handed_off`; v4.1 fills real store states without a breaking change). New § Submission in `direct` flow (CV5): a no-staging mobile repo ships feature→prod as a submission with the staging-scoped stages inactive — cited to `SKILL.md § Release flow`, never re-enumerated

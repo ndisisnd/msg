@@ -68,7 +68,12 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   the server edits that one cell in place, preserving every other cell and row verbatim — the
   same in-place-markdown model as the PRD-board writes. The Intake tab's lane drag and its
   per-card status buttons both call it. **No other INTAKE.md cell is writable** — `idea`,
-  `goal`, `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`, never the GUI.
+  `goal`, `grade`, and the `prd` mapping are owned by `intake`/`plan-pm`, never the GUI. The
+  byte-preservation obligation this write carries is simpler than it looks: since the
+  `## Update log` moved out to its own file (`INTAKE-UPDATE.md`, C11), `INTAKE.md` never
+  carries a second, independently-written region for the status rewrite to preserve around —
+  `server.py` doesn't read or write `INTAKE-UPDATE.md` at all, and never will need to for this
+  endpoint to stay correct.
 - **Run a prompt** — `POST /api/prompt {prompt}` starts a background job via the runner
   template; `GET /api/jobs` returns status + output tails and the GUI polls while a run is
   live, then refreshes board data. Quick actions prefill skill invocations (`/plan-pm …`,

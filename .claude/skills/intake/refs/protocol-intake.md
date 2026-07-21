@@ -115,11 +115,14 @@ Append each confirmed, graded idea as a row to `INTAKE.md`'s table, in capture o
 - `status` — `backlog` (always, on capture — intake never advances a row).
 - `prd` — empty (filled by `plan-pm` when it plans the row).
 
-Preserve every existing row verbatim; only append. **Capture writes no
-`## Update log` entries** — the row's own `date` cell already records when it
-entered, and logging captures would duplicate the whole ledger into the log. The
-log is update-mode-only. If the ledger carries a `## Update log` section, append
-rows **above** it, inside the row table.
+Preserve every existing row verbatim; only append. **Capture writes no log
+entries** — the row's own `date` cell already records when it entered, and
+logging captures would duplicate the whole ledger into the log. The log lives
+in `INTAKE-UPDATE.md`, a separate file written only by `--update`/`--delete`;
+capture never touches it. If a legacy `INTAKE.md` still carries an in-file
+`## Update log` section (pre-migration), append new rows **above** it, inside
+the row table — migrating that section out to `INTAKE-UPDATE.md` is
+`--update`/`--delete`'s job on their first touch, not capture's.
 
 Then emit a compact summary:
 

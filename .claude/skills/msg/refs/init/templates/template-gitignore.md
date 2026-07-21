@@ -43,6 +43,7 @@ out/
 # msg skill artifacts
 .pre-merge/
 INTAKE.md
+INTAKE-UPDATE.md
 ```
 
 ## Stack sections

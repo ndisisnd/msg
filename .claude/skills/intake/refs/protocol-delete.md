@@ -17,12 +17,12 @@ rows** — a PRD folder, a branch, and a file on disk are all out of scope.
 ## The two invariants
 
 1. **Never renumber.** Deleting `#4` leaves a gap: `#3, #5, #6`. Renumbering would
-   silently repoint every `S:blocked-by-#n` reference, every `## Update log`
-   entry, and every PRD folder name that encodes a row number. **A gap is
+   silently repoint every `S:blocked-by-#n` reference, every `INTAKE-UPDATE.md`
+   log entry, and every PRD folder name that encodes a row number. **A gap is
    correct** — it is the visible trace of a removal.
 2. **Never delete silently.** Every removal is preceded by the warning pass
    (Step 3) and an explicit confirm (Step 4), and followed by a `remove` entry in
-   the `## Update log` (Step 5). A deletion that leaves no record is a defect.
+   `INTAKE-UPDATE.md` (Step 5). A deletion that leaves no record is a defect.
 
 ## Pre-run — reads
 
@@ -72,7 +72,7 @@ with warnings must present them before the confirm, never after.
 | **W1** | Row's `prd` cell is set **and** the folder exists under `features/` | ⚠️ **Orphans a live PRD.** `#4` maps to `features/prd-7-search/`, which will still exist with nothing pointing at it. Deleting the row does **not** delete the PRD — that is a separate, manual decision. |
 | **W2** | `status` is `completed` | ⚠️ **Destroys ship record.** `#2` was stamped `completed` by `post-merge --production` — it records that something shipped. Deleting it removes that history. |
 | **W3** | Any **other** row's grade cell contains `S:blocked-by-#<target>` | ⚠️ **Dangling reference.** `#6` and `#9` are graded `S:blocked-by-#4`. Deleting `#4` leaves them blocked by a row that no longer exists. Offer to re-grade those rows' `S:` in a follow-up `/intake --update` — never silently rewrite them here. |
-| **W4** | The `## Update log` contains entries for the target row | ℹ️ **History is kept.** `#4` has 3 log entries. They are **preserved** — the log is append-only and records what happened, including to rows that no longer exist. |
+| **W4** | `INTAKE-UPDATE.md` contains entries for the target row | ℹ️ **History is kept — in a separate file.** `#4` has 3 log entries in `INTAKE-UPDATE.md`. They are **preserved** — the log is append-only and survives the row's deletion in `INTAKE.md`, since it lives elsewhere. |
 
 W3 requires scanning **every** row's grade cell, not just the targets. Do it
 before the confirm, not after.
@@ -113,12 +113,22 @@ On **Cancel**: write nothing, say so, terminate.
 ## Step 5/5 — Remove + log
 
 - Remove the target row line(s) **only**. Every other row, the header, the
-  separator, the preamble, and the `## Update log` are preserved byte-for-byte.
+  separator, and the preamble are preserved byte-for-byte. `INTAKE.md` no longer
+  carries the log (it lives in `INTAKE-UPDATE.md` — see below), so there is
+  nothing else in the ledger to preserve around the removal.
 - **Do not renumber.** The gap stays.
 - **Do not touch** `features/`, any PRD file, or any branch. The ledger row is the
   entire blast radius.
-- Append one `remove` entry per deleted row to the `## Update log` — this is the
-  first and only writer of the `remove` kind:
+- **Migration (first touch).** If `INTAKE.md` still carries an in-file
+  `## Update log` section (pre-C11), migrate it before writing the `remove`
+  entry: move the section verbatim into `INTAKE-UPDATE.md` (creating it with
+  the canonical header if absent — `protocol-update.md` § *The update log*
+  states the header in full; applied identically here), then strip the section
+  from `INTAKE.md`. Idempotent — an already-split ledger has nothing to
+  migrate on subsequent runs.
+- Append one `remove` entry per deleted row to `INTAKE-UPDATE.md` — this is the
+  first and only writer of the `remove` kind. Lazy-created on first write, same
+  as `--update`'s log writes:
 
 ```
 | 2026-07-21 | #4 | remove | deleted "add full-text search over notes" (C:5 T:3 S:now, backlog) — orphaned features/prd-7-search/ |
@@ -134,7 +144,7 @@ On **Cancel**: write nothing, say so, terminate.
 Deleted #4 from INTAKE.md — "add full-text search over notes"
   gap at #4 kept (rows are never renumbered)
   ⚠️ #6, #9 still graded S:blocked-by-#4 — run /intake --update to re-sequence them
-  logged: 1 remove entry → INTAKE.md ## Update log
+  logged: 1 remove entry → INTAKE-UPDATE.md
 ```
 
 Where W3 fired, the summary **must** repeat the dangling rows — that is the one

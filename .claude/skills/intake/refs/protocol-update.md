@@ -193,8 +193,9 @@ Show old → new for **every** changed cell, including the grade:
 A **targeted row rewrite, never a file rewrite**:
 
 - Rewrite **only** the target row's changed cells. Every other row, the header,
-  the preamble prose, the `## Update log` section, and all table formatting are
-  preserved byte-for-byte.
+  the preamble prose, and all table formatting are preserved byte-for-byte.
+  `INTAKE.md` holds the ledger only — the log lives in `INTAKE-UPDATE.md`
+  (below), a separate file this write does not touch except to append.
 - `#` and `date` are **never** rewritten.
 - `status` and `prd` are **never** written.
 - Split cases (Step 5) rewrite the target row **and** append the new rows in the
@@ -204,9 +205,10 @@ A **targeted row rewrite, never a file rewrite**:
 - **No-op guard:** if the resolved change equals the current value, report
   `no change` and write **nothing** — no row edit, no log entry.
 
-### The update log
+### The update log — `INTAKE-UPDATE.md`
 
-Append to the `## Update log` table at the end of `INTAKE.md` — **one entry per
+The log is a **separate file**, `INTAKE-UPDATE.md`, sitting beside `INTAKE.md`
+at the repo root — not a section inside the ledger. Append **one entry per
 changed cell**:
 
 ```
@@ -228,18 +230,51 @@ changed cell**:
   (<grade>)` for `add`.
 - **Append-only.** Existing entries are never rewritten, reordered, or pruned.
 
-**Missing section.** If `INTAKE.md` predates this feature and has no
-`## Update log`, **create it** at the end of the file on first write — never
-error, never ask.
+**Missing file.** `INTAKE-UPDATE.md` is **lazy-created** — it does not exist
+until the first entry is written. Absence is never an error; on first write,
+create it with this canonical header, then append the entry rows:
 
-> ⚠️ **The log table must never follow the row table across nothing but blank
-> lines.** The GUI's ledger parser (`msg/refs/gui/server.py: build_intake`)
-> treats a blank line as *still inside* the row table and stops only at the first
-> non-pipe, **non-blank** line. The `## Update log` heading and its preamble
-> paragraph are what terminate the row scan — verified: strip **both** and the
-> log's rows are parsed as ledger rows (3 rows → 7). Either one suffices and both
-> ship, so when creating the section always write the heading **and** the
-> preamble. Never place the log above the row table.
+```
+# INTAKE-UPDATE — Update log
+
+Edit history for INTAKE.md: entries made by `/intake --update` and removals by
+`/intake --delete` — append-only. INTAKE.md holds the current state; this file
+is how it got there, including rows that no longer exist. Rows created by plain
+`/intake` capture are not logged (their `date` cell already records them).
+
+`change` is always one of `modify` (a cell value changed — one entry per cell) ·
+`add` (a row created by a split) · `remove` (a row deleted; the `#` is never
+reused, so the ledger keeps a visible gap).
+
+| when | row | change | detail |
+|------|-----|--------|--------|
+```
+
+No `TEMPLATE-INTAKE-UPDATE.md` exists — this header is the one canonical
+source for the file's shape; `/msg --init` does not pre-create it.
+
+**Migration (first touch).** A ledger that predates the split may still carry
+an in-file `## Update log` section at the foot of `INTAKE.md` (pre-C11). Before
+writing the new entry, check for that section:
+
+1. **Present** → move it **verbatim** (entries byte-for-byte) into
+   `INTAKE-UPDATE.md` — creating the file with the canonical header above if it
+   doesn't exist yet, then appending the moved rows under the header's table —
+   then **remove the section from `INTAKE.md`** (row table + everything above
+   it is untouched). Proceed to write the new entry as normal.
+2. **Absent** → nothing to migrate; proceed directly.
+
+**Idempotent.** A ledger already split (no in-file section) hits case 2 on
+every subsequent run — migration is a one-time event per ledger, never
+repeated, never destructive.
+
+The old blank-line-leak risk (a bare-blank-line-separated log table parsed as
+extra ledger rows by `msg/refs/gui/server.py: build_intake`) is now
+**unreachable by construction** for any ledger past its first migration —
+`INTAKE.md` and `INTAKE-UPDATE.md` are different files, so there is no shared
+row-scan for a co-resident table to leak into. It remains a live risk only for
+the narrow pre-migration window where an old-style ledger still carries the
+in-file section; migration on first touch closes that window.
 
 ### The summary
 
@@ -247,7 +282,7 @@ error, never ask.
 Updated #4 in INTAKE.md
   idea:  add search → add full-text search over notes
   grade: C:3 T:2 S:next → C:5 T:3 S:next   (re-graded — material change)
-  logged: 2 entries → INTAKE.md ## Update log
+  logged: 2 entries → INTAKE-UPDATE.md
 Next: /plan-pm to draft a PRD from the backlog, or /intake --update to edit another row.
 ```
 
