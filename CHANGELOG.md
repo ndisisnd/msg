@@ -2,6 +2,10 @@
 
 ## 2026-07-21
 
+### [24] — Publish the v2.1.0 user-facing release notes
+
+- `RELEASES.md`: Added — the `v2.1.0 — 2026-07-21` section (user-facing notes covering entries [22]–[23]: env-needing checks now run inside a fresh, disposable sandbox instead of ambient state, and that sandbox is reused to serve the human-review preview)
+
 ### [23] — v3.1/C23: hermetic test runs — env-needing checks now run in one ephemeral, isolated, disposable sandbox
 
 - `.claude/skills/shared/refs/component-catalog.md`: Changed (**C23**, AC-SBX1) — every component row gains an `env` column (`needs_env`): **true** for the checks that need a running app/DB (`integration`, `e2e`, `a11y`, `perf`, `load`, `migration`, `mobile`, `smoke`), **false** for every static check; `regression` is **conditional** on its suite composition (`ᶜ`, resolved at `--init`); `api` is **live-half only** (`ˡ` — spec-diff static, live-conformance sandboxed); `preview` is the **promoted-sandbox consumer** (`ᵖ` — provisions nothing). New "env-needing tier" section carries the lifecycle, the seed strategy (migrate-from-zero + versioned fixture, never a prod snapshot), warm fix-loop reset, and the loud no-provisioner degrade

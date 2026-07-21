@@ -2,6 +2,18 @@
 
 What's new for you, release by release.
 
+## v2.1.0 — 2026-07-21
+
+> Checks that need a live app or database — integration, e2e, accessibility, performance, load, migration, mobile, and smoke — now run inside a fresh, disposable sandbox instead of against ambient state, and that same sandbox now doubles as your preview environment.
+
+### ✨ New
+- Env-needing checks (integration, e2e, accessibility, performance, load, migration, mobile, smoke) now run inside their own isolated, disposable environment, seeded from scratch each time — so they can't interfere with each other, a concurrent run, or leave anything behind.
+- That same sandbox is now reused to serve the human-review preview, so you no longer stand up a separate environment just to let someone poke at the change before approving it.
+
+### 📈 Improved
+- The sandbox is only provisioned after your static checks pass, so a run that fails early never pays the cost of spinning one up.
+- If your project has no way to provision a sandbox, the gate now says so loudly and skips the checks that need one with a clear note, instead of quietly running them against shared state.
+
 ## v2.0.0 — 2026-07-20
 
 > **Heads up:** if you haven't run gate setup yet (or set it up before this release), `/pre-merge` now refuses to run instead of quietly falling back to defaults — a one-time `/pre-merge --init` fixes it. In exchange, the gate got a lot more trustworthy: real secret-scan and migration-safety floors, coverage and load checks that focus on what your change actually touches, native iOS/Android test coverage, and one unified human review step instead of two.
