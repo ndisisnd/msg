@@ -23,6 +23,8 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 ```
 
+New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step.
+
 ## 🗂️ Skills
 
 Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, work the `INTAKE.md` backlog on an Intake tab (grade chips, lane drag), browse project docs, read run reports, and run Claude prompts — served on `127.0.0.1` only.

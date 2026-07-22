@@ -2,7 +2,10 @@
 
 ## 2026-07-22
 
-### [39] — README/ARCHITECTURE: v4 residuals in the supporting sections
+### [40] — A new user can go from install to first shipped feature without reading the whole README
+
+- `QUICKSTART.md`: Added — the guided onboarding path, ordered as machine setup → repo bootstrap → first feature. Every step carries a **verify** check with the expected output, so a stalled setup fails loudly instead of surfacing later as a gate refusal. Leads with the most-missed precondition: `/pre-merge --init` and `/post-merge --init` are each one-time and separate from `/msg --init` (without them `/pre-merge` refuses `no_manifest` and runs zero components). Carries a prerequisite table, the `--cto`/`--eng` init modes, the pipeline table with the human gates marked, a copy-paste **LLM setup prompt** that instructs the agent to stop rather than skip a failed verify, and a troubleshooting table mapping every refusal code (`no_manifest`, `stale_signoff`, `release_in_flight`, `no_signoff`, `NO_GH`, `NO_REMOTE`) to its fix. Deliberately omits `/plan-tune`, `/todo`, `--loop` and roadmap mode — auto-run or advanced, already in the README
+- `README.md`: Changed — a quickstart pointer above the skills table, so the entry point is reachable from the landing doc
 
 - `ARCHITECTURE.md`: Changed — `devkit/PLATFORMS.md` row documents the full v4 column surface (release_model, smoke shapes, staging config, rollback/halt cmds, version probe, macOS surfaces); `devkit/policy.json` row gains the staging-readiness stance; the `INTAKE.md` paragraph notes the gitignored ledger + its `INTAKE-UPDATE.md` sibling; the production run-report sentence carries release identity + per-model outcomes; § Safety floor names the two release tags as metadata-writes and lists the grown human-gate set (pinned sign-off, direct-flow inline human-test, always-ask rollback)
 - `README.md`: Changed — the run-reports and safety-floor paragraphs get the same two updates (release-style report contents; the full human-gate list)
