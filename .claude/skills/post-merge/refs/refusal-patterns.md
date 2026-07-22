@@ -1,6 +1,6 @@
 ---
 name: post-merge-refusal-patterns
-description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), a non-increasing store build number before submit (nonmonotonic_build), a production release already in flight (release_in_flight, the concurrency lock), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
+description: Canonical refusal shapes for post-merge. When each fires and the JSON to emit. Post-merge refuses rather than merges on red/pending CI, a missing sign-off, a sign-off that no longer covers staging's tip (stale_signoff), an unconfirmed release, a direct-flow --staging with no staging stage (no_staging_stage), a staging environment that was never set up (staging_unready, enforced mode), a non-increasing store build number before submit (nonmonotonic_build), a --version that is not strictly greater than the current tag (version_regression), a production release already in flight (release_in_flight, the concurrency lock), or unprotected branches (only when branch_protection resolves to enforced, or on NO_GH/NO_REMOTE).
 ---
 
 # Refusal Patterns
@@ -35,7 +35,8 @@ Common shape:
 | `no_signoff` | production | Step 1 — `staging-signoff:` absent from PRD frontmatter | run `/post-merge --staging` and get a human to sign off first |
 | `stale_signoff` | production | Step 1 — the sign-off no longer covers `staging`: **either** a stamped sha is not an ancestor of `origin/staging` (rewritten history), **or** `origin/staging` has advanced past every stamped sha (commits merged after sign-off) | list the uncertified commits (`git log --oneline <newest-stamped-sha>..origin/staging`) and name the PRD(s) owning them — each needs its own `/post-merge --staging` sign-off before the release can go |
 | `no_review` | production | Step 5 — release PR lacks the required approving review | a human must review-approve the staging→main PR on GitHub |
-| `no_prd` | production | no `--prd` and none resolvable for the release body | pass `--prd <path>` |
+| `no_prd` | production | **Step 4** — no `--prd` and none resolvable for the release body. Fires **post-acquire**, so the lock releases before this refusal is emitted (`refs/production.md` § *Release lock* exit-table row 1) | pass `--prd <path>` |
+| `version_regression` | production | `--version <x.y.z>` is **not strictly greater** than `CURRENT_TAG`'s version. Resolved with the release identity **early — before the lock is acquired** (`refs/release-identity.md`) | name the given version and the current tag; a release never goes backward — pick a higher version or drop `--version` for the default minor bump |
 | `nonmonotonic_build` | production | Step 6 — a `submission` platform's resolved `BUILD` (commit count on prod) is ≤ the build in the last `v*` tag, checked **before** submit (`refs/release-identity.md`, AC-RI3) | name the resolved build + the last tagged build; a store rejects a non-increasing build. On an append-only prod this means the release commit is not ahead of the last tag (re-releasing the same commit, or rewound/divergent history) — resolve the branch state, don't force a lower build |
 | `release_in_flight` | both | The **release lock** is held by another production ship (`refs/production.md` § *Release lock*, `../shared/refs/policy-schema.md` §6). `--production`: its acquire-tag push (after Step 3, before Step 4) was rejected because the lock tag already exists. `--staging`: its pre-flight lock read (before Step 2) found a held lock — a staging merge mid-production-ship would advance `staging` past the certified/confirmed window (C2). Fires only when the lock is **not stale** (age ≤ 2h) | name the in-flight run — **holder / when / sha** read off the lock tag message (the additive `lock` block below) — and say to wait for it to complete. If it is actually a wedged run, the **stale** path (below) prints the manual unlock; never suggest `--force`-stealing a live lock |
 | `out_of_scope_modify` | both | asked to edit source code | post-merge only merges, stamps sign-off, deploys, and tags the release + the release-lock tag (metadata only, no tracked file) — it never edits source |
@@ -84,15 +85,16 @@ Emitted when a human cancels at a gate — exits **0**, carries no findings:
 ```json
 {
   "verdict": "skipped",
-  "reason": "release_cancelled" | "signoff_declined" | "deploy_skipped",
+  "reason": "release_cancelled" | "signoff_declined" | "human_test_declined" | "deploy_skipped",
   "mode": "staging" | "production",
   "detail": "<what the human declined and where>"
 }
 ```
 
 - `release_cancelled` — the `--production` double-confirmation was cancelled at Ask A or Ask B.
-- `signoff_declined` — the `--staging` sign-off ask returned "Not yet"; the merge/deploy still stand, only the stamp was withheld.
-- `deploy_skipped` — no deploy command configured and the human chose to skip (not a failure).
+- `signoff_declined` — a **sign-off/human-test gate was declined**, covering both modes: the `--staging` sign-off ask returned "Not yet", **or** the `--production` unpinned-legacy sign-off re-ask (Step 1) was **Cancel**led. The merge/deploy still stand; only the stamp was withheld.
+- `human_test_declined` — the **`direct`-flow inline human-test approval** (`refs/production.md` § *Inline human-test approval*) returned **Cancel**. Fires after the Step 5 merge (which stands) and **before the Step 6 deploy**, so nothing deployed. It is **post-acquire** — the release lock releases before this skip is emitted (`refs/production.md` § *Release lock* exit-table row 7).
+- `deploy_skipped` — **terminal only when *every* platform's deploy is skipped** (no command configured anywhere, and the human chose to skip). When only *some* platforms skip, the deploy is **not** terminal: `refs/deploy.md`'s per-platform proceed-with-note is authoritative — the run continues, records a note for the skipped platform, and skips only that platform's verification.
 
 ## macOS release-check findings (NOT refusals — C6)
 
@@ -116,4 +118,4 @@ such pre-flight case.)
 - **Never stamp `staging-signoff:` without the explicit approval question returning "Staging works".**
 - **Never stamp a sign-off without its certified sha**, and never pin it to a commit other than the one that was deployed and human-tested. An unpinned stamp is unverifiable — it is exactly the hole `stale_signoff` exists to close.
 - **Never `--force`-steal a live (non-stale) release lock.** A held lock < 2h old is a running ship; only its own run releases it, or the human clears a stale one manually. Auto-stealing reopens the exact race the lock closes.
-- **Never modify source code** — the only writes are the merges, the sign-off frontmatter stamp, the `INTAKE.md` `completed` stamp, the release **git tag** and the transient **release-lock tag** (both metadata on a commit — no tracked file changes, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), and the run report.
+- **Never modify source code** — post-merge's sanctioned writes are enumerated canonically and completely in `../SKILL.md` (Hard refusals). The release **git tag** and the transient **release-lock tag** are metadata on a commit (no tracked-file change, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8).

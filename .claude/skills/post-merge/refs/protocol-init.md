@@ -18,7 +18,9 @@ PR, no deploy, no smoke, and it never writes `devkit/PLATFORMS.md` (AC-DR1).
 > use `--init`.
 
 Follow the **Shared `--init` contract** (prereqs → load/seed policy → detect → interview
-→ offer install → write → summary; see `improve-doctor.md`). This ref covers the
+→ offer install → write → summary — the same seven-step contract both gates run,
+spelled out in `../../pre-merge/refs/protocol-init.md` § *Shared `--init` contract*).
+This ref covers the
 **post-merge-specific detection**. The policy file's schema, status vocabulary, validation
 rules, and gate read-contract are defined once in
 [`../../shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) — **cite it, do
@@ -48,6 +50,12 @@ git show-ref --verify --quiet refs/heads/staging   # or gh api on the remote
 `--init` **records the choice**; it **never creates the branch** — that is
 `/msg --init-staging`'s job alone (AC-DR6, AC-RF5, AC-OW3). See `policy-schema.md`
 §`policies.release_flow`.
+
+**Design-accepted (F16):** `/msg --init-staging` that flips the flow to `staged`
+**without a follow-up `/post-merge --init`** leaves **no `staging_ready` record** —
+`--staging` then takes the **absent-record warn-and-proceed path** (`refs/staging.md`,
+never a refusal). The mitigation is the handoff: `/msg --init-staging` hands off to
+`/post-merge --init` to derive readiness, and the warn note names it.
 
 **A branch is not a ready staging environment.** Detecting `staging` present is
 only the *topology* half — it says the flow is `staged`, not that the environment
@@ -205,14 +213,16 @@ logic / content / human gates with nothing to set up.
 | | 6 · Production deploy | ✅ | deploy-CLI detect/install |
 | | 7 · Verify deploy (smoke) | ✅ | `smoke_cmd` binary present |
 | | 8 · Intake stamp | ➖ | writes INTAKE.md — no tooling |
+| | 9 · Tag the release | ➖ | `git tag` + push on prod — no setup tooling (`gh`/remote covered above) |
 
 ## Direct-release mode reshapes the ship
 
 When `release_flow.mode:"direct"`, there is no staging branch: `/post-merge --staging`
 **refuses** with `no_staging_stage` (naming both `/post-merge --production` and
 `/msg --init-staging`). The whole ship collapses into `--production` against `prod_branch`
-— **every human gate is preserved** (double-confirmation, inline human-test approval,
-deploy, smoke); only the staging *stage* is gone. The **staging-scoped stages**
+— **every human gate is preserved** (double-confirmation, the **inline human-test
+approval** defined in `refs/production.md` § *Inline human-test approval*, deploy,
+smoke); only the staging *stage* is gone. The **staging-scoped stages**
 (enumerated once in `SKILL.md` § *Release flow*) are **inactive because they do
 not apply** — not waived and not relaxed; every stage that still applies runs at
 full rigor (AC-NS1/NS2). This is the read-contract's behavior

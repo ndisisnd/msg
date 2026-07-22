@@ -39,9 +39,8 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
     "ref": "release-lock-main",         // the lock tag (release-lock-<prod>)
     "acquired": true,                   // did THIS run acquire the lock (false on infra-error fail-open)
     "acquired_at": "2026-07-21T11:07:18Z",  // tagger date of the acquire; null if not acquired
-    "released": true,                   // released at termination; false ONLY on a hard-kill dangle (TTL then reclaims)
-    "released_at": "2026-07-21T11:14:02Z",  // when this run released it; null if still held / never acquired
-    "stale_detected": false             // true when a prior stale lock (age > TTL) was reported to the human this run
+    "released": true,                   // released at ship-terminal (before any fix-loop handoff) / run end; false ONLY on a hard-kill dangle (TTL then reclaims)
+    "released_at": "2026-07-21T11:14:02Z"   // when this run released it; null if still held / never acquired
   },
   "report": "features/prd-101-.../reports/report-3.md"
 }
@@ -131,14 +130,20 @@ additive — absent on `--staging` and pre-P5 runs, so no existing reader is aff
 | `ref` | the lock tag name, `release-lock-<prod>` (e.g. `release-lock-main`) |
 | `acquired` | did **this** run acquire the lock. `false` only on the infra-error fail-open (a non-contention push error → proceed without the guard, one `low` note) |
 | `acquired_at` | ISO-8601 tagger date of the acquire; `null` when not acquired |
-| `released` | did this run release it at termination (AC-LK2). `true` on every graceful exit — success, failed ship, refusal-after-acquire; `false` **only** on a hard process kill, which the 2h TTL + manual unlock then reclaim |
+| `released` | did this run release it (AC-LK2). `true` on every graceful exit — success, failed ship (released at **ship-terminal, before the fix-loop handoff** — `refs/production.md` § *Release lock*), refusal-after-acquire; `false` **only** on a hard process kill, which the 2h TTL + manual unlock then reclaim |
 | `released_at` | when this run released it; `null` if never acquired or still held |
-| `stale_detected` | `true` when a **prior** stale lock (age > 2h TTL) was surfaced to the human with the manual-unlock instruction this run (CV1 escape hatch) |
+
+This clean-run block carries **no `stale_detected` field**. A run that **held** the
+lock cleanly never encountered a stale one (had it, it would have refused, not run
+clean). **Stale detection lives in the `release_in_flight` refusal's `lock` block**
+(`lock.stale: true`, `refs/refusal-patterns.md`) — the run that hit a stale lock is
+the *blocked* run, which terminates as that refusal, never as a clean run.
 
 A **contended** acquire does not produce this block — it produces the
-`release_in_flight` **refusal** instead (its own `lock` block names the holder,
-`refs/refusal-patterns.md`). The clean-run `release_lock` block is for the run that
-**held** the lock; the refusal's `lock` block is for the run that was **blocked**.
+`release_in_flight` **refusal** instead (its own `lock` block names the holder and
+carries `stale`, `refs/refusal-patterns.md`). The clean-run `release_lock` block is
+for the run that **held** the lock; the refusal's `lock` block is for the run that
+was **blocked**.
 
 ## Deploy-failure finding
 

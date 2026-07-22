@@ -11,10 +11,14 @@ human a test script, and — only on the human's explicit approval — stamps th
 sign-off that `--production` requires. Post-merge **never self-certifies
 staging**: Step 6 STOPS and waits for a human.
 
-## Step 1 — Branch protection
+## Step 1 — Branch protection (policy-conditional)
 
-Per `refs/protection.md`: `post-merge-protection.sh --verify staging`. Anything
-but `PROTECTED staging` refuses (`refs/refusal-patterns.md` → `unprotected`).
+Per `refs/protection.md` + `../shared/refs/policy-schema.md` §2. Resolve
+`mode_staging = overrides[staging] ?? branch_protection.mode ?? "enforced"` (no file
+→ `enforced` = today), then `post-merge-protection.sh --verify staging`: `enforced` →
+`UNPROTECTED` **refuses** (`refs/refusal-patterns.md` → `unprotected`); `optional` →
+`UNPROTECTED` **warns + proceeds** (one `low` note); `skip` → don't verify. `NO_GH` /
+`NO_REMOTE` **refuse regardless of mode**.
 
 ## Staging-readiness guard (pre-flight, after Step 1)
 
@@ -39,6 +43,11 @@ not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"
 This guard only bites under `release_flow=staged`; in `direct` flow `--staging`
 has already refused `no_staging_stage` (there is no staging to check).
 
+`staging_ready` is a **resolved fact** re-derived at each `--init`, so it can go
+**stale** between init and this run (a platform's declared artifacts changed since
+readiness was last derived) — D14 accepts this (the record reflects the last
+`--init`, not live state; re-run `/post-merge --init` to refresh it).
+
 ## In-flight-production check (pre-flight, before Step 2) — C8
 
 A `--staging` merge lands new commits on `staging` **while** a `--production` run
@@ -60,9 +69,20 @@ git rev-parse -q --verify "refs/tags/$LOCK" >/dev/null   # exists ⇒ a producti
   (`refs/refusal-patterns.md`), naming the in-flight production run (holder/when/sha
   from the tag message). The merge has not happened — refusing here keeps the
   running release's certified window intact. Wait for it to finish, then re-run.
-- **Lock held, stale** (age > 2h) → same stale handling as `--production`: report it
-  as stale with the one-line manual unlock, never a blind permanent refusal.
+- **Lock held, stale** (age > 2h) → same stale handling as `--production`: a terminal
+  `release_in_flight` (stale variant) that **prints the one-line manual unlock**,
+  never a blind permanent refusal:
+  > **Release lock is stale** — held by `<holder>` since `<at>` (> 2h ago), likely an
+  > aborted run. If no release is actually in flight, clear it and re-run:
+  > `git push origin :refs/tags/release-lock-<prod>`  (then `git tag -d release-lock-<prod>` locally)
 - **No lock** → proceed to Step 2.
+
+This lock read closes the race from the **staging side** — a staging merge that would
+start *while* a production ship holds the lock. The **reverse** window — a `--staging`
+merge that landed *before* the production run acquired the lock — is closed from the
+**production side**: `--production` re-verifies sign-off coverage immediately after
+acquiring the lock and refuses `stale_signoff` on drift (`refs/production.md`
+§ *Re-verify sign-off coverage immediately after acquire*).
 
 **Asymmetric by design:** `--staging` **reads** the lock but never **acquires** one.
 A staging merge (a single `gh pr merge`) is near-atomic — the reverse window (a
@@ -182,7 +202,7 @@ Write `report-prd-<N>-<K>.md` (`../shared/refs/report-schema.md`, `skill: post-m
 to the PRD's `reports/` dir. Staging flavor:
 
 - `verdict: pass` when merged + (deployed or deploy-skipped-with-note) + (smoke verified or verify-skipped-with-note); `fail` on a smoke failure (Step 5); `n/a` if it refused before merging.
-- Body `## Test results` — one line per platform: verified / smoke-failed / skipped (no `smoke_cmd`), per `refs/verify-deploy.md`.
+- Body `## Test results` — one line per platform per `refs/verify-deploy.md`'s full vocabulary: for `deploy` platforms — verified / smoke-failed / smoke-never-live (poll timeout) / degraded-in-window (watch-window) / skipped (no `smoke_cmd`); for `submission` platforms — submitted (+ track) / backend-health-ok / backend-health-failed / skipped, never "live".
 - Body `## What to expect` — per `release_model`: `deploy` platforms — staging is live at the deploy target; `submission` platforms — **submitted to the internal/TestFlight track, not "live"** (`refs/submission.md`). Production still gated on sign-off + double-confirm.
 - Body `## How to verify` — **the human test script verbatim** (Step 6) so the GUI Reports tab surfaces it.
 - `## Links` — the merged PR, the merge commit, the deploy log/target, the smoke log.

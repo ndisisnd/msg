@@ -228,9 +228,12 @@ that prints the notary status, `status: Accepted` / `In Progress` / `Invalid`, t
 `xcrun notarytool info` / `notarytool submit --wait` shape; the fixture deploy logs
 show this exact output, `evals/fixtures/post-merge/macos/`), post-merge treats
 notarization as a **distinct step**, polled with the **C7 poll primitive** bounded
-by the platform's `smoke_poll` (or a single read when `smoke_poll` is absent —
-`notarytool --wait` already blocks to a terminal status, so one read usually
-suffices). Grep the terminal `status:` line from the cmd output:
+by the platform's `smoke_poll`. **When `smoke_poll` is absent, apply a default bounded
+poll of `15m/30s`** (L3) — never a single one-shot read: a lone `In Progress` read
+would spuriously report a stall on a notary that is simply still working. A
+non-terminal (`In Progress`) read **inside** the bound is **pending** (keep polling);
+**only ceiling-exhaustion** (still non-terminal at the timeout) is a
+`notarization-stall`. Grep the terminal `status:` line from the cmd output:
 
 - **`Accepted`** → notarization **verified**; record it, continue.
 - **`Invalid` / `Rejected`** (terminal) → a **specific** finding — rule
@@ -263,11 +266,12 @@ Verdict `fail`. Undeclared ⇒ no signing check runs, nothing flagged.
 
 ### Appcast (AC-MAC3, D13 — config-gated)
 
-When the macos row declares `appcast_url` (the Sparkle update feed), verify the
-feed is **reachable** and carries the **new version**. The "new version" is tied to
-P3's release identity — the resolved `NEXT_VERSION` (`refs/release-identity.md`),
-so the check asserts *the version this release actually cut* is published, not a
-hard-coded guess:
+The appcast check is **`--production`-only** (L2). The "new version" it asserts is
+P3's release identity — the resolved `NEXT_VERSION` (`refs/release-identity.md`) —
+which **exists only in `--production`** (there is no release version in `--staging`).
+So in `--production`, when the macos row declares `appcast_url` (the Sparkle update
+feed), verify the feed is **reachable** and carries `NEXT_VERSION`, asserting *the
+version this release actually cut* is published, not a hard-coded guess:
 
 ```bash
 curl -fsS "$APPCAST_URL" | grep -q "$NEXT_VERSION"   # feed reachable AND new version present
@@ -278,8 +282,10 @@ curl -fsS "$APPCAST_URL" | grep -q "$NEXT_VERSION"   # feed reachable AND new ve
   a distinct finding, rule **`appcast-stale`**, category `deploy`, severity `high`,
   `message: "macOS appcast <url> is unreachable or missing version <NEXT_VERSION>"`
   — the update channel did not publish, so existing users will never be offered the
-  update. Verdict `fail`. On `--staging` the tie is to the staging channel's
-  expected version; the same rule applies.
+  update. Verdict `fail`.
+- **On `--staging`** there is no `NEXT_VERSION` to assert, so the appcast check does
+  **not** run; at most emit a note that the appcast is verified at release
+  (`--production`). Never fabricate a staging version to check against.
 - **Undeclared `appcast_url` ⇒ nothing runs, nothing is flagged** (D13) — a repo
   that ships macOS without Sparkle sees zero added friction.
 

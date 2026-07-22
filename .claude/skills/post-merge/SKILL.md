@@ -3,8 +3,9 @@ name: post-merge
 description: >
   The ship gate. Takes a pre-merge PR from "open against staging" to "live in
   production". Two modes: `--staging` (verify green CI → merge into staging →
-  deploy → smoke-verify the deploy → emit a human test script → stamp staging
-  sign-off on approval) and `--production` (double-confirmed staging→main release
+  deploy → verify per release model — smoke the live target, or submission-accepted
+  for store apps → emit a human test script → stamp staging sign-off on approval)
+  and `--production` (double-confirmed staging→main release
   PR → merge on green CI + human review → production deploy → verify per release
   model: smoke the live target, or submission-accepted + monitor-handoff for
   store apps). The ONLY skill that merges. Never
@@ -25,7 +26,10 @@ takes it the rest of the way: onto `staging` (tested by a human), then onto
 `main` (production, double-confirmed). It is the **only** skill in the harness
 that merges — pre-merge opens PRs but never merges; eng commits to feature
 branches but never pushes to `staging`/`main`. Nothing reaches `main` any other
-way. Each run is independent.
+way. Runs are independent **except** for the production **release lock** (C8): a
+`--production` ship serializes against any other in-flight production run via a
+remote `release-lock-<prod>` tag, so two releases never race on `prod` (silent when
+uncontended — a solo dev feels no friction; `refs/production.md` § *Release lock*).
 
 ```
 pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests staging)
@@ -34,11 +38,11 @@ pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests s
 
 ## Usage
 
-- `/post-merge --staging` — merge the current feature→staging PR on green CI, deploy staging, smoke-verify the deploy, emit a human test script, and stamp sign-off on approval
+- `/post-merge --staging` — merge the current feature→staging PR on green CI, deploy staging, verify the deploy per release model (smoke the live target for `deploy` platforms; submission-accepted + backend-health for `submission` platforms), emit a human test script, and stamp sign-off on approval
 - `/post-merge --staging --prd <path>` — name the shipped PRD explicitly (else resolved from the PR head branch `feat/prd-<n>-*`)
 - `/post-merge --production` — open + merge the double-confirmed staging→main release PR and run the production deploy
 - `/post-merge --production --prd <path>` (repeatable) — the PRD(s) this release ships; used for the release body + sign-off precondition
-- `/post-merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod; `--version` must be strictly greater); the resolved `v<x.y.z>+<build>` tag is shown in the confirm before it's cut (`refs/release-identity.md`)
+- `/post-merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod; `--version` must be strictly greater — else refuse `version_regression`); the resolved `v<x.y.z>+<build>` tag is shown in the confirm before it's cut (`refs/release-identity.md`)
 - `/post-merge --init` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --init`'s job) (`refs/protocol-init.md`)
   - `/post-merge --doctor` — **deprecated alias for one release**: runs `--init` and prints a deprecation note naming `--init`/`--update`
 
@@ -46,9 +50,11 @@ Natural language: "ship this to staging", "merge the staging PR", "promote to pr
 
 **Ship gates never collapse.** The green-CI check, the human staging test, the
 staging sign-off, and the production double-confirmation run in **every**
-invocation. (In `release_flow=direct` the staging *stage* is absent — its
-sign-off is waived and an inline human-test approval stands in its place; every
-other gate holds. See **Release flow** below.)
+invocation. (In `release_flow=direct` the staging *stage* is absent, so its
+sign-off is **inactive — not waived** (there is nothing to sign off, § *Release
+flow*); the human judgment it carried is preserved by the **inline human-test
+approval** defined in `refs/production.md` § *Inline human-test approval*, which
+fires before the production deploy. Every other gate holds.)
 
 **Hard refusals** (`refs/refusal-patterns.md`):
 - Does NOT merge on red or pending CI — branch protection is the enforcement; this skill's checks refuse and list the failing checks.
@@ -57,7 +63,14 @@ other gate holds. See **Release flow** below.)
 - Does NOT run a second `--production` while one is in flight — the **release lock** (a remote `release-lock-<prod>` git tag, `refs/production.md` § *Release lock*) refuses `release_in_flight`, naming the holder (who/when/sha); it releases on every exit of the acquiring run (success, failed ship, or refusal-after-acquire) and a stale lock (> 2h) prints the manual unlock rather than dead-ending (`refs/refusal-patterns.md`, `../shared/refs/policy-schema.md` §6). A `--staging` merge during an in-flight production ship refuses the same way (it would advance `staging` past the certified window). Uncontended acquire/release is silent — solo single-run and `direct` flow feel no friction.
 - Does NOT run when `post-merge-protection.sh --verify` reports the branch unprotected **and** the `branch_protection` policy resolves to `enforced` (the default / no-file case) — refuses with the bootstrap instruction; `optional` warns + proceeds, `skip` doesn't verify (`../shared/refs/policy-schema.md` §2). `NO_GH`/`NO_REMOTE` refuse regardless of mode.
 - Does NOT run `--staging` into a staging environment `--init` recorded as **unready** (a platform with `gaps[]` in `staging_ready`) **when `staging_readiness` resolves to `enforced`** (the default) — refuses `staging_unready`, naming the exact missing artifact + fix; `optional` warns + proceeds, `skip` doesn't guard, and a **missing** record (pre-C9 init) only warns, never refuses (`../shared/refs/policy-schema.md` §5, `refs/staging.md`).
-- Does NOT modify source code. Its sanctioned writes are: the two PR merges, the `staging-signoff:` frontmatter stamp, the `INTAKE.md` `status: completed` stamp on each shipped PRD's mapped row (`--production`, D14), the release **git tag** `v<x.y.z>+<build>` on prod at a successful `--production` (metadata on a commit — writes **no tracked file**, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit — D8), the transient **release-lock tag** `release-lock-<prod>` pushed on acquire and deleted on release around a `--production` ship (`refs/production.md` § *Release lock*, C8 — also metadata on a commit, no tracked file), and its run report.
+- Does NOT modify source code. **This is the canonical, complete enumeration of its sanctioned writes** (`../shared/refs/safety-floor.md` and `refs/release-identity.md` defer here — they do not restate it):
+  1. the **two PR merges** (`--staging` feature→`stg`; `--production` `<head>`→`prod`);
+  2. the **`staging-signoff:` frontmatter stamp** — written by `--staging` Step 7 on approval, **and re-stamped by `--production` Step 1** when an unpinned legacy stamp is confirmed (`<today>@<STAGING_HEAD>`);
+  3. the **`INTAKE.md` `status: completed` stamp** on each shipped PRD's mapped row (`--production`, v3 D14);
+  4. the **run report** (`report-prd-<N>-<K>.md`) **and, on a failed ship, the colocated issues file** (`report-prd-<N>-<K>.json`) that `eng --build report=` consumes;
+  5. the release **git tag** `v<x.y.z>+<build>` on prod at a successful `--production`;
+  6. the transient **release-lock tag** `release-lock-<prod>` pushed on acquire and deleted on release around a `--production` ship (`refs/production.md` § *Release lock*, C8).
+  Items 5–6 are **metadata on a commit** — they write **no tracked file**, so the safety floor holds; the version source of truth is the tag, never a VERSION file or bump commit (D8).
 - Does NOT report a deploy as shipped without running the platform's `smoke_cmd` against the deployed target (unconfigured → recorded as skipped with a note, per `refs/verify-deploy.md`).
 - A failed ship is **not** a refusal — the merge already happened; on a deploy/smoke failure post-merge writes the colocated issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json` and enters the fix loop (`../shared/refs/fix-loop.md`) rather than dead-ending.
 
@@ -68,7 +81,7 @@ other gate holds. See **Release flow** below.)
 | In | mode | `--staging` or `--production` (exactly one) |
 | In | prd_paths | `--prd` (repeatable); else resolved from the PR head branch |
 | In | pr | the open feature→staging PR (`--staging`) resolved via `gh pr list` |
-| Out | staging_signoff | `staging-signoff: <YYYY-MM-DD>@<certified sha>` stamped into PRD frontmatter (`--staging`, on approval) — the sha is the staging commit that was deployed and human-tested |
+| Out | staging_signoff | `staging-signoff: <YYYY-MM-DD>@<certified sha>` stamped into PRD frontmatter (`--staging`, on approval) — the sha is the staging commit that was deployed and human-tested. Also **re-stamped by `--production` Step 1** (`<today>@<STAGING_HEAD>`) when a human confirms an unpinned legacy stamp |
 | Out | human_test_script | printed + carried in the run report (`--staging`) |
 | Out | release_pr | PR staging→main, release-style body (`--production`) |
 | Out | run_report | `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: post-merge`) |
@@ -116,7 +129,7 @@ Resolve `release_flow` from the policy file (`../shared/refs/policy-schema.md`
 
 | `flow` | `--staging` | `--production` |
 |---|---|---|
-| `staged` (default / no file) | merge feature→`stg` (Steps 1–7 below, unchanged) | PR `stg`→`prod` (Steps 1–8 below, unchanged) |
+| `staged` (default / no file) | merge feature→`stg` (Steps 1–7 below, unchanged) | PR `stg`→`prod` (Steps 1–9 below, unchanged) |
 | `direct` | **refuse** `no_staging_stage` (`refs/refusal-patterns.md`), naming both `/post-merge --production` and `/msg --init-staging` | single ship feature→`prod`, preserving every human gate |
 
 **`direct` + `--production`** — a single feature→`prod` ship that still runs the
@@ -207,11 +220,11 @@ is acquired between Step 3 and Step 4 and released on every exit — see
 | 1 | **Preconditions** — `staging` CI green AND `staging-signoff:` present in the PRD frontmatter AND the sign-off still **covers** `staging`'s tip (every stamped sha an ancestor of `origin/staging`, and `origin/staging` == the newest stamped sha); refuse without any (`staging_not_green` / `no_signoff` / `stale_signoff`). An unpinned legacy stamp re-asks the human rather than dead-ending. **Under `release_flow=direct` this whole step is *inactive*, not waived** — there is no staging to sign off (see **Release flow** above); the ship goes feature→`prod` with every human gate preserved (AC-RF3, AC-NS4) | `refs/production.md` |
 | 2 | **Branch protection (policy-conditional)** — resolve `mode_main = overrides[main] ?? branch_protection.mode ?? "enforced"` (`../shared/refs/policy-schema.md` §2), then `post-merge-protection.sh --verify main`: `enforced` → `UNPROTECTED` **refuses** (`unprotected`); `optional` → `UNPROTECTED` **warns + proceeds** (one `low` note); `skip` → don't verify. `NO_GH`/`NO_REMOTE` **refuse regardless of mode**. No file → `enforced` (= today) | `refs/protection.md` |
 | 3 | **Double-confirmation** — two separately-asked `AskUserQuestion`s: (a) intent — "ship staging to production?"; (b) final confirm listing exactly what ships (PRDs, commits, platforms, rollback notes) | `refs/production.md` |
-| 4 | **Open release PR** — `gh pr create --base main --head staging`, release-style body: PRDs, linked reports, per-platform rollback notes from `PLATFORMS.md` `rollback_possible` (iOS flagged `IRREVERSIBLE`) | `refs/production.md` |
+| 4 | **Open release PR** — `gh pr create --base $PROD --head <head>` where `<head>` is **flow-dependent**: `$STG` in `staged` flow, the resolved **feature branch** in `direct` flow (never hardcoded `staging` — F1); release-style body: PRDs, linked reports, per-platform rollback notes from `PLATFORMS.md` `rollback_possible` (iOS flagged `IRREVERSIBLE`). No resolvable PRD → refuse `no_prd` (release the lock first) | `refs/production.md` |
 | 5 | **Merge on green CI + human review** — branch protection enforces both; post-merge checks then `gh pr merge --merge`; red/pending/unreviewed → refuse | `refs/production.md` |
 | 6 | **Production deploy** — **first: build-number monotonicity for `submission` platforms** (`BUILD ≤ last tag's build → refuse `nonmonotonic_build` before submit, AC-RI3). Then run each platform's `production_deploy_cmd`. Exit 0 means **live** (`deploy` model) or **submitted to store review** (`submission` model — report `submitted` + track, never `live`; the app goes live downstream, out-of-band; **emit the monitor-handoff** — now in Apple/Google review, monitor at App Store Connect / Play Console, halt via `rollout_halt_cmd`; non-zero = rejected-at-upload, a deploy failure) | `refs/deploy.md`, `refs/submission.md`, `refs/release-identity.md` |
 | 7 | **Verify the deploy + provenance** — **`deploy` model:** run each platform's smoke against the live target — the **v2 contract** (bare `smoke_cmd` one-shot / declared `watch_window` re-checks health and fails on degrade / `poll` waits for a late-live target with a distinct `smoke-never-live` timeout, AC-SM1/2/3), plus **macOS** config-gated notarization / signing / appcast checks — each a distinct finding (AC-MAC1/2/3, C6). **`submission` model:** verification = submission accepted; a configured `smoke_cmd` is reported as backend/build health, never app liveness (AC-RM3). **Provenance (AC-RI2):** a declared `version_probe` reporting a commit outside the signed-off release → `fail`; no probe → asserted-unverified note. Any verification failure (smoke / poll-timeout / watch-degrade / a macOS release-check finding / provenance) → verdict `fail`, skip Steps 8–9; the failed-ship loop **offers the rollback/rollout-halt before the fix loop** (AC-RB1/RB3); unconfigured lever → notes-only + gap (AC-RB2) | `refs/verify-deploy.md`, `refs/submission.md`, `refs/release-identity.md` |
-| 8 | **Stamp intake `completed`** — only on a verified (or verify-skipped) deploy; for each shipped PRD, set its mapped `INTAKE.md` row's `status` to `completed` (D14); unmapped / no `INTAKE.md` → skip with a note | `refs/production.md` |
+| 8 | **Stamp intake `completed`** — for each shipped PRD, set its mapped `INTAKE.md` row's `status` to `completed` (v3 D14); a `deploy` platform stamps only on a verified (or verify-skipped) deploy; a `submission` platform stamps **on submit-accepted regardless of the backend-smoke verdict** (AC-SB4); unmapped / no `INTAKE.md` → skip with a note | `refs/production.md` |
 | 9 | **Tag the release** — only on success (same condition as Step 8, provenance not `fail`): `git tag -a v<x.y.z>+<build>` on prod with generated release notes, then push (AC-RI1). A tag writes **no tracked file** — safety floor holds (D8); no VERSION file, no bump commit. Failed release → no tag; no remote / push rejected → skip with a note | `refs/release-identity.md`, `refs/production.md` |
 
 Then write the run report (`skill: post-merge`, production flavor — release-style, iOS `IRREVERSIBLE` surfaced, carrying the `## Issue summary` block per `../shared/refs/report-schema.md`), and on the write print the terminal `Issue summary` block — every verdict, clean ships included (format owned by `../shared/refs/report-schema.md`; counts derive from the run's `findings[]`). On a failed ship, follow the **Failed-ship loop** below.
@@ -263,7 +276,10 @@ already happened, so post-merge does not dead-end on the failure. In order:
    fixes with `eng --plan`) → Offer #2 (orchestrated `eng --build`) off this same
    issues file. Do **not** re-spell the offer wording here; fix-loop.md owns it.
    The rollback offer (step 1) **precedes** this and never replaces it — a rolled-back
-   release still has a broken commit to fix forward.
+   release still has a broken commit to fix forward. **For `--production`, the release
+   lock releases at ship-terminal — after step 1's rollback offer and *before* this
+   handoff — so the (potentially long) fix loop never holds the lock** (`refs/production.md`
+   § *Release lock*, exit rows 9–11).
 
 Applies identically to `--staging` (Step 5 smoke failure / Step 4 deploy failure)
 and `--production` (Step 7 smoke failure / Step 6 deploy failure) — the mode's

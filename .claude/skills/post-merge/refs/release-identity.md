@@ -17,9 +17,10 @@ the identity contract for `--production` (`refs/production.md` wires the steps).
 The authoritative version is **the newest `v*` tag reachable on the prod branch**.
 Nothing else — no `VERSION` file, no manifest, no bump commit. This is decisive,
 not incidental: post-merge is **forbidden from modifying source** (`../shared/refs/safety-floor.md`
-— its only sanctioned writes are the two merges, the sign-off stamp, the intake
-`completed` stamp, and its run report). A file-based version would force post-merge
-to make a bump commit it may not make (I3). Git tags sidestep that entirely — a tag
+— its sanctioned writes are enumerated once, canonically, in `../SKILL.md` (Hard
+refusals); none of them is a tracked-file change). A file-based version would force
+post-merge to make a bump commit it may not make (I3). Git tags sidestep that
+entirely — a tag
 is **release metadata attached to a commit, not a change to any tracked file** (the
 tree is untouched), so tagging is consistent with the floor. post-merge **reads**
 the tag to resolve the current version and **writes exactly one new tag** at
@@ -49,7 +50,7 @@ Override on the `--production` invocation (both additive, no new required arg):
 | Override | Effect |
 |---|---|
 | `--bump major` \| `minor` \| `patch` | pick the semver level; `major` → `v<major+1>.0.0`, `patch` → `v<major>.<minor>.<patch+1>` |
-| `--version <x.y.z>` | set the exact next version; must be **strictly greater** than `CURRENT_TAG`'s version (else refuse — a release never goes backward) |
+| `--version <x.y.z>` | set the exact next version; must be **strictly greater** than `CURRENT_TAG`'s version (else refuse **`version_regression`**, `refs/refusal-patterns.md` — a release never goes backward). Resolved early with the rest of the identity, so this refusal fires **before** the lock is acquired |
 
 Neither given → **minor**. The resolved next version + tag is surfaced in the
 Step 3 final-confirm and the release-PR body **before** anything ships, so the
@@ -64,6 +65,14 @@ on prod at the commit being released**, shared by every platform.
 BUILD=$(git rev-list --count "origin/$PROD")   # total commits on prod at release
 ```
 
+**Read it at tag-time truth, after the merge (F13).** The release commit only lands
+on prod at `--production` Step 5, so `BUILD` must be computed **after that merge and
+the Step-5 fetch that refreshes `origin/$PROD`** (`refs/production.md` Step 5). The
+value resolved early (for the Step-3 confirm) is a **preview** that does not yet count
+the merge commit; the **authoritative** `BUILD` used by the Step-6 monotonicity gate
+and the Step-9 tag is the post-merge recompute. Reading it pre-merge would undercount
+by the merge commit and let a same-commit re-release tag a build it should not.
+
 Chosen over a per-tag counter because it is **monotonic by construction** on an
 append-only prod branch (every release adds ≥1 commit, so `BUILD` strictly
 increases release-over-release) and needs **no state** beyond git history —
@@ -72,15 +81,28 @@ credential-free and deterministic, the small-team fit. All platforms share the o
 
 **Monotonicity check — `submission` platforms, BEFORE submit (AC-RI3).** Stores
 reject a build number ≤ the last accepted one, so this is checked *before* running
-`production_deploy_cmd` for any `submission` platform. Compare the resolved `BUILD`
-against the build integer parsed from `CURRENT_TAG`:
+`production_deploy_cmd` for any `submission` platform, using the **post-merge
+recomputed `BUILD`** (above) against `last_tag_build`:
+
+```bash
+# last_tag_build: the +<build> metadata in CURRENT_TAG; fall back for a legacy tag
+case "$CURRENT_TAG" in
+  *+*) last_tag_build=${CURRENT_TAG##*+} ;;                 # v2.2.0+417 → 417
+  "")  last_tag_build=0 ;;                                  # no prior tag
+  *)   last_tag_build=$(git rev-list --count "$CURRENT_TAG") ;;  # F14: legacy tag, no +<build>
+esac
+```
 
 - `BUILD > last_tag_build` → proceed.
 - `BUILD ≤ last_tag_build` → **refuse `nonmonotonic_build`** (`refs/refusal-patterns.md`)
   before submitting — name the resolved build, the last tagged build, and that a
-  store will reject a non-increasing build. On an append-only prod this can only
-  happen when the release commit is not ahead of the last tag (re-releasing the
-  same commit, or rewound/divergent history) — a genuine stop, not a nuisance.
+  store will reject a non-increasing build. Because `BUILD` is the **post-merge**
+  count, this can only trip when the release commit did **not** advance prod
+  (re-releasing the same commit, or rewound/divergent history) — a genuine stop, not
+  a nuisance. **Legacy-tag fallback (F14):** a `CURRENT_TAG` with no `+<build>`
+  metadata (a tag cut before this scheme) has its build reconstructed as
+  `git rev-list --count <tag>` — the same commit-count basis, so the comparison stays
+  apples-to-apples.
 
 `deploy` platforms are not build-number-gated (no store monotonicity contract) —
 the check is `submission`-only.
@@ -104,14 +126,27 @@ Step 7), for each platform with a `version_probe`:
 PROBE_SHA=$( <version_probe> )    # e.g. curl -fsS https://app/version → the live commit
 ```
 
-- `PROBE_SHA` equals a signed-off release sha, or `git merge-base --is-ancestor
-  "$PROBE_SHA" origin/$PROD` succeeds (the probe reports the source commit, which a
-  merge does not change) → **provenance verified**.
-- `PROBE_SHA` is **outside** the signed-off release (not the certified sha and not
-  an ancestor of prod) → **`fail`** with a provenance finding (`refs/output-schema.md`)
-  — the artifact shipped was built from a commit no human certified (stale CI
-  cache, wrong branch, a hand-built `.ipa` from an old checkout). This fails the
-  run; it is **not** a refusal (the merge already stands).
+Verified only if `PROBE_SHA` is inside **this release's window** — equal to a
+signed-off sha of this release, or reachable from prod **but not already in the last
+tag** (`$CURRENT_TAG..origin/$PROD`, read after the Step-5 fetch):
+
+```bash
+# verified: reachable from prod AND not already shipped in CURRENT_TAG
+git merge-base --is-ancestor "$PROBE_SHA" "origin/$PROD" \
+  && { [ -z "$CURRENT_TAG" ] || ! git merge-base --is-ancestor "$PROBE_SHA" "$CURRENT_TAG"; }
+```
+
+- Both conditions hold (or `PROBE_SHA` equals a signed-off sha of this release) →
+  **provenance verified**.
+- `PROBE_SHA` is **outside the window** → **`fail`** with a provenance finding
+  (`refs/output-schema.md`) — the artifact shipped was built from a commit no human
+  certified for this release (stale CI cache, wrong branch, a hand-built `.ipa` from
+  an old checkout). **A bare `is-ancestor origin/$PROD` is not enough**: last year's
+  release commit is *also* an ancestor of prod, so the old test wrongly passed a
+  stale checkout. Requiring the commit to be in `$CURRENT_TAG..origin/$PROD` excludes
+  everything already released in a prior tag. This fails the run; it is **not** a
+  refusal (the merge already stands). (`$CURRENT_TAG` empty ⇒ first-ever release ⇒
+  the whole prod history is the window, so the tag-exclusion is skipped.)
 - **No `version_probe` declared** → provenance is **asserted structurally**
   (post-merge deployed from the merged prod branch it controls) and recorded as
   `asserted (unverified)` with a note — never a fail. Declaring a probe upgrades
@@ -127,6 +162,11 @@ lets Step 8 stamp intake `completed` — post-merge cuts the release tag on prod
 git tag -a "v${NEXT_VERSION}+${BUILD}" "origin/$PROD" -m "<release notes>"
 git push origin "v${NEXT_VERSION}+${BUILD}"
 ```
+
+Both `origin/$PROD` here and the `BUILD` above are the **post-Step-5-merge** values —
+the tag lands on the release merge commit and encodes the recomputed build. This
+relies on the Step-5 `git fetch origin $PROD` (`refs/production.md` Step 5); without
+it the tag would point at the *previous* release's head.
 
 - Annotated tag on the prod release commit. **This is the only new write C4 adds**,
   and it writes **no tracked file** — the tree is unchanged, so the safety floor
@@ -144,8 +184,10 @@ The annotated tag's message (and the release-PR body reuse it) is generated from
 the PRDs this release ships — not hand-typed:
 
 - One line per shipped PRD: `prd-<n> · <feature>` + its linked report.
-- The commit list `git log --oneline <CURRENT_TAG>..origin/$PROD` (or `main..staging`
-  pre-merge for the PR body).
+- The commit list `git log --oneline <CURRENT_TAG>..origin/$PROD` (for the tag, post
+  merge). The **PR body** (Step 4, pre-merge) uses the flow-dependent head instead —
+  `$PROD..$STG` in `staged` flow, `$PROD..<feature-branch>` in `direct` flow
+  (`refs/production.md` Step 4).
 - The resolved `v<x.y.z>+<build>` and, per `submission` platform, the submitted
   track + the monitor-handoff pointer (`refs/submission.md`).
 

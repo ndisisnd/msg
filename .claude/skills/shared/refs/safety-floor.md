@@ -18,7 +18,7 @@ lanes:
 |---|---|---|
 | `eng` | commits to `feat/prd-<n>-*` **feature branches only** | push to / merge into / open a PR against `staging` or `main` |
 | `pre-merge` | opens **exactly one** PR `feature → staging`, plus the D7 sync-merge commit | merge any PR; touch `main`; modify source |
-| `post-merge` | the **only** skill that merges — `staging` via a green-CI PR merge, `production` via the double-confirmed `staging → main` PR merge; stamps `staging-signoff:`; runs deploys; cuts the release + transient release-lock **git tags** (metadata on a commit — no tracked file, so not a source write) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
+| `post-merge` | the **only** skill that merges — the **two PR merges** (`staging` via a green-CI merge, `production` via the double-confirmed release merge); the **`staging-signoff:` stamp** (incl. the `--production` unpinned-legacy re-stamp); the **`INTAKE.md` `completed` stamp**; its **run report** + (on a failed ship) the **issues file**; and the release + transient release-lock **git tags** (metadata on a commit — no tracked file, so not a source write). Canonical enumeration: `post-merge/SKILL.md` (Hard refusals) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
 | all others | their own artifacts (PRDs, reports, tickets, devkit appends) | push, merge, or open PRs |
 
 **Nothing reaches `main` except from `staging`, and only via `post-merge

@@ -111,6 +111,18 @@ downstream and out-of-band** (store review + rollout), pointing at the
 monitor-handoff above. Stamp-on-submit + honest note, never a silent "shipped =
 live".
 
+**A backend-smoke failure does NOT block this stamp (AC-SB4).** "Submission accepted"
+(deploy exit 0 + track recorded) and the optional **backend/build smoke** are
+*unrelated targets*. Once the submit is accepted, **the artifact is out and cannot be
+un-submitted by a backend blip** — so a *backend* smoke failure must not withhold the
+`completed` stamp. The stamp fires on submit-accepted regardless of the backend-smoke
+verdict. The backend-smoke failure still stands as a finding (verdict `fail`, driving
+the rollback/halt offer), and because the run's verdict is `fail` the release **tag**
+(Step 9) is still withheld — but the intake row correctly reflects the submitted
+reality. Only a failure of *submission acceptance itself* (rejected-at-upload, or a
+**provenance** `fail`) skips the stamp for a submission PRD (`refs/production.md`
+Step 8).
+
 ## `live_status` polling seam — AC-SB5
 
 The lifecycle report/status schema carries an **optional** `live_status` field on
@@ -131,7 +143,8 @@ feature→`prod` ship** — submit → accepted → monitor-handoff, exactly as 
 
 The staging-scoped stages are **inactive** in this flow (enumerated once in
 `SKILL.md` § *Release flow* — not restated here). That does **not** drop human
-judgment: the **double-confirmation** and the **inline human-test approval** are
-both active on the direct-flow production ship (`refs/production.md` Step 1
-direct-flow paragraph). The sign-off stage being inactive removes a *stage*, not
-the *gate* — a human still approves before the submission goes out.
+judgment: the **double-confirmation** and the **inline human-test approval** (defined
+once in `refs/production.md` § *Inline human-test approval*) are both active on the
+direct-flow production ship. The sign-off stage being inactive removes a *stage*, not
+the *gate* — a human still approves (via that inline human-test approval) before the
+submission goes out.
