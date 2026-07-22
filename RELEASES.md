@@ -2,7 +2,29 @@
 
 What's new for you, release by release.
 
-## v2.2.0 — 2026-07-21
+## v2.3.0 — 2026-07-22
+
+> Shipping is now honest on every platform. Web and desktop deploys still go live and get verified live — but iOS and Android releases are treated as what they really are: store submissions, tracked to the handoff, never falsely reported as "live". Around that, production releases gained real guardrails: a one-confirm rollback when a ship goes bad, a version tag and provenance check on every release, and a lock so two ships can't race each other.
+
+### ✨ New
+- iOS and Android releases now follow the store's actual lifecycle. A successful push means "submitted for review" — you're told the track it went to, where to monitor it (App Store Connect / Google Play Console), and how to halt the rollout — instead of the old behavior, which declared the app "live" the moment the upload finished.
+- When a production ship fails its checks, you're now offered the recovery action — restore the last good deploy, or halt a staged rollout — as a one-confirm step *before* the fix-it conversation starts. It always asks; it never rolls anything back on its own.
+- Every production release is now tagged with a version and build number, computed read-only from your release history — and the shipped artifact is checked against the exact commit that was signed off, so a stale build from an old checkout can't slip into a release.
+- Two production ships can no longer race each other: if a release is already in flight, a second one refuses cleanly and tells you who's mid-ship. A stuck lock tells you the one-line command to clear it.
+- Project setup now verifies your staging environment actually exists per platform — config file present, deploy target real, store track named — instead of assuming a `staging` branch means staging works. Gaps are reported with the exact fix.
+- macOS releases get first-class treatment: notarization is tracked as its own step (a stall is named as such, not disguised as a failed deploy), the shipped app's signature is verified, and your update feed is checked for the new version — each only when you've configured it.
+- Deploy verification can now watch a window ("stay healthy for 5 minutes") or wait for targets that go live slowly (CDN propagation, store processing) — while a plain one-shot smoke command keeps working exactly as before.
+
+### 📈 Improved
+- Running without a staging environment now means *fewer* checks, never *weaker* ones. Stages that don't apply are reported as "inactive" — distinct from "skipped" (tooling missing) and "relaxed" (threshold lowered) — and everything that still applies runs at full strictness.
+- The backlog's edit history now lives in its own file next to the backlog, so reading your ideas no longer means paging past every edit ever made — and the history can no longer bleed into the idea list itself.
+
+### 🐛 Fixed
+- An adversarial audit of the new release pipeline closed a batch of correctness gaps before they could bite — among them: the no-staging ship path was unrunnable as written, a stale artifact from an *old* release could pass the provenance check, and a well-timed staging merge could slip uncertified commits into a production ship.
+- Deleting a backlog idea on a ledger that had never been touched since the history split now correctly reports the history that will be preserved, instead of claiming there is none.
+
+### 🔒 Security
+- Staging sign-off is now pinned to the exact commit you tested. If anything lands on staging after you signed off, production refuses to ship until that new work is signed off too — closing the hole where late commits could ride an old approval into production unreviewed.
 
 > Your backlog is no longer append-only: you can now edit an idea you've already logged, or remove one outright — and the removal tells you what it breaks before it happens.
 

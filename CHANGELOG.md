@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-07-22
+
+### [38] — Publish the v2.3.0 user-facing release notes
+
+- `RELEASES.md`: Added — the `v2.3.0 — 2026-07-22` section (user-facing notes covering entries [27]–[37]: the cross-platform release model — store submissions with monitor-handoff, the always-ask rollback offer, release tagging + provenance, the release lock, staging readiness at `--init`, macOS notarization/signing/appcast, smoke watch/poll, the pinned staging sign-off, the intake history split, and the adversarial-audit fix waves)
+
 ## 2026-07-21
 
 ### [37] — verification fixes (wave A): the seven governance majors + lifecycle/staleness sweep
