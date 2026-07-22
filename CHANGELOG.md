@@ -2,6 +2,11 @@
 
 ## 2026-07-22
 
+### [39] — README/ARCHITECTURE: v4 residuals in the supporting sections
+
+- `ARCHITECTURE.md`: Changed — `devkit/PLATFORMS.md` row documents the full v4 column surface (release_model, smoke shapes, staging config, rollback/halt cmds, version probe, macOS surfaces); `devkit/policy.json` row gains the staging-readiness stance; the `INTAKE.md` paragraph notes the gitignored ledger + its `INTAKE-UPDATE.md` sibling; the production run-report sentence carries release identity + per-model outcomes; § Safety floor names the two release tags as metadata-writes and lists the grown human-gate set (pinned sign-off, direct-flow inline human-test, always-ask rollback)
+- `README.md`: Changed — the run-reports and safety-floor paragraphs get the same two updates (release-style report contents; the full human-gate list)
+
 ### [38] — Publish the v2.3.0 user-facing release notes
 
 - `RELEASES.md`: Added — the `v2.3.0 — 2026-07-22` section (user-facing notes covering entries [27]–[37]: the cross-platform release model — store submissions with monitor-handoff, the always-ask rollback offer, release tagging + provenance, the release lock, staging readiness at `--init`, macOS notarization/signing/appcast, smoke watch/poll, the pinned staging sign-off, the intake history split, and the adversarial-audit fix waves)
