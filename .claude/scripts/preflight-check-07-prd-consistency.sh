@@ -10,7 +10,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 1; }
 . "$DIR/preflight-common.sh"
 
-# PRD-surface probe (new — the old detector has none): a features/prd-<n>-*/ dir
+# PRD-surface probe (new — the old detector has none): a prd-<n>-*/ dir anywhere
+# under features/, whether at the legacy flat path or nested one level down in a
+# lifecycle lane (features/{planned,wip,done}/prd-*/ — maxdepth 3 reaches these).
 surface=false
 find . -maxdepth 3 -type d -name 'prd-*' \
   \( -path './node_modules' -o -path './.git' -o -path '*/node_modules' \) -prune -o \

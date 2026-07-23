@@ -226,8 +226,8 @@ fi
   never acquire, so there is nothing to release and no friction on the common
   refusal paths (AC-LK3).
 - **Early enough** to cover the whole mutating window: Step 4 (open release PR),
-  Step 5 (the irreversible merge to `prod`), and Steps 6–9 (deploy/verify/stamp/tag)
-  all run **inside** the lock. Two runs can both clear Step 3 concurrently (two humans
+  Step 5 (the irreversible merge to `prod`), and Steps 6–10 (deploy/verify/stamp/tag/
+  PRD-lane transition) all run **inside** the lock. Two runs can both clear Step 3 concurrently (two humans
   each confirm); the acquire at the top of this window is what serializes them —
   first to push the tag proceeds, the second's push is rejected and it refuses
   `release_in_flight` naming the first (AC-LK1).
@@ -329,7 +329,7 @@ Every exit path of `--production` **after acquisition**, and where the lock rele
 | 9 | Step 6 deploy failure | failed ship (terminal) | **release** at ship-terminal — after the rollback offer, before the fix-loop handoff |
 | 10 | Step 7 smoke / poll-timeout / watch-degrade / macOS-check / provenance failure | failed ship (terminal) | **release** at ship-terminal — after the rollback offer, before the fix-loop handoff |
 | 11 | Human declines the Step 7 rollback offer | still a terminal ship outcome | **release** at ship-terminal (the offer resolved), before the fix-loop handoff |
-| 12 | Steps 6–9 all pass | success (tagged) | **release** after Step 9 |
+| 12 | Steps 6–10 all pass | success (tagged) | **release** after Step 10 |
 | 13 | **Hard process kill** (SIGKILL / crash) between acquire and any release | dangling lock | **not** releasable by code — the **TTL (2h) + manual unlock** cover it (the one path graceful release cannot, by physics) |
 
 Rows 1, 3–6, 8 are refusals (and row 7 a skip) that fire *after* acquisition — each
@@ -396,7 +396,7 @@ Branch protection enforces both; post-merge checks them, then merges:
    ```
    Without this, Step 6's build recompute, Step 7's provenance, and Step 9's tag all
    read a stale `origin/$PROD` (last release's head). This fetch is the single refresh
-   Steps 6–9 read from.
+   Steps 6–10 read from.
 
 5. **Recompute the authoritative `BUILD` (F13) — tag-time truth.** The build resolved
    early (§ *Release identity*) was a **preview** that did not include the merge
@@ -483,13 +483,15 @@ prior release** (a stale checkout, last year's build) is **outside** the window 
 the window → emit a **provenance finding**, verdict `fail` (the artifact shipped was
 built from a commit no human certified for this release). No `version_probe` →
 provenance is `asserted (unverified)` with a note, never a fail. A provenance `fail`
-skips Step 8 (the stamp) and Step 9 (the tag), exactly like a smoke failure.
+skips Step 8 (the stamp), Step 9 (the tag), and Step 10 (the `done` transition),
+exactly like a smoke failure.
 
 **Any verification failure** — a plain `smoke-failed`, a poll timeout
 (`smoke-never-live`), a watch-window degrade, **or** a macOS release-check finding
 (`notarization-stall` / `notarization-invalid` / `signing-fail` / `appcast-stale`) —
-sets verdict `fail`, **skips Step 8** (a release that isn't verifiably live doesn't
-close its PRD). The failed-ship loop then runs, and its **first action is the
+sets verdict `fail`, **skips Steps 8–10** (a release that isn't verifiably live
+doesn't close its PRD's intake row, earn a tag, or move to `done/`). The failed-ship
+loop then runs, and its **first action is the
 rollback/rollout-halt offer** (`SKILL.md` § *Failed-ship loop*): with a configured `rollback_cmd`
 (`deploy`) / `rollout_halt_cmd` (`submission`, once a rollout exists) post-merge
 **offers to execute it** via `AskUserQuestion` *before* the fix loop, never auto
@@ -555,13 +557,59 @@ git push origin "v${NEXT_VERSION}+${BUILD}"
 - Record `version` / `tag` / `build` / per-platform `provenance` in the clean-run
   summary (`refs/output-schema.md`).
 
+## Step 10 — PRD lifecycle transition to `done` (24-prd-lifecycle-lanes)
+
+Only on a **successful** release — the same success condition as Steps 8–9 (merged +
+deployed-or-skipped-with-note + verified-or-skipped-with-note, and provenance not
+`fail`). This is the terminal PRD transition: the folder lane and the `status:`
+frontmatter both move to `done` so the physical location and the logical state agree.
+For **each shipped PRD**:
+
+1. **Stamp `status: done`.** `Edit` the PRD's frontmatter `status:` field to `done` —
+   the `eng → done` transition owned here (plan-em set it to `eng` at the branch cut).
+   This is a distinct write from the Step 8 `INTAKE.md` stamp: `status:` lives in the
+   PRD frontmatter, the intake ledger row is a separate file. The **`reviewed:` stamp
+   and the `staging-signoff:` stamp are left intact and unchanged** — `reviewed`
+   records that a gate ran, `staging-signoff` records the human staging test, and
+   `status: done` records that the feature shipped; the three are orthogonal.
+2. **Move the folder `wip/ → done/`.** `git mv features/wip/prd-<n>-<slug>/
+   features/done/prd-<n>-<slug>/` — a whole-directory rename that carries the PRD and
+   its colocated `reports/`, `preflight.md`, and `test/` with no path rewriting (they
+   live **inside** the moved dir, so they travel with it). Always `git mv`, never plain
+   `mv`, so history follows the file and the move is a tracked rename.
+
+**Lane-agnostic resolution + idempotency.** Do not assume the PRD sits under `wip/`.
+Resolve it via a glob across the three lanes and the legacy flat path —
+`features/{planned,wip,done}/prd-<n>-*/` then `features/prd-<n>-*/` — and move the
+**first hit** to `done/` (a PRD lives in exactly one place, so the first hit wins).
+If the PRD already resolves under `features/done/`, this is a **no-op** — skip with a
+one-line note (an already-`done` re-ship moves nothing). This keeps the move consistent
+with the shared lane-aware resolvers (change 5) whether the PRD arrived at `wip/` by
+the normal `planned → wip → done` path, sits at a legacy flat path, or was already
+filed.
+
+**Only on a successful production ship.** A failed ship (Step 6 deploy failure, or a
+Step 7 smoke / poll-timeout / watch-degrade / macOS-check / provenance `fail`) skips
+this step entirely — exactly as it skips Step 8's intake stamp and Step 9's tag — so a
+broken release neither stamps `status: done` nor files the PRD into `done/`. And
+**`--staging` never runs this step**: a PRD is not `done` until it is live in
+production, so the staging flow moves no folder and stamps no `status: done`.
+
+**Safety floor.** The `status: done` stamp is a PRD-frontmatter edit (docs/metadata,
+the same category as the Step 8 intake stamp); the folder move is a tracked `git mv`
+of the PRD's own directory. Neither touches `src/` or writes any source code — the
+safety floor holds (`../shared/refs/safety-floor.md`), and both are named in
+`SKILL.md`'s canonical sanctioned-writes enumeration (items 4 and 8).
+
 ## Run report
 
 Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored, its smoke check failed, **or provenance mismatched** (Step 7).
 - `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success — Step 9; skipped-with-note or absent on a failed release), the bump level, and per-platform provenance (`verified` / `asserted (unverified)` / `fail`) (`refs/release-identity.md`). On a failed ship, also carry the **rollback offer outcome** (offered/executed/declined + cmd exit) surfaced by the failed-ship loop (`refs/output-schema.md`). A **stale lock** is never a clean-run event — it terminates *this* run as a `release_in_flight` refusal (stale variant, with the manual unlock; `refs/refusal-patterns.md`), and `stale_detected` lives in **that refusal's** `lock` block, not here. A clean uncontended acquire/release adds nothing to this section (silent — AC-LK3).
-- `## Work done` — PRDs shipped, commit count, platforms deployed. **Under `release_flow=direct`, open with one `Stages` line** naming what did not run and why, so the reduced set is visible rather than invisible (AC-NS1):
+- `## Work done` — PRDs shipped, commit count, platforms deployed. On a successful
+  ship, note that each shipped PRD was stamped `status: done` and filed into
+  `features/done/` (Step 10). **Under `release_flow=direct`, open with one `Stages` line** naming what did not run and why, so the reduced set is visible rather than invisible (AC-NS1):
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.
 - `## Test results` — one line per platform per `refs/verify-deploy.md`'s full vocabulary: for `deploy` platforms — verified / smoke-failed / **smoke-never-live** (poll timeout) / **degraded-in-window** (watch-window) / skipped (no `smoke_cmd`); for `submission` platforms — submitted (+ track) / backend-health-ok / backend-health-failed / skipped, never "live".

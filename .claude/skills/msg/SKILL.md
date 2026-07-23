@@ -179,10 +179,12 @@ mode never merges, deploys, or opens PRs.
 
 Dispatch to [`refs/protocol-gui.md`](refs/protocol-gui.md) and follow it end to end. Default
 is **interactive mode**: launch `refs/gui/server.py` bound to `127.0.0.1` and open the browser —
-the server parses `features/prd-*/` (frontmatter + F-IDs + `## Todos`), infers completion, and
+the server parses the PRDs under `features/` — resolved lane-agnostically across
+`features/{planned,wip,done}/prd-*/` and the legacy flat `features/prd-*/` (frontmatter +
+F-IDs + `## Todos`), infers completion, and
 serves a Linear/Jira-style board where the user can edit PRD bodies, change status (dropdown or
 drag-and-drop), toggle todos, browse project docs (README, CLAUDE.md, `devkit/`), and run
-Claude prompts from a console. Writes are confined to `features/prd-*/` markdown. When a
+Claude prompts from a console. Writes are confined to PRD markdown in any lane. When a
 read-only snapshot is wanted (or `python3` is unavailable), fall back to the static
 template + data-fill path — same board, editing hidden, nothing ever written.
 

@@ -4,7 +4,7 @@ description: >
   Principal PM skill — the autonomous PRD writer. Consumes a graded, fleshed-out
   row from the INTAKE.md backlog (idea, goal, type, grade) and drafts the full PRD
   solo — edge cases, feature/acceptance table, user flows, error handling — saved to
-  features/prd-[n]-[feature-slug]/. The requirements interview lives in /intake now,
+  features/planned/prd-[n]-[feature-slug]/. The requirements interview lives in /intake now,
   not here. Pauses ONLY for batched open questions the draft couldn't resolve and for
   breaking/critical touches. Refuses requests that would skip the PRD stage entirely.
 argument-hint: "[#<n> | --sub <prd-path> | --roadmap]"
@@ -81,9 +81,12 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 | Field | Initial | Updated by | Updated to | Trigger |
 |-------|---------|-----------|-----------|---------|
 | `status` | `product` | `plan-em` | `eng` | eng sections written to PRD |
+| `status` | `eng` | `post-merge --production` | `done` | shipped to production |
 | `product-tuned` | `no` | `plan-tune --product` | `yes` | certification passes |
 | `eng-tuned` | `no` | `plan-tune --eng` | `yes` | eng-side certification passes |
 | `reviewed` | `no` | `pre-merge` / `post-merge` | `yes` | gate/ship complete |
+
+`status: done` is the terminal stamp — a production ship also relocates the PRD folder into the `done/` lane. It is **orthogonal** to `reviewed:`: `reviewed: yes` records that a gate ran; `status: done` records that the feature shipped. The two are set independently and never substitute for each other.
 
 **Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5). intake wrote the row `backlog`; `post-merge --production` later stamps it `completed`.
 

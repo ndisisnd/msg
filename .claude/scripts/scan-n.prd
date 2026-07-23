@@ -14,10 +14,17 @@ mode="${1:-}"
 case "$mode" in
   prd)
     max=0
-    for dir in features/prd-*/; do
+    # Lane-agnostic: a PRD may sit in any of the three lifecycle lanes or at the
+    # legacy flat path. Scan all four; a missing glob expands to a literal that
+    # `[[ -d ]]` rejects, so no nullglob is needed. Duplicates across lanes never
+    # happen (one PRD, one lane), and even if they did max-of-max is unaffected.
+    for dir in features/prd-*/ \
+               features/planned/prd-*/ \
+               features/wip/prd-*/ \
+               features/done/prd-*/; do
       [[ -d "$dir" ]] || continue
-      n="${dir#features/prd-}"
-      n="${n%/}"
+      base="${dir%/}"; base="${base##*/}"   # prd-<n>-<slug>
+      n="${base#prd-}"
       [[ "$n" =~ ^([0-9]+) ]] || continue
       n="${BASH_REMATCH[1]}"
       (( n > max )) && max=$n
@@ -31,9 +38,13 @@ case "$mode" in
     [[ "$parent" =~ ^[0-9]+$ ]] || { echo "scan-n.prd sub: parent-n must be numeric, got '$parent'" >&2; exit 1; }
     max=0
     # Sub-PRDs live nested inside the parent's folder as
-    #   features/prd-<parent>-<slug>/prd-<parent>.<m>-<sub_slug>/
+    #   features/[<lane>/]prd-<parent>-<slug>/prd-<parent>.<m>-<sub_slug>/
+    # The parent folder may be in any lane (or the legacy flat path); scan all.
     # Scan for the highest existing minor <m> and return the next one (.1 if none).
-    for dir in features/prd-"$parent"-*/prd-"$parent".*-*/; do
+    for dir in features/prd-"$parent"-*/prd-"$parent".*-*/ \
+               features/planned/prd-"$parent"-*/prd-"$parent".*-*/ \
+               features/wip/prd-"$parent"-*/prd-"$parent".*-*/ \
+               features/done/prd-"$parent"-*/prd-"$parent".*-*/; do
       [[ -d "$dir" ]] || continue
       base="${dir%/}"
       base="${base##*/}"                 # prd-<parent>.<m>-<sub_slug>

@@ -41,3 +41,4 @@ update-plan-gui-done.md
 # …but component protocol files are source, not scratch plans (e.g. manual-test-plan, C22)
 !.claude/skills/**/protocol-*-plan.md
 .claude/kermit/state.json
+.tokensave

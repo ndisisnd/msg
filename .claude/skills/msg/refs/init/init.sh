@@ -42,7 +42,7 @@ DS_LIBRARY="${DS_LIBRARY:-[USER: note any external component library in use and 
 DS_TOKENS="${DS_TOKENS:-[USER: list colour, spacing, typography tokens and where they live]}"
 DS_CONVENTIONS="${DS_CONVENTIONS:-[USER: naming conventions, folder structure rules, theming approach, and any constraints on adding new components]}"
 
-CREATED=(); SKIPPED=(); FAILED=()
+CREATED=(); SKIPPED=(); FAILED=(); MOVED=()
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -254,32 +254,106 @@ else
   CREATED+=(".gitignore|$lines")
 fi
 
-# ── features/ directory ───────────────────────────────────────────────────────
+# ── features/ lifecycle lanes ─────────────────────────────────────────────────
+# Three lanes mirror the pipeline stage — planned (drafted), wip (in build),
+# done (shipped). Each carries a tracked .gitkeep so the empty lane commits.
+# Idempotent: a lane that already exists is skipped, never emptied or recreated.
+
+for lane in planned wip done; do
+  lane_dir="$TARGET/features/$lane"
+  if [[ -d "$lane_dir" ]]; then
+    SKIPPED+=("features/$lane/")
+  elif mkdir -p "$lane_dir" && : > "$lane_dir/.gitkeep"; then
+    CREATED+=("features/$lane/|—")
+  else
+    FAILED+=("features/$lane/")
+  fi
+done
+
+# ── features/ flat-PRD migration (change 6) ───────────────────────────────────
+# One-time sort of any pre-lane flat PRD dirs — features/prd-<n>-<slug>/ sitting
+# directly under features/, not already inside a lane — into a lane by the GUI
+# completion ladder:
+#   merged staging->prod release PR (or a shipped tag) that names the PRD → done/
+#   a live unshipped feat/prd-<n>-* branch (local or remote)             → wip/
+#   otherwise                                                            → planned/
+# git mv when the dir is tracked (history-preserving rename); plain mv otherwise.
+# Idempotent: a PRD already inside a lane is never matched, and a brand-new repo
+# with an empty features/ matches nothing and migrates nothing.
+
+migrate_lane_for() {
+  # $1 = flat PRD dir basename (prd-<n>-<slug>); echoes planned|wip|done.
+  local base="$1" num prd_id prod_branch out
+  num=$(printf '%s' "$base" | sed -E 's/^prd-([0-9]+).*/\1/')
+  prd_id="$base"
+
+  # Rung 1 — shipped: a merged staging->prod PR that names this PRD, or a git tag
+  # that references it.
+  if command -v gh >/dev/null 2>&1 && git -C "$TARGET" rev-parse --git-dir >/dev/null 2>&1; then
+    prod_branch=$(git -C "$TARGET" symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+    [[ -z "$prod_branch" ]] && prod_branch=main
+    out=$(gh pr list --base "$prod_branch" --state merged --search "$prd_id" --json number --limit 1 2>/dev/null)
+    if [[ -n "$out" && "$out" != "[]" ]]; then
+      printf 'done\n'; return
+    fi
+  fi
+  if git -C "$TARGET" tag --list "*prd-${num}-*" 2>/dev/null | grep -q .; then
+    printf 'done\n'; return
+  fi
+
+  # Rung 2 — wip: a live feat/prd-<n>-* branch (local or remote) exists.
+  if git -C "$TARGET" branch -a --list "feat/prd-${num}-*" "*/feat/prd-${num}-*" 2>/dev/null | grep -q .; then
+    printf 'wip\n'; return
+  fi
+
+  # Rung 3 — planned: everything else (drafted-but-unbuilt).
+  printf 'planned\n'
+}
 
 if [[ -d "$TARGET/features" ]]; then
-  SKIPPED+=("features/")
-elif mkdir -p "$TARGET/features"; then
-  CREATED+=("features/|—")
-else
-  FAILED+=("features/")
+  for prd_dir in "$TARGET"/features/prd-*/; do
+    [[ -d "$prd_dir" ]] || continue          # no flat PRDs → glob stays literal
+    base=$(basename "$prd_dir")
+    [[ "$base" == prd-* ]] || continue
+    lane=$(migrate_lane_for "$base")
+    dest="$TARGET/features/$lane/$base"
+    if [[ -e "$dest" ]]; then
+      SKIPPED+=("features/$lane/$base/")   # already sorted — leave it alone
+      continue
+    fi
+    if [[ -n "$(git -C "$TARGET" ls-files "features/$base" 2>/dev/null)" ]]; then
+      if git -C "$TARGET" mv "features/$base" "features/$lane/$base" >/dev/null 2>&1; then
+        MOVED+=("features/$base → features/$lane/$base")
+      else
+        FAILED+=("features/$base → features/$lane/")
+      fi
+    elif mv "$prd_dir" "$dest" 2>/dev/null; then
+      MOVED+=("features/$base → features/$lane/$base")
+    else
+      FAILED+=("features/$base → features/$lane/")
+    fi
+  done
 fi
 
 # ── Manifest ──────────────────────────────────────────────────────────────────
 
-printf '\nmsg --init complete — %d created, %d skipped, %d failed.\n\n' \
-  "${#CREATED[@]}" "${#SKIPPED[@]}" "${#FAILED[@]}"
+printf '\nmsg --init complete — %d created, %d skipped, %d migrated, %d failed.\n\n' \
+  "${#CREATED[@]}" "${#SKIPPED[@]}" "${#MOVED[@]}" "${#FAILED[@]}"
 
-printf '%-20s %-22s %s\n' "File" "Status" "Lines"
-printf '%-20s %-22s %s\n' "----" "------" "-----"
+printf '%-36s %-22s %s\n' "File" "Status" "Lines"
+printf '%-36s %-22s %s\n' "----" "------" "-----"
 
 for entry in "${CREATED[@]}"; do
-  printf '%-20s %-22s %s\n' "${entry%%|*}" "created" "${entry##*|}"
+  printf '%-36s %-22s %s\n' "${entry%%|*}" "created" "${entry##*|}"
 done
 for name in "${SKIPPED[@]}"; do
-  printf '%-20s %-22s %s\n' "$name" "skipped (exists)" "—"
+  printf '%-36s %-22s %s\n' "$name" "skipped (exists)" "—"
+done
+for name in "${MOVED[@]}"; do
+  printf '%-36s %-22s %s\n' "$name" "migrated (git mv)" "—"
 done
 for name in "${FAILED[@]}"; do
-  printf '%-20s %-22s %s\n' "$name" "FAILED" "—" >&2
+  printf '%-36s %-22s %s\n' "$name" "FAILED" "—" >&2
 done
 
 [[ ${#FAILED[@]} -eq 0 ]]

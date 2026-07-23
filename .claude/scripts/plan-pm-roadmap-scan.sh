@@ -105,14 +105,26 @@ emit_prd() {
 
 [[ -d features ]] || { exit 0; }
 
-# Top-level PRDs: features/prd-<n>-<slug>/prd-<n>-<slug>.md
-for dir in features/prd-*/; do
+# Top-level PRDs, lane-agnostic: a PRD folder lives in exactly one of the three
+# lifecycle lanes (planned/wip/done) or at the legacy flat path. Union all four
+# and dedupe by PRD id (basename) so a given prd-<n>-<slug> is emitted once —
+# lanes are scanned before flat, so the canonical "first hit wins" precedence
+# holds if a stale flat copy ever coexists with a lane copy.
+#   features/[<lane>/]prd-<n>-<slug>/prd-<n>-<slug>.md
+seen_prd=" "   # space-delimited id set (bash 3.2 has no associative arrays)
+for dir in features/planned/prd-*/ \
+           features/wip/prd-*/ \
+           features/done/prd-*/ \
+           features/prd-*/; do
   [[ -d "$dir" ]] || continue
   base="${dir%/}"; base="${base##*/}"          # prd-<n>-<slug>
+  case "$seen_prd" in *" $base "*) continue ;; esac  # already emitted from an earlier lane
+  seen_prd="$seen_prd$base "
   top="$dir$base.md"
   [[ -f "$top" ]] && emit_prd "$top" ""
 
-  # Nested sub-PRDs: features/prd-<n>-<slug>/prd-<n>.<m>-<subslug>/prd-<n>.<m>-<subslug>.md
+  # Nested sub-PRDs travel inside the parent folder (any lane):
+  #   features/[<lane>/]prd-<n>-<slug>/prd-<n>.<m>-<subslug>/prd-<n>.<m>-<subslug>.md
   for sub in "$dir"prd-*.*-*/; do
     [[ -d "$sub" ]] || continue
     sbase="${sub%/}"; sbase="${sbase##*/}"      # prd-<n>.<m>-<subslug>

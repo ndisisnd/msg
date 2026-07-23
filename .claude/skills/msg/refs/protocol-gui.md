@@ -1,6 +1,8 @@
 # Protocol — `--gui`
 
-Build and serve a **local-only** GUI over `features/prd-*/`: a Kanban/Table board of PRDs
+Build and serve a **local-only** GUI over the PRDs under `features/` — resolved
+lane-agnostically across `features/{planned,wip,done}/prd-*/` and the legacy flat
+`features/prd-*/`: a Kanban/Table board of PRDs
 → per-PRD detail page (rendered PRD body + a TODOs section with its own Kanban/Table
 toggle and a side panel), an **Intake** view (a backlog board over root `INTAKE.md`, shown
 when that file exists), a **Roadmap** view (phases-as-lanes over `roadmap/roadmap.md`,
@@ -100,8 +102,9 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   and the custom header forces a CORS preflight the server never grants.
 - All paths are resolved and confined to `--root`; reads are extension-allowlisted
   (`.md .json .txt .yaml .yml .toml`, ≤2 MB) and skip `.git`/`node_modules`/`.env*`;
-  **writes are restricted to `features/prd-*/` markdown plus the single root
-  `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
+  **writes are restricted to PRD markdown in any lifecycle lane
+  (`features/{planned,wip,done}/prd-*/`, or the legacy flat `features/prd-*/`) plus
+  the single root `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
   writes no other INTAKE.md cell, and never writes the issues file
   `report-prd-<N>-<K>.json` (the finding→ticket projection stays read-time;
   `followUp.status` is written solely by `eng --build`).
@@ -110,7 +113,9 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
 
 Same read model as before — now implemented in `server.py`, re-run per request:
 
-1. **Frontmatter** per `features/prd-*/prd-*.md` (missing fields are normal → `null`;
+1. **Frontmatter** per `features/[<lane>/]prd-*/prd-*.md` — PRD dirs are enumerated
+   lane-agnostically (each of `planned/wip/done/` then the legacy flat path, deduped
+   by PRD id so one PRD is listed once) (missing fields are normal → `null`;
    missing/unparseable frontmatter → `skipped[]`, keep going).
 2. **F-ID feature rows** from `## N. Features…` (any leading number, e.g.
    `## 6. Features & acceptance criteria`), falling back to `## Execution Table` (legacy)
@@ -121,13 +126,16 @@ Same read model as before — now implemented in `server.py`, re-run per request
    (written by the toggle endpoint); absent → `false`.
 4. **Gate issues** from the per-run **issues file** — the failed-run `.json` colocated in
    the PRD's `reports/` folder, sharing a stem with the human report
-   (`report-prd-<N>-<K>.json`) — globbed from `features/prd-*/reports/report-prd-*-*.json`,
-   `features/prd-*/prd-*/reports/report-prd-*-*.json`, and `features/reports/report-*.json`
+   (`report-prd-<N>-<K>.json`) — globbed lane-agnostically from
+   `features/[<lane>/]prd-*/reports/report-prd-*-*.json` and its one-level sub-PRD nest
+   `features/[<lane>/]prd-*/prd-*/reports/report-prd-*-*.json` (`<lane>` ∈ the three
+   lanes or absent for the flat path), plus `features/reports/report-*.json`
    (the no-PRD fallback), via the shared **finding → issue-ticket projection** in
    `eng/refs/build/report-fix.md` (read-time view, never re-serialized). No issues file →
    `gateIssues: []`.
-5. **Run reports** from `features/prd-*/reports/report-prd-*-*.md` (one level of nested
-   `prd-*` sub-dirs included) and `features/reports/report-*.md` (the no-PRD fallback),
+5. **Run reports** from `features/[<lane>/]prd-*/reports/report-prd-*-*.md` (one level of
+   nested `prd-*` sub-dirs included, resolved across the three lanes and the flat path)
+   and `features/reports/report-*.md` (the no-PRD fallback),
    per `.claude/skills/shared/refs/report-schema.md` — frontmatter → typed fields, body
    → raw markdown `detail`, containing `prd-*` folder → `prdId`. The
    `report-prd-<N>-<K>-fix-plan.md` fix plans are **excluded** — they are not reports.
@@ -194,11 +202,16 @@ is unchanged from the previous protocol revision, with these notes:
 - an optional top-level `projectFiles: [{path, group, content}]` may be embedded in
   **static** mode to light up the read-only Files view; live mode ignores it and uses the
   API.
+- each PRD carries `lane` — its lifecycle lane (`planned`/`wip`/`done`) or `null` for a PRD
+  still at the legacy flat path. A PRD in the `done` lane resolves to `completion: shipped`
+  (`completionSource: "PRD in done/ lane (shipped to production)"`) unless a frontmatter
+  `completion` override says otherwise.
 
 ```json
 {
   "generatedAt": "…", "project": "Your Project",
-  "prds": [ { "num": 100, "id": "prd-100-…", "path": "features/prd-100-…/",
+  "prds": [ { "num": 100, "id": "prd-100-…", "path": "features/wip/prd-100-…/",
+    "lane": "wip",
     "feature": "…", "summary": "<2–3 sentence gist from frontmatter `summary`; null if absent — detail page falls back to the feature-title list>",
     "module": "…", "platform": "…", "status": "eng", "created": "2026-07-02",
     "badges": { "productTuned": true, "engTuned": true, "reviewed": false },
@@ -328,7 +341,8 @@ across every project (light + dark, responsive); it is **not** sourced from
   Reports tab surfaces a prominent badge on the card and a callout banner on the detail page.
 
 ## What this protocol never does
-- Never lets the GUI write outside `features/prd-*/` markdown **and the one root `INTAKE.md`
+- Never lets the GUI write outside a PRD's own markdown — any lane, `features/{planned,wip,done}/prd-*/`
+  (or the legacy flat `features/prd-*/`) — **and the one root `INTAKE.md`
   status-cell carve-out (H5)**: no repo-file writes from the Files view, no writes to the
   issues file `report-prd-<N>-<K>.json` (`followUp.status` belongs to `eng --build`), no
   writes to any INTAKE.md cell other than `status`, no generated output written into the repo.

@@ -8,8 +8,8 @@ type: reference
 
 The five-step protocol plan-pm follows end-to-end. Emit progress per § Progress
 emission in SKILL.md. In `--sub` mode, substitute the nested sub-PRD path
-(§ Sub-PRD mode, delta D3) everywhere the steps say
-`features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`.
+(§ Sub-PRD mode, delta D3) everywhere the steps write the drafted PRD's own path
+`features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`.
 
 **Autonomy contract (F3).** The interview is gone — it moved to `/intake`, which
 delivers a graded, fleshed-out row (`idea`, `goal`, `type`, `grade`). plan-pm drafts
@@ -72,8 +72,9 @@ bash -c '[[ -f devkit/ARCHITECTURE.md ]] || exit 0; for e in "Expo:\bExpo\b" "Fl
 Empty output → `platform: TBD` and record it as an open question. Derive `feature_slug`:
 kebab-case, ≤6 words, lowercase + hyphens, from the intake `idea`.
 
-**Part 2 — Initialize template.** Create `features/` and `features/prd-[n]-[feature_slug]/`
-if absent. Write `features/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from
+**Part 2 — Initialize template.** A freshly-drafted PRD always starts in the `planned/`
+lane. Create `features/planned/` and `features/planned/prd-[n]-[feature_slug]/`
+if absent. Write `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md` from
 `refs/template-prd.md` with frontmatter:
 - `name`: `prd-[n]-[feature_slug]` · `feature`: short name from the `idea`
 - `summary`: 2–3 sentence single-line plain-prose gist (core objective + headline features), reconciled in Part 3
@@ -150,7 +151,7 @@ Then **one** final `AskUserQuestion` (single-select) — "Anything to follow up 
 - **Yes** — capture the follow-up (batched, ≤4), apply it autonomously, then terminate.
 
 On termination, **recommend** (never invoke) `plan-tune --product` on this PRD as the next step:
-`Next: run /plan-tune --product on features/prd-[n]-[feature_slug]/… to certify the contract.`
+`Next: run /plan-tune --product on features/planned/prd-[n]-[feature_slug]/… to certify the contract.`
 
 **Multi-PRD note.** There is no multi-PRD loop in v2 — compound asks are split into discrete
 rows at `/intake` (hybrid-ask detection + the ≥8-split gate), so plan-pm always plans exactly one

@@ -11,7 +11,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT" || { echo "cannot cd to $ROOT" >&2; exit 1; }
 . "$DIR/preflight-common.sh"
 
-# PRD-surface probe (same as prd-consistency): a features/prd-<n>-*/ dir
+# PRD-surface probe (same as prd-consistency): a prd-<n>-*/ dir anywhere under
+# features/ — flat legacy path or nested in a lifecycle lane
+# (features/{planned,wip,done}/prd-*/; maxdepth 3 reaches these).
 surface=false
 find . -maxdepth 3 -type d -name 'prd-*' \
   \( -path './node_modules' -o -path './.git' -o -path '*/node_modules' \) -prune -o \

@@ -7,7 +7,8 @@ description: >
   creates a `devkit/` directory containing AHA.md,
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
-  README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the features/ directory.
+  README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the three `features/`
+  lifecycle lanes (`planned/`, `wip/`, `done/`, each with a tracked `.gitkeep`).
   Idempotent — skips files that already exist; never overwrites. All other msg
   skills read these files but never create them.
 type: reference
@@ -72,8 +73,9 @@ type: reference
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `post-merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
-| features/ | Empty directory | `<cwd>/features/` |
-| Manifest | Inline table — file, status, line count | Shown inline at Step 5 |
+| features/ lanes | Three lifecycle lanes — `planned/`, `wip/`, `done/`, each with a tracked `.gitkeep` so the empty lane commits. A PRD lives in exactly one lane, matching its pipeline stage (drafted → `planned`, branch cut → `wip`, shipped → `done`) | `<cwd>/features/{planned,wip,done}/` |
+| Migrated PRDs | Any pre-lane flat `features/prd-*/` dir is `git mv`d into a lane by the completion ladder (shipped → `done/`, live branch → `wip/`, else → `planned/`); reported as `migrated` in the manifest. Empty `features/` → no migration | `<cwd>/features/<lane>/prd-*/` |
+| Manifest | Inline table — file, status (created / skipped / migrated / FAILED), line count | Shown inline at Step 5 |
 
 ## Progress emission
 
@@ -160,7 +162,7 @@ already carries its value.
 
 | Missing artifact | Variables it needs |
 |---|---|
-| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/` | **none** — no placeholders; pure template |
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` | **none** — no placeholders; pure template |
 | `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
 | `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
 | `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
@@ -205,7 +207,7 @@ DS_CONVENTIONS="<component naming / folder conventions>" \
 every variable above is set — neither protocol may leave one unresolved, and no
 variable outside this block reaches `init.sh`.
 
-`init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, `features/` creation, and idempotency. Capture its stdout — it includes the manifest for Step 5.
+`init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, the three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`, each with a tracked `.gitkeep`), a one-time migration of any pre-lane flat `features/prd-*/` dirs into a lane by the completion ladder (`git mv`, reported as `migrated`), and idempotency. Capture its stdout — it includes the manifest for Step 5.
 
 **Seed `devkit/policy.json`.** After `init.sh` returns (so `devkit/` exists), seed the committed
 release-flow policy file. The **skill writes this one directly** (via `Write`) — not `init.sh` —

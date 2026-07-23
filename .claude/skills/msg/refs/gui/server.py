@@ -20,8 +20,10 @@ JSON API that turns the board into a lightweight Linear/Jira-style tool:
 Security posture: binds 127.0.0.1 only; every /api call requires the per-run
 X-Msg-Token header (injected into the served HTML); Host header must be local;
 all file paths are resolved and confined to the project root; reads are
-extension-allowlisted; writes are restricted to features/prd-*/ markdown plus
-the single root INTAKE.md status-cell carve-out (H5) — nothing else is writable.
+extension-allowlisted; writes are restricted to PRD markdown in any lifecycle
+lane (features/{planned,wip,done}/prd-*/, or the legacy flat features/prd-*/)
+plus the single root INTAKE.md status-cell carve-out (H5) — nothing else is
+writable.
 
 Stdlib only. Python 3.9+.
 """
@@ -47,6 +49,10 @@ READ_EXTS = {".md", ".markdown", ".json", ".txt", ".yaml", ".yml", ".toml"}
 DENY_PARTS = {".git", "node_modules", ".env", "__pycache__", ".venv", "venv"}
 # v2 completion buckets (H1 ladder) — left→right pipeline order.
 BUCKETS = ("product", "planned", "building", "gated", "staged", "shipped")
+# Lifecycle lanes (improvement #24): a PRD folder lives in exactly one lane, or at
+# the legacy flat path. Resolution is lane-agnostic — every PRD lookup unions these
+# lanes with the flat path and takes the first hit (a PRD never appears twice).
+LANES = ("planned", "wip", "done")
 META_KEYS = {"completion", "status", "module", "platform", "feature"}
 # Intake ledger (F2/H2) — root INTAKE.md; the GUI's only new write path is a row's
 # status cell (H5). Lifecycle: backlog → in-progress → completed (D14).
@@ -277,9 +283,10 @@ def release_branches():
     return _BRANCHES
 
 
-def infer_completion(fm, num, slug):
+def infer_completion(fm, num, slug, lane=None):
     """H1 completion ladder (msg-v2 Part H1), most-authoritative first:
         frontmatter completion override
+          -> done/ lane                       = shipped (production, improvement #24)
           -> PR staging->prod MERGED          = shipped (production)
           -> staging-signoff: stamp present   = staged (human-approved)
           -> PR feature->staging MERGED       = staged
@@ -292,6 +299,13 @@ def infer_completion(fm, num, slug):
     override = (fm.get("completion") or "").strip().lower()
     if override in BUCKETS:
         return override, "frontmatter completion override"
+
+    # Lane signal (improvement #24): post-merge --production moves a PRD into the
+    # done/ lane atomically with stamping status: done, so a PRD physically in
+    # done/ has shipped. This outranks the gh/git rungs (which may lag on a repo
+    # without gh/remote) but yields to an explicit frontmatter override above.
+    if lane == "done":
+        return "shipped", "PRD in done/ lane (shipped to production)"
 
     prd_id = "prd-%s%s" % (num, ("-" + slug) if slug else "")
     have_gh = gh_ready()
@@ -332,8 +346,20 @@ def infer_completion(fm, num, slug):
     return "product", "frontmatter status: %s" % (status or "absent")
 
 
+def prd_lane_of(rel):
+    """Which lifecycle lane a PRD dir sits in, or None for the legacy flat path.
+    `rel` is the PRD dir relative to root, e.g. features/wip/prd-1-x (lane=wip),
+    features/prd-1-x (flat, None), or a nested sub-PRD whose lane is its parent's
+    (features/done/prd-1-x/prd-1.1-y → done)."""
+    parts = rel.replace(os.sep, "/").split("/")
+    if len(parts) >= 3 and parts[0] == "features" and parts[1] in LANES:
+        return parts[1]
+    return None
+
+
 def parse_prd_dir(d):
     rel = os.path.relpath(d, root_path())
+    lane = prd_lane_of(rel)
     mds = sorted(glob.glob(os.path.join(d, "prd-*.md")))
     if not mds:
         return None, {"path": rel + "/", "reason": "no prd-*.md file"}
@@ -347,7 +373,7 @@ def parse_prd_dir(d):
     slug = nm.group(2) if nm else base
     feats, order = parse_features(body)
     has_todos = parse_todos(body, feats, order)
-    completion, source = infer_completion(fm, num, slug)
+    completion, source = infer_completion(fm, num, slug, lane)
     badges = {
         "productTuned": as_badge(fm.get("product-tuned", fm.get("tuned"))),
         "engTuned": as_badge(fm.get("eng-tuned")),
@@ -357,6 +383,7 @@ def parse_prd_dir(d):
         "num": num,
         "id": base,
         "path": rel + "/",
+        "lane": lane,
         "file": os.path.relpath(mds[0], root_path()),
         "feature": fm.get("feature") or fm.get("name") or slug.replace("-", " ").title(),
         "summary": fm.get("summary"),
@@ -409,13 +436,28 @@ def project_finding(f):
     }
 
 
+def report_glob_pats(leaf):
+    """The colocated report/issue globs for one leaf pattern (e.g. report-*.md),
+    covering the legacy flat path, the flat sub-PRD nest, each lifecycle lane's
+    top-level PRDs and their nested sub-PRDs, plus the no-PRD features/reports
+    fallback. Colocated artifacts travel inside the PRD folder, so the lane prefix
+    is the only thing that changes across a lane move (improvement #24)."""
+    pats = [
+        os.path.join(root_path(), "features", "prd-*", "reports", leaf),
+        os.path.join(root_path(), "features", "prd-*", "prd-*", "reports", leaf),
+    ]
+    for lane in LANES:
+        pats.append(os.path.join(root_path(), "features", lane, "prd-*", "reports", leaf))
+        pats.append(os.path.join(root_path(), "features", lane, "prd-*", "prd-*", "reports", leaf))
+    pats.append(os.path.join(root_path(), "features", "reports", leaf))
+    return pats
+
+
 def collect_gate_issues(skipped):
     out = []
-    pats = (
-        os.path.join(root_path(), "features", "prd-*", "reports", "report-prd-*-*.json"),
-        os.path.join(root_path(), "features", "prd-*", "prd-*", "reports", "report-prd-*-*.json"),
+    pats = report_glob_pats("report-prd-*-*.json") + [
         os.path.join(root_path(), "features", "reports", "report-*.json"),
-    )
+    ]
     paths = sorted(set(p for pat in pats for p in glob.glob(pat)))
     for path in paths:
         rel = os.path.relpath(path, root_path())
@@ -490,13 +532,12 @@ def parse_report_file(path, skipped):
 
 def collect_reports(skipped):
     out = []
-    pats = (
-        os.path.join(root_path(), "features", "prd-*", "reports", "report-*.md"),
-        os.path.join(root_path(), "features", "prd-*", "prd-*", "reports", "report-*.md"),
-        os.path.join(root_path(), "features", "reports", "report-*.md"),
-    )
-    for pat in pats:
+    seen = set()   # lane + flat sub-PRD globs can overlap; dedupe by resolved path
+    for pat in report_glob_pats("report-*.md"):
         for path in sorted(glob.glob(pat)):
+            if path in seen:
+                continue
+            seen.add(path)
             if path.endswith("-fix-plan.md"):
                 continue
             r = parse_report_file(path, skipped)
@@ -735,11 +776,31 @@ def project_name():
     return base or "Your Project"
 
 
+def top_prd_dirs():
+    """Every top-level PRD directory, lane-agnostic and deduped by PRD id.
+    A PRD folder lives in exactly one lifecycle lane (planned/wip/done) or at the
+    legacy flat path; lanes are scanned first so the canonical "first hit wins"
+    precedence holds if a stale flat copy ever coexists with a lane copy. The
+    explicit lane names (not a `features/*` glob) keep this from ever matching a
+    nested sub-PRD dir as if it were a top-level PRD."""
+    seen, out = set(), []
+    roots = [os.path.join(root_path(), "features", lane) for lane in LANES]
+    roots.append(os.path.join(root_path(), "features"))
+    for base_dir in roots:
+        for d in sorted(glob.glob(os.path.join(base_dir, "prd-*"))):
+            if not os.path.isdir(d):
+                continue
+            bid = os.path.basename(d)
+            if bid in seen:
+                continue
+            seen.add(bid)
+            out.append(d)
+    return out
+
+
 def build_data():
     prds, skipped = [], []
-    for d in sorted(glob.glob(os.path.join(root_path(), "features", "prd-*"))):
-        if not os.path.isdir(d):
-            continue
+    for d in top_prd_dirs():
         candidates = [d] + sorted(g for g in glob.glob(os.path.join(d, "prd-*")) if os.path.isdir(g))
         for c in candidates:
             prd, skip = parse_prd_dir(c)

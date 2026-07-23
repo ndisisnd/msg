@@ -467,7 +467,7 @@ function renderList() {
 
   if (PRDS.length === 0) {
     root.appendChild(el('<div class="empty-state"><div class="big">No PRDs yet</div>' +
-      'Nothing under <code>features/prd-*/</code>. Run <code>/plan-pm</code> to create one.</div>'));
+      'Nothing under <code>features/</code>. Run <code>/plan-pm</code> to create one.</div>'));
     renderTestIssuesSection(root);
     return;
   }

@@ -31,16 +31,19 @@ if [[ -d "$resolved" ]] || [[ "$resolved" != *.md ]]; then
   fi
 fi
 
-# Validate pattern: features/prd-N[-slug]/prd-N[-slug].md with matching N
+# Validate pattern: features/[<lane>/]prd-N[-slug]/prd-N[-slug].md with matching N.
 # N may be an integer (e.g. 3) or a decimal (e.g. 2.1) for sub-numbered PRDs.
-if [[ ! "$resolved" =~ features/prd-([0-9]+(\.[0-9]+)?)(-[^/]*)?/prd-([0-9]+(\.[0-9]+)?)(-[^/]*)?\.md$ ]] || \
-   [[ "${BASH_REMATCH[1]}" != "${BASH_REMATCH[4]}" ]]; then
+# Lane-agnostic: the PRD folder may sit under a lifecycle lane (planned/wip/done)
+# or at the legacy flat path. The optional lane segment is group 1, which shifts
+# the numeric capture groups to 2 (first N) and 5 (second N).
+if [[ ! "$resolved" =~ features/(planned/|wip/|done/)?prd-([0-9]+(\.[0-9]+)?)(-[^/]*)?/prd-([0-9]+(\.[0-9]+)?)(-[^/]*)?\.md$ ]] || \
+   [[ "${BASH_REMATCH[2]}" != "${BASH_REMATCH[5]}" ]]; then
   echo "ERROR=invalid_pattern"
   echo "RESOLVED_PATH=$resolved"
   exit 1
 fi
 
-n="${BASH_REMATCH[1]}"
+n="${BASH_REMATCH[2]}"
 
 if [[ ! -f "$resolved" ]]; then
   echo "ERROR=not_found"

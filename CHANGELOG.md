@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-07-24
+
+### [41] — PRDs now live in a lane that matches their stage — planned, in progress, or shipped
+
+- `.claude/skills/msg/refs/init/init.sh`: Added — `/msg --init` scaffolds three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`) and one-time migrates any pre-lane flat PRD dirs into the right lane by completion ladder
+- `.claude/skills/msg/refs/init/init-setup.sh`: Changed — targets the three lane dirs instead of a flat `features/`
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — a freshly-drafted PRD is written into `features/planned/`
+- `.claude/skills/plan-pm/refs/protocol-roadmap.md`: Changed — a PRD split into children writes each child into `features/planned/`
+- `.claude/skills/plan-pm/refs/protocol-sub.md`: Changed — resolves the parent PRD lane-agnostically across all three lanes and the legacy flat path; a sub-PRD rides its parent's lane
+- `.claude/skills/plan-pm/SKILL.md`: Changed — documents the `status: done` stamp and `done/` lane move made by `post-merge --production`
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — cutting a fresh feature branch relanes the PRD from `planned/` (or wherever it sits) into `wip/`
+- `.claude/skills/eng/refs/build/protocol-roadmap.md`: Changed — same relane-on-fresh-cut behavior in the roadmap build loop
+- `.claude/skills/post-merge/SKILL.md`: Added — Step 10 stamps `status: done` and moves the PRD folder into `features/done/` on a successful production ship
+- `.claude/skills/post-merge/refs/production.md`: Added — the Step 10 protocol detail (lane-agnostic resolution, idempotency, safety-floor note); release-lock window now spans through Step 10
+- `.claude/skills/msg/refs/gui/server.py`: Changed — the board resolves PRDs across all three lanes plus the legacy flat path, surfaces each PRD's `lane`, and treats the `done/` lane as a completion signal
+- `.claude/skills/msg/refs/gui/index.html`: Changed — empty-state copy no longer names the old flat path
+- `.claude/skills/msg/refs/protocol-gui.md`: Changed — documents lane-agnostic PRD resolution and the new `lane` field in the served data
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — documents the three lanes and the one-time flat-PRD migration in the init manifest
+- `.claude/skills/msg/SKILL.md`: Changed — describes lane-agnostic PRD resolution and writes
+- `.claude/scripts/plan-pm-roadmap-scan.sh`: Changed — scans all three lanes plus the legacy flat path, deduped by PRD id
+- `.claude/scripts/plan-tune-preflight.sh`: Changed — validates PRD paths against the lane-aware pattern
+- `.claude/scripts/scan-n.prd`: Changed — the next-PRD-number scan covers all three lanes
+- `.claude/scripts/preflight-check-07-prd-consistency.sh`: Changed — the PRD-surface probe is lane-aware
+- `.claude/scripts/preflight-check-18-manual-test-plan.sh`: Changed — the PRD-surface probe is lane-aware
+- `.claude/skills/improve/_INDEX.md`: Added — logs improvement #24 (prd-lifecycle-lanes) as done
+- `.gitignore`: Added — ignore `.tokensave`
+- `.claude/.headroom_wrap_marker.json`: Added — headroom runtime state marker
+
 ## 2026-07-22
 
 ### [40] — A new user can go from install to first shipped feature without reading the whole README
