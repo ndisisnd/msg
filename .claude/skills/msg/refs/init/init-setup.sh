@@ -12,6 +12,7 @@
 #   LANG_DEFAULT=<Q2b language/framework string, or "Not specified">
 #   INITIALISED=true|false   devkit/ exists → this repo was bootstrapped before
 #   ROW_GAPS=<space-separated file:row tokens, or "none">
+#   FLAT_PRDS=<space-separated features/prd-*/ basenames not yet in a lane, or "none">
 
 TARGET="${1:-.}"
 
@@ -87,3 +88,15 @@ echo "STACK_DEFAULT=$stack_default"
 echo "LANG_DEFAULT=$lang_default"
 echo "INITIALISED=$initialised"
 echo "ROW_GAPS=${ROW_GAPS[*]:-none}"
+
+# Flat PRDs: features/prd-<n>-<slug>/ sitting directly under features/, not yet
+# sorted into a lane. Read-only detection here (init.sh does the actual sort) —
+# lets --update report the count/list before deciding whether to run anything.
+FLAT_PRDS=()
+if [[ -d "$TARGET/features" ]]; then
+  for prd_dir in "$TARGET"/features/prd-*/; do
+    [[ -d "$prd_dir" ]] || continue
+    FLAT_PRDS+=("$(basename "$prd_dir")")
+  done
+fi
+echo "FLAT_PRDS=${FLAT_PRDS[*]:-none}"

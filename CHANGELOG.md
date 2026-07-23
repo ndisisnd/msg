@@ -2,6 +2,14 @@
 
 ## 2026-07-24
 
+### [43] — `/msg --update` re-scans an already-bootstrapped repo for init components added since setup
+
+- `.claude/skills/msg/refs/protocol-update.md`: Added — the `/msg --update` protocol: re-scans a bootstrapped repo for missing devkit/root files, missing template rows, and PRD lifecycle lanes added since setup, plus flat `features/prd-*/` dirs never sorted into a lane. Hard-refuses if the repo was never bootstrapped (`INITIALISED=false`); warns before offering a full reinit; the update path only adds what's missing (same idempotent guarantee as `/msg --init`'s top-up), and batches ambiguous PRDs to the user via `AskUserQuestion` instead of silently defaulting to `planned`
+- `.claude/skills/msg/refs/init/init-setup.sh`: Changed — emits a ninth `FLAT_PRDS` line listing unsorted flat `features/prd-*/` basenames (read-only detection; `init.sh` does the sort)
+- `.claude/skills/msg/refs/init/init.sh`: Changed — new `INTERACTIVE_LANES` env var (set by `--update` only) makes rung 3 of the lane migration report ambiguous PRDs via a new `UNRESOLVED` line instead of silently defaulting them to `planned`; plain `--init` still migrates silently
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — documents the ninth `FLAT_PRDS` key, the `INTERACTIVE_LANES` behavior, and the new `protocol-update.md` reference
+- `.claude/skills/msg/SKILL.md`: Changed — adds `--update` to the argument-hint, invoke docs, and natural-language routing
+
 ### [42] — Cross-PRD dependencies listed in a PRD's feature table can no longer go missing from its frontmatter
 
 - `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — `depends_on` and the §6 Dependencies column were populated independently from the Step 2 scan, so cross-PRD ids named in §6 kept drifting out of frontmatter and were only caught reactively by `plan-tune` check 6 (recurred across PRD-7/8/9/12). §6 is now the source of truth: `depends_on` is seeded from Step 2 then mechanically reconciled from §6 in a new **Part 4 — Dependency mirroring**, an `awk`/`grep` extraction of every `prd-<n>-<slug>` id from the Dependencies column, unioned into the array. `plan-tune` check 6 becomes a backstop rather than the primary catch

@@ -91,7 +91,7 @@ Run `init-setup.sh` via Bash:
 <msg_skill_dir>/refs/init/init-setup.sh "<cwd>"
 ```
 
-Parse the eight `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, and `ROW_GAPS` in conversation context.
+Parse the nine `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`, and `FLAT_PRDS` in conversation context. (`FLAT_PRDS` — unsorted flat `features/prd-*/` dirs — is read-only here; only [`/msg --update`](protocol-update.md) acts on it interactively. Plain `--init` still migrates them silently via `init.sh`'s completion ladder, same as ever.)
 
 **Resolve the run mode** — first row that matches:
 
@@ -310,10 +310,11 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 
 ## References
 
+- `refs/protocol-update.md` — `/msg --update`: re-scans an already-bootstrapped repo for the same gaps this protocol's Top-up mode closes, plus interactive (batched) classification of `FLAT_PRDS` — delegates back into this protocol's Steps 2–5 rather than duplicating them
 - `refs/protocol-cto.md` — Step 2, cto mode (advisory): recommends the technical decisions against five objectives, derives every remaining `init.sh` variable
 - `refs/protocol-eng.md` — Step 2, eng mode (direct execution): the batched question interview
-- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
-- `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars
+- `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`, `FLAT_PRDS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
+- `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars. Accepts an optional `INTERACTIVE_LANES` env var (set by `/msg --update` only) that turns silent rung-3 PRD-lane defaulting into an `UNRESOLVED` report instead
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)

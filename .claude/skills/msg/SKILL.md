@@ -7,8 +7,10 @@ description: >
   to set up project structure in an empty repo (scaffolds devkit/ and root
   files via a batched interview; idempotent, never overwrites). Other
   modes: `--init-staging` (add a staging branch + flip release flow to staged),
+  `--update` (re-scan an already-bootstrapped repo for new init components and
+  unclassified PRDs, with a warning gate before any full reinit),
   `--gui` (local PRD board), `--help` (guided skill picker).
-argument-hint: "[--init | --init-staging | --gui | --help]"
+argument-hint: "[--init | --init-staging | --update | --gui | --help]"
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -23,6 +25,7 @@ allowed_tools:
 **Invoke**: `/msg` — two-step category → skill picker.
 **Invoke**: `/msg --init` — one-time project bootstrap (devkit/ + root files, incl. the `policy.json` release-flow seed). Protocol: [`refs/protocol-init.md`](refs/protocol-init.md).
 **Invoke**: `/msg --init-staging` — add a `staging` branch to a direct-flow repo and flip `policy.json` release flow to `staged` (the only mode that creates a staging branch). Protocol: [Protocol: --init-staging](#protocol---init-staging).
+**Invoke**: `/msg --update` — re-scan an already-bootstrapped repo for init components introduced since it was set up (new devkit/ files, template rows, PRD lifecycle lanes) and unclassified flat PRDs; warns before offering a full reinit. Protocol: [Protocol: --update](#protocol---update).
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
 **Invoke**: `/msg --gui` (or `/msg gui`) — launch the local interactive PRD board (Kanban/List, editing, todos, prompt console, project docs).
 
@@ -77,6 +80,9 @@ Before running any picker, check the invocation:
 1b. `--init-staging`, or a natural-language request to add a staging stage — "add a staging
    branch", "set up staging", "switch to a staged release flow" — → **Protocol: --init-staging**.
    Skip the picker.
+1c. `--update`, or a natural-language re-scan request — "check for msg updates", "reinitialise
+   this project", "resync my init setup", "are there new init components" — → **Protocol:
+   --update**. Skip the picker.
 2. `--gui`, the bare word `gui`, or a natural-language board request — "open gui for PRDs",
    "show me the PRD board", "visualize my PRDs", "open kanban" — → **Protocol: --gui**. Skip
    the picker; do not call `AskUserQuestion`; go straight to rendering.
@@ -103,6 +109,21 @@ it creates only the absent files, asks only the questions those files need (ofte
 missing rows to existing files behind a preview and a confirmation. **Strictly additive** — no
 file that exists is ever rewritten, so accumulated `devkit/AHA.md` and `GLOSSARY.md` content is
 never at risk.
+
+---
+
+## Protocol: --update
+
+Dispatch to [`refs/protocol-update.md`](refs/protocol-update.md) and follow it end to end: scan
+an already-bootstrapped repo (`refs/init/init-setup.sh`) for init components introduced since
+setup — missing devkit/root files, missing template rows, missing PRD lifecycle lanes — and for
+flat `features/prd-*/` dirs that were never classified into a lane. Warns before offering a full
+reinit (re-running the complete Step 2 interview); the default path only adds what's missing,
+same idempotent guarantee as `--init`'s top-up (no existing file is ever rewritten). Unlike
+`--init`, ambiguous PRDs (no shipped PR/tag, no live `feat/prd-*` branch) are never silently
+defaulted to `planned` here — they're batched to the user via `AskUserQuestion` to classify by
+hand. Preconditions: `devkit/policy.json` must already exist (`INITIALISED=true`); if it's
+absent, stop and direct the user to `/msg --init` first — there's nothing to update yet.
 
 ---
 

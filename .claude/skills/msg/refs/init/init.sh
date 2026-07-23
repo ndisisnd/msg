@@ -18,6 +18,11 @@
 #   DS_TOKENS            D3 — design token locations
 #   DS_CONVENTIONS       D4 — component naming / folder conventions
 #
+# Optional env var:
+#   INTERACTIVE_LANES    Set "true" by /msg --update's classification step —
+#                         ambiguous flat PRDs are left in place and reported via
+#                         UNRESOLVED instead of being defaulted to "planned".
+#
 # Writes only files absent from <target_dir>. Exits non-zero if any write fails.
 # Prints a manifest to stdout.
 
@@ -42,7 +47,12 @@ DS_LIBRARY="${DS_LIBRARY:-[USER: note any external component library in use and 
 DS_TOKENS="${DS_TOKENS:-[USER: list colour, spacing, typography tokens and where they live]}"
 DS_CONVENTIONS="${DS_CONVENTIONS:-[USER: naming conventions, folder structure rules, theming approach, and any constraints on adding new components]}"
 
-CREATED=(); SKIPPED=(); FAILED=(); MOVED=()
+CREATED=(); SKIPPED=(); FAILED=(); MOVED=(); UNRESOLVED=()
+
+# When true (set by /msg --update's interactive PRD-classification step), rung 3
+# of migrate_lane_for stops silently defaulting ambiguous PRDs to "planned" and
+# instead reports them via UNRESOLVED for the caller to ask the user about.
+INTERACTIVE_LANES="${INTERACTIVE_LANES:-false}"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -306,7 +316,11 @@ migrate_lane_for() {
     printf 'wip\n'; return
   fi
 
-  # Rung 3 — planned: everything else (drafted-but-unbuilt).
+  # Rung 3 — ambiguous (drafted-but-unbuilt, no evidence either way). Under
+  # /msg --update's interactive mode, defer to the user instead of guessing.
+  if [[ "$INTERACTIVE_LANES" == "true" ]]; then
+    printf 'ask\n'; return
+  fi
   printf 'planned\n'
 }
 
@@ -316,6 +330,10 @@ if [[ -d "$TARGET/features" ]]; then
     base=$(basename "$prd_dir")
     [[ "$base" == prd-* ]] || continue
     lane=$(migrate_lane_for "$base")
+    if [[ "$lane" == "ask" ]]; then
+      UNRESOLVED+=("$base")
+      continue
+    fi
     dest="$TARGET/features/$lane/$base"
     if [[ -e "$dest" ]]; then
       SKIPPED+=("features/$lane/$base/")   # already sorted — leave it alone
@@ -339,6 +357,8 @@ fi
 
 printf '\nmsg --init complete — %d created, %d skipped, %d migrated, %d failed.\n\n' \
   "${#CREATED[@]}" "${#SKIPPED[@]}" "${#MOVED[@]}" "${#FAILED[@]}"
+
+echo "UNRESOLVED=${UNRESOLVED[*]:-none}"
 
 printf '%-36s %-22s %s\n' "File" "Status" "Lines"
 printf '%-36s %-22s %s\n' "----" "------" "-----"
