@@ -2,6 +2,10 @@
 
 ## 2026-07-24
 
+### [46] — Publish the v2.4.0 user-facing release notes
+
+- `RELEASES.md`: Added — v2.4.0 section covering the PRD lifecycle lanes, `/msg --update`, the guided setup path, and the cross-PRD dependency-mirroring fix (release bookkeeping for the `v2.4.0` GitHub release)
+
 ### [45] — Headroom runtime wrap marker is no longer tracked in git
 
 - `.gitignore`: Changed — ignore `.claude/.headroom_wrap_marker.json`; it holds only a per-session PID and base URL, so tracking it produced a noise commit every session

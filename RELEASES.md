@@ -2,6 +2,18 @@
 
 What's new for you, release by release.
 
+## v2.4.0 — 2026-07-24
+
+> Your PRDs now organize themselves by stage — planned, in progress, and done each get their own lane, and work moves between them automatically as it flows through the pipeline. New projects get a guided, verify-checked setup path, and existing projects can pull in framework features added since they were first set up.
+
+### ✨ New
+- Your PRDs are now sorted into three lanes — planned, in progress, and done — and move between them on their own as a feature gets picked up and shipped, so at a glance you can always see where each piece of work stands. Existing projects have their PRDs sorted into the right lane automatically the first time.
+- You can re-scan an already-set-up project for anything the framework has gained since you started it — new setup files, new lanes, PRDs that were never sorted — with a single command, instead of reconciling it by hand. It only adds what's missing and checks with you before sorting anything ambiguous.
+- New projects get a guided setup path that walks you from a fresh machine to your first shipped feature, with a verify check at every step, so a half-finished setup fails loudly instead of surfacing as a confusing error later.
+
+### 🐛 Fixed
+- When a feature lists another PRD as a dependency, that link is no longer dropped from the plan's metadata. Dependencies you write down are now guaranteed to be tracked, so build ordering and cross-plan impact stay correct without needing a later audit to catch the gap.
+
 ## v2.3.0 — 2026-07-22
 
 > Shipping is now honest on every platform. Web and desktop deploys still go live and get verified live — but iOS and Android releases are treated as what they really are: store submissions, tracked to the handoff, never falsely reported as "live". Around that, production releases gained real guardrails: a one-confirm rollback when a ship goes bad, a version tag and provenance check on every release, and a lock so two ships can't race each other.
