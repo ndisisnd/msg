@@ -2,6 +2,11 @@
 
 ## 2026-07-24
 
+### [45] — Headroom runtime wrap marker is no longer tracked in git
+
+- `.gitignore`: Changed — ignore `.claude/.headroom_wrap_marker.json`; it holds only a per-session PID and base URL, so tracking it produced a noise commit every session
+- `.claude/.headroom_wrap_marker.json`: Removed from version control (`git rm --cached`); the file stays on disk as local runtime state
+
 ### [44] — Headroom runtime wrap marker refreshed
 
 - `.claude/.headroom_wrap_marker.json`: Changed — runtime PID / base-URL marker rewritten by the headroom wrapper (session state, no functional change)

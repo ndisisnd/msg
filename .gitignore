@@ -19,6 +19,7 @@ al-*.jsonl
 **/run/
 **/schemas.json
 .claude/scheduled_tasks.lock
+.claude/.headroom_wrap_marker.json
 .pre-merge/
 
 # ── Local config ──────────────────────────────────────────────────────────────
