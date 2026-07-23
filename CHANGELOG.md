@@ -2,6 +2,10 @@
 
 ## 2026-07-24
 
+### [44] — Headroom runtime wrap marker refreshed
+
+- `.claude/.headroom_wrap_marker.json`: Changed — runtime PID / base-URL marker rewritten by the headroom wrapper (session state, no functional change)
+
 ### [43] — `/msg --update` re-scans an already-bootstrapped repo for init components added since setup
 
 - `.claude/skills/msg/refs/protocol-update.md`: Added — the `/msg --update` protocol: re-scans a bootstrapped repo for missing devkit/root files, missing template rows, and PRD lifecycle lanes added since setup, plus flat `features/prd-*/` dirs never sorted into a lane. Hard-refuses if the repo was never bootstrapped (`INITIALISED=false`); warns before offering a full reinit; the update path only adds what's missing (same idempotent guarantee as `/msg --init`'s top-up), and batches ambiguous PRDs to the user via `AskUserQuestion` instead of silently defaulting to `planned`
