@@ -79,7 +79,8 @@ if absent. Write `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 - `name`: `prd-[n]-[feature_slug]` · `feature`: short name from the `idea`
 - `summary`: 2–3 sentence single-line plain-prose gist (core objective + headline features), reconciled in Part 3
 - `module`: primary domain inferred from the idea · `platform`: detected above
-- `affects` / `depends_on`: prior-PRD IDs from Step 2 (`[]` if none)
+- `affects`: prior-PRD IDs from Step 2 (`[]` if none)
+- `depends_on`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §6 at the end of Part 3** (§ Dependency mirroring) — §6 is the source of truth for cross-PRD edges
 - `status: product` · `product-tuned: no` · `eng-tuned: no` · `reviewed: no` · `created`: today `YYYY-MM-DD`
 - **`intake: #<n>`** — the source intake row `#` (omit only on the no-intake-ancestor path from Step 1.3)
 
@@ -104,6 +105,28 @@ autonomously, no interview, no per-section gate. Canonical order per `refs/templ
 Carry every F-ID into §6 unchanged — plan-em keys §7 on them. Reconcile the frontmatter
 `summary` against the finalized §1 + §6 (single-line, plain prose). Components and files
 are engineering detail → §7 (plan-em), never the User flow.
+
+**Part 4 — Dependency mirroring (mechanical, never skipped).** §6 is the source of truth
+for cross-PRD edges: **every** PRD id that appears in any §6 Dependencies cell must also
+appear in frontmatter `depends_on`. Do not author the two independently — after §6 is
+finalized, reconcile the frontmatter *from* §6 so the two cannot drift (this is the fix for
+the recurring `depends_on`-omission miss; `plan-tune` check 6 is now a backstop, not the
+primary catch). Run the extraction rather than eyeballing it — extract every
+`prd-<n>-<slug>` token from the §6 Dependencies column, union it with the seeded array, and
+rewrite `depends_on`:
+
+```bash
+# From the drafted PRD file: pull every prd-<n>-<slug> id out of the §6 Dependencies
+# column (4th pipe-cell of each feature row) and union with the current depends_on.
+PRD=features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md
+awk -F'|' '/^\|[[:space:]]*F[0-9]/ {print $5}' "$PRD" \
+  | grep -oE 'prd-[0-9]+-[a-z0-9-]+' | sort -u
+```
+
+Compare that set against the seeded `depends_on`; any id present in §6 but missing from the
+array is a mirroring miss — add it. The array is the union of the Step 2 seed and the §6
+ids (external services / data sources / intra-PRD F-IDs in the column are **not** mirrored —
+only `prd-<n>-<slug>` ids). Leave `[]` only when §6 has no cross-PRD id and Step 2 found none.
 
 ## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 

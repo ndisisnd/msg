@@ -2,6 +2,10 @@
 
 ## 2026-07-24
 
+### [42] — Cross-PRD dependencies listed in a PRD's feature table can no longer go missing from its frontmatter
+
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — `depends_on` and the §6 Dependencies column were populated independently from the Step 2 scan, so cross-PRD ids named in §6 kept drifting out of frontmatter and were only caught reactively by `plan-tune` check 6 (recurred across PRD-7/8/9/12). §6 is now the source of truth: `depends_on` is seeded from Step 2 then mechanically reconciled from §6 in a new **Part 4 — Dependency mirroring**, an `awk`/`grep` extraction of every `prd-<n>-<slug>` id from the Dependencies column, unioned into the array. `plan-tune` check 6 becomes a backstop rather than the primary catch
+
 ### [41] — PRDs now live in a lane that matches their stage — planned, in progress, or shipped
 
 - `.claude/skills/msg/refs/init/init.sh`: Added — `/msg --init` scaffolds three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`) and one-time migrates any pre-lane flat PRD dirs into the right lane by completion ladder
