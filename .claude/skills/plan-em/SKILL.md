@@ -25,7 +25,7 @@ allowed_tools:
 
 ## Usage
 
-**Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside `features/prd-[n]-[slug]/`.
+**Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside a PRD folder in any lane — `features/{planned,wip,done}/prd-[n]-[slug]/` or the legacy flat `features/prd-[n]-[slug]/`.
 
 - Slash command: `/plan-em`
 - Natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents"
@@ -33,7 +33,7 @@ allowed_tools:
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.
-- PRD path does not exist or does not match `features/prd-*/prd-*.md` (top-level) or `features/prd-*/prd-*/prd-*.md` (nested sub-PRD, per `plan-pm`'s § Sub-PRD mode): refuse. State the expected location.
+- PRD path does not exist or does not match a lane-lifecycle path — `features/{planned,wip,done}/prd-*/prd-*.md` (top-level) or `features/{planned,wip,done}/prd-*/prd-*/prd-*.md` (nested sub-PRD, per `plan-pm`'s § Sub-PRD mode) — or the legacy flat `features/prd-*/prd-*.md` / `features/prd-*/prd-*/prd-*.md`: refuse. State the expected location.
 
 ## Execution mode
 
@@ -60,7 +60,7 @@ protocol lives in `refs/protocol-team.md`.
 
 | Name | Format | Source |
 |------|--------|--------|
-| PRD file path | `.md` file path matching `features/prd-*/prd-*.md` | User message at invocation, or handoff from `plan-pm` / `plan-tune` |
+| PRD file path | `.md` file path matching `features/{planned,wip,done}/prd-*/prd-*.md` (or legacy flat `features/prd-*/prd-*.md`) | User message at invocation, or handoff from `plan-pm` / `plan-tune` |
 | Execution-mode flag | `--team` (default) / `--solo` | User message at invocation |
 | Clarification answers | `AskUserQuestion` selections | Human during ambiguity resolution and agent approval |
 
@@ -106,3 +106,5 @@ Follow `refs/protocol-em.md` end-to-end. It defines the full flow — Step 0 Res
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (Todos column always present) before activating agents (shared)
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
 - `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` (same pass as the engineering section) and consumed by build agents
+- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); consumed in Step 1c (`--exclude` the input PRD) for the multi-PRD cross-reference
+- `.claude/scripts/plan-em-exec-collision.py` — mechanical exec-table collision / parallel-safety check; emits `COLLISION`/`MISSING_FILES` lines and exits 1 on any collision; consumed by the Step 4 build lane and by `refs/protocol-team.md`

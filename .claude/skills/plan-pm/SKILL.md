@@ -95,7 +95,7 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 - `refs/protocol-pm.md` — end-to-end five-step autonomous protocol (resolve intake row → scan → draft solo → paused-only-for-two → stamp + terminate); followed from § Step-by-step protocol
 - `refs/protocol-sub.md` — the four `--sub` deltas (parent resolution, idea pre-seed, numbering/placement, frontmatter) layered over the five-step protocol; read from § Sub-PRD mode when `--sub` is set
 - `refs/protocol-roadmap.md` — end-to-end `--roadmap` protocol: inventory → analyse for bloat/overlap → gated reshaping → stable phase sequencing (reads intake `S:` grades) → `roadmap/roadmap.md` → GUI/execution handoff; followed from § Roadmap mode
-- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic PRD inventory (JSONL); call in Roadmap Step 1
+- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Roadmap Step 1 and in the five-step Step 2 prior-PRD scan
 - `roadmap/roadmap.md` — the roadmap artifact written by `--roadmap`; read by `/msg --gui` (Roadmap tab) and `/eng --build roadmap=…`
 - `refs/principles.md` — core operating principles; read this first before drafting in Step 3
 - `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 3

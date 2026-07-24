@@ -2,6 +2,15 @@
 
 ## 2026-07-24
 
+### [49] — Lane-aware prior-PRD scans + plan-em consumes the collision checker (v3.0.0 W1)
+
+- `.claude/scripts/plan-pm-roadmap-scan.sh`: Added — `--exclude <prd-id>` flag omitting exactly that PRD's line from the JSONL (its nested sub-PRDs still emit); unknown flags refuse with usage on stderr
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — Step 2 enumerates prior PRDs via the scanner's JSONL (lane-aware) instead of the pre-lanes `features/prd-*/prd-*.md` glob that silently missed PRDs sorted into `planned/`/`wip/`/`done/`; overlap and breaking-surface semantics unchanged
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 1c fast scan runs the scanner with `--exclude` on the input PRD; Step 1a path validation accepts lane-lifecycle paths plus the legacy flat form; Step 4 solo build wave runs `plan-em-exec-collision.py` on §7 before fan-out — colliding rows never dispatch concurrently, `MISSING_FILES` on an in-scope row hard-fails
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the orchestrator consumes the collision checker's `COLLISION` lines as the authoritative overlap graph and validates its decomposition against them before spawning any leaf
+- `.claude/skills/plan-em/SKILL.md`: Changed — lane-aware path wording (Hard refusals + Inputs) and References entries for the scanner and the collision checker
+- `.claude/skills/plan-pm/SKILL.md`: Changed — scanner reference notes it is consumed by Step 2 as well as Roadmap Step 1
+
 ### [48] — Publish the v2.5.0 user-facing release notes
 
 - `RELEASES.md`: Added — v2.5.0 section covering the `/plan-em` `--team`/`--solo` execution-mode switch and the Opus orchestrator team (release bookkeeping for the `v2.5.0` GitHub release)

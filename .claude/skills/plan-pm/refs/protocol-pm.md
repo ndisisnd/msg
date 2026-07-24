@@ -41,9 +41,16 @@ Hold the resolved row in context: `idea`, `goal`, `type`, `grade`, and its `#`
 
 ## Step 2/5 — Scan prior PRDs for overlap + breaking surface
 
-List `features/prd-*/prd-*.md` via `Bash`. If none exist, emit `No prior PRDs.` and
-proceed. Otherwise, for each prior PRD:
-1. Read its YAML frontmatter (`module`, `affects`, `depends_on`) first for a fast signal.
+Enumerate prior PRDs with the deterministic lane-aware scanner (two-path resolution, as in
+Step 3 Part 1) rather than a lane-blind glob — it emits one JSONL object per PRD across all
+lanes (`planned/`, `wip/`, `done/`) and the legacy flat path, nested sub-PRDs included:
+
+```bash
+S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S"
+```
+
+If it emits nothing, emit `No prior PRDs.` and proceed. Otherwise, for each prior PRD line:
+1. Read its `module`, `affects`, `depends_on` from the JSONL first for a fast signal (no file open).
 2. If the new idea's domain matches a prior PRD's `module`, or the prior PRD's `affects`
    references the new area, flag it and read its features section in full.
 3. Classify and hold for Step 3 frontmatter:

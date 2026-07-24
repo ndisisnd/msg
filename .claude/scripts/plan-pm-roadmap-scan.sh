@@ -7,7 +7,11 @@
 # affects[], parent, created, path.
 #
 # Usage:
-#   plan-pm-roadmap-scan.sh            scan features/ from the project root
+#   plan-pm-roadmap-scan.sh                    scan features/ from the project root
+#   plan-pm-roadmap-scan.sh --exclude <id>     omit one PRD's own line (id = prd-<n>-<slug>)
+#
+# --exclude drops only the exact PRD id given (a top-level PRD or a sub-PRD); the
+# excluded PRD's own nested sub-PRDs, and every other PRD, are still emitted.
 #
 # Pure shell + awk; no Python dependency. Run from the project root.
 # Unparseable frontmatter is skipped with a note on stderr (exit stays 0).
@@ -15,6 +19,27 @@
 set -euo pipefail
 
 shopt -s nullglob
+
+# --- flag parse ---------------------------------------------------------------
+# No flag → behaviour is byte-identical to a bare scan. Only --exclude is known;
+# anything else is a usage error on stderr with exit 1.
+EXCLUDE=""
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --exclude)
+      EXCLUDE="${2:-}"
+      shift 2 || shift
+      ;;
+    --exclude=*)
+      EXCLUDE="${1#--exclude=}"
+      shift
+      ;;
+    *)
+      echo "usage: plan-pm-roadmap-scan.sh [--exclude <prd-id>]" >&2
+      exit 1
+      ;;
+  esac
+done
 
 emit_prd() {
   local file="$1" parent="$2"
@@ -121,7 +146,10 @@ for dir in features/planned/prd-*/ \
   case "$seen_prd" in *" $base "*) continue ;; esac  # already emitted from an earlier lane
   seen_prd="$seen_prd$base "
   top="$dir$base.md"
-  [[ -f "$top" ]] && emit_prd "$top" ""
+  # --exclude drops only the exact id; the excluded PRD's own subs still emit below.
+  if [[ -f "$top" && "$base" != "$EXCLUDE" ]]; then
+    emit_prd "$top" ""
+  fi
 
   # Nested sub-PRDs travel inside the parent folder (any lane):
   #   features/[<lane>/]prd-<n>-<slug>/prd-<n>.<m>-<subslug>/prd-<n>.<m>-<subslug>.md
@@ -129,6 +157,8 @@ for dir in features/planned/prd-*/ \
     [[ -d "$sub" ]] || continue
     sbase="${sub%/}"; sbase="${sbase##*/}"      # prd-<n>.<m>-<subslug>
     subfile="$sub$sbase.md"
-    [[ -f "$subfile" ]] && emit_prd "$subfile" "$base"
+    if [[ -f "$subfile" && "$sbase" != "$EXCLUDE" ]]; then
+      emit_prd "$subfile" "$base"
+    fi
   done
 done

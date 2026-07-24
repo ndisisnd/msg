@@ -38,7 +38,7 @@ same way, so the persisted pref carries the choice across waves without re-passi
 
 **Step 1/5 — Validate and pre-flight**
 
-**1a. Validate PRD path.** Must exist and match `features/prd-*/prd-*.md` (top-level) **or** `features/prd-*/prd-*/prd-*.md` (nested sub-PRD, e.g. `features/prd-2-habit-tracking/prd-2.1-streak-freeze/prd-2.1-streak-freeze.md`).
+**1a. Validate PRD path.** Must exist and match a lane-lifecycle path — `features/{planned,wip,done}/prd-*/prd-*.md` (top-level) **or** `features/{planned,wip,done}/prd-*/prd-*/prd-*.md` (nested sub-PRD, e.g. `features/wip/prd-2-habit-tracking/prd-2.1-streak-freeze/prd-2.1-streak-freeze.md`) — **or** the legacy flat form `features/prd-*/prd-*.md` (top-level) / `features/prd-*/prd-*/prd-*.md` (nested sub-PRD).
 - Store the matched PRD's own parent directory as `$PRD_DIR`; write **every** artifact relative to `$PRD_DIR`, never a reconstructed `features/prd-[n]/`.
 - Derive `n` = first numeric segment of that parent dir name (`prd-3-habit-tracking` → `n=3`; `prd-2.1-streak-freeze` → `n=2`, the parent's number for a sub-PRD).
 - On failure: refuse, emit the rule, produce no output.
@@ -75,7 +75,13 @@ By the time plan-em runs, the PRD's cross-PRD graph is **already established** b
 
 So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change / Overlap, three questions) is **deleted**. Instead:
 
-1. **Fast scan via frontmatter** — run `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory, read each prior PRD's `module`, `affects`, `depends_on`. Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
+1. **Fast scan via the lane-aware scanner** — run the deterministic PRD inventory with `--exclude` set to the input PRD's own id (two-path resolution), which emits one JSONL object per prior PRD across all lanes (`planned/`, `wip/`, `done/`) and the legacy flat path, omitting the input PRD's own line:
+
+   ```bash
+   S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S" --exclude prd-[n]-[slug]
+   ```
+
+   Read each prior PRD's `module`, `affects`, `depends_on` from the JSONL (no file open). Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
 2. **Ask only on a genuine conflict** — one `AskUserQuestion` fires **only** when the certified graph contradicts what the codebase/feature scan implies, e.g.:
    - the certified `depends_on` names a PRD whose surface this PRD's features plainly do **not** touch (a spurious edge), or
    - the feature scan reveals an **undeclared** overlap/breaking touch on a prior PRD not in `affects` (a missing edge the certifier didn't catch because it never touched an executable field).
@@ -227,6 +233,15 @@ Then, resolve and create the feature branch **once**.
   - **Already merged** (the parent's feature branch has shipped) → do **not** reuse it — committing new work onto a shipped branch would merge it to `main` a second time. Cut a **fresh** branch instead, named from this PRD's own id/slug (for a sub-PRD use the sub-PRD's own id, e.g. `feat/prd-2.1-streak-freeze`), from `main`, and push it. Set `$BRANCH` to that fresh name for the build agents.
 
 **Lane move on a fresh cut (`planned/ → wip/`).** The two paths above that cut a **fresh** top-level `feat/prd-<n>-*` branch from `main` (the branch did not exist, or the old one had already merged) mark the moment work starts — relane the PRD to match. If the PRD folder is **not already** under `features/wip/`, `git mv` its whole directory there from whichever lane it currently sits in — `git mv features/<lane>/prd-<n>-<slug>/ features/wip/prd-<n>-<slug>/` — carrying `reports/`, `preflight.md`, and `test/` with it (they live inside the folder, so a tracked-rename of the dir moves them for free). This is idempotent and lane-agnostic about the source: a re-checkout of an existing unmerged branch (PRD already in `wip/`) is a **no-op**; a re-cut of a shipped branch that had landed the PRD in `done/` moves it `done/ → wip/`. A **sub-PRD** gets **no** move of its own — it already lives inside the parent folder, which relaned when the parent's branch was cut, so it rides the parent's lane even when it takes its own fresh branch. The move relocates only the folder; `status:` stays `eng`.
+
+**Collision pre-check (solo fan-out).** Before fanning out the build agents, pipe the PRD's `## Execution Table` section into the collision checker (two-path resolution) — the checker parses the first markdown table it sees, so isolate §7 rather than passing the whole PRD (§6's feature table precedes it):
+
+```bash
+S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"
+awk '/^## Execution Table/{f=1;next} f&&/^## /{exit} f' "$PRD_DIR/prd-[n]-[slug].md" | python3 "$S"
+```
+
+Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
 
 Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."

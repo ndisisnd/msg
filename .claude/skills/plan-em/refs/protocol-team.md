@@ -77,6 +77,19 @@ run in parallel iff their Files sets overlap"*). Because every leaf commits to t
 concurrent commits that touch overlapping files would corrupt the tree, so the same rule
 governs both scheduling and committing.
 
+**Do not hand-derive the overlap graph — run the checker.** Feed the exec-table rows in
+scope to the mechanical collision checker (two-path resolution) and consume its `COLLISION`
+lines as the **authoritative** overlap graph:
+
+```bash
+S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"; python3 "$S" <exec-table source>
+```
+
+Each `COLLISION row<N> row<M> <shared paths>` line is an edge; rows it never pairs are
+disjoint. When a `Files` column exists, the script's output **IS** the collision graph —
+any hand-derived overlap judgment that contradicts it is wrong; the script wins. (The
+prose below explains the graph you are consuming, not a second method for deriving it.)
+
 Decompose accordingly:
 
 1. **Partition by stack first.** A packet never mixes stacks — `agent` identity and the
@@ -119,6 +132,17 @@ The `Files` column is populated now (the plan wave wrote it), so the collision g
 real. Decompose per § Parallelism model into file-disjoint, model-tiered packets and
 waves, then:
 
+0. **Run the collision checker first (before emitting the decomposition).** Run
+   `plan-em-exec-collision.py` (two-path resolution, per § Parallelism model) on the
+   in-scope exec-table rows. Two consequences gate the decomposition:
+   - A `MISSING_FILES row<N> <feature>` line on any **in-scope** row is a **hard failure**,
+     equivalent to the empty-`Files`-column hard failure in § Hard failures (*"Files column
+     empty — the plan wave must run before the build wave."*) — stop; the plan wave must
+     populate `Files` first.
+   - Every `COLLISION` pair must land in the **same packet** (run serially). Build the
+     file-disjoint packets/waves from the script's `COLLISION` edges (the connected
+     components described below), then **validate the decomposition against the script
+     output** — no wave may place a colliding pair concurrently — before spawning any leaf.
 1. **Emit the decomposition first** — a short table: `packet → stack/agent → rows →
    Files → model (+reason) → wave`. This is the plan; emit it before spawning any leaf.
 2. **Fan out wave by wave.** For each wave, spawn one leaf `eng --build` subagent per
