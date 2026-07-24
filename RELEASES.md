@@ -2,6 +2,14 @@
 
 What's new for you, release by release.
 
+## v2.5.0 — 2026-07-24
+
+> `/plan-em` now builds a team by default: an orchestrator breaks each wave of work into independent pieces and runs a fleet of engineer agents on them in parallel, so planning and building a PRD finishes faster. Prefer the classic one-agent-per-area approach? Switch to solo mode anytime — and your choice sticks.
+
+### ✨ New
+- When you plan a PRD, `/plan-em` now assembles a team led by an orchestrator that splits each wave into non-overlapping pieces and hands them to engineer agents working in parallel — so a plan comes together as fast as the work allows, instead of one area at a time. It also picks the right power level for each piece automatically, spending the heavyweight model only where the work is genuinely load-bearing.
+- Choose how `/plan-em` works with a simple switch: team mode (the new default) for maximum parallelism, or `--solo` for the familiar single-agent-per-area flow. Your choice is remembered per project, so you set it once and every later run follows it.
+
 ## v2.4.0 — 2026-07-24
 
 > Your PRDs now organize themselves by stage — planned, in progress, and done each get their own lane, and work moves between them automatically as it flows through the pipeline. New projects get a guided, verify-checked setup path, and existing projects can pull in framework features added since they were first set up.

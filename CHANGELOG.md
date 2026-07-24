@@ -2,6 +2,10 @@
 
 ## 2026-07-24
 
+### [48] — Publish the v2.5.0 user-facing release notes
+
+- `RELEASES.md`: Added — v2.5.0 section covering the `/plan-em` `--team`/`--solo` execution-mode switch and the Opus orchestrator team (release bookkeeping for the `v2.5.0` GitHub release)
+
 ### [47] — Choose how `/plan-em` parallelises work: a `--team` orchestrator or the classic `--solo` roster
 
 - `.claude/skills/plan-em/SKILL.md`: Added — `--team` (default) / `--solo` execution-mode flag, an Execution-mode section explaining the two dispatch lanes, an Inputs row for the flag, and References entries for the new team protocol and shared pref
