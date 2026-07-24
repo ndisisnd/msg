@@ -105,7 +105,11 @@ acquirer.
    `gh pr checks <number> --json name,state`):
    - Any check `state` in `FAILURE`/`ERROR`/`CANCELLED` → refuse (`red_ci`), listing each failing check name.
    - Any check still `PENDING`/`IN_PROGRESS`/`QUEUED` → refuse (`pending_ci`), listing the pending checks. Do not wait/poll — the human re-runs post-merge when CI settles.
-   - **Empty check set** (the PR reports *zero* checks — no CI pipeline ran) → don't treat "no red" as green. Resolve `steps.ci` from `devkit/policy.json` per `policy-schema.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --init`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today. Never blocks the merge — branch protection is the enforcement.
+   - **Empty check set** (the PR reports *zero* checks — no CI pipeline ran) → don't treat "no red" as green. First resolve `ga = policies.github_actions.enabled ?? true` (`policy-schema.md` §2b):
+     - `ga:false` → **CI is inactive by the user's own choice** (no Actions minutes / no Pro plan / CI lives elsewhere). Proceed silently: no `vacuous-ci` note, no `/pre-merge --init` nudge. Record one report line — "GitHub Actions disabled by policy (`<reason>`) — change with `/msg --update`" — and nothing else.
+     - `ga:true`/absent → resolve `steps.ci` per `policy-schema.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --init`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today.
+
+     Never blocks the merge — branch protection is the enforcement. Note the opt-out governs *only* the empty set: the two bullets above still refuse on red/pending checks whatever `ga` says.
    - All `SUCCESS`/`NEUTRAL`/`SKIPPED` → proceed.
 
 ## Step 3 — Merge into staging

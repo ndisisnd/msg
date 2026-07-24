@@ -1,5 +1,24 @@
 # Changelog
 
+## 2026-07-25
+
+### [57] — GitHub Actions CI is now an opt-in policy decision
+
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — new `policies.github_actions: {enabled, reason}` field spec plus a §2b read-contract (`ga = policies.github_actions.enabled ?? true`; absent ⇒ prior behaviour, so no migration); `github_actions` outranks `steps.ci` on the empty-check-set path, and `/msg --update` joins the writer table and the `generated_by` enum
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — Step 5 asks the GitHub Actions question alongside branch protection in one `AskUserQuestion` (gated on a GitHub remote + `gh`); the two are explicitly independent, and the answer is written by surgical merge — the single documented exception to Step 3's seed-only-these-keys rule
+- `.claude/skills/msg/refs/protocol-update.md`: Changed — new Step 3-CI shows the current decision and offers keep / turn on / turn off; an otherwise up-to-date repo now runs it instead of stopping flat; writes no other `policy.json` key
+- `.claude/skills/msg/SKILL.md`: Changed — `--init` and `--update` invoke lines name the CI question
+- `.claude/skills/post-merge/refs/staging.md`: Changed — Step 2's empty-check-set branch resolves `ga` first: opted out ⇒ proceed silently, no `vacuous-ci` note, no `/pre-merge --init` nudge, one report line naming `/msg --update`
+- `.claude/skills/post-merge/refs/production.md`: Changed — same treatment for the "nothing ever reported on staging" precondition and the release-PR CI check
+- `.claude/skills/post-merge/refs/protocol-init.md`: Changed — the phantom-check guard stops treating an absent workflow as a gap when Actions is off, but still offers `--bootstrap` (protection needs no named checks); never writes the key, only reads it
+- `.claude/skills/post-merge/SKILL.md`: Changed — the CI stage joins the **inactive** column of the three-state table (inactive vs skipped vs relaxed); the safety floor is explicitly not deactivated by any `github_actions` value
+- `.claude/skills/pre-merge/refs/protocol-init.md`: Changed — new "Actions opted out" gap flavor: no scaffold offer at all, records `steps.ci: opted_out` with the policy's reason; an existing `pull_request` workflow is still `ready` regardless
+- `.claude/skills/pre-merge/SKILL.md`: Changed — `--init` line notes that a missing workflow is a settled opt-out, not a gap, when Actions is disabled
+- `ARCHITECTURE.md`: Changed — `devkit/policy.json` row and the co-writer paragraph cover `github_actions` and `/msg --update`
+- `QUICKSTART.md`: Changed — explains the CI question and exactly what declining does and does not relax
+
+Red or pending checks from any CI still refuse `red_ci`/`pending_ci`, branch protection is untouched (`required_status_checks.contexts` is already empty), and no human gate moves — the opt-out governs only the empty check set.
+
 ## 2026-07-24
 
 ### [56] — Publish the v3.0.0 user-facing release notes
