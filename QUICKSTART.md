@@ -65,6 +65,8 @@ Creates `devkit/AHA.md`, `GLOSSARY.md`, `ARCHITECTURE.md`, `DESIGN-SYSTEM.md`, `
 
 Idempotent and strictly additive — re-running only fills gaps. Accumulated `AHA.md` and `GLOSSARY.md` content is never rewritten.
 
+On a GitHub repo it also asks whether you want **GitHub Actions CI** at all. Answer no (no Actions minutes on a private Free repo, or CI hosted elsewhere) and the gates stop expecting PR status checks: `/pre-merge --init` won't offer to scaffold a workflow, and `/post-merge` accepts a PR reporting zero checks instead of flagging it. Red or pending checks from any CI still block the merge, and every human gate stands. Change the answer any time with `/msg --update`.
+
 ### 4. `/msg --init-staging` *(only if you chose direct flow and now want staging)*
 
 The only path that creates a `staging` branch: branches off prod, pushes, offers branch protection, flips policy to `staged`.

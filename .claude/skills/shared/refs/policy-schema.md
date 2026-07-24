@@ -6,13 +6,14 @@ type: reference
 
 # `devkit/policy.json` — the committed policy file
 
-The single authoritative definition of `devkit/policy.json`: the **committed, shared** policy artifact both gate skills (`pre-merge`, `post-merge`) read at run time. It holds **decisions only** — release-flow shape, branch-protection stance, per-step opt-in/out — never per-machine binary presence (that is detected by the ephemeral `preflight-check-*.sh` family at `--init`/`--update` time and resolved into each component's `run` command, never persisted as a standalone fingerprint). Because it's committed, its decisions travel to CI and teammates. It sits next to its sibling config `devkit/PLATFORMS.md`.
+The single authoritative definition of `devkit/policy.json`: the **committed, shared** policy artifact both gate skills (`pre-merge`, `post-merge`) read at run time. It holds **decisions only** — release-flow shape, branch-protection stance, whether GitHub Actions CI is wanted at all, per-step opt-in/out — never per-machine binary presence (that is detected by the ephemeral `preflight-check-*.sh` family at `--init`/`--update` time and resolved into each component's `run` command, never persisted as a standalone fingerprint). Because it's committed, its decisions travel to CI and teammates. It sits next to its sibling config `devkit/PLATFORMS.md`.
 
-**Writers — the only three:**
+**Writers — the only ones:**
 
 | Writer | Writes |
 |---|---|
-| `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow` (nothing else) |
+| `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow`, and `policies.github_actions` when the CI question was asked (nothing else) |
+| `/msg --update` | **CI decision** — sets/changes `policies.github_actions` (the only key it writes; it otherwise delegates to `/msg --init`'s top-up) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
 | `--init` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling + `branch_protection`, records `staging_ready` (post-merge `--init`, `staged` flow only), flips `init:true` |
 | `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`active_when`/new-component changes, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
@@ -47,6 +48,10 @@ deprecation note naming `--init`/`--update`.
       "mode": "optional",                // enforced | optional | skip (repo-wide default)
       "reason": "private repo on GitHub Free — branch-protection API unavailable",
       "overrides": { "main": "enforced" } // per-branch: resolved as overrides[b] ?? mode
+    },
+    "github_actions": {
+      "enabled": false,                  // false → the gates never expect Actions to run
+      "reason": "private repo on GitHub Free — no Actions minutes to spend"
     }
   },
   "steps": {                             // one entry per canonical step-key
@@ -74,10 +79,16 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
   "generated": "2026-07-16",
   "generated_by": "msg --init",
   "policies": {
-    "release_flow": { "mode": "staged", "prod_branch": "main", "staging_branch": "staging" }
+    "release_flow": { "mode": "staged", "prod_branch": "main", "staging_branch": "staging" },
+    "github_actions": { "enabled": true }
   }
 }
 ```
+
+`policies.github_actions` appears in the seed only when `/msg --init` actually
+asked the CI question (it is gated on a GitHub remote — see
+`msg/refs/protocol-init.md` Step 5). Omitted ⇒ the gates behave exactly as they
+did before the key existed.
 
 ## Field spec
 
@@ -88,7 +99,7 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `version` | int | ✔ | — | must be `1`; any other value → whole file treated as absent (AC-S1) |
 | `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--init` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--init` flips it `true` on completion |
 | `generated` | `YYYY-MM-DD` | ✔ | — | stamped by the skill (scripts can't date); informational |
-| `generated_by` | enum `msg --init` \| `msg --init-staging` \| `pre-merge --init` \| `pre-merge --update` \| `post-merge --init` \| `post-merge --update` | ✖ | — | last writer; informational. `pre-merge --doctor`/`post-merge --doctor` still appear on files written during the one-release deprecation window (aliases of `--init`) |
+| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge --init` \| `pre-merge --update` \| `post-merge --init` \| `post-merge --update` | ✖ | — | last writer; informational. `pre-merge --doctor`/`post-merge --doctor` still appear on files written during the one-release deprecation window (aliases of `--init`) |
 | `repo` | object | ✖ | — | evidence/audit only — gates never branch on it |
 | `policies` | object | ✖ | `{}` | the enforced half |
 | `components` | object[] | ✖ | — | the **v3 preflight manifest** — the resolved per-project pipeline (catalog defaults + detection + user overrides). Purely **additive** to the same file (AC-PF5). See [`components[]`](#components--the-v3-preflight-manifest) |
@@ -122,6 +133,23 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
 | `mode` | enum `enforced` \| `optional` \| `skip` | ✔ | `enforced` | repo-wide default, resolved per branch |
 | `reason` | string | required when `mode` ≠ `enforced` | — | governance note; missing → honored + `unjustified-policy` warn (AC-S3) |
 | `overrides` | object `<branch, mode>` | ✖ | `{}` | per-branch mode; resolved as `overrides[b] ?? mode` |
+
+### `policies.github_actions` — is GitHub Actions CI expected at all?
+
+The user's answer to "do you want GitHub Actions running your CI?". Not every
+repo can afford one: private repos on GitHub Free meter Actions minutes, and some
+teams run CI elsewhere or not at all. This key lets them say so **once**, in a
+committed file, instead of every gate run rediscovering the absence and nagging.
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `enabled` | bool | ✔ | `true` | `false` → gates treat the **CI stage as inactive**: an empty PR check set is intentional, never a gap to report or scaffold away |
+| `reason` | string | recommended when `enabled:false` | — | governance note (e.g. "no Actions minutes on Free"); missing → honored + `unjustified-policy` warn (AC-S3) |
+
+**Written only by `/msg --init` (Step 5) and `/msg --update`** — it is the user's
+setup decision, not a detection result. No gate run ever writes it (AC-OW1).
+Absent object ⇒ `enabled: true` ⇒ pre-key behaviour, so existing `policy.json`
+files need no migration.
 
 ### `policies.staging_readiness` — the staging-readiness guard stance
 
@@ -377,6 +405,33 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 
 **`NO_GH` / `NO_REMOTE` → refuse regardless of `mode_b`** — a PR can't be merged without them; the refusal cites the missing prerequisite, not protection. The protection mode governs **only** the `UNPROTECTED` case. (AC-BP5) No file → `enforced` everywhere (= today, AC-BP6). Per-branch differences resolve via `overrides` — e.g. `overrides.main:"enforced"` under top-level `mode:"optional"` enforces on `main` while `staging` stays optional (AC-BP4).
 
+## 2b · `github_actions` (post-merge green-CI checks; both `--init`s)
+
+```
+ga = policies.github_actions.enabled ?? true
+```
+
+| `ga` | gate behavior |
+|---|---|
+| `true` (or absent) | **unchanged** — every CI expectation and note documented elsewhere in this file applies verbatim (AC-GA5) |
+| `false` | the **CI stage is inactive**: an **empty** PR/commit status set is intentional — proceed silently, no `vacuous-ci` note, no "run `/pre-merge --init`" nudge, no workflow-scaffold offer. Report one line: "GitHub Actions disabled by policy (`<reason>`) — change with `/msg --update`" (AC-GA1, AC-GA3) |
+
+**`false` never means "ignore CI that exists."** If the PR *does* report checks —
+an external CI posting commit statuses, a leftover workflow, a required check
+from branch protection — they are evaluated exactly as under `true`: red or
+pending still refuses (`red_ci`/`pending_ci`). The opt-out governs **only** the
+*empty-set* case, i.e. the absence of a pipeline (AC-GA2).
+
+**Inactive, not skipped or relaxed.** No threshold moves and no human gate is
+removed: double-confirmation, human-test approval, deploy, smoke, and the safety
+floor are untouched (AC-GA4). Canonical vocabulary in `post-merge/SKILL.md`
+§ *Release flow*.
+
+**Branch protection is unaffected.** `post-merge-protection.sh --bootstrap`
+already sets `required_status_checks {strict:true, contexts:[]}`, so protection
+verifies `PROTECTED` with zero named checks — `ga:false` and
+`branch_protection.mode:"enforced"` compose without conflict.
+
 ## 3 · `steps.<key>` (post-merge `deploy_*` / `smoke` / `ci`; pre-merge consult retired at v3 P3)
 
 > **v3 note.** Pre-merge's per-step `steps.<key>` consult (the old Steps 2/3/5/6 skip/run
@@ -395,6 +450,12 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 | key absent / no file | **built-in fall-back, unchanged** (back-compat invariant, AC-ST5) |
 
 **`ci` — read by post-merge's green-CI check, not run as a step.** When post-merge's PR check finds an **empty** status-check set (nothing ran), it resolves `steps.ci`: `ready` → emit one `low` `vacuous-ci` note ("`ci` expected a pipeline but the PR reported zero checks") so a broken/absent workflow surfaces instead of a silent vacuous pass; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → existing behavior, no new note. It never blocks the merge — branch protection remains the enforcement.
+
+**Precedence: `github_actions` outranks `steps.ci`.** When `ga` is `false` (§2b) the
+empty-set resolution above is not consulted at all — the user's explicit opt-out
+beats a stale detection record, so a `steps.ci: ready` written before the opt-out
+never produces a `vacuous-ci` note. `steps.ci` still governs the empty-set case
+whenever `ga` is `true` or absent (AC-GA6).
 
 **Invariant.** Except for the `policy-mismatch` finding above (AC-ST3), a `steps` entry **never** changes a gate's pass/fail verdict — it only decides run-vs-skip and how loudly a gap is surfaced (AC-ST6).
 

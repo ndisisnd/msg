@@ -43,7 +43,7 @@ pre-merge (PR feature→staging)  →  post-merge --staging  →  (human tests s
 - `/post-merge --production` — open + merge the double-confirmed staging→main release PR and run the production deploy
 - `/post-merge --production --prd <path>` (repeatable) — the PRD(s) this release ships; used for the release body + sign-off precondition
 - `/post-merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod; `--version` must be strictly greater — else refuse `version_regression`); the resolved `v<x.y.z>+<build>` tag is shown in the confirm before it's cut (`refs/release-identity.md`)
-- `/post-merge --init` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --init`'s job) (`refs/protocol-init.md`)
+- `/post-merge --init` — detect ship tooling (branch-protection, deploy/smoke CLIs), interview about the policy gaps, and write `devkit/policy.json`; performs **no** merge, PR, or deploy. Guards the branch-protection offer on a CI workflow existing (reads `steps.ci`; scaffolding the workflow is `/pre-merge --init`'s job) — unless `policies.github_actions.enabled` is `false`, in which case it stops treating the absent workflow as a gap and still offers protection (which needs no named checks) (`refs/protocol-init.md`)
   - `/post-merge --doctor` — **deprecated alias for one release**: runs `--init` and prints a deprecation note naming `--init`/`--update`
 
 Natural language: "ship this to staging", "merge the staging PR", "promote to production", "release to production", "ship it live".
@@ -57,7 +57,7 @@ approval** defined in `refs/production.md` § *Inline human-test approval*, whic
 fires before the production deploy. Every other gate holds.)
 
 **Hard refusals** (`refs/refusal-patterns.md`):
-- Does NOT merge on red or pending CI — branch protection is the enforcement; this skill's checks refuse and list the failing checks.
+- Does NOT merge on red or pending CI — branch protection is the enforcement; this skill's checks refuse and list the failing checks. When the check set is **empty** (nothing ran) and `policies.github_actions.enabled` is `false`, the CI stage is **inactive by the user's decision** — the empty set is accepted silently, one report line names the policy and `/msg --update` to change it (`../shared/refs/policy-schema.md` §2b). The opt-out covers only the empty set: checks that *do* report are graded exactly as always.
 - Does NOT run `--production` without staging-green **and** a `staging-signoff:` stamp in the PRD frontmatter **whose pinned sha still covers `staging`'s tip** — commits merged after sign-off refuse (`stale_signoff`), never ride along uncertified.
 - Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals.
 - Does NOT run a second `--production` while one is in flight — the **release lock** (a remote `release-lock-<prod>` git tag, `refs/production.md` § *Release lock*) refuses `release_in_flight`, naming the holder (who/when/sha); it releases on every exit of the acquiring run (success, failed ship, or refusal-after-acquire) and a stale lock (> 2h) prints the manual unlock rather than dead-ending (`refs/refusal-patterns.md`, `../shared/refs/policy-schema.md` §6). A `--staging` merge during an in-flight production ship refuses the same way (it would advance `staging` past the certified window). Uncontended acquire/release is silent — solo single-run and `direct` flow feel no friction.
@@ -116,8 +116,11 @@ one info line; never abort on a parse error.
 | `init: false` (or `init` absent on a present file) | **auto-run `--init` inline first** (AC-LC2); on completion it flips `init: true` (AC-LC3), then continue to Step 1. If the user **aborts** `--init`, stop — run **no** protocol step (no PR, no merge, no verdict) (AC-LC4) |
 | `init: true` | proceed to Step 1 directly — no init run (AC-LC5) |
 
-The same load resolves `release_flow` (below) and `branch_protection` (Step 1
-`--staging` / Step 2 `--production`) for the run. No gate run ever *writes*
+The same load resolves `release_flow` (below), `branch_protection` (Step 1
+`--staging` / Step 2 `--production`), and `github_actions` — `ga =
+policies.github_actions.enabled ?? true`, the user's `/msg --init`/`--update`
+answer to whether GitHub Actions CI is wanted at all
+(`../shared/refs/policy-schema.md` §2b) — for the run. No gate run ever *writes*
 `policy.json` — only `--init` does (AC-OW1). `--init` itself never merges,
 opens PRs, or deploys (`refs/protocol-init.md`). (`--doctor` is a deprecated
 one-release alias for `--init`.)
@@ -148,13 +151,20 @@ conflated (AC-NS1):
 
 | State | Meaning | Example |
 |---|---|---|
-| **inactive** | the stage does not apply to this configuration — there is nothing for it to check | staging deploy / staging smoke / staging human-test / `staging-signoff` under `release_flow=direct` |
+| **inactive** | the stage does not apply to this configuration — there is nothing for it to check | staging deploy / staging smoke / staging human-test / `staging-signoff` under `release_flow=direct`; the **CI stage** under `github_actions.enabled:false` |
 | **skipped** | the stage applies but its tooling is absent — recorded with a note, surfaced as a gap | no `smoke_cmd` configured for a platform |
 | **relaxed** | a threshold was deliberately lowered by policy | `branch_protection: optional` warning instead of refusing |
 
+**`github_actions: {enabled: false}` uses the same column.** A user without
+Actions minutes (private repo on GitHub Free) or with CI elsewhere declares it
+once at `/msg --init` or `/msg --update`; post-merge then treats an *empty* check
+set as inactive rather than as a gap to nag about. It is not *skipped* (no tooling
+is missing that the user wanted) and not *relaxed* (no threshold moved): checks
+that do report are still graded at full rigor, and every human gate stands.
+
 **The safety floor is never inactive** (AC-NS3). Security, migration, and the
-human double-confirmation are not staging-scoped — no `release_flow` value
-deactivates them. A change that would move one of them into the inactive column
+human double-confirmation are not staging-scoped — no `release_flow` or
+`github_actions` value deactivates them. A change that would move one of them into the inactive column
 is a floor violation (`../shared/refs/safety-floor.md`), not a configuration.
 
 The sign-off is inactive **because its stage is** — which is also why C2's
