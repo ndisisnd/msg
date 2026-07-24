@@ -2,6 +2,10 @@
 
 ## 2026-07-24
 
+### [56] — Publish the v3.0.0 user-facing release notes
+
+- `RELEASES.md`: Added — v3.0.0 section covering the deterministic planning core: collision-proof parallel builds, the branch resolver, the stable roadmap sequencer, the mechanical certification gate, the shared stamp writers, the rendered exec table, and the lane-blind scan + missing `status: eng` stamp fixes (release bookkeeping for the `v3.0.0` GitHub release)
+
 ### [55] — v3.0.0 docs: script-layer inventory (v3.0.0 W5)
 
 - `ARCHITECTURE.md`: Changed — script-layer table now lists the seven scripts this release added (`plan-pm-roadmap-sequence.py`, `plan-pm-deps-mirror.sh`, `plan-em-branch-resolve.sh`, `plan-em-exec-skeleton.py`, `plan-tune-cert-status.sh`, `stamp-prd.sh`, `stamp-intake.sh`) plus the previously unlisted `scan-prd-digest.py`, `plan-em-exec-collision.py`, `plan-pm-roadmap-scan.sh`, and `eng-db-touch.sh`
