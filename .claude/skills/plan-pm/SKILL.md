@@ -76,7 +76,7 @@ Follow `refs/protocol-pm.md` end-to-end. It defines the full five-step autonomou
 
 ## PRD status lifecycle
 
-Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field via `Bash` immediately after completing the relevant work.
+Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field immediately after completing the relevant work via the shared scalar writer `.claude/scripts/stamp-prd.sh <prd> <field> <value>` (two-path resolution) — one deterministic edit of the single frontmatter line, never improvised Bash.
 
 | Field | Initial | Updated by | Updated to | Trigger |
 |-------|---------|-----------|-----------|---------|
@@ -88,7 +88,7 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 
 `status: done` is the terminal stamp — a production ship also relocates the PRD folder into the `done/` lane. It is **orthogonal** to `reviewed:`: `reviewed: yes` records that a gate ran; `status: done` records that the feature shipped. The two are set independently and never substitute for each other.
 
-**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5). intake wrote the row `backlog`; `post-merge --production` later stamps it `completed`.
+**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5), via the shared ledger writer `.claude/scripts/stamp-intake.sh` (two-path resolution) — a single row rewrite that leaves every other row byte-identical. intake wrote the row `backlog`; `post-merge --production` later stamps it `completed` through the same writer.
 
 ## References
 

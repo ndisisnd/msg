@@ -504,9 +504,16 @@ flagged as a gap (AC-RB2). The merge stands — never pretend to un-ship.
 For a `deploy` platform, stamp only on a verified (or verify-skipped-with-note)
 deploy — Step 7's smoke failure skips this stamp. Close the loop for each shipped
 PRD. Read `INTAKE.md` (repo root); for every shipped PRD, find the row whose `prd`
-cell matches this PRD's id (`prd-<n>-<slug>`, as stamped by `plan-pm` at F4) and set
-that row's `status` cell to `completed` via `Bash` — edit only that row's status
-cell, preserving every other row verbatim. This is the terminal lifecycle transition
+cell matches this PRD's id (`prd-<n>-<slug>`, as stamped by `plan-pm` at F4), take
+that row's `#`, and set its `status` cell to `completed` via the shared ledger writer
+(two-path resolution) — it rewrites only that row's status cell, leaving every other
+row byte-identical:
+
+```bash
+S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"; bash "$S" INTAKE.md <row-#> --status completed
+```
+
+This is the terminal lifecycle transition
 (`backlog` → `in-progress` → `completed`), and it makes the `/msg --gui` Intake
 tab render the idea as shipped. Missing `INTAKE.md`, or a PRD whose `prd` cell
 matches no row → **skip that PRD with a one-line note** in the run report (an
@@ -565,7 +572,8 @@ deployed-or-skipped-with-note + verified-or-skipped-with-note, and provenance no
 frontmatter both move to `done` so the physical location and the logical state agree.
 For **each shipped PRD**:
 
-1. **Stamp `status: done`.** `Edit` the PRD's frontmatter `status:` field to `done` —
+1. **Stamp `status: done`.** Set the PRD's frontmatter `status:` field to `done` via
+   the shared scalar writer (two-path resolution) — `S=.claude/scripts/stamp-prd.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-prd.sh"; bash "$S" <prd-path> status done` —
    the `eng → done` transition owned here (plan-em set it to `eng` at the branch cut).
    This is a distinct write from the Step 8 `INTAKE.md` stamp: `status:` lives in the
    PRD frontmatter, the intake ledger row is a separate file. The **`reviewed:` stamp

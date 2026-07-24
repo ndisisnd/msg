@@ -2,6 +2,17 @@
 
 ## 2026-07-24
 
+### [51] — The stamp- writer family: deterministic lifecycle writes (v3.0.0 W3)
+
+- `.claude/scripts/stamp-prd.sh`: Added — shared scalar frontmatter writer (`<prd> <field> <value>`, allowed fields: status / product-tuned / eng-tuned / reviewed / completion / module); single-line edit, idempotent, temp+mv write, refuses unknown fields
+- `.claude/scripts/stamp-intake.sh`: Added — INTAKE.md ledger row writer (`<path> <row-#> --status <v> [--prd <id>]`); header-derived columns, rewrites only the named row's cells, never renumbers/appends, escaped-pipe and unicode safe
+- `.claude/scripts/plan-pm-deps-mirror.sh`: Added — §6 Dependencies → frontmatter `depends_on` union writeback; emits `ADDED <id>` per new edge, idempotent, never mirrors external services or F-IDs
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — Step 3 Part 4 runs the deps-mirror script instead of inline awk + eyeball compare; Step 5 stamps the intake row via `stamp-intake.sh`
+- `.claude/skills/plan-pm/SKILL.md`: Changed — lifecycle table and intake-stamp paragraph name the shared writers
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — plan-wave completion now actually stamps `status: eng` via `stamp-prd.sh` (the lifecycle table promised this stamp but no protocol line implemented it — latent gap closed)
+- `.claude/skills/plan-tune/SKILL.md`: Changed — `product-tuned`/`eng-tuned` stamps go through `stamp-prd.sh`
+- `.claude/skills/post-merge/refs/production.md` + `SKILL.md`: Changed — production `status: done` and the INTAKE.md `completed` stamp go through the shared writers
+
 ### [50] — Mechanical wave-mode detection, certification gate, and roadmap completeness (v3.0.0 W2)
 
 - `.claude/scripts/scan-prd-digest.py`: Added — `engineering_agents` field (ordered `## Engineering — <Agent>` heading names) in the base digest, exposed in the `plan` and `synth` slices

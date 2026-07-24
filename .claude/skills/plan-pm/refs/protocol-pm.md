@@ -114,26 +114,20 @@ Carry every F-ID into §6 unchanged — plan-em keys §7 on them. Reconcile the 
 are engineering detail → §7 (plan-em), never the User flow.
 
 **Part 4 — Dependency mirroring (mechanical, never skipped).** §6 is the source of truth
-for cross-PRD edges: **every** PRD id that appears in any §6 Dependencies cell must also
-appear in frontmatter `depends_on`. Do not author the two independently — after §6 is
-finalized, reconcile the frontmatter *from* §6 so the two cannot drift (this is the fix for
-the recurring `depends_on`-omission miss; `plan-tune` check 6 is now a backstop, not the
-primary catch). Run the extraction rather than eyeballing it — extract every
-`prd-<n>-<slug>` token from the §6 Dependencies column, union it with the seeded array, and
-rewrite `depends_on`:
+for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §6 Dependencies cell must also appear
+in frontmatter `depends_on`. Do not author the two independently — after §6 is finalized,
+reconcile the frontmatter *from* §6 so the two cannot drift (`plan-tune` check 6 is a backstop,
+not the primary catch). Run the deterministic mirror — it extracts every `prd-<n>-<slug>` token
+from the §6 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
+mirrored), unions it with the seeded array, and rewrites `depends_on` in place (`[]` when empty):
 
 ```bash
-# From the drafted PRD file: pull every prd-<n>-<slug> id out of the §6 Dependencies
-# column (4th pipe-cell of each feature row) and union with the current depends_on.
 PRD=features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md
-awk -F'|' '/^\|[[:space:]]*F[0-9]/ {print $5}' "$PRD" \
-  | grep -oE 'prd-[0-9]+-[a-z0-9-]+' | sort -u
+S=.claude/scripts/plan-pm-deps-mirror.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-deps-mirror.sh"; bash "$S" "$PRD"
 ```
 
-Compare that set against the seeded `depends_on`; any id present in §6 but missing from the
-array is a mirroring miss — add it. The array is the union of the Step 2 seed and the §6
-ids (external services / data sources / intra-PRD F-IDs in the column are **not** mirrored —
-only `prd-<n>-<slug>` ids). Leave `[]` only when §6 has no cross-PRD id and Step 2 found none.
+It prints `ADDED <id>` for each newly-mirrored id and is idempotent. Sub-PRD ids
+(`prd-2.1-slug`) count. No file / no frontmatter → exit 2.
 
 ## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 
@@ -166,9 +160,15 @@ Under `## Entries`, most recent first. Create `devkit/AHA.md` from
 `.claude/skills/msg/refs/init/templates/template-AHA.md` if absent. Write only on a real learning.
 
 **Intake lifecycle stamp (F4).** Unless this PRD had no intake ancestor (Step 1.3), stamp the
-source row in `INTAKE.md` via `Bash` — set its `status` cell to `in-progress` and its `prd`
-cell to `prd-[n]-[feature_slug]`. This is plan-pm's write to the ledger; edit only that row's
-two cells, preserving every other row verbatim. Missing `INTAKE.md` → skip with a one-line note.
+source row in `INTAKE.md` via the shared ledger writer — set its `status` cell to `in-progress`
+and its `prd` cell to `prd-[n]-[feature_slug]`. `<row-#>` is the resolved row's `#` held from
+Step 1. The writer edits only that row's two cells, preserving every other row verbatim:
+
+```bash
+S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"; bash "$S" INTAKE.md <row-#> --status in-progress --prd prd-[n]-[feature_slug]
+```
+
+Missing `INTAKE.md` → the writer exits 2; skip with a one-line note. Row not found → exit 1.
 
 **Completion summary + follow-up ask.** Emit:
 
