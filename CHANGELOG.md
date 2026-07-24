@@ -2,6 +2,14 @@
 
 ## 2026-07-24
 
+### [52] — Deterministic branch resolution and exec-table rendering (v3.0.0 W4a)
+
+- `.claude/scripts/plan-em-branch-resolve.sh`: Added — read-only, parent-aware branch resolver: emits `BRANCH=`/`ACTION=create|checkout|fresh-cut`/`LANE_MOVE=` from frontmatter + git state (merged-branch reuse impossible; sub-PRDs ride the parent's branch; fresh cuts get a collision-free `-N` suffix)
+- `.claude/scripts/plan-em-exec-skeleton.py`: Added — renders the Execution Table skeleton from a JSON `(fid, concern, agent)` spec against §6 (exact row text + `[F<n>](#todos-f<n>)` anchors; unknown F-ID refuses); accepts `ID` or `F-ID` §6 headers
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 4's branch-resolution/lane-move decision ladder replaced by run-the-resolver-then-execute; Step 3 skeleton build emits the spec through the renderer; branch naming aligned to `feat/<prd-id>` everywhere (was a looser "short name from title" in two places, conflicting with sub-PRD inference and the completion ladder)
+- `.claude/skills/plan-em/refs/template-exec-table.md`: Changed — skeleton-build section names the renderer
+- `.claude/skills/plan-em/SKILL.md`: Changed — References entries for both scripts
+
 ### [51] — The stamp- writer family: deterministic lifecycle writes (v3.0.0 W3)
 
 - `.claude/scripts/stamp-prd.sh`: Added — shared scalar frontmatter writer (`<prd> <field> <value>`, allowed fields: status / product-tuned / eng-tuned / reviewed / completion / module); single-line edit, idempotent, temp+mv write, refuses unknown fields

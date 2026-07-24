@@ -147,22 +147,17 @@ Then ask approval via `AskUserQuestion`:
 
 Do not activate any agent without explicit approval.
 
-**Execution table skeleton.** Once the roster is approved, build the skeleton using `refs/template-exec-table.md` as guide:
+**Execution table skeleton.** Once the roster is approved, **decide** the exec-table rows but **render** them with the skeleton script — anchor typos and row-text drift are then impossible (`refs/template-exec-table.md` is the guide for the table shape and the concern checklist):
 - Enumerate features from the PRD's Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the key for every exec-table row.
-- For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair. Feature cell = exact `<F-ID>: <name> — <concern>` text.
-- Pre-populate Feature and Agent columns; leave Execution steps blank.
+- For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests — the checklist in `refs/template-exec-table.md`) and decide the `(feature, concern, agent)` tuple for each row. **This judgment stays with the LLM.**
+- Emit those tuples as a JSON spec — one `{"fid","concern","agent"}` object per row, in row order — and pipe it through the renderer (two-path resolution). It reads §6 to resolve each `fid → <name>`, builds each Feature cell as `<F-ID>: <name> — <concern>`, fills the **Todos** anchor (`[F<n>](#todos-f<n>)`; all rows sharing an F-ID point to the same `### F<n>` subsection under `## Todos`, written later by the plan wave — a forward pointer), and leaves Execution steps + Files blank:
 
-**Todos column (always present).** Add a **Todos** column between Execution steps and Agent. Each cell is an anchor link to that feature's `### F<n>` subsection under `## Todos`: `[F<n>](#todos-f<n>)` (e.g. `[F1](#todos-f1)`). All rows sharing an F-ID point to the same anchor. Targets are written by the plan wave (Step 4 — the same pass that writes the engineering section) — this is a forward pointer.
-
-Append the skeleton to the PRD:
-
-```markdown
-## Execution Table
-
-| Feature | Execution steps | Todos | Agent |
-|---------|----------------|-------|-------|
-| F1: Set daily goal — API contract | | [F1](#todos-f1) | backend-eng |
+```bash
+S=.claude/scripts/plan-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-skeleton.py"
+echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}, …]' | python3 "$S" "$PRD_DIR/prd-[n]-[slug].md"
 ```
+
+A spec `fid` absent from §6 is a hard error (exit 1, named on stderr) — fix the spec, never edit the PRD to match. Append the rendered table to the PRD under a `## Execution Table` heading, immediately before the engineering sections.
 
 **AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, append one entry under `## Entries` (most recent first) of `devkit/AHA.md`:
 
@@ -241,20 +236,23 @@ S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scri
 
 Then, resolve and create the feature branch **once**.
 
-**Branch resolution (parent-aware).** Read the PRD frontmatter for a `parent:` field (present only on sub-PRDs — see `plan-pm` § Sub-PRD mode):
+**Branch resolution + lane move (run the resolver).** The parent-aware branch choice, the idempotent create-or-checkout ladder, and the `planned/ → wip/` lane move are one deterministic computation — run the resolver (two-path resolution; it is **READ-ONLY** — never mutates git, never moves files), then execute exactly what it emits:
 
-| Frontmatter | `$BRANCH` | Note |
-|-------------|-----------|------|
-| No `parent:` (top-level PRD) | `feat/prd-[n]-<short-name>` (from this PRD's own id/title) | as before |
-| `parent: prd-<parent-n>-<parent-slug>` (sub-PRD) | `feat/prd-<parent-n>-<parent-slug>` (parsed from `parent`) | sub-PRD **never** gets its own branch — commits land on the parent's feature branch, so `/pre-merge` sees its changes in the parent's existing run directory |
+```bash
+S=.claude/scripts/plan-em-branch-resolve.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-branch-resolve.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md"
+```
 
-**Idempotent create-or-checkout.** Check `git branch --list "$BRANCH"`:
-- Does **not** exist (common for a top-level PRD's first build) → cut it from `main` and push it.
-- **Already exists** — before reusing it, check whether it has already merged to `main`: run `git branch --merged main` and test whether `$BRANCH` appears in the output.
-  - **Not yet merged** (common for a sub-PRD whose parent branch is still in flight) → check it out; do **not** re-create or reset.
-  - **Already merged** (the parent's feature branch has shipped) → do **not** reuse it — committing new work onto a shipped branch would merge it to `main` a second time. Cut a **fresh** branch instead, named from this PRD's own id/slug (for a sub-PRD use the sub-PRD's own id, e.g. `feat/prd-2.1-streak-freeze`), from `main`, and push it. Set `$BRANCH` to that fresh name for the build agents.
+It emits three `key=value` lines. Set `$BRANCH` from `BRANCH=`, then act on `ACTION=`:
 
-**Lane move on a fresh cut (`planned/ → wip/`).** The two paths above that cut a **fresh** top-level `feat/prd-<n>-*` branch from `main` (the branch did not exist, or the old one had already merged) mark the moment work starts — relane the PRD to match. If the PRD folder is **not already** under `features/wip/`, `git mv` its whole directory there from whichever lane it currently sits in — `git mv features/<lane>/prd-<n>-<slug>/ features/wip/prd-<n>-<slug>/` — carrying `reports/`, `preflight.md`, and `test/` with it (they live inside the folder, so a tracked-rename of the dir moves them for free). This is idempotent and lane-agnostic about the source: a re-checkout of an existing unmerged branch (PRD already in `wip/`) is a **no-op**; a re-cut of a shipped branch that had landed the PRD in `done/` moves it `done/ → wip/`. A **sub-PRD** gets **no** move of its own — it already lives inside the parent folder, which relaned when the parent's branch was cut, so it rides the parent's lane even when it takes its own fresh branch. The move relocates only the folder; `status:` stays `eng`.
+| `ACTION` | Meaning | What to run |
+|----------|---------|-------------|
+| `create` | branch absent (common for a top-level PRD's first build) | `git checkout -b $BRANCH main && git push -u origin $BRANCH` |
+| `checkout` | branch exists, not yet merged (common for a sub-PRD whose parent branch is still in flight) | `git checkout $BRANCH` — do **not** re-create or reset |
+| `fresh-cut` | branch exists but already merged to `main` | same as `create` with the emitted `$BRANCH` |
+
+Then run the emitted `LANE_MOVE=` verbatim **unless** it is `none` (it carries `reports/`, `preflight.md`, and `test/` for free — they live inside the folder; the move relocates only the folder, `status:` stays `eng`).
+
+Rationale the resolver bakes in (the decision ladder itself now lives in the script): a branch **already merged to `main`** is never reused — committing new work onto a shipped branch would merge it a second time, so the resolver returns a fresh, non-colliding name (a sub-PRD uses its **own** id, e.g. `feat/prd-2.1-streak-freeze`; a top-level whose own name collides with the shipped branch gets the next free `-N` suffix). Branch naming is `feat/<prd-id>` (the PRD folder basename), matching `plan-pm` § Sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`). A **sub-PRD** rides the parent's feature branch and never gets its own (so `/pre-merge` sees its changes in the parent's existing run directory) and never moves lane — it already lives inside the parent folder, which relaned when the parent's branch was cut. `LANE_MOVE` is emitted only on a fresh cut (`create`/`fresh-cut`) of a top-level PRD not already under `features/wip/`; a re-checkout is a no-op move.
 
 **Collision pre-check (solo fan-out).** Before fanning out the build agents, pipe the PRD's `## Execution Table` section into the collision checker (two-path resolution) — the checker parses the first markdown table it sees, so isolate §7 rather than passing the whole PRD (§6's feature table precedes it):
 
@@ -276,10 +274,10 @@ Build agents run in parallel and must not each try to create it (concurrent crea
 
 Emit a short progress note per completion.
 
-**Plan-mode branch suggestion.** After all plan sections are appended, derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words) and emit the suggested working branch:
+**Plan-mode branch suggestion.** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`plan-em-branch-resolve.sh`) will pick:
 
 ```
-feat/prd-[n]-<short-name>
+feat/<prd-id>
 ```
 
 Engineers should cut this branch from `main` before starting work.
@@ -320,10 +318,10 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
    - Required action: what must happen before engineering work begins
 
    Critical synth findings are **batched, not a blocking terminal gate** (I5) — collect them into one `AskUserQuestion` (≤4 per call, same pause shape as the certifier's product-decision pause and plan-pm's open-questions pause), apply the resolutions, then continue. A Critical that the certifier should have caught (an uncertified-field contract break) is a signal the eng precondition (Step 4) was skipped — re-run it rather than hand-patching here.
-3. **Suggested branch** — derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words). Emit per the convention in `.claude/skills/eng/refs/plan/template-eng-plan.md` §10:
+3. **Suggested branch** — emit `feat/<prd-id>`, the PRD folder basename (matching the sub-PRD branch inference and the roadmap completion ladder `feat/prd-<n>-*`, and the branch the build wave's resolver picks). Emit per the convention in `.claude/skills/eng/refs/plan/template-eng-plan.md` §10:
 
    ```
-   feat/prd-[n]-<short-name>
+   feat/<prd-id>
    ```
 
    Example: `feat/prd-3-habit-tracking`. Engineers cut this from `main` before starting work.

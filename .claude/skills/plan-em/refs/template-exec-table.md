@@ -40,13 +40,13 @@ Add rows for any additional concern surfaced by the codebase scan or integration
 
 ## How plan-em builds the skeleton
 
-After the agent roster is approved:
+After the agent roster is approved, plan-em **decides** the rows but **renders** them with `.claude/scripts/plan-em-exec-skeleton.py` (two-path resolution) — so the anchors and row text are generated deterministically, never hand-typed:
 
-1. For each feature in the PRD, enumerate its applicable execution concerns (using the table above as a checklist).
+1. For each feature in the PRD, enumerate its applicable execution concerns (using the table above as a checklist) — this judgment stays with the LLM.
 2. Assign each concern to the agent that owns it (from the scope mapping).
-3. Write one row per `(feature, concern)` pair — Feature and Agent pre-populated, Execution steps and Files blank, and each row's **Todos** cell filled with `[F<n>](#todos-f<n>)` for that row's F-ID.
+3. Emit one `{"fid","concern","agent"}` object per `(feature, concern)` row, in row order, as a JSON array and pipe it to `plan-em-exec-skeleton.py <prd.md>`. The script reads §6 to resolve each `fid → <name>`, writes one row per spec entry with Feature = `<F-ID>: <name> — <concern>` and Agent pre-populated, Execution steps + Files blank, and each row's **Todos** cell filled with `[F<n>](#todos-f<n>)` for that row's F-ID. A spec `fid` absent from §6 is a hard error (exit 1) — fix the spec, not the PRD.
 
-Append the skeleton to the PRD as a new section immediately before the engineering sections:
+The rendered skeleton is appended to the PRD as a new section immediately before the engineering sections (equivalent to):
 
 ```markdown
 ## Execution Table
