@@ -68,6 +68,7 @@ type: reference
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
 | devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten (AC-LC7). Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
+| .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, **and `INTAKE-UPDATE.md`** — both ledger files are local working state (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
@@ -101,10 +102,10 @@ Parse the nine `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK
 | `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
 | otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
 
-**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/PLATFORMS.md` or
-`devkit/policy.json` existed can never receive them by waiting: `init.sh` writes any
-absent file, but the protocol used to stop at "nothing to initialise" before
-reaching it. Top-up is that repair — and it is **strictly additive**:
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/PLATFORMS.md`,
+`devkit/policy.json` or `.claude/msg/pref.json` existed can never receive them by
+waiting: `init.sh` writes any absent file, but the protocol used to stop at "nothing to
+initialise" before reaching it. Top-up is that repair — and it is **strictly additive**:
 
 - **Never rewrite a file that exists.** `init.sh`'s "writes only files absent from
   the target" rule is untouched, and no step here edits prose a human wrote.

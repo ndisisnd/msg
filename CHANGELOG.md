@@ -2,6 +2,19 @@
 
 ## 2026-07-24
 
+### [47] — Choose how `/plan-em` parallelises work: a `--team` orchestrator or the classic `--solo` roster
+
+- `.claude/skills/plan-em/SKILL.md`: Added — `--team` (default) / `--solo` execution-mode flag, an Execution-mode section explaining the two dispatch lanes, an Inputs row for the flag, and References entries for the new team protocol and shared pref
+- `.claude/skills/plan-em/refs/protocol-em.md`: Added — Step 0 resolves the mode (inline flag › persisted pref › default `team`, re-persisting on flag override) and Step 4 routes the wave through either the Opus orchestrator (team) or one leaf `eng` subagent per roster stack (solo)
+- `.claude/skills/plan-em/refs/protocol-team.md`: Added — the Opus orchestrator engineer protocol: decomposes each wave below the stack level into file-disjoint, model-tiered work packets (Opus for load-bearing, Sonnet for mechanical) and fans them out to leaf `eng` subagents wave by wave to parallelise as far as the collision graph allows
+- `.claude/skills/shared/refs/exec-mode-pref.md`: Added — single source of truth for the persisted `.claude/msg/pref.json` team/solo pref: path resolution (local overrides global), schema, seeding by `/msg --init`/`--update`, and plan-em's read + flag-override precedence
+- `.claude/skills/msg/refs/init/init-setup.sh`: Changed — `.claude/msg/pref.json` added to `TARGETS` so it counts toward `ALL_COMPLETE` and is reported as `MISSING` on repos bootstrapped before it existed
+- `.claude/skills/msg/refs/init/init.sh`:
+  - Added — deterministic write of the pref default `{"exec_mode": "team"}` when absent, so `/msg --init` seeds it and `/msg --update` tops it up
+  - Fixed — a latent `set -eo pipefail` crash in the `.gitignore` writer: when no stack section matched, the group's trailing `[[ -n "$stack_content" ]]` test returned non-zero and aborted the whole init; replaced with an `if` block
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — documents the `.claude/msg/pref.json` init component and its top-up in `--update` mode
+- `README.md`: Changed — `/plan-em` table row describes the `--team` (default) / `--solo` switch
+
 ### [46] — Publish the v2.4.0 user-facing release notes
 
 - `RELEASES.md`: Added — v2.4.0 section covering the PRD lifecycle lanes, `/msg --update`, the guided setup path, and the cross-PRD dependency-mirroring fix (release bookkeeping for the `v2.4.0` GitHub release)

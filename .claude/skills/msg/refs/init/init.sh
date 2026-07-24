@@ -257,7 +257,9 @@ else
 
   {
     printf '%s\n' "$universal"
-    [[ -n "$stack_content" ]] && printf '\n# Stack: %s\n%s\n' "$PLATFORM" "$stack_content"
+    if [[ -n "$stack_content" ]]; then
+      printf '\n# Stack: %s\n%s\n' "$PLATFORM" "$stack_content"
+    fi
   } | sed 's/[[:space:]]*$//' > "$TARGET/.gitignore"
 
   lines=$(wc -l < "$TARGET/.gitignore" | tr -d ' ')
@@ -279,6 +281,21 @@ for lane in planned wip done; do
     FAILED+=("features/$lane/")
   fi
 done
+
+# ── .claude/msg/ execution-mode preference ────────────────────────────────────
+# The persisted team/solo planning execution mode consumed by plan-em (Step 0).
+# Seeded here so /msg --init owns first-run creation and /msg --update tops it up
+# on repos bootstrapped before it existed. Deterministic — no interview input;
+# default is "team" (the pipeline default), flipped anytime via plan-em --solo/--team.
+# Schema + consumers: .claude/skills/shared/refs/exec-mode-pref.md.
+
+if [[ -e "$TARGET/.claude/msg/pref.json" ]]; then
+  SKIPPED+=(".claude/msg/pref.json")
+elif mkdir -p "$TARGET/.claude/msg" && printf '%s\n' '{"exec_mode": "team"}' > "$TARGET/.claude/msg/pref.json"; then
+  CREATED+=(".claude/msg/pref.json|1")
+else
+  FAILED+=(".claude/msg/pref.json")
+fi
 
 # ── features/ flat-PRD migration (change 6) ───────────────────────────────────
 # One-time sort of any pre-lane flat PRD dirs — features/prd-<n>-<slug>/ sitting

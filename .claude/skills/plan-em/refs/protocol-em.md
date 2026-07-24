@@ -12,6 +12,30 @@ The five-step protocol plan-em runs end-to-end. Emit progress per § Progress em
 
 ---
 
+**Step 0 — Resolve execution mode** (no progress marker — resolve before Step 1)
+
+Resolve `$TEAM_MODE` from the **inline flag**, else the **persisted preference**, else the
+default. The pref file (path resolution, schema, and the read snippet) is defined in
+`.claude/skills/shared/refs/exec-mode-pref.md` — the shared source of truth `/msg --init`
+seeds at bootstrap (`/msg --update` tops it up on older repos). Precedence:
+
+1. **Inline flag wins.** `--solo` / `--team` in the invocation → set `$TEAM_MODE` to it,
+   **persist** `{"exec_mode": "<target>"}` to the resolved pref path (§ Read + flag-override
+   in the shared ref — create `.claude/msg/` if needed), and emit `Execution mode: <target>
+   (persisted).`. Both flags at once → hard failure: `Pass at most one of --team / --solo.` Stop.
+2. **Else read the pref file** (local `.claude/msg/pref.json`, then global `~/.claude/msg/pref.json`
+   — local wins) → its `exec_mode` → `$TEAM_MODE`.
+3. **Else default `team`** (**the pipeline default**). Do **not** create the pref file here —
+   `/msg --init` (or `--update`) seeds it when absent.
+
+Strip the recognised flag from the argument string **before** resolving the PRD path in
+Step 1a, so path validation never sees it. `$TEAM_MODE` is consumed only at Step 4 (the
+dispatch lane); every other step is identical in both modes. Cache it for the run — a
+later `plan-em` invocation (e.g. the build wave after the plan wave) re-resolves it the
+same way, so the persisted pref carries the choice across waves without re-passing a flag.
+
+---
+
 **Step 1/5 — Validate and pre-flight**
 
 **1a. Validate PRD path.** Must exist and match `features/prd-*/prd-*.md` (top-level) **or** `features/prd-*/prd-*/prd-*.md` (nested sub-PRD, e.g. `features/prd-2-habit-tracking/prd-2.1-streak-freeze/prd-2.1-streak-freeze.md`).
@@ -143,6 +167,19 @@ Write only when ≥1 qualifying learning exists — never an empty entry.
 
 **Step 4/5 — Agents write**
 
+**Execution lane (`$TEAM_MODE`, from Step 0).** This step has two dispatch lanes; they
+share **every precondition** — mode detection, the plan-wave `## Todos` umbrella heading,
+the build-wave eng-certification precondition, and build-wave branch resolution + lane
+move all run identically. They diverge only at the **fan-out**:
+
+| `$TEAM_MODE` | Fan-out |
+|--------------|---------|
+| `solo` | plan-em dispatches the leaf `eng` subagents directly — **one per roster stack**, whole-stack scope, inherited model — exactly as the Plan-mode / Build-mode sections below describe. |
+| `team` (default) | plan-em runs the same preconditions, then hands the wave to **one orchestrator engineer agent on Opus** (per § Team lane below) instead of fanning out leaves itself. |
+
+Run mode detection and the mode-specific preconditions first (they are lane-independent),
+then take the fan-out for `$TEAM_MODE`.
+
 **Mode detection.** Scan PRD headings for `## Engineering —` blocks. The approved roster count = expected count for "all agents." Two modes:
 
 | Condition | `$MODE` |
@@ -158,7 +195,7 @@ Each mode dispatches its agents to the `eng` skill with the matching flag (`--pl
 
 Scope-enforcement and the branch contract in the numbered fields are unchanged — each agent acts only on its assigned rows and commits only to the resolved branch.
 
-**Plan mode (`$MODE = plan`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — the anchor namespace the exec-table Todos column points into (`#todos-f<n>`). Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
+**Plan mode (`$MODE = plan`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — the anchor namespace the exec-table Todos column points into (`#todos-f<n>`). Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
@@ -191,7 +228,7 @@ Then, resolve and create the feature branch **once**.
 
 **Lane move on a fresh cut (`planned/ → wip/`).** The two paths above that cut a **fresh** top-level `feat/prd-<n>-*` branch from `main` (the branch did not exist, or the old one had already merged) mark the moment work starts — relane the PRD to match. If the PRD folder is **not already** under `features/wip/`, `git mv` its whole directory there from whichever lane it currently sits in — `git mv features/<lane>/prd-<n>-<slug>/ features/wip/prd-<n>-<slug>/` — carrying `reports/`, `preflight.md`, and `test/` with it (they live inside the folder, so a tracked-rename of the dir moves them for free). This is idempotent and lane-agnostic about the source: a re-checkout of an existing unmerged branch (PRD already in `wip/`) is a **no-op**; a re-cut of a shipped branch that had landed the PRD in `done/` moves it `done/ → wip/`. A **sub-PRD** gets **no** move of its own — it already lives inside the parent folder, which relaned when the parent's branch was cut, so it rides the parent's lane even when it takes its own fresh branch. The move relocates only the folder; `status:` stays `eng`.
 
-Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
+Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--build`
 3. `prd-path`: the PRD file path (engineering sections already appended)
@@ -209,6 +246,30 @@ feat/prd-[n]-<short-name>
 ```
 
 Engineers should cut this branch from `main` before starting work.
+
+**§ Team lane (`$TEAM_MODE = team` — the default).** Run **all** the mode-specific
+preconditions above exactly as written — mode detection; the plan-wave `## Todos` umbrella
+heading; the build-wave eng-certification precondition; build-wave branch resolution, the
+`planned/ → wip/` lane move, and the create-or-checkout of `$BRANCH`. Then, **instead of**
+plan-em fanning out the leaf subagents itself, spawn **one orchestrator engineer agent** to
+own the fan-out:
+
+- Spawn it via the `Agent` tool with `model: opus`, `run_in_background: false`, and a
+  prompt that (a) tells it to *"Read `.claude/skills/plan-em/refs/protocol-team.md` fully
+  and follow it"* and (b) injects the input contract that file defines: `$MODE` (plan/build
+  from mode detection), `prd-path`, the approved `roster`, the `exec_table` rows (with the
+  `Files` column on the build wave), `$BRANCH` **and** the compiled per-stack `standards
+  payloads` (build wave only), the devkit digest, and the PRD-path escape hatch.
+- The orchestrator decomposes the wave into file-disjoint, model-tiered packets and fans
+  out leaf `eng` subagents (`--plan` planners on Opus; `--build` packets on Opus or Sonnet
+  per complexity), respecting the `Files`-disjoint collision rule and committing all build
+  work to `$BRANCH`. plan-em does **not** re-run any certification, re-resolve the branch,
+  or re-invoke `/cook` — the orchestrator consumes what plan-em already produced.
+- When the orchestrator returns its consolidated summary, proceed to Step 5 with it as the
+  wave's output — Step 5 synthesis reads the written engineering sections / build result
+  the same way regardless of lane.
+
+Emit a short progress note when the orchestrator is spawned and when it returns.
 
 ---
 
