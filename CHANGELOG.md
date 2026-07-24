@@ -2,6 +2,10 @@
 
 ## 2026-07-24
 
+### [55] — v3.0.0 docs: script-layer inventory (v3.0.0 W5)
+
+- `ARCHITECTURE.md`: Changed — script-layer table now lists the seven scripts this release added (`plan-pm-roadmap-sequence.py`, `plan-pm-deps-mirror.sh`, `plan-em-branch-resolve.sh`, `plan-em-exec-skeleton.py`, `plan-tune-cert-status.sh`, `stamp-prd.sh`, `stamp-intake.sh`) plus the previously unlisted `scan-prd-digest.py`, `plan-em-exec-collision.py`, `plan-pm-roadmap-scan.sh`, and `eng-db-touch.sh`
+
 ### [54] — Collision checker computes packets and waves (v3.0.0 W4c)
 
 - `.claude/scripts/plan-em-exec-collision.py`: Added — `--waves` mode: partitions exec-table rows by agent, groups file-sharing rows into serial packets (connected components), and layers pairwise-disjoint packets into greedy waves — `PACKET`/`UNPACKETED`/`WAVE` machine lines; under `--waves` a collision is a serialization constraint, not an error (exit 0); no-flag output byte-identical to before

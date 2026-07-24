@@ -34,7 +34,18 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | `preflight-check-*.sh` (+ `preflight-common.sh`) | The per-check detect+normalize family — one script per component, sharing the probe primitives in `preflight-common.sh`. Each emits a normalized check-report `detect` section; `/pre-merge --init` / `--update` run them to assemble the `components[]` manifest. **Replaced the retired monolithic `pre-merge-tooling-detect.sh`** at v3 P3 |
 | `pre-merge-aggregate-verdict.sh` | Merges per-component pre-merge results into a single verdict |
 | `scan-n.prd` | Assigns the next available PRD number |
+| `scan-prd-digest.py` | Deterministic PRD → JSON digest with per-stage slices (`plan`/`build`/`synth`); carries `engineering_agents` for plan-em's wave-mode detection |
+| `plan-pm-roadmap-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2, plan-em Step 1c, and roadmap Step 1–2 |
+| `plan-pm-roadmap-sequence.py` | Deterministic roadmap sequencer — DAG phase layering with intake `S:`-band bias, rerun stability, cycle detection; emits `PHASE`/`CYCLE`/`PRUNED` lines for `--roadmap` Step 4 |
+| `plan-pm-deps-mirror.sh` | §6 Dependencies → frontmatter `depends_on` union writeback (`ADDED <id>` lines, idempotent) |
+| `plan-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet/wave decomposition consumed by the team orchestrator |
+| `plan-em-branch-resolve.sh` | Read-only parent-aware branch resolver — emits `BRANCH`/`ACTION`/`LANE_MOVE` for the build wave (merged-branch reuse impossible) |
+| `plan-em-exec-skeleton.py` | Renders the §7 exec-table skeleton (exact row text + todos anchors) from plan-em's JSON `(fid, concern, agent)` spec |
 | `plan-tune-preflight.sh` | Validates PRD structure before a tune pass |
+| `plan-tune-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the tune stamp + §9 ledger; gates plan-em's plan/build waves |
+| `stamp-prd.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, tune stamps, reviewed, completion, module); single-line edit, idempotent |
+| `stamp-intake.sh` | INTAKE.md ledger row writer — rewrites only the named row's `status`/`prd` cells; never renumbers |
+| `eng-db-touch.sh` | DB/data/production-config touch detector on a diff (`category<TAB>path` lines); the after-every-wave guard in team builds |
 | `changelog-gate.py` | Validates CHANGELOG.md format |
 | `eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
 | `eng-commit-cap.sh` | A5 small-commit cap — blocks a staged diff over 500 changed LOC (300 with `--breaking`); `--oversize-reason` escape hatch |
