@@ -43,3 +43,4 @@ update-plan-gui-done.md
 !.claude/skills/**/protocol-*-plan.md
 .claude/kermit/state.json
 .tokensave
+__pycache__/

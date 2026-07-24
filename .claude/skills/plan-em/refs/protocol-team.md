@@ -77,34 +77,52 @@ run in parallel iff their Files sets overlap"*). Because every leaf commits to t
 concurrent commits that touch overlapping files would corrupt the tree, so the same rule
 governs both scheduling and committing.
 
-**Do not hand-derive the overlap graph — run the checker.** Feed the exec-table rows in
-scope to the mechanical collision checker (two-path resolution) and consume its `COLLISION`
-lines as the **authoritative** overlap graph:
+**Do not hand-derive the overlap graph, the packets, or the waves — run the checker with
+`--waves`.** Feed the exec-table rows in scope to the mechanical collision checker (two-path
+resolution) and consume its output as the **authoritative baseline decomposition**:
 
 ```bash
-S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"; python3 "$S" <exec-table source>
+S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"; python3 "$S" --waves <exec-table source>
 ```
 
-Each `COLLISION row<N> row<M> <shared paths>` line is an edge; rows it never pairs are
-disjoint. When a `Files` column exists, the script's output **IS** the collision graph —
-any hand-derived overlap judgment that contradicts it is wrong; the script wins. (The
-prose below explains the graph you are consuming, not a second method for deriving it.)
+After the `COLLISION` / `MISSING_FILES` lines the script emits the decomposition:
 
-Decompose accordingly:
+- `PACKET <p> agent=<agent> rows=<n,…>` — the packets. Rows are partitioned first by the
+  `Agent` column (a packet never mixes agents/stacks), then into connected components over
+  shared-file edges — so each `COLLISION row<N> row<M>` edge is already folded in and
+  colliding rows share a packet. This **IS** the packet decomposition.
+- `UNPACKETED rows=<ids>` — rows with an empty `Files` set (build wave: a hard failure — see
+  § Build wave step 0 and § Hard failures).
+- `WAVE <w> packets=<p,…>` — the baseline wave layering (greedy first-fit, every packet in a
+  wave mutually file-disjoint, checked **across** agents so cross-agent file sharing splits
+  into different waves).
+
+The script's `PACKET` / `WAVE` lines **ARE** the decomposition — any hand-derived packet or
+wave that contradicts them is wrong; the script wins. Your **residual judgment is exactly
+two things**: (a) the **model tier** per packet (§ Model policy — the script never assigns
+it); and (b) you **may SPLIT a `WAVE` into ordered sub-waves** to honour todo `depends_on`
+ordering the `Files` column does not encode. You **never merge** two packets' rows into
+concurrent execution, and **never move a row between packets** — the script's partition is
+fixed.
+
+Consume it accordingly:
 
 1. **Partition by stack first.** A packet never mixes stacks — `agent` identity and the
-   injected `standards payload` are per-stack. Packets are formed *within* one stack's
-   rows; cross-stack packets then interleave freely (different stacks almost always touch
-   different files, and the disjointness check confirms it).
-2. **Group into file-disjoint packets.** Within a stack, union the `Files` sets to build
-   the overlap graph; each connected component (rows that transitively share a file) must
-   run **serially inside one packet**. Independent components become **separate packets**.
-   Prefer many small disjoint packets over few large ones — width is the goal.
-3. **Order into waves.** A wave = a maximal set of packets that are mutually file-disjoint
-   **and** whose todo `depends_on` predecessors have already landed. Run every packet in a
-   wave concurrently (one leaf subagent each); start wave *N+1* only when wave *N*'s
-   packets it depends on have returned. The harness caps live concurrency automatically —
-   pass the full wave; excess packets queue.
+   injected `standards payload` are per-stack. The script already partitions by the `Agent`
+   column (which is the stack identity), so each `PACKET` sits inside one stack; cross-stack
+   packets interleave freely (different stacks almost always touch different files, and the
+   disjointness check confirms it).
+2. **Packets come from the script.** Each `PACKET` line is one connected component (rows
+   that transitively share a file) that must run **serially inside that packet**; distinct
+   packets are file-disjoint. Do not re-group or re-derive them — take each packet as given
+   and assign it a model tier.
+3. **Waves come from the script — you may only sub-split.** Take the `WAVE` lines as the
+   baseline layering: every packet in a wave is mutually file-disjoint. You **may** split a
+   wave into ordered sub-waves so a packet whose todo `depends_on` predecessors have not yet
+   landed runs later — never the reverse (never widen a wave to run file-overlapping packets
+   together). Run every packet in a (sub-)wave concurrently (one leaf subagent each); start
+   the next wave only when the packets it depends on have returned. The harness caps live
+   concurrency automatically — pass the full wave; excess packets queue.
 4. **No silent narrowing.** If you cap width or drop a packet for any reason, say so in the
    summary — a silent cap reads as "everything ran in parallel" when it did not.
 
@@ -133,18 +151,21 @@ real. Decompose per § Parallelism model into file-disjoint, model-tiered packet
 waves, then:
 
 0. **Run the collision checker first (before emitting the decomposition).** Run
-   `plan-em-exec-collision.py` (two-path resolution, per § Parallelism model) on the
-   in-scope exec-table rows. Two consequences gate the decomposition:
-   - A `MISSING_FILES row<N> <feature>` line on any **in-scope** row is a **hard failure**,
-     equivalent to the empty-`Files`-column hard failure in § Hard failures (*"Files column
-     empty — the plan wave must run before the build wave."*) — stop; the plan wave must
-     populate `Files` first.
-   - Every `COLLISION` pair must land in the **same packet** (run serially). Build the
-     file-disjoint packets/waves from the script's `COLLISION` edges (the connected
-     components described below), then **validate the decomposition against the script
-     output** — no wave may place a colliding pair concurrently — before spawning any leaf.
+   `plan-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
+   model) on the in-scope exec-table rows. Two consequences gate the decomposition:
+   - A `MISSING_FILES row<N> <feature>` line (equivalently an `UNPACKETED` id) on any
+     **in-scope** row is a **hard failure**, equivalent to the empty-`Files`-column hard
+     failure in § Hard failures (*"Files column empty — the plan wave must run before the
+     build wave."*) — stop; the plan wave must populate `Files` first.
+   - The script's `PACKET` / `WAVE` lines **are** the packets and waves — consume them
+     directly (every `COLLISION` pair already shares a packet, run serially). Do not
+     re-derive them; your only wave edit is the optional `depends_on` sub-split of § Parallelism
+     model. No (sub-)wave may place a file-overlapping packet pair concurrently.
 1. **Emit the decomposition first** — a short table: `packet → stack/agent → rows →
-   Files → model (+reason) → wave`. This is the plan; emit it before spawning any leaf.
+   Files → model (+reason) → wave`. The `packet`, `stack/agent`, `rows`, `Files`, and `wave`
+   columns come **straight from the script's `PACKET` / `WAVE` lines** (plus any explicit
+   `depends_on` sub-wave split); only the `model (+reason)` column is yours (§ Model policy).
+   This is the plan; emit it before spawning any leaf.
 2. **Fan out wave by wave.** For each wave, spawn one leaf `eng --build` subagent per
    packet **in a single message** (parallel), each on its assigned model, with
    `commit_mode=direct`, `branch=$BRANCH`, the packet's rows, the stack's **standards
@@ -194,7 +215,8 @@ the user via the orchestrator's summary (do not silently drop a packet).
 - **Branch isolation** — build leaves commit only to `$BRANCH`; never `main`. The
   orchestrator itself writes no code and runs no `git push` / `merge`.
 - **File-disjoint concurrency only** — never place two file-overlapping packets in the
-  same wave (tree corruption on the shared branch). The collision graph is the authority.
+  same wave (tree corruption on the shared branch). The script's `--waves` output is the
+  authority; a `depends_on` sub-split may only narrow a wave, never widen one.
 - **DB / data pause** — the after-every-wave touch check above; pause for sign-off on any
   hit.
 - **Scope** — the orchestrator and its leaves touch only what the exec-table rows specify;

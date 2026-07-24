@@ -2,6 +2,12 @@
 
 ## 2026-07-24
 
+### [54] — Collision checker computes packets and waves (v3.0.0 W4c)
+
+- `.claude/scripts/plan-em-exec-collision.py`: Added — `--waves` mode: partitions exec-table rows by agent, groups file-sharing rows into serial packets (connected components), and layers pairwise-disjoint packets into greedy waves — `PACKET`/`UNPACKETED`/`WAVE` machine lines; under `--waves` a collision is a serialization constraint, not an error (exit 0); no-flag output byte-identical to before
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the orchestrator consumes `PACKET`/`WAVE` as the mechanical baseline decomposition; its remaining judgment is model tiering and splitting waves for todo `depends_on` ordering — never merging colliding packets or moving rows
+- `.gitignore`: Added — `__pycache__/` (the scripts dir now carries several py_compile-checked Python helpers)
+
 ### [53] — Deterministic roadmap sequencing (v3.0.0 W4b)
 
 - `.claude/scripts/plan-pm-roadmap-sequence.py`: Added — mechanises roadmap Step 4: consumes the scanner JSONL (+ optional `INTAKE.md` `S:` bands and existing `roadmap/roadmap.md`), emits `PHASE <k> <id> <kept|new|moved-dep>` / `PHASE 0` / `CYCLE` / `PRUNED` lines; hard `depends_on` edges always win, `S:` bands only bias DAG-free PRDs, rerun-stability pins surviving PRDs to their phase, byte-identical output on identical input
