@@ -91,27 +91,32 @@ After applying, re-run Step 1's scan so the working set reflects the reshaped fi
 
 ## Step 4/6 — Sequence into roadmap phases (stable)
 
-Build a dependency DAG over the working set (**full, non-retired PRDs only** — incomplete PRDs were amended or excluded at the Step 2 completeness gate):
+Phase assignment is **mechanical and deterministic** — the sequencer helper owns the DAG build, topological layering, intake biasing, rerun-stability and cycle detection so reruns are byte-identical. You do **not** sort PRDs by hand. Feed it the Step 1 scan (JSONL) **minus the PRDs the Step 2 gate excluded** (full, non-retired working set), plus `--intake` / `--roadmap` when those files exist (ships with this skill in the global scripts dir; resolve there when the project has no vendored copy):
 
-- **Hard edges** from `depends_on` — B must ship after A.
-- **Soft edges** from `affects` — prefer ordering A before B, but not a hard constraint.
+```bash
+S=.claude/scripts/plan-pm-roadmap-sequence.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-sequence.py"
+python3 "$S" $( [ -f INTAKE.md ] && printf -- '--intake INTAKE.md' ) $( [ -f roadmap/roadmap.md ] && printf -- '--roadmap roadmap/roadmap.md' ) <<'JSONL'
+<the Step 1 scan lines for the full, non-retired working set — one JSON object per PRD>
+JSONL
+```
 
-**Intake sequencing grades as an input.** When `INTAKE.md` exists (repo root), read each row's `grade` cell `S:` band and map it onto the PRD the row planned (via the row's `prd` cell). `S:now` biases a PRD toward the earliest phase its hard deps allow; `S:next`/`S:later` bias it toward later phases; `S:blocked-by-#n`/`blocked-by-prd-<n>` contributes a **soft edge** (a hard edge only if it also appears in `depends_on`). These grades are triage hints layered on top of the DAG — the `depends_on` hard edges always win a conflict; the intake `S:` band only orders PRDs the DAG leaves otherwise-free.
+It prints the **authoritative** phase assignment — consume these lines as-is; do not second-guess a number:
 
-Layer PRDs into roadmap phases by topological order:
+- `PHASE 0 <id> <shipped|retired>` — the informational Shipped anchor (every `shipped` bucket PRD, plus `retired` ones for provenance). Not executed.
+- `PHASE <k> <id> <kept|new|moved-dep>` — sequenced PRDs, phases contiguous from 1, already ordered within each phase. The tag records why the PRD sits where it does (see below).
+- `CYCLE <id> <id> …` — a hard-dep cycle in the PRD set. The members are still placed (earliest phase their non-cycle deps allow); surface the cycle to the user: `Cycle detected: <members>; resolve depends_on before sequencing.`
+- `PRUNED <id>` — a PRD that was in the old roadmap but is gone from the scan (deleted, or the old id of a split/merge). Drop it; note it in the tune log.
 
-1. **Phase 0 — Shipped** anchors every PRD whose completion bucket is `shipped` (or `retired`, listed for provenance). It is informational — not executed.
-2. Each subsequent phase contains PRDs whose **hard** dependencies are all satisfied by an earlier phase. Within a phase, order by soft edges, then by `created`.
+The `summary:` line on stderr (`<K> phases, <N> prds, <S> shipped, <C> cycles`) is a sanity check, not output.
 
-**Stability rule (rerun).** If `roadmap/roadmap.md` already exists, read it first (Step 5 format) and **keep each surviving PRD in its current phase**. Move a PRD only when one of these triggers fires — and log the trigger:
+**The model the tags encode** (condensed — the algorithm now lives in the script, but keep the mental model so a reader trusts the numbers):
 
-- (a) it was `SPLIT`/`MERGE`/`FOLD`/`TRIM`/`retired` this run (children/targets placed fresh);
-- (b) a newly-added **hard** dependency now forces it into a later phase than it currently sits;
-- (c) it has huge overlap with a PRD in an earlier phase and consolidation moved it.
+- **Hard edges** (`depends_on`) — a PRD lands strictly after all its hard deps. Hard edges always win a conflict.
+- **Soft edges** (`affects`, and intake `blocked-by`) — a preference for A before B; they only order PRDs *within* a phase, never change a phase number.
+- **Intake `S:` bands** (only with `--intake`) — a triage bias on top of the DAG: `S:now` keeps a PRD at its earliest hard-dep phase, `S:next`/`S:later` push it one/two phases later *when it is otherwise free* (hard edges still win); `S:blocked-by-#n`/`blocked-by-prd-<n>` is a soft edge only (hard only if the id is also in `depends_on`).
+- **Stability triggers** (only with `--roadmap`) — a surviving PRD is `kept` at its current phase unless a newly-added hard dep forces it later (`moved-dep`, trigger b); a scan-new PRD is `new` (earliest phase its deps allow); a vanished PRD is `PRUNED` (trigger a — a reshaped/split/merged PRD shows up as pruned old ids beside new child ids). Consolidation moves (trigger c) are your judgment, not the script's — if you deliberately relocate a PRD for overlap, log it as such.
 
-Newly-added PRDs (present in the scan, absent from the existing roadmap) drop into the **earliest** phase their hard deps allow. A PRD in the roadmap but absent from the scan (deleted/renamed) is pruned, noted in the tune log. Absent an existing roadmap, sequence purely by the DAG.
-
-A dependency **cycle** is a hard failure of the PRD set, not this protocol — surface it (`Cycle detected: prd-A → prd-B → prd-A; resolve depends_on before sequencing.`), place the cycle members in the earliest safe phase, and note it in the tune log.
+You keep the human-judgment layer: the phase **names** and **Goal** lines (preserved by heading on rerun, per Step 5), the one-line placement **rationale** on each bullet, the tune-log narration of moves, and the cycle surfacing message.
 
 ## Step 5/6 — Write `roadmap/roadmap.md`
 
@@ -147,7 +152,15 @@ Goal: <one line>
 - <pruned/added PRD>
 ```
 
-Preserve prior phase **names and order** on rerun; only append to the tune log (most recent entry first, like §9 Plan tune findings). Phase names are human-editable and must survive regeneration — key phases by their `## Phase <k>` heading, not by content.
+Drive the tune log from the sequencer's emitted tags (Step 4), plus your own normalisation/consolidation calls:
+
+- `moved-dep` → a trigger (b) move: name the PRD, its old and new phase, and the newly-added hard dep that forced it.
+- `new` → an added PRD entry (earliest phase its deps allowed).
+- `PRUNED <id>` → a removed/renamed PRD (often the old id of a Step 3 `SPLIT`/`MERGE`/`FOLD` — pair it with the new child ids, trigger a).
+- `CYCLE …` → record the cycle you surfaced and where its members landed.
+- Any `SPLIT`/`MERGE`/`FOLD`/`TRIM` you applied in Step 3, and any consolidation move you made by hand (trigger c — the script does not emit this), since those are your judgment, not the tags.
+
+Preserve prior phase **names and order** on rerun; only append to the tune log (most recent entry first, like §9 Plan tune findings). Phase names are human-editable and must survive regeneration — key phases by their `## Phase <k>` heading, not by content. The sequencer keys stability off exactly those `## Phase <k>` headings and `- prd-<id> — …` bullets, so a hand-renamed phase keeps its PRDs across reruns.
 
 ## Step 6/6 — Summary, GUI offer, next steps
 

@@ -2,6 +2,11 @@
 
 ## 2026-07-24
 
+### [53] — Deterministic roadmap sequencing (v3.0.0 W4b)
+
+- `.claude/scripts/plan-pm-roadmap-sequence.py`: Added — mechanises roadmap Step 4: consumes the scanner JSONL (+ optional `INTAKE.md` `S:` bands and existing `roadmap/roadmap.md`), emits `PHASE <k> <id> <kept|new|moved-dep>` / `PHASE 0` / `CYCLE` / `PRUNED` lines; hard `depends_on` edges always win, `S:` bands only bias DAG-free PRDs, rerun-stability pins surviving PRDs to their phase, byte-identical output on identical input
+- `.claude/skills/plan-pm/refs/protocol-roadmap.md`: Changed — Step 4 runs the sequencer and consumes its lines as the authoritative assignment (phase names, goals, rationales, and cycle surfacing stay with the LLM); Step 5 tune log keys off the emitted tags
+
 ### [52] — Deterministic branch resolution and exec-table rendering (v3.0.0 W4a)
 
 - `.claude/scripts/plan-em-branch-resolve.sh`: Added — read-only, parent-aware branch resolver: emits `BRANCH=`/`ACTION=create|checkout|fresh-cut`/`LANE_MOVE=` from frontmatter + git state (merged-branch reuse impossible; sub-PRDs ride the parent's branch; fresh cuts get a collision-free `-N` suffix)
