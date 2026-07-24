@@ -38,7 +38,7 @@ same way, so the persisted pref carries the choice across waves without re-passi
 
 **Step 1/5 — Validate and pre-flight**
 
-**1a. Validate PRD path.** Must exist and match `features/prd-*/prd-*.md` (top-level) **or** `features/prd-*/prd-*/prd-*.md` (nested sub-PRD, e.g. `features/prd-2-habit-tracking/prd-2.1-streak-freeze/prd-2.1-streak-freeze.md`).
+**1a. Validate PRD path.** Must exist and match a lane-lifecycle path — `features/{planned,wip,done}/prd-*/prd-*.md` (top-level) **or** `features/{planned,wip,done}/prd-*/prd-*/prd-*.md` (nested sub-PRD, e.g. `features/wip/prd-2-habit-tracking/prd-2.1-streak-freeze/prd-2.1-streak-freeze.md`) — **or** the legacy flat form `features/prd-*/prd-*.md` (top-level) / `features/prd-*/prd-*/prd-*.md` (nested sub-PRD).
 - Store the matched PRD's own parent directory as `$PRD_DIR`; write **every** artifact relative to `$PRD_DIR`, never a reconstructed `features/prd-[n]/`.
 - Derive `n` = first numeric segment of that parent dir name (`prd-3-habit-tracking` → `n=3`; `prd-2.1-streak-freeze` → `n=2`, the parent's number for a sub-PRD).
 - On failure: refuse, emit the rule, produce no output.
@@ -75,7 +75,13 @@ By the time plan-em runs, the PRD's cross-PRD graph is **already established** b
 
 So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change / Overlap, three questions) is **deleted**. Instead:
 
-1. **Fast scan via frontmatter** — run `bash ls features/prd-*/prd-*.md` excluding the input PRD's directory, read each prior PRD's `module`, `affects`, `depends_on`. Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
+1. **Fast scan via the lane-aware scanner** — run the deterministic PRD inventory with `--exclude` set to the input PRD's own id (two-path resolution), which emits one JSONL object per prior PRD across all lanes (`planned/`, `wip/`, `done/`) and the legacy flat path, omitting the input PRD's own line:
+
+   ```bash
+   S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S" --exclude prd-[n]-[slug]
+   ```
+
+   Read each prior PRD's `module`, `affects`, `depends_on` from the JSONL (no file open). Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
 2. **Ask only on a genuine conflict** — one `AskUserQuestion` fires **only** when the certified graph contradicts what the codebase/feature scan implies, e.g.:
    - the certified `depends_on` names a PRD whose surface this PRD's features plainly do **not** touch (a spurious edge), or
    - the feature scan reveals an **undeclared** overlap/breaking touch on a prior PRD not in `affects` (a missing edge the certifier didn't catch because it never touched an executable field).
@@ -105,10 +111,15 @@ plan-em Step 2: certify product  →  plan wave (agents write eng + tickets)
 plan-em Step 4 (build mode): certify eng  →  build wave
 ```
 
-Read the PRD's `product-tuned:` frontmatter (from Step 1) **and** the §9 Plan tune findings ledger:
-- `product-tuned: yes` **and** zero unresolved Critical findings in §9 → certified; proceed straight to agent identification.
-- `product-tuned: no`/absent, **or** any Critical finding still `Open`/`Still open` in §9 → **run `plan-tune --product` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, re-read the frontmatter + §9:
-  - Certified (stamp set, zero unresolved Criticals) → proceed to agent identification.
+Run the certification gate checker on the input PRD (`product-tuned:` stamp + §9 Critical-open scan, two-path resolution):
+
+```bash
+S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --product
+```
+
+- `CERTIFIED` (exit 0) → certified; proceed straight to agent identification.
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --product` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, **re-run the checker**:
+  - `CERTIFIED` → proceed to agent identification.
   - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD.
 
 No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its own product-decision pause is the only stop.
@@ -136,22 +147,17 @@ Then ask approval via `AskUserQuestion`:
 
 Do not activate any agent without explicit approval.
 
-**Execution table skeleton.** Once the roster is approved, build the skeleton using `refs/template-exec-table.md` as guide:
+**Execution table skeleton.** Once the roster is approved, **decide** the exec-table rows but **render** them with the skeleton script — anchor typos and row-text drift are then impossible (`refs/template-exec-table.md` is the guide for the table shape and the concern checklist):
 - Enumerate features from the PRD's Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the key for every exec-table row.
-- For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests) and create one row per `(feature, concern)` pair. Feature cell = exact `<F-ID>: <name> — <concern>` text.
-- Pre-populate Feature and Agent columns; leave Execution steps blank.
+- For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests — the checklist in `refs/template-exec-table.md`) and decide the `(feature, concern, agent)` tuple for each row. **This judgment stays with the LLM.**
+- Emit those tuples as a JSON spec — one `{"fid","concern","agent"}` object per row, in row order — and pipe it through the renderer (two-path resolution). It reads §6 to resolve each `fid → <name>`, builds each Feature cell as `<F-ID>: <name> — <concern>`, fills the **Todos** anchor (`[F<n>](#todos-f<n>)`; all rows sharing an F-ID point to the same `### F<n>` subsection under `## Todos`, written later by the plan wave — a forward pointer), and leaves Execution steps + Files blank:
 
-**Todos column (always present).** Add a **Todos** column between Execution steps and Agent. Each cell is an anchor link to that feature's `### F<n>` subsection under `## Todos`: `[F<n>](#todos-f<n>)` (e.g. `[F1](#todos-f1)`). All rows sharing an F-ID point to the same anchor. Targets are written by the plan wave (Step 4 — the same pass that writes the engineering section) — this is a forward pointer.
-
-Append the skeleton to the PRD:
-
-```markdown
-## Execution Table
-
-| Feature | Execution steps | Todos | Agent |
-|---------|----------------|-------|-------|
-| F1: Set daily goal — API contract | | [F1](#todos-f1) | backend-eng |
+```bash
+S=.claude/scripts/plan-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-skeleton.py"
+echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}, …]' | python3 "$S" "$PRD_DIR/prd-[n]-[slug].md"
 ```
+
+A spec `fid` absent from §6 is a hard error (exit 1, named on stderr) — fix the spec, never edit the PRD to match. Append the rendered table to the PRD under a `## Execution Table` heading, immediately before the engineering sections.
 
 **AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, append one entry under `## Entries` (most recent first) of `devkit/AHA.md`:
 
@@ -180,12 +186,18 @@ move all run identically. They diverge only at the **fan-out**:
 Run mode detection and the mode-specific preconditions first (they are lane-independent),
 then take the fan-out for `$TEAM_MODE`.
 
-**Mode detection.** Scan PRD headings for `## Engineering —` blocks. The approved roster count = expected count for "all agents." Two modes:
+**Mode detection.** Run the digest for the `plan` slice (the Step 1b invocation pattern) and read its `engineering_agents` field — the ordered list of `<Agent>` names the generator parsed from the PRD's `## Engineering — <Agent>` headings:
+
+```bash
+G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
+```
+
+Compare `engineering_agents` against the **approved roster** (Step 3b). Two modes:
 
 | Condition | `$MODE` |
 |-----------|---------|
-| fewer `## Engineering —` blocks than roster agents (or none) | `plan` |
-| `## Engineering —` present for **all** roster agents | `build` |
+| some roster agent is missing from `engineering_agents` (or the list is empty) | `plan` |
+| **every** roster agent appears in `engineering_agents` | `build` |
 
 Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--build`). The `plan` wave writes each agent's `## Engineering — <Agent>` section **and** its `## Todos — <Agent>` tickets in **one pass** — there is no separate todo wave.
 
@@ -203,30 +215,53 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 5. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
 6. **Scoped context** (per § Subagent context injection): rows, the mapped PRD feature sections, devkit digest, PRD-path escape hatch. (`--plan` pulls no standards → no payload.)
 
-Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete and the next `plan-em` invocation detects `$MODE = build`.
+Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete — stamp the PRD's lifecycle field (the § PRD status lifecycle trigger "eng sections written to PRD"):
+
+```bash
+S=.claude/scripts/stamp-prd.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-prd.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status eng
+```
+
+The next `plan-em` invocation then detects `$MODE = build`.
 
 **Build mode (`$MODE = build`).**
 
-**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Read `eng-tuned:` + the §9 ledger:
-- `eng-tuned: yes` **and** zero unresolved Critical findings → certified; proceed to branch resolution.
-- `eng-tuned: no`/absent, **or** any unresolved Critical → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. Re-read on return; if a Critical remains genuinely unresolved after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan. No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
+**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (`eng-tuned:` stamp + §9 Critical-open scan, two-path resolution):
+
+```bash
+S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --eng
+```
+
+- `CERTIFIED` (exit 0) → certified; proceed to branch resolution.
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan. No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
 
 Then, resolve and create the feature branch **once**.
 
-**Branch resolution (parent-aware).** Read the PRD frontmatter for a `parent:` field (present only on sub-PRDs — see `plan-pm` § Sub-PRD mode):
+**Branch resolution + lane move (run the resolver).** The parent-aware branch choice, the idempotent create-or-checkout ladder, and the `planned/ → wip/` lane move are one deterministic computation — run the resolver (two-path resolution; it is **READ-ONLY** — never mutates git, never moves files), then execute exactly what it emits:
 
-| Frontmatter | `$BRANCH` | Note |
-|-------------|-----------|------|
-| No `parent:` (top-level PRD) | `feat/prd-[n]-<short-name>` (from this PRD's own id/title) | as before |
-| `parent: prd-<parent-n>-<parent-slug>` (sub-PRD) | `feat/prd-<parent-n>-<parent-slug>` (parsed from `parent`) | sub-PRD **never** gets its own branch — commits land on the parent's feature branch, so `/pre-merge` sees its changes in the parent's existing run directory |
+```bash
+S=.claude/scripts/plan-em-branch-resolve.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-branch-resolve.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md"
+```
 
-**Idempotent create-or-checkout.** Check `git branch --list "$BRANCH"`:
-- Does **not** exist (common for a top-level PRD's first build) → cut it from `main` and push it.
-- **Already exists** — before reusing it, check whether it has already merged to `main`: run `git branch --merged main` and test whether `$BRANCH` appears in the output.
-  - **Not yet merged** (common for a sub-PRD whose parent branch is still in flight) → check it out; do **not** re-create or reset.
-  - **Already merged** (the parent's feature branch has shipped) → do **not** reuse it — committing new work onto a shipped branch would merge it to `main` a second time. Cut a **fresh** branch instead, named from this PRD's own id/slug (for a sub-PRD use the sub-PRD's own id, e.g. `feat/prd-2.1-streak-freeze`), from `main`, and push it. Set `$BRANCH` to that fresh name for the build agents.
+It emits three `key=value` lines. Set `$BRANCH` from `BRANCH=`, then act on `ACTION=`:
 
-**Lane move on a fresh cut (`planned/ → wip/`).** The two paths above that cut a **fresh** top-level `feat/prd-<n>-*` branch from `main` (the branch did not exist, or the old one had already merged) mark the moment work starts — relane the PRD to match. If the PRD folder is **not already** under `features/wip/`, `git mv` its whole directory there from whichever lane it currently sits in — `git mv features/<lane>/prd-<n>-<slug>/ features/wip/prd-<n>-<slug>/` — carrying `reports/`, `preflight.md`, and `test/` with it (they live inside the folder, so a tracked-rename of the dir moves them for free). This is idempotent and lane-agnostic about the source: a re-checkout of an existing unmerged branch (PRD already in `wip/`) is a **no-op**; a re-cut of a shipped branch that had landed the PRD in `done/` moves it `done/ → wip/`. A **sub-PRD** gets **no** move of its own — it already lives inside the parent folder, which relaned when the parent's branch was cut, so it rides the parent's lane even when it takes its own fresh branch. The move relocates only the folder; `status:` stays `eng`.
+| `ACTION` | Meaning | What to run |
+|----------|---------|-------------|
+| `create` | branch absent (common for a top-level PRD's first build) | `git checkout -b $BRANCH main && git push -u origin $BRANCH` |
+| `checkout` | branch exists, not yet merged (common for a sub-PRD whose parent branch is still in flight) | `git checkout $BRANCH` — do **not** re-create or reset |
+| `fresh-cut` | branch exists but already merged to `main` | same as `create` with the emitted `$BRANCH` |
+
+Then run the emitted `LANE_MOVE=` verbatim **unless** it is `none` (it carries `reports/`, `preflight.md`, and `test/` for free — they live inside the folder; the move relocates only the folder, `status:` stays `eng`).
+
+Rationale the resolver bakes in (the decision ladder itself now lives in the script): a branch **already merged to `main`** is never reused — committing new work onto a shipped branch would merge it a second time, so the resolver returns a fresh, non-colliding name (a sub-PRD uses its **own** id, e.g. `feat/prd-2.1-streak-freeze`; a top-level whose own name collides with the shipped branch gets the next free `-N` suffix). Branch naming is `feat/<prd-id>` (the PRD folder basename), matching `plan-pm` § Sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`). A **sub-PRD** rides the parent's feature branch and never gets its own (so `/pre-merge` sees its changes in the parent's existing run directory) and never moves lane — it already lives inside the parent folder, which relaned when the parent's branch was cut. `LANE_MOVE` is emitted only on a fresh cut (`create`/`fresh-cut`) of a top-level PRD not already under `features/wip/`; a re-checkout is a no-op move.
+
+**Collision pre-check (solo fan-out).** Before fanning out the build agents, pipe the PRD's `## Execution Table` section into the collision checker (two-path resolution) — the checker parses the first markdown table it sees, so isolate §7 rather than passing the whole PRD (§6's feature table precedes it):
+
+```bash
+S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"
+awk '/^## Execution Table/{f=1;next} f&&/^## /{exit} f' "$PRD_DIR/prd-[n]-[slug].md" | python3 "$S"
+```
+
+Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
 
 Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
@@ -239,10 +274,10 @@ Build agents run in parallel and must not each try to create it (concurrent crea
 
 Emit a short progress note per completion.
 
-**Plan-mode branch suggestion.** After all plan sections are appended, derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words) and emit the suggested working branch:
+**Plan-mode branch suggestion.** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`plan-em-branch-resolve.sh`) will pick:
 
 ```
-feat/prd-[n]-<short-name>
+feat/<prd-id>
 ```
 
 Engineers should cut this branch from `main` before starting work.
@@ -283,10 +318,10 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
    - Required action: what must happen before engineering work begins
 
    Critical synth findings are **batched, not a blocking terminal gate** (I5) — collect them into one `AskUserQuestion` (≤4 per call, same pause shape as the certifier's product-decision pause and plan-pm's open-questions pause), apply the resolutions, then continue. A Critical that the certifier should have caught (an uncertified-field contract break) is a signal the eng precondition (Step 4) was skipped — re-run it rather than hand-patching here.
-3. **Suggested branch** — derive the short feature name from the PRD title (lowercase, hyphenated, ≤ 4 words). Emit per the convention in `.claude/skills/eng/refs/plan/template-eng-plan.md` §10:
+3. **Suggested branch** — emit `feat/<prd-id>`, the PRD folder basename (matching the sub-PRD branch inference and the roadmap completion ladder `feat/prd-<n>-*`, and the branch the build wave's resolver picks). Emit per the convention in `.claude/skills/eng/refs/plan/template-eng-plan.md` §10:
 
    ```
-   feat/prd-[n]-<short-name>
+   feat/<prd-id>
    ```
 
    Example: `feat/prd-3-habit-tracking`. Engineers cut this from `main` before starting work.

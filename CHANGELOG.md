@@ -2,6 +2,61 @@
 
 ## 2026-07-24
 
+### [56] — Publish the v3.0.0 user-facing release notes
+
+- `RELEASES.md`: Added — v3.0.0 section covering the deterministic planning core: collision-proof parallel builds, the branch resolver, the stable roadmap sequencer, the mechanical certification gate, the shared stamp writers, the rendered exec table, and the lane-blind scan + missing `status: eng` stamp fixes (release bookkeeping for the `v3.0.0` GitHub release)
+
+### [55] — v3.0.0 docs: script-layer inventory (v3.0.0 W5)
+
+- `ARCHITECTURE.md`: Changed — script-layer table now lists the seven scripts this release added (`plan-pm-roadmap-sequence.py`, `plan-pm-deps-mirror.sh`, `plan-em-branch-resolve.sh`, `plan-em-exec-skeleton.py`, `plan-tune-cert-status.sh`, `stamp-prd.sh`, `stamp-intake.sh`) plus the previously unlisted `scan-prd-digest.py`, `plan-em-exec-collision.py`, `plan-pm-roadmap-scan.sh`, and `eng-db-touch.sh`
+
+### [54] — Collision checker computes packets and waves (v3.0.0 W4c)
+
+- `.claude/scripts/plan-em-exec-collision.py`: Added — `--waves` mode: partitions exec-table rows by agent, groups file-sharing rows into serial packets (connected components), and layers pairwise-disjoint packets into greedy waves — `PACKET`/`UNPACKETED`/`WAVE` machine lines; under `--waves` a collision is a serialization constraint, not an error (exit 0); no-flag output byte-identical to before
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the orchestrator consumes `PACKET`/`WAVE` as the mechanical baseline decomposition; its remaining judgment is model tiering and splitting waves for todo `depends_on` ordering — never merging colliding packets or moving rows
+- `.gitignore`: Added — `__pycache__/` (the scripts dir now carries several py_compile-checked Python helpers)
+
+### [53] — Deterministic roadmap sequencing (v3.0.0 W4b)
+
+- `.claude/scripts/plan-pm-roadmap-sequence.py`: Added — mechanises roadmap Step 4: consumes the scanner JSONL (+ optional `INTAKE.md` `S:` bands and existing `roadmap/roadmap.md`), emits `PHASE <k> <id> <kept|new|moved-dep>` / `PHASE 0` / `CYCLE` / `PRUNED` lines; hard `depends_on` edges always win, `S:` bands only bias DAG-free PRDs, rerun-stability pins surviving PRDs to their phase, byte-identical output on identical input
+- `.claude/skills/plan-pm/refs/protocol-roadmap.md`: Changed — Step 4 runs the sequencer and consumes its lines as the authoritative assignment (phase names, goals, rationales, and cycle surfacing stay with the LLM); Step 5 tune log keys off the emitted tags
+
+### [52] — Deterministic branch resolution and exec-table rendering (v3.0.0 W4a)
+
+- `.claude/scripts/plan-em-branch-resolve.sh`: Added — read-only, parent-aware branch resolver: emits `BRANCH=`/`ACTION=create|checkout|fresh-cut`/`LANE_MOVE=` from frontmatter + git state (merged-branch reuse impossible; sub-PRDs ride the parent's branch; fresh cuts get a collision-free `-N` suffix)
+- `.claude/scripts/plan-em-exec-skeleton.py`: Added — renders the Execution Table skeleton from a JSON `(fid, concern, agent)` spec against §6 (exact row text + `[F<n>](#todos-f<n>)` anchors; unknown F-ID refuses); accepts `ID` or `F-ID` §6 headers
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 4's branch-resolution/lane-move decision ladder replaced by run-the-resolver-then-execute; Step 3 skeleton build emits the spec through the renderer; branch naming aligned to `feat/<prd-id>` everywhere (was a looser "short name from title" in two places, conflicting with sub-PRD inference and the completion ladder)
+- `.claude/skills/plan-em/refs/template-exec-table.md`: Changed — skeleton-build section names the renderer
+- `.claude/skills/plan-em/SKILL.md`: Changed — References entries for both scripts
+
+### [51] — The stamp- writer family: deterministic lifecycle writes (v3.0.0 W3)
+
+- `.claude/scripts/stamp-prd.sh`: Added — shared scalar frontmatter writer (`<prd> <field> <value>`, allowed fields: status / product-tuned / eng-tuned / reviewed / completion / module); single-line edit, idempotent, temp+mv write, refuses unknown fields
+- `.claude/scripts/stamp-intake.sh`: Added — INTAKE.md ledger row writer (`<path> <row-#> --status <v> [--prd <id>]`); header-derived columns, rewrites only the named row's cells, never renumbers/appends, escaped-pipe and unicode safe
+- `.claude/scripts/plan-pm-deps-mirror.sh`: Added — §6 Dependencies → frontmatter `depends_on` union writeback; emits `ADDED <id>` per new edge, idempotent, never mirrors external services or F-IDs
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — Step 3 Part 4 runs the deps-mirror script instead of inline awk + eyeball compare; Step 5 stamps the intake row via `stamp-intake.sh`
+- `.claude/skills/plan-pm/SKILL.md`: Changed — lifecycle table and intake-stamp paragraph name the shared writers
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — plan-wave completion now actually stamps `status: eng` via `stamp-prd.sh` (the lifecycle table promised this stamp but no protocol line implemented it — latent gap closed)
+- `.claude/skills/plan-tune/SKILL.md`: Changed — `product-tuned`/`eng-tuned` stamps go through `stamp-prd.sh`
+- `.claude/skills/post-merge/refs/production.md` + `SKILL.md`: Changed — production `status: done` and the INTAKE.md `completed` stamp go through the shared writers
+
+### [50] — Mechanical wave-mode detection, certification gate, and roadmap completeness (v3.0.0 W2)
+
+- `.claude/scripts/scan-prd-digest.py`: Added — `engineering_agents` field (ordered `## Engineering — <Agent>` heading names) in the base digest, exposed in the `plan` and `synth` slices
+- `.claude/scripts/plan-tune-cert-status.sh`: Added — deterministic certification-gate checker: parses the `product-tuned:`/`eng-tuned:` stamp and §9 Plan tune findings ledger, prints `CERTIFIED` (exit 0) or `UNCERTIFIED no-stamp` / `UNCERTIFIED open-critical <id>` (exit 1); absent §9 with stamp set → certified with a stderr note; bad input → exit 2
+- `.claude/scripts/plan-pm-roadmap-scan.sh`: Added — per-PRD `full`/`missing[]` fields (stamps / acceptance-criteria / exec-table completeness computed from §6/§7 body scan) and a `--git` flag refining `completion` via the git/gh ladder mirrored from the GUI server's `infer_completion()` (best-effort, never blocks, degrades to frontmatter-derived buckets with one stderr note)
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 4 mode detection compares the digest's `engineering_agents` against the roster instead of a prose heading scan; Steps 2 and 4 run the cert checker and branch on its verdict instead of reading-and-interpreting the frontmatter + §9
+- `.claude/skills/plan-pm/refs/protocol-roadmap.md`: Changed — Step 1 passes `--git` to the scanner for the refined completion bucket; the Step 2 completeness gate consumes `full`/`missing` instead of the LLM reading §6/§7 of every PRD; ask-user handling unchanged
+
+### [49] — Lane-aware prior-PRD scans + plan-em consumes the collision checker (v3.0.0 W1)
+
+- `.claude/scripts/plan-pm-roadmap-scan.sh`: Added — `--exclude <prd-id>` flag omitting exactly that PRD's line from the JSONL (its nested sub-PRDs still emit); unknown flags refuse with usage on stderr
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — Step 2 enumerates prior PRDs via the scanner's JSONL (lane-aware) instead of the pre-lanes `features/prd-*/prd-*.md` glob that silently missed PRDs sorted into `planned/`/`wip/`/`done/`; overlap and breaking-surface semantics unchanged
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 1c fast scan runs the scanner with `--exclude` on the input PRD; Step 1a path validation accepts lane-lifecycle paths plus the legacy flat form; Step 4 solo build wave runs `plan-em-exec-collision.py` on §7 before fan-out — colliding rows never dispatch concurrently, `MISSING_FILES` on an in-scope row hard-fails
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the orchestrator consumes the collision checker's `COLLISION` lines as the authoritative overlap graph and validates its decomposition against them before spawning any leaf
+- `.claude/skills/plan-em/SKILL.md`: Changed — lane-aware path wording (Hard refusals + Inputs) and References entries for the scanner and the collision checker
+- `.claude/skills/plan-pm/SKILL.md`: Changed — scanner reference notes it is consumed by Step 2 as well as Roadmap Step 1
+
 ### [48] — Publish the v2.5.0 user-facing release notes
 
 - `RELEASES.md`: Added — v2.5.0 section covering the `/plan-em` `--team`/`--solo` execution-mode switch and the Opus orchestrator team (release bookkeeping for the `v2.5.0` GitHub release)

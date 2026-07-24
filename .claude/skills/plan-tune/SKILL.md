@@ -198,9 +198,9 @@ Use `Edit`; do not modify unrelated PRD content in this step. The section body i
 - Already a table → leave `Question`/`Answer`, only recompute `Status`.
 - `Status` = `Addressed` when `Answer` is non-empty and non-placeholder, else `Open`. Idempotent.
 
-**Frontmatter stamp (always run, including the no-findings path):** Stamp the tune onto the PRD frontmatter via `Edit` so downstream consumers (plan-em's certification preconditions, roadmap readiness, `/plan` sequencing) can trust it:
-- Product tune → `product-tuned: yes` (replacing `product-tuned: no`).
-- Eng tune → `eng-tuned: yes` (replacing `eng-tuned: no`).
+**Frontmatter stamp (always run, including the no-findings path):** Stamp the tune onto the PRD frontmatter via the shared scalar writer (two-path resolution) so downstream consumers (plan-em's certification preconditions, roadmap readiness, `/plan` sequencing) can trust it. It rewrites the single frontmatter line and is idempotent:
+- Product tune → `product-tuned: yes`: `S=.claude/scripts/stamp-prd.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-prd.sh"; bash "$S" "$RESOLVED_PATH" product-tuned yes`
+- Eng tune → `eng-tuned: yes`: `bash "$S" "$RESOLVED_PATH" eng-tuned yes` (same resolved `$S`).
 
 The canonical value is the literal `yes` — every consumer tests for `yes`, never a date. These are the field names written by `plan-pm`'s `template-prd.md`. Do not introduce a `tuned:` field.
 

@@ -76,7 +76,7 @@ Follow `refs/protocol-pm.md` end-to-end. It defines the full five-step autonomou
 
 ## PRD status lifecycle
 
-Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field via `Bash` immediately after completing the relevant work.
+Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field immediately after completing the relevant work via the shared scalar writer `.claude/scripts/stamp-prd.sh <prd> <field> <value>` (two-path resolution) — one deterministic edit of the single frontmatter line, never improvised Bash.
 
 | Field | Initial | Updated by | Updated to | Trigger |
 |-------|---------|-----------|-----------|---------|
@@ -88,14 +88,14 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 
 `status: done` is the terminal stamp — a production ship also relocates the PRD folder into the `done/` lane. It is **orthogonal** to `reviewed:`: `reviewed: yes` records that a gate ran; `status: done` records that the feature shipped. The two are set independently and never substitute for each other.
 
-**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5). intake wrote the row `backlog`; `post-merge --production` later stamps it `completed`.
+**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5), via the shared ledger writer `.claude/scripts/stamp-intake.sh` (two-path resolution) — a single row rewrite that leaves every other row byte-identical. intake wrote the row `backlog`; `post-merge --production` later stamps it `completed` through the same writer.
 
 ## References
 
 - `refs/protocol-pm.md` — end-to-end five-step autonomous protocol (resolve intake row → scan → draft solo → paused-only-for-two → stamp + terminate); followed from § Step-by-step protocol
 - `refs/protocol-sub.md` — the four `--sub` deltas (parent resolution, idea pre-seed, numbering/placement, frontmatter) layered over the five-step protocol; read from § Sub-PRD mode when `--sub` is set
 - `refs/protocol-roadmap.md` — end-to-end `--roadmap` protocol: inventory → analyse for bloat/overlap → gated reshaping → stable phase sequencing (reads intake `S:` grades) → `roadmap/roadmap.md` → GUI/execution handoff; followed from § Roadmap mode
-- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic PRD inventory (JSONL); call in Roadmap Step 1
+- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Roadmap Step 1 and in the five-step Step 2 prior-PRD scan
 - `roadmap/roadmap.md` — the roadmap artifact written by `--roadmap`; read by `/msg --gui` (Roadmap tab) and `/eng --build roadmap=…`
 - `refs/principles.md` — core operating principles; read this first before drafting in Step 3
 - `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 3

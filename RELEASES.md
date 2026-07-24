@@ -2,6 +2,22 @@
 
 What's new for you, release by release.
 
+## v3.0.0 — 2026-07-24
+
+> Planning got a spine of small deterministic tools. The parts of `/plan-pm` and `/plan-em` that were really algorithms all along — who can build in parallel without colliding, which branch a build lands on, what order a roadmap's phases must run in, whether a plan is actually certified — are now computed by scripts and merely *executed* by the model. Same judgment where judgment belongs; no more dice where it doesn't.
+
+### ✨ New
+- Parallel builds are now collision-proof by construction: the work table is fed through a checker that computes which pieces share files, groups them into serial packets, and layers the packets into parallel waves — the orchestrator consumes that decomposition instead of eyeballing file lists. A piece with no files declared can no longer slip into a build unnoticed.
+- Which git branch a build lands on — create, re-use, or cut fresh — is now decided by a resolver that reads the actual git state. Re-using an already-shipped branch (which would merge old work twice) is now structurally impossible, and the PRD folder moves to the in-progress lane at exactly the right moment.
+- Rebuilding your roadmap now gives the same answer twice: phase ordering, dependency layering, and cycle detection run as a deterministic sequencer, and PRDs already on the roadmap stay put unless a real dependency forces a move — every move is tagged with its reason. You still name the phases.
+- Whether a plan passed certification is now a mechanical verdict, not an interpretation — the gate reads the stamp and the findings ledger and answers certified or not, with the reason. An uncertified plan can no longer slide through on a generous reading.
+- Every status stamp — a PRD moving through its lifecycle, a backlog row marked in-progress or completed — now goes through one shared writer that edits exactly the intended line and nothing else, replacing four skills' improvised file surgery.
+- The execution table plan-em appends to a PRD is now rendered by a script from the model's decisions, so every row's wording and every todo link is exact — a typo'd anchor can no longer silently break the plan-to-ticket connection.
+
+### 🐛 Fixed
+- Planning skills could silently miss PRDs that had been sorted into the planned / in-progress / done lanes, because their file lookups predated the lanes feature. All prior-PRD scans now go through the lane-aware inventory, so overlap detection and dependency checks see your whole project again.
+- The PRD lifecycle promised a "status: eng" stamp when engineering sections land, but nothing ever wrote it. It's now actually stamped, so downstream views of where a feature stands are no longer quietly stale.
+
 ## v2.5.0 — 2026-07-24
 
 > `/plan-em` now builds a team by default: an orchestrator breaks each wave of work into independent pieces and runs a fleet of engineer agents on them in parallel, so planning and building a PRD finishes faster. Prefer the classic one-agent-per-area approach? Switch to solo mode anytime — and your choice sticks.
