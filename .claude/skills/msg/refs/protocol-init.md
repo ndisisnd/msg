@@ -40,7 +40,7 @@ type: reference
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
 | `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
-| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`; `--doctor` is a deprecated one-release alias) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
+| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`, and `policies.github_actions` — whether you want GitHub Actions CI at all, revisable via `/msg --update`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`; `--doctor` is a deprecated one-release alias) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
@@ -53,6 +53,7 @@ type: reference
 | Project metadata | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
 | Architecture details | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
 | Release flow | Mode answer + branch topology detection | Step 2, delegated |
+| GitHub Actions decision | Yes / No (+ reason) | Step 5 `AskUserQuestion` — asked only when a GitHub remote + `gh` exist |
 | Design system details | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
 | Optional brief | Free text | User message at invocation |
 
@@ -67,7 +68,7 @@ type: reference
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
-| devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten (AC-LC7). Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
+| devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten (AC-LC7). **Plus `policies.github_actions`, merged in surgically at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, **and `INTAKE-UPDATE.md`** — both ledger files are local working state (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
@@ -222,7 +223,10 @@ because the seed carries a `generated` date and scripts can't stamp the date. Sc
    `generated_by`, and `policies.release_flow` from Call 4, and **nothing else** (no `repo`, no
    `branch_protection`, no `steps` — those are the gate skills' `--init`'s to fill (`--doctor` is
    a deprecated one-release alias), which is why `init` is
-   `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`:
+   `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`.
+   `policies.github_actions` is the one exception to "nothing else", and it is written
+   later — at **Step 5**, once the GitHub-remote-gated CI question has an answer; on a
+   no-remote repo it is never written at all:
 
 ```json
 {
@@ -280,28 +284,53 @@ lets the never-overwrite guarantee stay absolute.
 
 `init.sh` exits non-zero and marks failures in the manifest if any write fails. If the script exits non-zero, surface its stderr and stop. Do not retry — the user re-runs or fixes manually.
 
-**Step 5/5 — Emit manifest, offer branch-protection bootstrap, suggest next step**
+**Step 5/5 — Emit manifest, settle the GitHub questions, suggest next step**
 
 Print the manifest from `init.sh` stdout verbatim.
 
-**Branch-protection bootstrap (C3 — offer only when a GitHub remote exists).**
-Check for a GitHub remote:
+**GitHub offers (C3 — asked only when a GitHub remote exists).** Check for a
+GitHub remote:
 
 ```bash
 git remote -v 2>/dev/null | grep -qi github.com && command -v gh >/dev/null 2>&1 && echo HAS_GH_REMOTE
 ```
 
-If `HAS_GH_REMOTE` prints, the v2 ship pipeline (`/post-merge`) needs branch
-protection on `staging` and `main` — green-CI-required on both, plus ≥1 human
-review on `main` (D11). Offer it via **one** `AskUserQuestion`:
+No GitHub remote (or no `gh`) → skip **both** questions below silently and write
+neither key; `staging`/`main`, protection, and CI are settled when the user first
+pushes and runs the script (or `/msg --update`). Never a hard failure.
 
-> header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (required for `/post-merge`)"
+If `HAS_GH_REMOTE` prints, ask **both** questions in a single `AskUserQuestion`
+call:
+
+> header **GitHub Actions**, question "Run your CI on GitHub Actions? Actions minutes are metered on private repos on the Free plan."
+> - **Yes, use GitHub Actions** — `/pre-merge --init` will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
+> - **No — CI elsewhere or none** — no workflow is scaffolded and `/post-merge` accepts a PR with **zero** checks instead of flagging it. Every other gate is unchanged: red or pending checks (from any CI) still block the merge, and every human gate stands.
+
+> header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (recommended for `/post-merge`)"
 > - **Yes, bootstrap it** — run `bash .claude/scripts/post-merge-protection.sh --bootstrap` (resolve locally-first, else `$HOME/.claude/scripts/…`); it's idempotent. Print each `BOOTSTRAPPED`/`BOOTSTRAP_FAILED` line.
 > - **Skip** — note that `/post-merge` will refuse until protection is set; the user can re-run the script later.
 
-No GitHub remote (or no `gh`) → skip this offer silently; `staging`/`main` and
-protection are set up when the user first pushes and runs the script. Never a
-hard failure.
+The two are **independent** — bootstrap sets `required_status_checks
+{strict:true, contexts:[]}`, so protection is worth having with no CI at all
+(linear history, no force-push, required review). Never make the protection offer
+conditional on the Actions answer.
+
+**Record the Actions answer** in `devkit/policy.json` under
+`policies.github_actions` (`../../shared/refs/policy-schema.md` §2b) — this is
+the one key `/msg --init` writes *after* the Step 3 seed:
+
+```json
+"github_actions": { "enabled": false, "reason": "<the user's words, e.g. 'private repo on GitHub Free — no Actions minutes'>" }
+```
+
+- Yes → `{"enabled": true}` (no `reason` needed).
+- No → `{"enabled": false, "reason": "<why>"}` — ask for the reason only if the user's answer didn't already give one; otherwise record the option's own wording. A missing `reason` is honored but earns an `unjustified-policy` warn (AC-S3).
+- **Surgical merge, not a rewrite.** If Step 3 skipped the seed because
+  `policy.json` already existed, insert **only** this key with `Edit`, leaving every
+  other key byte-identical — the same discipline as Step 3b's row top-up. An
+  existing `policies.github_actions` is **overwritten with the new answer** (the
+  user was just asked; their fresh answer wins) and the change is noted in the
+  manifest. Do not touch `generated_by` when the file was not otherwise written.
 
 Then emit a one-line next-step suggestion:
 
@@ -328,4 +357,4 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform tolerance profiles + staging/production deploy commands; assembled from the P1 interview answer)
 - `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
 - `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)
-- `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`)
+- `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`), and Step 5 adds `policies.github_actions` (§2b) when a GitHub remote made the CI question askable

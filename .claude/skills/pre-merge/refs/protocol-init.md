@@ -168,10 +168,24 @@ gaps, never `n/a`.
 > ```
 >
 > Empty result → gap: nothing runs the gate on the PR, so "all checks green" is **vacuously true**
-> and branch protection has no check to require. Present → record `ci` as `ready`. `ci` is a
-> repo-wide floor (like `security`/`migration`), so its gap is always real — never `n/a`. `--init`
+> and branch protection has no check to require. Present → record `ci` as `ready`. `--init`
 > **scaffolds** the workflow (below) but never edits an existing one; if a workflow exists but
 > looks unrelated to the gate, record `ready` and note it rather than overwriting.
+>
+> **First check whether Actions is wanted at all.** Before calling an empty result a gap, resolve
+> `ga = policies.github_actions.enabled ?? true` from `devkit/policy.json`
+> (`../../shared/refs/policy-schema.md` §2b). `ga:false` → the user has already decided against
+> GitHub Actions (no Actions minutes, no Pro plan, or CI hosted elsewhere): this is **not a gap**.
+> Record `steps.ci = { status: "opted_out", reason: "<the policy's reason>" }`, offer no scaffold,
+> report nothing as missing, and say once that `/msg --update` changes the decision. `ga:true`/absent
+> → the gap is real, as above. Note the asymmetry: an *existing* `pull_request` workflow is still
+> recorded `ready` whatever `ga` says — the opt-out governs whether to *add* CI, not whether to
+> notice CI that exists.
+>
+> Otherwise `ci` is a repo-wide floor (like `security`/`migration`), so its gap is always real —
+> never `n/a`. `--init` never writes `policies.github_actions`; that decision belongs to
+> `/msg --init` / `/msg --update` and is only read here. `steps.ci` stays this protocol's own key
+> (post-merge reads it, never writes it).
 
 **Steps covered:** `mechanical` (Step 2), `unit_int` (Step 3), the Step-5 platform components (`e2e`,
 `qa`, `a11y`, `perf`, `load`, `api`, `mobile`, `coverage`), `security` + `migration` (Step 6), and
@@ -181,15 +195,17 @@ the cross-cutting `ci` workflow. The `deploy_staging` / `deploy_production` / `s
 
 ---
 
-## Gap taxonomy — the three flavors
+## Gap taxonomy — the flavors
 
-Every gap the detector surfaces is one of three flavors, read off the detector's own signals:
+Every gap the detector surfaces is one of these flavors, read off the detector's own signals
+(plus, for `ci`, the `policies.github_actions` decision):
 
 | Flavor | How the detector shows it | `--init` action | Recorded status |
 |---|---|---|---|
 | **Binary missing** | `command -v` slot empty (gitleaks, semgrep, trivy, k6, hurl, osv-scanner…) | offer the install command (per-item, gated) | `ready` on install · `deferred`/`opted_out` on decline |
 | **Config missing** | dep may exist but no `eslint.config.*` / `playwright.config.*` / `.semgrep.yml` etc. | scaffold a **minimal stub config** + the dep | `ready` on scaffold · `deferred`/`opted_out` on decline |
-| **Workflow missing** | no `.github/workflows/*.yml` triggers on `pull_request` (the `ci` gap) | scaffold `pre-merge.yml` with the detected gate commands substituted in | `ready` on scaffold · `deferred`/`opted_out` on decline |
+| **Workflow missing** | no `.github/workflows/*.yml` triggers on `pull_request` (the `ci` gap) **and** `policies.github_actions.enabled ?? true` is true | scaffold `pre-merge.yml` with the detected gate commands substituted in | `ready` on scaffold · `deferred`/`opted_out` on decline |
+| **Actions opted out** | same detector signal, but `policies.github_actions.enabled` is `false` | not a gap — offer nothing, report nothing missing | `opted_out` (the policy's `reason`) |
 | **N/A for surface** | slot `null` **and** the component is **not** in `required_buckets` | record only — offer nothing | `n/a` (with `reason`) |
 
 Declining any offered install always records `opted_out` (won't revisit) or `deferred` (will
@@ -253,6 +269,10 @@ For each real gap (after the `required_buckets` cross-reference), `--init` asks 
   (copy the stub to `.github/workflows/`, substitute the detected gate commands) or **Skip**. Scaffold
   → `steps.ci = { status: "ready", chosen: ".github/workflows/pre-merge.yml" }`; skip →
   `deferred`/`opted_out` with a `reason`.
+- **Actions-opted-out flavor (`ci`)** → make **no offer at all**: no question, no scaffold, no
+  install. Record `steps.ci = { status: "opted_out", reason: "<policy reason>" }` and move on. This
+  is the one flavor with no user-facing choice here, because the choice was already made in
+  `/msg --init` / `/msg --update` — name that command once if the user wants it back.
 - **Skip** → record `opted_out` (won't revisit) or `deferred` (will revisit later) **with a
   `reason`**; install nothing.
 - **Paid-only slot** → present the free `deferred`/`opted_out` path only; name the paid tool in the
@@ -427,3 +447,5 @@ manifest-read prose (`refs/executor.md` §0).
   `/msg --init` (that file stays `/msg --init`'s; policy-schema.md's writer table has the boundary).
 - Never installs a paid/SaaS tool (AC-DR3).
 - Never mutates without an explicit per-item `AskUserQuestion` approval (AC-DR2).
+- Never writes `policies.github_actions` — it only *reads* it to decide whether the missing `ci`
+  workflow is a gap or a settled opt-out. Changing that decision is `/msg --update`'s job.

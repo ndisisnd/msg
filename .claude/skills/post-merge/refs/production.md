@@ -37,7 +37,7 @@ notes — in `refs/release-identity.md`.
 
 For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
 
-1. **Staging CI is green.** Check the latest CI on `staging` (`gh api repos/{owner}/{repo}/commits/staging/status` or `gh run list --branch staging --limit 1`). Not green → refuse (`staging_not_green`).
+1. **Staging CI is green.** Check the latest CI on `staging` (`gh api repos/{owner}/{repo}/commits/staging/status` or `gh run list --branch staging --limit 1`). Not green → refuse (`staging_not_green`). **Empty result** (`state:"pending"` with *zero* statuses and no runs — nothing ever reported on `staging`) → resolve `ga = policies.github_actions.enabled ?? true` (`policy-schema.md` §2b): `ga:false` → the precondition is **inactive**, proceed silently (one report line, as in `--staging` Step 2); `ga:true`/absent → unchanged, treat as today. A real failing or in-flight status still refuses whatever `ga` says.
 2. **`staging-signoff:` stamp present** in the PRD frontmatter (stamped by `--staging` Step 7, D11). Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
 3. **The sign-off covers what is about to ship** (§ *Sign-off coverage* below). Staging advanced past every stamped sha → refuse (`stale_signoff`). The refusal names **both** remediations — `--prd <owning PRD>` to fold the tip PRD into this release if it is already signed off, or a fresh `/post-merge --staging` for genuinely un-signed-off work — never a single dead-ending re-run (§ *Sign-off coverage*).
 
@@ -380,7 +380,7 @@ render from):
 
 Branch protection enforces both; post-merge checks them, then merges:
 
-1. Verify the release PR's CI is green (same `statusCheckRollup` check as `--staging` Step 2). Red/pending → refuse (`red_ci`/`pending_ci`).
+1. Verify the release PR's CI is green (same `statusCheckRollup` check as `--staging` Step 2, **including** its empty-check-set branch — an empty set under `github_actions.enabled:false` proceeds silently). Red/pending → refuse (`red_ci`/`pending_ci`).
 2. Verify the required human review is present: `gh pr view <n> --json reviewDecision` → must be `APPROVED`. Not approved → refuse (`no_review`) — branch protection would reject the merge anyway; refuse cleanly with that reason.
 3. Merge:
    ```bash
