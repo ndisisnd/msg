@@ -102,7 +102,8 @@ def build(prd_path):
         "summary": fm.get("summary"),
         "features": [], "out_of_scope": [], "key_interactions": [],
         "error_cases": [], "edge_cases": [], "glossary": {}, "open_questions": [],
-        "exec_table": [], "engineering": {}, "audits_present": [],
+        "exec_table": [], "engineering": {}, "engineering_agents": [],
+        "audits_present": [],
         "todos": {}, "user_flows": None, "auth_model": None,
         "unparsed_sections": [],
     }
@@ -173,7 +174,8 @@ def build(prd_path):
                     eng["findings_md"] = raw(sb)
                 elif sl.startswith("13.") or "open questions" in sl:
                     eng["open_questions_md"] = raw(sb)
-            d["engineering"][agent] = eng; KNOWN.add(title)
+            d["engineering"][agent] = eng
+            d["engineering_agents"].append(agent); KNOWN.add(title)
         elif low.startswith("audit"):
             d["audits_present"].append({"heading": title, "prose_lines": f"{s}-{e}"}); KNOWN.add(title)
         elif low.startswith("todos"):
@@ -192,8 +194,9 @@ SLICES = {
     # plan-tune --product: does the PRD hold together as a product spec?
     "product": ["frontmatter","summary","out_of_scope","features","error_cases",
                 "glossary","key_interactions"],
-    # plan-em: what to build and for which platform.
-    "plan":    ["frontmatter","summary","features","exec_table"],
+    # plan-em: what to build and for which platform (engineering_agents drives
+    # Step 4 wave-mode detection — build once all roster agents have a section).
+    "plan":    ["frontmatter","summary","features","exec_table","engineering_agents"],
     # plan-tune --eng: eng-plan integrity (exec_table + todos feed checks 4/5).
     "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
@@ -203,7 +206,7 @@ SLICES = {
     # on features + error_cases).
     "eval":    ["features","error_cases","edge_cases"],
     # plan-em Step 5 synthesis: summarize eng sections + cross-section findings.
-    "synth":   ["frontmatter","features","exec_table","engineering","open_questions"],
+    "synth":   ["frontmatter","features","exec_table","engineering","engineering_agents","open_questions"],
 }
 
 def slice_digest(d, name, feature=None):

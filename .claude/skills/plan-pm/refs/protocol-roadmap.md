@@ -17,14 +17,14 @@ Emit progress as `Step X/6 — <title>` at the start of each step, per § Progre
 Enumerate every PRD via the scan helper (ships with this skill in the global scripts dir; resolve there when the project has no vendored copy):
 
 ```bash
-S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S"
+S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S" --git
 ```
 
-It prints one JSON object per PRD (top-level and nested sub-PRD) with: `id`, `feature`, `module`, `platform`, `status`, `product_tuned`, `eng_tuned`, `reviewed`, `completion` (derived bucket), `depends_on[]`, `affects[]`, `parent`, `created`, `path`.
+It prints one JSON object per PRD (top-level and nested sub-PRD) with: `id`, `feature`, `module`, `platform`, `status`, `product_tuned`, `eng_tuned`, `reviewed`, `completion` (refined bucket), `depends_on[]`, `affects[]`, `parent`, `created`, `path`, `full`, `missing[]`.
 
 If the output is empty → emit `No PRDs to arrange — run /plan-pm to create one first.` and terminate.
 
-**Completion bucket.** The scan's `completion` is a cheap frontmatter-derived fallback (`product` / `eng` / `review` / `retired`). Where git is available, refine it with the same ladder the GUI server uses (most-authoritative first): frontmatter `completion:` override → merged PR → open PR → branch `feat/<id>` exists → `status: eng` → else `product`. Use `git branch --list` / `gh pr list` only if cheap; never block on network. `retired` PRDs (superseded by a split/merge) are excluded from sequencing but listed in Phase 0.
+**Completion bucket.** `--git` refines each `completion` **mechanically inside the scanner** — it walks the most-authoritative-first ladder (frontmatter `completion:` override → merged PR → open PR → branch `feat/<id>` exists → `status: eng` → else `product`, mirroring the GUI server) using `git`/`gh` only where they are cheaply available, degrading silently and never blocking on the network. Do not run any `git branch --list` / `gh pr list` yourself — the flag carries the same never-block guarantee, now inside the script. Without `--git` (or when git is absent) `completion` stays the frontmatter-derived fallback (`product` / `eng` / `review` / `retired`). `retired` PRDs (superseded by a split/merge) are excluded from sequencing but listed in Phase 0.
 
 Hold the inventory in context as the working set.
 
@@ -38,9 +38,9 @@ A roadmap is only as trustworthy as the PRDs in it, so **only full PRDs are acce
 2. **§6 Features & acceptance criteria** is populated with real content — at least one concrete, testable acceptance criterion per in-scope feature (not the template placeholder, not empty).
 3. **§7 Feature execution table** has real F-ID rows (not the `_To be populated by plan-em …_` placeholder).
 
-For each non-retired PRD, read §6 and §7 and evaluate the three conditions. When a PRD **fails** any condition, do not silently include or skip it — **exit the analysis and ask the user** via `AskUserQuestion` (name the PRD and the missing piece):
+The scanner evaluates all three conditions mechanically: each PRD carries `full` (`true`/`false`) and a `missing` array naming the failed pieces — `stamps` (condition 1), `acceptance-criteria` (condition 2), `exec-table` (condition 3). **Consume those fields — do not re-read §6/§7 to judge fullness.** When a PRD is not `full` (its `missing` array is non-empty), do not silently include or skip it — **exit the analysis and ask the user** via `AskUserQuestion` (name the PRD and the piece(s) its `missing` tokens flag):
 
-> `<prd-id>` is not a full PRD — <missing: acceptance criteria in §6 / execution table in §7 / planning not finished (status/tune stamps)>. How should the roadmap handle it?
+> `<prd-id>` is not a full PRD — <name each `missing` token: `stamps` → planning not finished (status/tune stamps) / `acceptance-criteria` → §6 acceptance criteria / `exec-table` → §7 execution table>. How should the roadmap handle it?
 > - **Amend now (msg flow)** — complete it before roadmapping. Route to the right stage and run it in-session via `Skill`, then re-check: missing §6 / acceptance criteria or unfinished product spec → `plan-pm --sub <prd>` or `plan-tune --product`; missing §7 execution table → `plan-em <prd>` then `plan-tune --eng`. On completion the PRD's frontmatter stamps update, so re-run the scan and re-evaluate.
 > - **Skip this PRD** — exclude it from the roadmap this run; record it under the tune log as `excluded — not full`. It is not sequenced and not written into any phase.
 > - **Stop** — halt `--roadmap` with no file written.

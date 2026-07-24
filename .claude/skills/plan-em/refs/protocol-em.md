@@ -111,10 +111,15 @@ plan-em Step 2: certify product  →  plan wave (agents write eng + tickets)
 plan-em Step 4 (build mode): certify eng  →  build wave
 ```
 
-Read the PRD's `product-tuned:` frontmatter (from Step 1) **and** the §9 Plan tune findings ledger:
-- `product-tuned: yes` **and** zero unresolved Critical findings in §9 → certified; proceed straight to agent identification.
-- `product-tuned: no`/absent, **or** any Critical finding still `Open`/`Still open` in §9 → **run `plan-tune --product` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, re-read the frontmatter + §9:
-  - Certified (stamp set, zero unresolved Criticals) → proceed to agent identification.
+Run the certification gate checker on the input PRD (`product-tuned:` stamp + §9 Critical-open scan, two-path resolution):
+
+```bash
+S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --product
+```
+
+- `CERTIFIED` (exit 0) → certified; proceed straight to agent identification.
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --product` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, **re-run the checker**:
+  - `CERTIFIED` → proceed to agent identification.
   - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD.
 
 No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its own product-decision pause is the only stop.
@@ -186,12 +191,18 @@ move all run identically. They diverge only at the **fan-out**:
 Run mode detection and the mode-specific preconditions first (they are lane-independent),
 then take the fan-out for `$TEAM_MODE`.
 
-**Mode detection.** Scan PRD headings for `## Engineering —` blocks. The approved roster count = expected count for "all agents." Two modes:
+**Mode detection.** Run the digest for the `plan` slice (the Step 1b invocation pattern) and read its `engineering_agents` field — the ordered list of `<Agent>` names the generator parsed from the PRD's `## Engineering — <Agent>` headings:
+
+```bash
+G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
+```
+
+Compare `engineering_agents` against the **approved roster** (Step 3b). Two modes:
 
 | Condition | `$MODE` |
 |-----------|---------|
-| fewer `## Engineering —` blocks than roster agents (or none) | `plan` |
-| `## Engineering —` present for **all** roster agents | `build` |
+| some roster agent is missing from `engineering_agents` (or the list is empty) | `plan` |
+| **every** roster agent appears in `engineering_agents` | `build` |
 
 Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--build`). The `plan` wave writes each agent's `## Engineering — <Agent>` section **and** its `## Todos — <Agent>` tickets in **one pass** — there is no separate todo wave.
 
@@ -213,9 +224,14 @@ Each agent writes its `## Engineering — <Agent>` section **and**, in the same 
 
 **Build mode (`$MODE = build`).**
 
-**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Read `eng-tuned:` + the §9 ledger:
-- `eng-tuned: yes` **and** zero unresolved Critical findings → certified; proceed to branch resolution.
-- `eng-tuned: no`/absent, **or** any unresolved Critical → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. Re-read on return; if a Critical remains genuinely unresolved after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan. No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
+**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (`eng-tuned:` stamp + §9 Critical-open scan, two-path resolution):
+
+```bash
+S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --eng
+```
+
+- `CERTIFIED` (exit 0) → certified; proceed to branch resolution.
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan. No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
 
 Then, resolve and create the feature branch **once**.
 

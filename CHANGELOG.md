@@ -2,6 +2,14 @@
 
 ## 2026-07-24
 
+### [50] — Mechanical wave-mode detection, certification gate, and roadmap completeness (v3.0.0 W2)
+
+- `.claude/scripts/scan-prd-digest.py`: Added — `engineering_agents` field (ordered `## Engineering — <Agent>` heading names) in the base digest, exposed in the `plan` and `synth` slices
+- `.claude/scripts/plan-tune-cert-status.sh`: Added — deterministic certification-gate checker: parses the `product-tuned:`/`eng-tuned:` stamp and §9 Plan tune findings ledger, prints `CERTIFIED` (exit 0) or `UNCERTIFIED no-stamp` / `UNCERTIFIED open-critical <id>` (exit 1); absent §9 with stamp set → certified with a stderr note; bad input → exit 2
+- `.claude/scripts/plan-pm-roadmap-scan.sh`: Added — per-PRD `full`/`missing[]` fields (stamps / acceptance-criteria / exec-table completeness computed from §6/§7 body scan) and a `--git` flag refining `completion` via the git/gh ladder mirrored from the GUI server's `infer_completion()` (best-effort, never blocks, degrades to frontmatter-derived buckets with one stderr note)
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 4 mode detection compares the digest's `engineering_agents` against the roster instead of a prose heading scan; Steps 2 and 4 run the cert checker and branch on its verdict instead of reading-and-interpreting the frontmatter + §9
+- `.claude/skills/plan-pm/refs/protocol-roadmap.md`: Changed — Step 1 passes `--git` to the scanner for the refined completion bucket; the Step 2 completeness gate consumes `full`/`missing` instead of the LLM reading §6/§7 of every PRD; ask-user handling unchanged
+
 ### [49] — Lane-aware prior-PRD scans + plan-em consumes the collision checker (v3.0.0 W1)
 
 - `.claude/scripts/plan-pm-roadmap-scan.sh`: Added — `--exclude <prd-id>` flag omitting exactly that PRD's line from the JSONL (its nested sub-PRDs still emit); unknown flags refuse with usage on stderr
