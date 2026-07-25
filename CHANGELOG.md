@@ -48,6 +48,13 @@ All twelve AC-TS acceptance criteria are represented in the shipped files; tier 
 
 - `RELEASES.md`: Unchanged — the v4.0.0 section was authored in [61] alongside the feature itself, so this release cuts the `v4.0.0` tag from notes already in the tree (release bookkeeping for the `v4.0.0` GitHub release)
 
+### [64] — Repair two release-history gaps: v2.2.0's lost heading and v3.0.0's missing tag
+
+- `RELEASES.md`: Fixed — restored the `## v2.2.0 — 2026-07-21` heading. The section's body was present and correct (it matches the published v2.2.0 GitHub release verbatim), but with no heading it rendered as a second, unattributed blockquote inside v2.3.0's section — so v2.2.0 appeared to have no notes and v2.3.0 appeared to have two highlights
+- Git tags / GitHub releases: Fixed — cut the missing `v3.0.0` tag at its release commit `d6a1c4b` and published its GitHub release from the v3.0.0 notes already in `RELEASES.md`. The v3.0.0 release commit and notes had always existed; only the tag and the published release were absent, which made the tag list appear to skip from v2.5.0 to v3.1.0
+
+Release *numbering* was never non-sequential — every release commit v2.0.0→v4.0.0 exists on `main` in an unbroken run. Both gaps were missing artifacts, so both repairs are additive: no tag was moved or deleted, and no published release was rewritten.
+
 ## 2026-07-25
 
 ### [59] — Publish the v3.1.0 user-facing release notes

@@ -87,6 +87,8 @@ What's new for you, release by release.
 ### 🔒 Security
 - Staging sign-off is now pinned to the exact commit you tested. If anything lands on staging after you signed off, production refuses to ship until that new work is signed off too — closing the hole where late commits could ride an old approval into production unreviewed.
 
+## v2.2.0 — 2026-07-21
+
 > Your backlog is no longer append-only: you can now edit an idea you've already logged, or remove one outright — and the removal tells you what it breaks before it happens.
 
 ### ✨ New
