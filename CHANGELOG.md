@@ -2,6 +2,10 @@
 
 ## 2026-07-25
 
+### [59] — Publish the v3.1.0 user-facing release notes
+
+- `RELEASES.md`: Added — v3.1.0 section covering the GitHub Actions CI opt-in policy and the cross-skill closing-message contract (release bookkeeping for the `v3.1.0` GitHub release)
+
 ### [58] — Every skill run now ends with a clear pass/warning/fail summary and next step
 
 - `.claude/skills/shared/refs/closing-message.md`: Added — new shared contract: 🟢/🟡/🔴 protocol, message template, and a deterministic next-steps registry mapping skill/mode/verdict to the exact next command

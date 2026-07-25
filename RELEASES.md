@@ -2,6 +2,17 @@
 
 What's new for you, release by release.
 
+## v3.1.0 — 2026-07-25
+
+> GitHub Actions CI is now opt-in — decline it during setup or later and every gate steps around the missing checks without loosening anything else. And every skill run now closes with a plain-language pass/warning/fail summary and a concrete next step, so you always know where you stand.
+
+### ✨ New
+- You can turn off GitHub Actions CI checks entirely — during initial setup or anytime after — and the pipeline adapts cleanly instead of nagging you to add a workflow you don't want. Everything else it protects (branch rules, required reviews, the human sign-off gates) stays exactly as strict as before.
+- Every run now ends with a clear 🟢/🟡/🔴 summary: what happened, in plain language, plus the exact next command to run — no more guessing what to do after a build, a plan, or a merge finishes.
+
+### 📈 Improved
+- The next-step guidance is now consistent everywhere — the same summary shape whether a run passed clean, needs your input, or hit a blocker.
+
 ## v3.0.0 — 2026-07-24
 
 > Planning got a spine of small deterministic tools. The parts of `/plan-pm` and `/plan-em` that were really algorithms all along — who can build in parallel without colliding, which branch a build lands on, what order a roadmap's phases must run in, whether a plan is actually certified — are now computed by scripts and merely *executed* by the model. Same judgment where judgment belongs; no more dice where it doesn't.
