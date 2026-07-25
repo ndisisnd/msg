@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-26
+
+### [60] — The gate can now run only the tests your diff can break (contract core)
+
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — new `policies.test_selection` field spec (`enabled`, `reason`, `full_run_backstop`, `force_full_paths`, `tiers.*`, `max_affected_ratio`, `critical_markers`) plus a §2c read-contract (`ts = policies.test_selection.enabled ?? false` — opt-IN, deliberately inverting `github_actions`' absent ⇒ true default; `--full` > `--minified` > policy); adds the additive `components[].run_minified` field and the `criticality_review` review stamp
+- `.claude/skills/shared/refs/component-catalog.md`: Changed — `run_minified` joins the entry schema, `unit`/`integration`/`regression` are marked selection-capable (`ˢᵉˡ`), and the catalog gains per-platform `force_full_paths` and `critical_markers` defaults plus a pointer to `regression`'s born-tagged special contract
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — new §3c "Test selection": the 5-step selection rule (force-full → no selector → unresolvable → tier L → minified), the deterministic S/M/L size-tier rubric, per-component contracts, and the tier/trigger recording requirement; §4 result reports gains its heading
+- `.claude/skills/pre-merge/refs/output-schema.md`: Changed — additive `test_selection` verdict block (`{mode, tier, signals, per_check}`), emitted only when selection actually ran
+
+Absent policy key ⇒ byte-identical gate behaviour, no migration; the mandatory floor (`mechanical`/`security`/`migration`) and this PRD's newly authored regression tests are never selected away, and every resolution failure fails open to the full suite.
+
 ## 2026-07-25
 
 ### [59] — Publish the v3.1.0 user-facing release notes

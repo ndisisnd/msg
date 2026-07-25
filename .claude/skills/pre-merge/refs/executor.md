@@ -242,6 +242,143 @@ a full re-provision (minutes). Freshness is restored at promotion (step 3).
 - A provisioner **without** a `seed_script` runs the sandbox but flags the same loud
   note for seed-dependent realism (`load`/`perf`/`integration` against an empty DB).
 
+## 3c · Test selection (`policies.test_selection`)
+
+How a **test** component's command is chosen — `run` (full) vs `run_minified`
+(affected ∪ critical). Selection is an execution-policy layer like only-on-green:
+it changes **which tests a component runs**, never which components are in the
+pipeline (that is §1's pruning) and never the wave order (§2).
+
+**Resolution + precedence** (`../../shared/refs/policy-schema.md` §2c):
+
+```
+ts = policies.test_selection.enabled ?? false      // opt-IN — absent means off
+selection_on = --full ? false : (--minified ? true : ts)
+```
+
+**When `selection_on` is false, this entire section is inert** (AC-TS1/AC-TS12):
+every component runs its `run` command exactly as before the key existed, and
+**no** selection artifact is read at all — not `run_minified`, not `tiers`, not
+`force_full_paths`, not `critical_markers`, not the `criticality_review` stamp,
+not the in-code tags. Nothing is emitted: no `test_selection` verdict block, no
+pipeline-line suffix, no staleness nudge. `--full` is the per-run kill switch;
+`/msg --update` flipping `enabled:false` is the repo-wide one.
+
+The scope is exactly the three **selection-capable** components (catalog legend
+`ˢᵉˡ`): `unit`, `integration`, `regression`. Everything else runs whole. In
+particular `mechanical`, `security`, and `migration` are **never** selected —
+the mandatory floor is untouched (`../../shared/refs/safety-floor.md`: fewer checks never means
+weaker ones, and these aren't fewer) — and neither are this PRD's **newly
+authored** regression tests (AC-TS5, below).
+
+### The rule (5 steps, in order, per test component)
+
+```
+1. diff hits force_full_paths            → full  (note: "force-full: <path>")
+2. run_minified == null                  → full  (silent — the runner can't select)
+3. affected set unresolvable             → full  (note: "fallback: <reason>")   [fail open]
+4. size tier == L                        → full  (note: "tier: L (<trigger>)")
+5. else                                  → run_minified per the tier; record selected/total + tier
+```
+
+- Step 2 is **silent, not a gap** — a runner without selection support is a fact
+  about the toolchain, not a finding (same treatment as an absent component,
+  AC-PF6).
+- Step 3 is the **fail-open invariant** (AC-TS4), the same rule `--changed-only`
+  already uses: no graph, dirty state, runner refused the selector → run the full
+  suite with a one-line note. Every resolution failure resolves toward **more**
+  testing, never less.
+- Step 5's selected set is **deterministic** (AC-TS3): affected comes from
+  runner-native selection or the code graph, the critical floor from declared
+  tags. Same diff + same manifest + same tags ⇒ same selected set. The executor
+  never asks an agent which tests to run.
+
+### 3c.1 · The size-tier rubric
+
+**Size is measured from the diff's blast radius, never from the PRD's prose.** A
+"medium-looking" PRD touching two leaf components is small; a one-line PRD editing
+a shared util is large. All three signals are computed **in the prelude**, from
+`../scripts/resolve-diff.sh` + the code graph — no agent judgment, no per-run LLM call
+(AC-TS10):
+
+| Signal | Definition | Source | Unavailable ⇒ |
+|---|---|---|---|
+| `modules` | distinct modules / targets / packages touched | diff paths → module boundaries (SPM/Gradle/package dirs) | — (always derivable from paths) |
+| `ratio` | \|affected ∪ critical\| / \|suite\| | the resolved affected set + the declared critical floor | step 3 fires (fail open → full) |
+| `fan_in_pct` | highest fan-in **percentile** among touched files | code graph (tokensave `rank`/`hotspots`), cached | **treat as exceeding the small bound** — degrade toward more testing (AC-TS10) |
+
+Thresholds come from `policies.test_selection.tiers` + `max_affected_ratio`
+(defaults in `policy-schema.md`); a `force_full_paths` hit is a fourth,
+short-circuiting signal (rule step 1) that lands directly in **L**.
+
+| Tier | Bounds (defaults) | `unit` | `integration` | `regression` accumulated | `regression` new |
+|---|---|---|---|---|---|
+| **S** | `modules ≤ 2` **and** `ratio ≤ 0.10` **and** `fan_in < p90` | affected ∪ critical | affected ∪ critical | critical ∪ affected | full |
+| **M** | above S, but `modules ≤ 6` **and** `ratio ≤ max_affected_ratio` | affected ∪ critical | **full** | critical ∪ affected **∪ 1-hop dependents** | full |
+| **L** | any of: force-full hit · `modules > 6` · `ratio > max_affected_ratio` | full | full | full | full |
+
+**Why M widens exactly there.** As breadth grows the residual risk shifts from
+"this unit is wrong" — which unit selection still covers, since affected is
+precise at file granularity — to **cross-module interaction**. So M pays for the
+full `integration` suite while `unit` stays selected, and the regression net
+widens by one dependency hop (tests of modules that directly depend on a touched
+module), since accumulated regression tests are exactly the "a distant page broke"
+detectors.
+
+**Conflict resolution — the largest tier wins.** The tier is the **largest** tier
+any signal lands in; conflicting signals always resolve toward **more** testing
+(AC-TS10/TS11). `modules = 1` with `ratio = 0.7` is **L**, not S.
+
+**Critical-only is never a tier (AC-TS11).** The critical floor is a *supplement*
+to the affected set, never a substitute — a mode that dropped `affected` would
+guarantee misses on any untagged-but-relevant test. **Every** tier runs at least
+`affected ∪ critical`; no flag, threshold, or degradation path produces a
+critical-only run.
+
+### 3c.2 · Per-component contracts
+
+- **`unit` / `integration`** — straight application of the rule + tier table above.
+- **`regression`** — two-part contract (this is what protects the D9 ratchet):
+  1. **accumulated suite** (`tests/regression/prd-*/`) — selectable: critical-tagged
+     ∪ affected, widened one dependency hop at tier **M**.
+  2. **this PRD's newly authored tests** — **always run in full; never selected
+     away** (AC-TS5), at every tier, under every flag.
+  The authoring eng subagent **tags at authoring time**: any regression test derived
+  from a PRD acceptance criterion the PRD marks P0/critical gets the platform's
+  critical marker in the same commit, so new tests are **born tagged**.
+- **`coverage`** — not selection-capable, but selection-**aware**: when its `unit`/
+  `integration` dependencies ran minified, coverage deltas are computed **only over
+  the diff's files** (a suite-wide number from a partial run is meaningless) and its
+  result report says so. Both dependencies full → unchanged behaviour.
+- **`mechanical` / `security` / `migration`** — untouched; the mandatory floor never
+  narrows (AC-TS5).
+
+### 3c.3 · Recording — a minified run is never mistaken for a full one
+
+The chosen tier **and** the triggering signal values are recorded in three places
+(AC-TS6/TS10), so a miss is attributable to a threshold — and the threshold is
+tunable in policy rather than re-litigated per run:
+
+| Surface | Form |
+|---|---|
+| **pipeline line** (§5 `pipeline`) | `unit: minified (42/731, tier S)` — a full-run component keeps its existing bare form |
+| **run report `## Test results`** (§6) | `selected/total` per check, plus the tier and any `fallback_reason` |
+| **verdict JSON** | the additive `test_selection` block — `{mode, tier, signals: {modules, ratio, fan_in_pct}, per_check: {<id>: {selected, total, fallback_reason?}}}` (`../refs/output-schema.md`; additive, shape unchanged — AC-PF16) |
+
+`pass` semantics are otherwise **unchanged**: selection changes how many tests ran,
+never how a finding is graded (`../severity-rubric.md` is untouched by this
+section). A run that fell back to full at steps 1–4 records the reason in the same
+places, so "why did this take 40 minutes" is answerable from the artifacts.
+
+**Staleness nudge (read-only, Fork E pattern).** A minified run counts untagged
+tests cheaply against the `criticality_review` stamp; over the threshold (default
+25) it prints one line — *"N untagged tests since the last criticality review — run
+`/pre-merge --update-criticality`"* — and proceeds. The gate **never** writes a tag
+and never writes `policy.json` (AC-OW1, AC-TS2); only the human-gated
+`--init`/`--update`/`--update-criticality` do.
+
+## 4 · Result reports (one per component, every run)
+
 **Every** component that runs — pass, fail, or skip — writes a normalized
 **result report** to `.pre-merge/<ts>/<check>.json` on **every** run, never
 failure-only (AC-RR1). `<ts>` is the run timestamp; the dir is a gitignored
@@ -290,9 +427,10 @@ per-stage collect):
 
 **Verdict JSON (stdout — the final emission, `../refs/output-schema.md`).** Shape
 is **unchanged** (AC-PF16) so `eng --build report=`, `fix-loop.md`, and `/msg --gui`
-keep working — only the *source* of the stages changed. The one additive,
-optional field is `pipeline` (observability, AC-PF15) — the resolved ordered wave
-list + what each flag pruned. It is **additive**, never a rename of an existing
+keep working — only the *source* of the stages changed. The additive, optional
+fields are `pipeline` (observability, AC-PF15) — the resolved ordered wave list +
+what each flag pruned — and, **only when test selection ran** (§3c),
+`test_selection` (AC-TS6). Both are **additive**, never renames of an existing
 key.
 
 **Universal report (`report-prd-<N>-<K>.json` — the eng-ingestible issues file).**
@@ -331,12 +469,15 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
 - **Run report `## Test results`** has one line per check for pass **AND** fail,
   derived from `checks[]`; `tests_passed`/`tests_failed` frontmatter is summed from
   the result reports' `totals` (AC-RR3). `## How to verify` lists the resolved,
-  ordered pipeline + what was pruned (AC-PF15).
+  ordered pipeline + what was pruned (AC-PF15). On a minified run each
+  selection-capable check's line also carries `selected/total`, the tier, and any
+  `fallback_reason` (§3c.3, AC-TS10); on a full or selection-off run the lines are
+  unchanged.
 
 ## Contract stability (AC-PF16 — load-bearing)
 
 The verdict JSON top-level keys and the issues-file `issues[]` shape are
-**unchanged** by this cutover — `pipeline` (verdict JSON) and `checks[]` (issues
-file) are **additive**. `eng --build report=`, `../../shared/refs/fix-loop.md`, and
+**unchanged** by this cutover — `pipeline` and `test_selection` (verdict JSON) and
+`checks[]` (issues file) are **additive**. `eng --build report=`, `../../shared/refs/fix-loop.md`, and
 `/msg --gui` read the same keys they always did. Only the source of the stages —
 a fixed 0–9 list → the resolved `components[]` pipeline — changed.

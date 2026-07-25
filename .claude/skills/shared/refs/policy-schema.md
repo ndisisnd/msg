@@ -13,10 +13,11 @@ The single authoritative definition of `devkit/policy.json`: the **committed, sh
 | Writer | Writes |
 |---|---|
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow`, and `policies.github_actions` when the CI question was asked (nothing else) |
-| `/msg --update` | **CI decision** — sets/changes `policies.github_actions` (the only key it writes; it otherwise delegates to `/msg --init`'s top-up) |
+| `/msg --update` | **CI decision** — sets/changes `policies.github_actions`, and the **test-selection decision** `policies.test_selection` (the only keys it writes; it otherwise delegates to `/msg --init`'s top-up) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
 | `--init` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling + `branch_protection`, records `staging_ready` (post-merge `--init`, `staged` flow only), flips `init:true` |
 | `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`active_when`/new-component changes, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
+| `--update-criticality` | **criticality reconcile** — pre-merge only; writes approved critical markers into the test files and restamps `criticality_review` (`{reviewed_at, suite_hash}`). Never re-grades a human-set tag (AC-TS7); writes **no other** policy key |
 
 No gate run ever writes it (AC-OW1, AC-UP6) — a gate only recomputes `source_signature`
 read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
@@ -104,6 +105,7 @@ did before the key existed.
 | `policies` | object | ✖ | `{}` | the enforced half |
 | `components` | object[] | ✖ | — | the **v3 preflight manifest** — the resolved per-project pipeline (catalog defaults + detection + user overrides). Purely **additive** to the same file (AC-PF5). See [`components[]`](#components--the-v3-preflight-manifest) |
 | `source_signature` | string | ✖ | — | staleness hash of the detect-section tuple across all preflight reports; stamped by `--init`/`--update` (AC-UP4). Gate recomputes it read-only to warn on drift (AC-UP5). See below |
+| `criticality_review` | object | ✖ | — | **sibling of `source_signature`** — the same staleness-stamp pattern applied to the **test tree**: `{reviewed_at, suite_hash}`, stamped by `--update-criticality` and by the enabling interview's initial tagging pass. Additive; only read on a minified run (AC-TS12). See [`criticality_review`](#criticality_review--the-test-tree-review-stamp) |
 | `steps` | object | ✖ | `{}` | per-step decisions. **Deprecated (v3):** superseded by `components[]`; **dual-written** by `--init`/`--update` until P3 flips the gate to the executor, then dropped. The pre-P3 gate still reads it |
 | `staging_ready` | object | ✖ | — | **resolved fact** — per-platform staging-readiness recorded by post-merge `--init` (`staged` flow only), read by post-merge `--staging` to guard the ship. **Additive** (AC-SR3); re-derived on every re-init, never settled policy. See [`staging_ready`](#5--staging_ready-post-merge---staging) |
 
@@ -150,6 +152,65 @@ committed file, instead of every gate run rediscovering the absence and nagging.
 setup decision, not a detection result. No gate run ever writes it (AC-OW1).
 Absent object ⇒ `enabled: true` ⇒ pre-key behaviour, so existing `policy.json`
 files need no migration.
+
+### `policies.test_selection` — is minified test selection wanted at all?
+
+The user's answer to "should the gate run only the tests your diff can break,
+instead of the whole suite?". `--changed-only` already prunes whole **platform**
+components by diff surface; this key extends pruning **inside** the `unit`,
+`integration`, and `regression` components — *selected = affected(diff) ∪
+critical-floor*, else fall back to the full suite. Small PRDs stop paying for a
+700-test suite at every gate run, while the full suite still runs at a declared
+backstop (CI and/or post-merge). Like `github_actions`, this is a **decision the
+team makes once**, in a committed file — never something a gate run rediscovers.
+
+```json
+"test_selection": {
+  "enabled": false,
+  "reason": "small-PRD gate runs were taking 40+ min on the full suite",
+  "full_run_backstop": "ci",
+  "force_full_paths": ["package.json", "**/lockfiles/**", "**/migrations/**", "devkit/**", "src/shared/**", "*.gradle*", "*.xcodeproj/**"],
+  "tiers": { "small_max_modules": 2, "small_max_affected_ratio": 0.10, "medium_max_modules": 6, "medium_max_fan_in_pct": 0.90 },
+  "max_affected_ratio": 0.5,
+  "critical_markers": { "web": "@critical", "python": "critical", "go": "TestCritical", "apple": "Critical.xctestplan", "android": "com.<org>.test.Critical" }
+}
+```
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `enabled` | bool | ✔ | `false` | `false`/absent → `unit`/`integration`/`regression` run their **full** suites exactly as before the key existed (AC-TS1) |
+| `reason` | string | recommended when `enabled:true` | — | governance note (e.g. "40+ min gate runs on small PRDs"); missing → honored + `unjustified-policy` warn (AC-S3) |
+| `full_run_backstop` | enum `ci` \| `post-merge` \| `both` | required when `enabled:true` | — | **where the full suite still runs.** Minified shifts *when* the full cost is paid, never *whether*. The enabling interview verifies the named backstop exists (`ci` → a `.github/workflows/` gate workflow **and** `github_actions.enabled` ≠ `false`; `post-merge` → `release_flow.mode == "staged"`); unverifiable → warn loudly + require an explicit override plus `reason`, still honored (AC-TS8) |
+| `force_full_paths` | string[] | ✖ | catalog defaults | glob paths whose cross-cutting blast radius defeats selection — a diff touching **any** of them runs the full suite (rule step 1 ⇒ tier **L**, `pre-merge/refs/executor.md` §3c). Defaults per detected platform in [`component-catalog.md`](component-catalog.md) |
+| `tiers` | object | ✖ | below | the S/M boundary knobs for the size-tier rubric (`pre-merge/refs/executor.md` §3c.1) |
+| `tiers.small_max_modules` | int | ✖ | `2` | **S** requires `modules ≤` this |
+| `tiers.small_max_affected_ratio` | number | ✖ | `0.10` | **S** requires `ratio ≤` this |
+| `tiers.medium_max_modules` | int | ✖ | `6` | **M** requires `modules ≤` this; above it → **L** |
+| `tiers.medium_max_fan_in_pct` | number | ✖ | `0.90` | fan-in percentile bound: a touched file at or above this percentile is **not S**. Graph unavailable ⇒ treated as exceeding the bound (degrade toward more testing, AC-TS10) |
+| `max_affected_ratio` | number | ✖ | `0.5` | the **M/L** boundary — an affected set larger than this share of the suite isn't worth selecting; run full |
+| `critical_markers` | object `<platform, string>` | ✖ | catalog defaults | the per-platform **tag vocabulary** naming the critical floor (`web`/`python`/`go`/`apple`/`android`). Policy records only the vocabulary — the tags themselves live in test code (ground truth, reviewed in PRs). Resolved per detected platform at `--init`; a declared-but-unresolvable marker is a `medium` `policy-mismatch` finding (AC-ST3 pattern), never a silent empty critical set |
+
+**Written only by `/msg --update` and pre-merge `--init`/`--update`/
+`--update-criticality`** — it is the user's setup decision, not a detection
+result. (`--init`/`--update` run the enabling interview and resolve the
+catalog-defaulted fields; `--update-criticality` touches nothing inside this
+object — it restamps the sibling `criticality_review` only.) **No gate run ever
+writes it** (AC-OW1, AC-TS2); a gate never writes a critical tag either.
+
+**Back-compat — opt-IN, deliberately inverted.** Absent object ⇒
+`enabled: false` ⇒ **pre-key behaviour verbatim**, so existing `policy.json`
+files need **no migration** (AC-TS1). This inverts `github_actions`' absent ⇒
+`true` default on purpose: CI is the assumed-good baseline you opt *out* of,
+whereas selection narrows what a gate runs and must therefore be opted *in*
+explicitly, with a named backstop.
+
+**Disable is one run (AC-TS12).** Flipping `enabled:false` via `/msg --update` is
+the complete off switch — every other artifact the feature created is
+inert-by-design: critical tags in test code, `components[].run_minified`, `tiers`,
+`force_full_paths`, `critical_markers`, and the `criticality_review` stamp are all
+read **only** inside the selection path. No teardown step exists or is needed;
+the disable run prints a one-line retained-inert audit and never offers to strip
+tags or `run_minified`.
 
 ### `policies.staging_readiness` — the staging-readiness guard stance
 
@@ -222,6 +283,7 @@ pre-executor lifecycle until its own executor plan lands.
 | `depends_on` | string[] | hard effect edges only; the graph MUST be **acyclic** — `--init` rejects a cycle and writes no manifest (AC-PF3) |
 | `needs_env` | bool | **C23** — `true` iff the component runs inside the ephemeral test-sandbox (catalog `env` column). Catalog-defaulted; `regression`'s value is **resolved at `--init`** from its suite composition (AC-SBX8) |
 | `run` | string \| null | resolved command (script/hybrid) or `<group>/protocol-<slug>.md` ref (subagent/gate) |
+| `run_minified` | string \| null | **additive** (AC-PF5 style) — the resolved **selection-capable** invocation of the same runner (affected ∪ critical), detected by the `preflight-check-*.sh` family at `--init`/`--update` alongside `run`. Non-null only on the selection-capable components (`unit`, `integration`, `regression` — see [`component-catalog.md`](component-catalog.md)). **`null` ⇒ the component always runs full** (the runner can't select) — silent, not a gap. Never consulted unless `policies.test_selection` resolves enabled or `--minified` is passed (AC-TS12) |
 | `tooling` | `{chosen,version}` \| null | the detection overlay |
 | `status` | enum `ready`\|`no_tooling`\|`n/a`\|`opted_out`\|`deferred` | detection status (`ready`/`no_tooling`/`n/a`) or the carried-over user decision (`opted_out`/`deferred`) |
 | `source` | string | the `preflight-check-<nn>-<slug>.sh` that produced this entry (audit) |
@@ -304,6 +366,29 @@ i.e. sha256 over the newline-joined, **sorted** `id:present:run:tooling.chosen` 
 read-only each run; on mismatch it warns *"pipeline may be stale — run
 `/pre-merge --update`"*, proceeds on the current manifest, and **never writes** (Fork E,
 AC-UP5/UP6).
+
+### `criticality_review` — the test-tree review stamp
+
+Sibling of `source_signature` (additive), and the same idea applied to the **test
+tree** instead of the preflight reports: it records when the critical-tag
+inventory was last reconciled, so the next pass can diff against it.
+
+```json
+"criticality_review": { "reviewed_at": "2026-07-26", "suite_hash": "sha256:…" }
+```
+
+| Field | Type | Notes |
+|---|---|---|
+| `reviewed_at` | `YYYY-MM-DD` | when the last criticality pass completed (stamped by the writing skill — scripts can't date) |
+| `suite_hash` | string | `"sha256:"` + hash over the enumerated test tree (sorted test-file paths + each file's declared markers), so a pass can enumerate only what changed since |
+
+**Writers — two, both human-gated:** pre-merge `--update-criticality`, and the
+test-selection **enabling interview**'s initial tagging pass (so the critical
+floor is non-empty from day one). **No gate run ever writes it** (AC-OW1,
+AC-TS2) — a minified run may *read* it (and cheaply count untagged tests) to
+print a read-only staleness nudge, then proceeds. Absent stamp ⇒ "never
+reviewed"; never a validation error. Like every other selection artifact it is
+**dead config when `test_selection` resolves disabled** (AC-TS12).
 
 ### Q2 — `steps.<key>` → `components[]` migration
 
@@ -431,6 +516,51 @@ floor are untouched (AC-GA4). Canonical vocabulary in `post-merge/SKILL.md`
 already sets `required_status_checks {strict:true, contexts:[]}`, so protection
 verifies `PROTECTED` with zero named checks — `ga:false` and
 `branch_protection.mode:"enforced"` compose without conflict.
+
+## 2c · `test_selection` (pre-merge executor's `unit`/`integration`/`regression`)
+
+```
+ts = policies.test_selection.enabled ?? false          // opt-IN — absent means off
+```
+
+**Per-run flag precedence — `--full` > `--minified` > policy:**
+
+| Resolution | Effect |
+|---|---|
+| `--full` present | selection **off** for this run regardless of `ts` — the kill switch. Nothing is written |
+| `--minified` present (no `--full`) | selection **on** for this run even when `ts` is `false` — lets a team trial it. Nothing is written |
+| neither flag | selection follows `ts` |
+
+| `ts` (resolved) | gate behavior |
+|---|---|
+| `false` (or absent) | **unchanged** — `unit`/`integration`/`regression` run their full suites exactly as before the key existed; **no** selection artifact is read (`run_minified`, `tiers`, `force_full_paths`, `critical_markers`, `criticality_review`, in-code tags), and **no** `test_selection` block or pipeline suffix is emitted (AC-TS1, AC-TS12) |
+| `true` | the executor applies the 5-step selection rule below per **selection-capable** component (`unit`, `integration`, `regression`) and records what it selected (AC-TS6) |
+
+**The selection rule (5 steps, evaluated in order per test component)** — canonical
+prose + the size-tier rubric live in `pre-merge/refs/executor.md` §3c; summarized
+here because this file is the policy read-contract:
+
+```
+1. diff hits force_full_paths   → full  (note: "force-full: <path>")
+2. run_minified == null         → full  (silent — the runner can't select)
+3. affected set unresolvable    → full  (note: "fallback: <reason>")   [fail open, AC-TS4]
+4. size tier == L               → full  (note: "tier: L (<trigger>)")
+5. else                         → run_minified per the tier; record selected/total + tier
+```
+
+Selection is **deterministic** (AC-TS3): the affected set comes from runner-native
+selection or the code graph, the critical floor from declared tags — same diff +
+same manifest + same tags ⇒ same selected set, enumerated in the verdict JSON.
+Every resolution failure **fails open to the full suite** with a one-line note,
+never to a narrower run. `mechanical`/`security`/`migration` and this PRD's newly
+authored regression tests are **never** selected away (AC-TS5).
+
+**`enabled:true` with no `reason` → honored + one `unjustified-policy` warn**
+(AC-S3), exactly as `branch_protection`/`github_actions` handle a missing
+justification: a missing governance note is a docs smell, never a reason to flip
+to a stricter default. An `enabled:true` with an **unverifiable
+`full_run_backstop`** is the separate, louder case — it requires the explicit
+enable-anyway override plus `reason` at the interview (AC-TS8), not at read time.
 
 ## 3 · `steps.<key>` (post-merge `deploy_*` / `smoke` / `ci`; pre-merge consult retired at v3 P3)
 

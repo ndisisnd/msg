@@ -23,7 +23,7 @@ metadata by hand.
 
 ```
 { id, nn, group, kind, criticality, cost, depends_on[], active_when,
-  platforms[], needs_env, mandatory, run, ref, check }
+  platforms[], needs_env, mandatory, run, run_minified, ref, check }
 ```
 
 | Field | Meaning |
@@ -40,6 +40,7 @@ metadata by hand.
 | `needs_env` | **C23** — `true` iff the component requires a running app/DB and therefore runs **inside** the ephemeral test-sandbox (legend `env` column; see "The env-needing tier", below). `false` = static/in-process, runs outside, never triggers provisioning |
 | `mandatory` | `true` only for `security` and `migration` (AC-CAT4) — never opts out, only degrades per their own safety-floor rules |
 | `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
+| `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema.md`; `pre-merge/refs/executor.md` § *Test selection*) |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
 | `check` | `preflight-check-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
 
@@ -81,9 +82,9 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | nn | id | run (detection field / mechanism) | ref | check |
 |----|----|------------------------------------|-----|-------|
 | 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `preflight-check-01-mechanical.sh` |
-| 02 | unit | `test_runner` | `universal/protocol-unit.md` | `preflight-check-02-unit.sh` |
-| 03 | integration | `test_runner` (same field as `unit`; Phase 2 splits detection) | `universal/protocol-integration.md` | `preflight-check-03-integration.sh` |
-| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring | `universal/protocol-regression.md` | `preflight-check-04-regression.sh` |
+| 02 | unit | `test_runner` **+ `test_selector`ˢᵉˡ** | `universal/protocol-unit.md` | `preflight-check-02-unit.sh` |
+| 03 | integration | `test_runner` (same field as `unit`; Phase 2 splits detection) **+ `test_selector`ˢᵉˡ** | `universal/protocol-integration.md` | `preflight-check-03-integration.sh` |
+| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring **+ `test_selector`ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾** | `universal/protocol-regression.md` | `preflight-check-04-regression.sh` |
 | 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `preflight-check-05-security.sh` |
 | 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `preflight-check-06-coverage.sh` |
 | 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `preflight-check-07-prd-consistency.sh` |
@@ -144,6 +145,14 @@ web-only *runner* against a broader applicability is an **enforced
   env of its own — the executor **promotes the same C23 sandbox** the env-needing wave
   ran in to serve as the pokeable preview. One env, whole lifecycle; never a second
   provision.
+- **ˢᵉˡ** — **selection-capable** (`policies.test_selection`): the component can resolve a
+  `run_minified` invocation and therefore participate in minified runs. **Exactly three
+  rows** — `unit` (02), `integration` (03), `regression` (04, accumulated half only). Every
+  other component's `run_minified` is `null` and it always runs full. Selection-capable is
+  **not** selection-*enabled*: with the policy absent/disabled (its default), a `ˢᵉˡ` row
+  runs its full suite exactly as before the key existed (AC-TS1/AC-TS12). The
+  mandatory floor (`security`, `migration`) and `mechanical` are **never** selection-capable
+  (AC-TS5).
 
 ## Only-on-green tier
 
@@ -186,6 +195,72 @@ before; a static component never triggers provisioning and never enters the sand
   `sandbox-unprovisioned` finding ("cannot run hermetically — no sandbox provisioner");
   **destructive** checks (migration up→down→up) are skipped-with-note — never run
   against shared state, never a silent pass.
+
+## The selection-capable tier (`policies.test_selection`)
+
+Three components carry a `run_minified` (legend `ˢᵉˡ`): `unit`, `integration`,
+`regression`. When `policies.test_selection` resolves **enabled** (opt-IN — absent
+⇒ off, `policy-schema.md` §2c), the executor may run them over
+**affected(diff) ∪ critical-floor** instead of the whole suite, per the size-tier
+rubric in `pre-merge/refs/executor.md` § *Test selection*. Everything below is a
+**default** the per-project `policy.json` overrides — the catalog never dictates a
+project's globs or tag vocabulary, and none of it is read on a disabled run
+(AC-TS12).
+
+### `force_full_paths` defaults (per detected platform)
+
+A diff touching **any** of these runs the full suite (rule step 1 ⇒ tier **L**) —
+these are the surfaces whose blast radius selection cannot bound. `--init` seeds
+the universal rows plus the rows for each detected platform.
+
+| Scope | Default globs | Why |
+|---|---|---|
+| **universal** | `devkit/**` · `**/migrations/**` · `**/shared/**` · `**/lockfiles/**` | pipeline/policy config, schema changes (the `migration` component is `mandatory` and never selected anyway), and cross-cutting shared code — every one of them can break a test the diff never names |
+| **web (JS/TS)** | `package.json` · `package-lock.json` · `pnpm-lock.yaml` · `yarn.lock` · `tsconfig*.json` | dependency + compiler-config changes are suite-wide by construction |
+| **python** | `pyproject.toml` · `poetry.lock` · `requirements*.txt` · `conftest.py` | `conftest.py` re-fixtures the whole tree |
+| **go** | `go.mod` · `go.sum` | module-graph-wide |
+| **apple** | `*.xcodeproj/**` · `*.xcworkspace/**` · `Package.swift` · `Podfile.lock` · `*.xctestplan` | target/scheme membership decides *which* tests exist |
+| **android** | `*.gradle*` · `gradle/libs.versions.toml` · `gradle.properties` · `settings.gradle*` | module graph + dependency catalog |
+
+### `critical_markers` defaults (the critical floor's vocabulary)
+
+Tags live **in test code** — ground truth, reviewed in PRs. Policy records only
+the vocabulary; the catalog supplies the platform default `--init` resolves.
+
+| Platform | Default marker | Mechanism |
+|---|---|---|
+| `web` | `@critical` | title tag — Playwright `--grep @critical`; vitest/jest via `--testNamePattern` (or a `tests/critical/` glob) |
+| `python` | `critical` | `@pytest.mark.critical`, registered in config so a typo errors rather than selecting nothing |
+| `go` | `TestCritical` | `TestCritical*` naming convention (`go test` has no tag primitive) |
+| `apple` | `Critical.xctestplan` | a committed XCTest **test plan** enumerating the critical suites (`xcodebuild -testPlan Critical`) — the plan file *is* the declared critical set: reviewable and versioned |
+| `android` | `com.<org>.test.Critical` | a `@Critical` annotation class in a shared test-util module, filtered via `-Pandroid.testInstrumentationRunnerArguments.annotation=` (instrumented) / JUnit tag (unit) |
+
+The preflight script **verifies the declared marker resolves** (marker registered
+/ `.xctestplan` present / annotation class compiles). A declared-but-broken marker
+is a `medium` `policy-mismatch` finding (AC-ST3 pattern) — never a silently empty
+critical floor.
+
+### `regression`'s special contract (pointer)
+
+`regression` is selection-capable on its **accumulated half only**. Its two-part
+contract is defined once in `pre-merge/refs/executor.md` § *Test selection* and
+`universal/protocol-regression.md`; the catalog records only that it exists:
+
+- **accumulated suite** (`tests/regression/prd-*/`) — selectable: critical ∪ affected,
+  widened one dependency hop at tier **M**.
+- **this PRD's newly authored tests** — **always run in full, never selected away**
+  (AC-TS5); this is what protects the D9 ratchet.
+- Regression tests are **born tagged**: the authoring eng subagent applies the
+  platform's critical marker in the same commit to any test derived from a
+  PRD acceptance criterion the PRD marks P0/critical — the primary defense against
+  tag drift.
+
+Selection never touches the mandatory floor: `mechanical`, `security`, and
+`migration` have no `run_minified` and always run whole (AC-TS5). `coverage` is
+not selection-capable either, but it is **selection-aware** — when its
+`unit`/`integration` dependencies ran minified, coverage deltas are computed over
+the diff's files only (a suite-wide number from a partial run is meaningless) and
+its report says so.
 
 ## Hard edges (the only ones — AC-CAT3)
 
