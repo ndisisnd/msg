@@ -245,6 +245,51 @@ Sets verdict `fail` and skips the intake stamp (Step 8) and the release tag
 (Step 9). No `version_probe` declared → no finding; provenance is recorded as
 `asserted_unverified` in the platform entry, never a fail.
 
+## Test-selection-miss finding (`--staging`, additive, policy-conditional)
+
+Only emitted when `policies.test_selection.enabled` resolves `true`
+(`../shared/refs/policy-schema.md` §2c) and the backstop's full run (a red CI
+check, or the human's staging test outcome) fails a test pre-merge's minified
+verdict **selected away** — the detection contract lives in
+`refs/staging.md` § *Test-selection-miss detection*; this is its wire shape.
+Conforms to `../shared/refs/finding-schema.md`:
+
+```json
+{
+  "id": "ts-miss-001",
+  "source": "post-merge",
+  "severity": "high",
+  "category": "unit",
+  "rule": "test-selection-miss",
+  "message": "tests/unit/taskController.test.ts › applies stale-write guard failed on the ci backstop after pre-merge's minified run selected it away",
+  "file": "tests/unit/taskController.test.ts",
+  "line": null,
+  "evidence": {
+    "tool": "post-merge",
+    "snippet": "unit: minified (42/731, tier S) — excluded: not-affected"
+  },
+  "suggestion": "Tag this test critical and run `/pre-merge --update-criticality`, or disable selection with `/msg --update`.",
+  "repro": "<the exact failing CI check name, or the staging re-test command>",
+  "regression_of": null
+}
+```
+
+- `category` mirrors the test's owning component when the closed category
+  vocabulary has a slot for it (`unit`/`integration`); `regression` has none yet,
+  so a `regression`-component miss uses `other`.
+- `evidence.snippet` quotes the exact `test_selection.per_check` pipeline suffix
+  (`pre-merge/refs/output-schema.md`) that shows the component ran minified and
+  what excluded this test — the audit trail that makes the miss attributable,
+  never asserted from memory.
+- **Rolling-window escalation** (two or more of these findings inside 30 days)
+  adds one extra report line recommending `/pre-merge --update-criticality` or
+  `/msg --update` to disable the policy, and names this finding's `file` as a
+  `force_full_paths` candidate — mechanism owned by `refs/staging.md`, not a new
+  field on this finding.
+- Additive to whatever refusal/finding already covers the backstop failure
+  itself (`red_ci`, a failed staging sign-off) — it never substitutes for that
+  and never turns a clean run non-clean on its own.
+
 ## Verdict values
 
 | Verdict | Meaning | Exit |

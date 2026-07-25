@@ -112,6 +112,64 @@ acquirer.
      Never blocks the merge — branch protection is the enforcement. Note the opt-out governs *only* the empty set: the two bullets above still refuse on red/pending checks whatever `ga` says.
    - All `SUCCESS`/`NEUTRAL`/`SKIPPED` → proceed.
 
+## Test-selection-miss detection (`policies.test_selection` backstop attribution)
+
+Read-only, additive, and only relevant when `policies.test_selection.enabled`
+resolves `true` (`../shared/refs/policy-schema.md` §2c) — otherwise nothing in
+this section is read, per the same dead-config rule every other selection
+artifact follows (AC-TS12). When it's on, pre-merge's minified runs traded
+full-suite coverage for speed on the promise that the full suite still runs
+somewhere — the declared `full_run_backstop` (`ci` \| `post-merge` \| `both`).
+This is where that promise is checked: a test the minified run **selected away**
+breaking at the backstop is the false-green risk the plan calls out, and it must
+be observable, not anecdotal (AC-TS9).
+
+**`ci` backstop — off the Step 2 `red_ci` check just above.** When Step 2 finds a
+failing check, resolve the pre-merge run that produced this PR's head commit and
+read its `test_selection` block (`../../pre-merge/refs/output-schema.md`) — the
+committed universal report in the PRD's `reports/` folder carries it. For each
+failing check name that names a test:
+
+- Look up that test's owning component (`unit`/`integration`/`regression`) in
+  `test_selection.per_check`.
+- That component ran minified (`selected < total`, a `fallback_reason` absent for
+  it) **and** the failing test isn't among the ones it selected → this is a
+  genuine miss: the minified run never exercised the test that just broke.
+- Record a `high` finding — category the owning component when the closed
+  category vocabulary has a slot for it (`unit`/`integration`; `regression` has
+  none yet, so use `other`), `rule: "test-selection-miss"` — naming the failing
+  test, its file, and the exclusion reason read straight off the
+  `test_selection` block: `not-affected` (excluded by the affected-diff rule),
+  `not-tagged` (no critical marker, so a widened tier still passed over it), or
+  `tier` (the resolved size tier's own contract excluded it, e.g. `integration`
+  at tier M). This finding is **additive** to the `red_ci` refusal already in
+  play — it explains the refusal, it never manufactures a new one or turns a
+  green run red on its own.
+- Component ran full (`selected == total`, or carries no `fallback_reason`) →
+  this is an ordinary regression, not a selection miss; no finding here.
+
+**`post-merge`/`both` backstop — Step 7's human test outcome.** The full suite
+here is the human exercising staging, so attribution is necessarily coarser: on
+**Not yet** at Step 7, if the human's answer names a specific broken behaviour
+that maps to a known test (by name, or by the acceptance criterion it covers),
+attribute it the same way — read the same PR's `test_selection` block and record
+the `high` finding if that test was selected away. An unattributable **Not
+yet** (no specific test named) changes nothing about today's behaviour — still
+just an unstamped sign-off — plus one `low` note: "staging failed testing while
+test_selection is enabled; consider whether a selected-away test caused it."
+
+**Rolling-window escalation.** Count `test-selection-miss` findings across this
+PRD's committed reports plus the rest of the repo's
+`features/**/reports/report-*.json`, restricted to the most recent 30 days.
+**Two or more misses in that window** → the run report adds one line
+recommending `/pre-merge --update-criticality` (tag the escapee critical so it
+stops being selected away) or `/msg --update` to disable `policies.test_selection`
+outright, and names the escapee's test **file** as a `force_full_paths` candidate
+(`../shared/refs/policy-schema.md` §`policies.test_selection.force_full_paths`) —
+a cross-cutting-enough surface that selection should stop trying to prune around
+it. A single miss stays a plain finding with no escalation line; the
+recommendation only fires once a second one lands.
+
 ## Step 3 — Merge into staging
 
 This is post-merge's sanctioned merge power (the pre-merge floor forbids it for

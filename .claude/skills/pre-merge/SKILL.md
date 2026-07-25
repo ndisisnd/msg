@@ -8,7 +8,7 @@ description: >
   security/migration → PRD-consistency → preview deploy (human gate) → open PR.
   Emits a severity-graded verdict JSON. Absorbs the old /review and /test.
   Activates on /pre-merge after eng --build.
-argument-hint: "[--init | --update] [--prd <path>] [--flaky <n>]"
+argument-hint: "[--init | --update | --update-criticality] [--prd <path>] [--flaky <n>] [--minified | --full]"
 allowed_tools:
   - Bash
   - Read
@@ -38,6 +38,9 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 - `/pre-merge --full-secret-scan` — the `security` component scans the full tree (default: diff-only)
 - `/pre-merge --flaky <N>` — retry failing e2e / unit-int tests up to `N` times before counting a hard failure (`refs/_common.md`)
 - `/pre-merge --changed-only` — skip platform components whose surface the diff doesn't touch (`refs/_common.md`)
+- `/pre-merge --minified` — force **test selection** on for this run even when `policies.test_selection` is off (a trial); nothing is written (`refs/executor.md` §3c)
+- `/pre-merge --full` — force the **full** suites for this run — the kill switch. Flag beats policy: `--full` > `--minified` > `policies.test_selection`
+- `/pre-merge --update-criticality` — the criticality reconcile: inventory untagged tests → LLM proposals with cited evidence → one human gate → write the approved critical markers as one commit + restamp `criticality_review`; see `refs/protocol-update-criticality.md`
 
 Natural language: "run pre-merge", "gate this before merge", "open the PR against staging", "run the CI gate".
 
@@ -143,6 +146,18 @@ this file stays the spine. In outline:
 7. **OPEN-PR / issues-loop — the un-prunable terminal.** On clean → open the PR;
    on non-clean → the Issues-file loop (below). The gate never dead-ends.
 
+**Test selection (opt-IN, off by default).** When `policies.test_selection`
+resolves enabled (`--full` > `--minified` > policy), the three selection-capable
+components — `unit`, `integration`, `regression` — run `run_minified`
+(*affected(diff) ∪ the critical floor*) instead of their full suites, at the size
+tier computed from the diff's blast radius. The rule, the tier rubric, and the
+recording contract live in **`refs/executor.md` §3c**; the key's schema in
+`../shared/refs/policy-schema.md` § `policies.test_selection`. Absent/disabled ⇒
+byte-identical to today: no selection artifact is read and none is emitted
+(AC-TS1). Every resolution failure fails open to the full suite;
+`mechanical`/`security`/`migration` and this PRD's newly authored regression tests
+are never selected away (AC-TS4/TS5).
+
 ## Aggregate + emit (from the per-check result reports)
 
 The per-check result reports (§6) are the executor's **single uniform aggregation
@@ -203,8 +218,9 @@ so the gate never dead-ends.
 - `refs/universal/protocol-security.md`, `refs/platform/protocol-migration.md` — the mandatory safety-floor components
 - `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1, `active_when --prd`)
 - `refs/platform/protocol-preview.md` — `preview` deploy + human gate (D6/D10; only-on-green tail)
-- `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; `--doctor` is a deprecated one-release alias for `--init` (see Usage)
-- `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (`components[]` manifest, base `release_flow`, `source_signature`)
+- `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; also the test-selection enabling interview + its single-run disable; `--doctor` is a deprecated one-release alias for `--init` (see Usage)
+- `refs/protocol-update-criticality.md` — `--update-criticality` mode: inventory → evidence-cited proposals → human gate → tag commit + `criticality_review` restamp; also the gate's read-only staleness nudge
+- `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (`components[]` manifest, base `release_flow`, `source_signature`, `policies.test_selection` §2c + the `criticality_review` stamp)
 - `../shared/refs/component-catalog.md` — component metadata (schema, defaults, `depends_on` edges, grouping) the manifest + executor key off
 - `refs/output-schema.md` — final emission schema (shape unchanged, AC-PF16) · `refs/finding-schema.md` — per-finding shape
 - `refs/severity-rubric.md` — grading + criticality fail-fast rules · `refs/refusal-patterns.md` — refusal shapes (incl. `no_manifest`)

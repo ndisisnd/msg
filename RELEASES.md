@@ -2,6 +2,20 @@
 
 What's new for you, release by release.
 
+## v4.0.0 — 2026-07-26
+
+> The gate can now run only the tests your diff can actually break. Opt in, and small changes stop paying for the whole test suite on every single run — while the full suite still runs wherever you've told it to (CI, staging, or both), so nothing gets quietly weaker. It's a major release because it's a new decision surface across the whole gate contract, not a tweak: a new policy key, a new run mode, a new tagging workflow, and a new safety net that watches for the one failure mode that matters — a test being skipped that shouldn't have been.
+
+### ✨ New
+- You can now turn on **minified test selection** (opt-in, off by default) so `unit`, `integration`, and `regression` runs narrow to the tests your diff can break plus a critical floor, instead of the whole suite every time. How much narrowing happens is decided by a small/medium/large sizing rubric measured from your diff's actual blast radius — never from how big the PRD sounds — and it always falls back to the full suite the moment anything about the selection can't be resolved cleanly.
+- A one-time **criticality tagging pass** (`/pre-merge --update-criticality`) reviews your test suite and proposes which tests are critical enough to always run, with evidence for each proposal — you approve, edit, or skip, and it never re-grades a tag you've already set by hand.
+- Turning selection off is a **single run**: `/msg --update` flips it off completely, tells you exactly what's being left behind (harmlessly inert, ready to reuse if you turn it back on), and there's no second cleanup step.
+- Every minified run says so, honestly — you'll see exactly how many tests ran out of the total, which tier it picked, and why, right in the pipeline output and the run report. A minified pass is never mistaken for a full one.
+- A new safety net watches for the one thing that actually matters here: a test that got selected away, then broke somewhere it still runs in full (CI, or your staging test pass). When that happens twice, you're pointed straight at re-tagging the escapee or turning selection off — never left guessing why a supposedly-passing PR broke downstream.
+
+### 📈 Improved
+- Enabling test selection walks you through confirming the full suite actually still runs somewhere before it lets you turn selection on — no silent gap between "faster gate" and "nothing checks the rest."
+
 ## v3.1.0 — 2026-07-25
 
 > GitHub Actions CI is now opt-in — decline it during setup or later and every gate steps around the missing checks without loosening anything else. And every skill run now closes with a plain-language pass/warning/fail summary and a concrete next step, so you always know where you stand.

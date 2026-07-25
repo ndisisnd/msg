@@ -9,7 +9,10 @@ description: >
   guarantee as /msg --init's top-up. Batches ambiguous PRDs to the user via
   AskUserQuestion instead of silently defaulting them to "planned". Also the
   place to revisit whether GitHub Actions CI is wanted at all
-  (policies.github_actions) — the one policy.json key it writes.
+  (policies.github_actions), and the single-run complete off switch for
+  minified test selection (policies.test_selection) — turning it on hands
+  off to pre-merge's own enabling interview instead. These are the two
+  policy.json keys it writes.
 type: reference
 ---
 
@@ -32,6 +35,7 @@ type: reference
 | Interview answers (full reinit path only) | Step 2 of `protocol-init.md`, delegated | `protocol-cto.md` / `protocol-eng.md` |
 | PRD lane classifications | planned \| wip \| done, per unresolved PRD | Step 4, batched `AskUserQuestion` |
 | GitHub Actions decision | keep \| on \| off (+ reason when off) | Step 3-CI `AskUserQuestion`, gated on a GitHub remote + `gh` |
+| Test selection decision | keep \| on (hand-off) \| off (+ reason when off) | Step 3-TS `AskUserQuestion`, gated on a detected test suite (a `unit`/`integration`/`regression` component present) |
 
 ## Outputs
 
@@ -40,6 +44,7 @@ type: reference
 | Newly-added devkit/root files, rows, lanes | Same as `/msg --init`'s Outputs | Same as `/msg --init` |
 | Reclassified PRDs | `git mv` / `mv` into the user-chosen lane | `<cwd>/features/<lane>/prd-*/` |
 | GitHub Actions decision | `policies.github_actions: {enabled, reason}`, merged surgically — the only `policy.json` key this protocol writes | `<cwd>/devkit/policy.json` |
+| Test selection disable | `policies.test_selection.enabled: false` (+ `reason`), merged surgically — enabling is never written here, only handed off | `<cwd>/devkit/policy.json` |
 | Summary | Inline — components added, PRDs classified | Shown inline at Step 4 |
 
 ## Progress emission
@@ -123,6 +128,49 @@ Step 4 summary as `github_actions: <old> → <new>`; "Keep it as is" reports
 nothing. `/msg --update` writes **no other `policy.json` key** (AC-OW1 keeps the
 rest with the gates' own `--init`).
 
+**Step 3-TS — Revisit the minified test selection decision** (named to avoid
+collision with `protocol-init.md`'s own Step 3b row top-up, alongside Step 3-CI)
+
+`policies.test_selection` (`../../shared/refs/policy-schema.md` §2c) is the
+second policy key this protocol writes, and the two halves of the decision are
+asymmetric. **Gate:** only asked when a test-running component (`unit`,
+`integration`, or `regression`) is present in `components[]` — no test suite,
+nothing to select over, skip silently and write nothing.
+
+> header **Test selection**, question "Minified test selection is currently
+> **`<enabled|disabled>`**`<, backstop: <full_run_backstop>` when enabled`>`.
+> Change it?"
+> - **Keep it as is** — write nothing; `policy.json` is untouched.
+> - **Turn it on** — this protocol writes **nothing** for this choice. Enabling
+>   is a bigger decision than flipping a boolean: it requires verifying the
+>   declared `full_run_backstop` actually exists and running the initial
+>   criticality-tagging pass so the critical floor isn't empty on day one
+>   (AC-TS8) — that full interview belongs to `/pre-merge --init`/`--update`
+>   (`pre-merge/refs/protocol-init.md`'s enabling interview; not duplicated
+>   here). Tell the user to run one of those next.
+> - **Turn it off** — the complete single-run disable (AC-TS12): flip
+>   `enabled:false` (capturing a `reason` if offered), leaving every other
+>   artifact the feature created untouched and inert-by-design — critical tags
+>   in test code, `components[].run_minified`, `tiers`, `force_full_paths`,
+>   `critical_markers`, and the `criticality_review` stamp are all read only
+>   inside the selection path, so no second cleanup step exists or is needed.
+>   End with the one-line retained-inert audit
+>   (`../../shared/refs/policy-schema.md` §`policies.test_selection`), e.g.
+>   *"test_selection disabled — critical tags and `run_minified` commands
+>   retained (inert); re-enable via `/pre-merge --init` or `--update`."*
+
+When the current state is *absent*, phrase it as "not set (defaults to
+disabled)" and offer the same three options — note that this key's absent
+default is `false` (opt-**in**), the inverse of `github_actions`' absent
+default.
+
+On a change, write `policies.test_selection` per `protocol-init.md` Step 5's
+surgical-merge rule — only that key, every other byte of `policy.json`
+untouched. Report the transition in the Step 4 summary as
+`test_selection: <old> → <new>`; "Keep it as is" and "Turn it on" (hand-off)
+report nothing written. `/msg --update` never writes `enabled:true` itself
+(AC-TS2) — only `/pre-merge --init`/`--update`'s enabling interview does.
+
 **Step 4/4 — Batched PRD lane classification**
 
 Parse `UNRESOLVED` from Step 3's `init.sh` output. If `none`, skip straight to the summary — every flat PRD was resolved automatically (rung 1 shipped / rung 2 wip) or there were none to begin with.
@@ -146,7 +194,7 @@ fi
 
 Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — history-preserving `git mv` when the dir is tracked, plain `mv` otherwise. Report each as `classified (manual) → <lane>` in the final summary.
 
-**Summary.** Print what happened: components added/skipped (from Step 3's manifest), rows added/declined, the CI decision if it changed (Step 3-CI), and PRDs classified (automatic ladder vs. manual, each with its resulting lane). No next-step suggestion beyond noting the repo is now current with `/msg --init`'s latest scaffold.
+**Summary.** Print what happened: components added/skipped (from Step 3's manifest), rows added/declined, the CI decision if it changed (Step 3-CI), the test-selection decision if it changed (Step 3-TS — a disable, or a hand-off note when the user chose to turn it on), and PRDs classified (automatic ladder vs. manual, each with its resulting lane). No next-step suggestion beyond noting the repo is now current with `/msg --init`'s latest scaffold.
 
 ## References
 
@@ -155,3 +203,5 @@ Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — history
 - `refs/init/init.sh` — Step 3 invocation; the `INTERACTIVE_LANES` env var and `UNRESOLVED` output line this protocol depends on were added for `--update`
 - `refs/protocol-cto.md` / `refs/protocol-eng.md` — Step 2 interview modes, reached via `protocol-init.md`
 - `../../shared/refs/policy-schema.md` — §2b `policies.github_actions`, the one key this protocol writes (Step 3-CI); the read-contract that turns it into post-merge's inactive CI stage lives there too
+- `../../shared/refs/policy-schema.md` — §2c `policies.test_selection`, the second key this protocol writes (Step 3-TS, disable only); the read-contract for the 5-step selection rule lives there too
+- `../../pre-merge/refs/protocol-init.md` — owns the `policies.test_selection` **enabling** interview (backstop verification + the initial criticality-tagging pass) that Step 3-TS's "Turn it on" hands off to, rather than duplicating it here
