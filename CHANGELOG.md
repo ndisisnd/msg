@@ -44,6 +44,10 @@ Enabling always verifies a real backstop or requires an explicit override; disab
 
 All twelve AC-TS acceptance criteria are represented in the shipped files; tier bounds, signal names, and the `--full` > `--minified` > policy precedence read identically everywhere.
 
+### [63] — Publish the v4.0.0 user-facing release notes
+
+- `RELEASES.md`: Unchanged — the v4.0.0 section was authored in [61] alongside the feature itself, so this release cuts the `v4.0.0` tag from notes already in the tree (release bookkeeping for the `v4.0.0` GitHub release)
+
 ## 2026-07-25
 
 ### [59] — Publish the v3.1.0 user-facing release notes
