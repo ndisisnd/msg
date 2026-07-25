@@ -25,7 +25,7 @@ fi
 
 surface="none"; { has_dir regression 4 || has_path tests/regression; } && surface='tests/regression/'
 
-# --- minified selection capability (Wave 2C, plan-msg-test-selection.md §3) ---
+# --- minified selection capability (policies.test_selection; see shared/refs/component-catalog.md § selection-capable tier) ---
 # Selection-capable on the ACCUMULATED suite only (executor §3c.2) — this PRD's newly
 # authored regression tests always run in full and are never selected away (AC-TS5);
 # that contract lives in the executor/protocol, not here. Cheap, deterministic probes only.

@@ -23,7 +23,7 @@ metadata by hand.
 
 ```
 { id, nn, group, kind, criticality, cost, depends_on[], active_when,
-  platforms[], needs_env, mandatory, run, run_minified, ref, check }
+  platforms[], needs_env, mandatory, run, run_minified, test_selector, ref, check }
 ```
 
 | Field | Meaning |
@@ -41,6 +41,7 @@ metadata by hand.
 | `mandatory` | `true` only for `security` and `migration` (AC-CAT4) — never opts out, only degrades per their own safety-floor rules |
 | `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
 | `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema.md`; `pre-merge/refs/executor.md` § *Test selection*) |
+| `test_selector` | **additive**, sibling of `run_minified` — the freeform note naming the selection mechanism detected (`vitest related --changed`, `pytest-testmon`, `xcodebuild -testPlan Critical`, …). Audit only, never branched on; `null` wherever `run_minified` is |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
 | `check` | `preflight-check-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
 

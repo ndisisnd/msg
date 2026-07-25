@@ -108,7 +108,7 @@ Table of files created/modified with per-file `+/-` lines where available, plus 
 pre-merge doesn't change source (its only write is the D7 sync-merge commit) — it reports the diff it examined and any artifacts it wrote.
 
 ## Test results
-Passed/failed counts and notable failures. pre-merge: one line per gate stage / bucket (ran/skipped + outcome).
+Passed/failed counts and notable failures. pre-merge: one line per gate stage / bucket (ran/skipped + outcome). On a **minified** run (pre-merge `policies.test_selection`) each selection-capable check's line also carries `selected/total`, the tier, and any `fallback_reason` — e.g. `unit: minified (42/731, tier S) — pass`; a full or selection-off run's lines are unchanged.
 
 ## What to expect
 User-visible behaviour now available (eng), or the current state of the diff/gate (pre-merge): what is safe to rely on, what is still open.
@@ -121,6 +121,30 @@ Numbered steps in simple, everyday language — written so someone non-technical
 ## Links
 Related artifacts: the paired issues file (`report-prd-<N>-<K>.json`), eval_set.json, PR / branch, `.pre-merge/<timestamp>/` logs, prior `report-prd-<N>-*.md` files, the PRD.
 ```
+
+### `test_selection` in the paired `.json` (additive, pre-merge only)
+
+When pre-merge ran with **minified test selection** active (`policies.test_selection`
+resolved enabled, or `--minified`, and not `--full`), the paired
+`report-prd-<N>-<K>.json` carries the run's `test_selection` block **verbatim as
+emitted in the verdict JSON** — the same `{mode, tier, signals, per_check}` object
+defined once in `pre-merge/refs/output-schema.md` (§ *`test_selection` — minified-run
+honesty*). It is written at the top level of the universal report, alongside
+`checks[]`/`issues[]`, and it is **not** re-derived or re-shaped here.
+
+- **Present only when selection actually ran.** A full run, a selection-off run, and
+  every pre-v4 report omit the key entirely — absence is the pre-key shape, never a
+  signal to interpret (AC-TS1/AC-TS12). Its presence never changes `verdict`,
+  `summary`, `issues[]`, or `checks[]` semantics.
+- **Additive**, exactly like `checks[]` — never a rename of an existing key
+  (AC-PF16). A reader that doesn't know it ignores it.
+- **This is its durable home.** The verdict JSON is stdout and does not survive the
+  run; the committed paired `.json` is what post-merge reads later to attribute a
+  backstop failure to a selected-away test (`post-merge/refs/staging.md`
+  § *Test-selection-miss detection*, AC-TS9) — which is only possible because the
+  block is committed here, not merely printed.
+- The human-readable half of the same fact is the one-line-per-check
+  `selected/total` in `## Test results` above.
 
 **`## Issue summary` derivation.** Counts come straight from the run's canonical `findings[]` (`category` + `severity` fields, both already required by `.claude/skills/shared/refs/finding-schema.md` — no schema change needed there). On a clean run (zero findings) write `No issues.` under the heading in place of the table.
 

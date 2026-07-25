@@ -68,8 +68,9 @@ this protocol changes.
   same `totals: {passed, failed, skipped, flaky}` shape as a full run, plus (only
   on a minified — i.e. tier-S — run) `selected`/`total` test counts and, when the
   rule fell back to full (including the tier-M widen above), the `fallback_reason`
-  naming which step fired (`force-full: <path>` / `no_run_minified` /
-  `fallback: <reason>` / `tier: M (widen-to-full)` / `tier: L (<trigger>)`).
+  naming which step fired, verbatim in the `../output-schema.md` vocabulary
+  (`force-full: <path>` / `run_minified: null` / `fallback: <reason>` /
+  `tier: M (widen-to-full)` — the `integration`-only value / `tier: L (<trigger>)`).
 - **Verdict semantics never change.** Selection changes **how many** tests ran,
   never how a finding is graded: a failing selected test is a `blocker`
   (`rule: integration-test-failure`) exactly as under a full run, and the

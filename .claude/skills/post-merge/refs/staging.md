@@ -127,7 +127,9 @@ be observable, not anecdotal (AC-TS9).
 **`ci` backstop — off the Step 2 `red_ci` check just above.** When Step 2 finds a
 failing check, resolve the pre-merge run that produced this PR's head commit and
 read its `test_selection` block (`../../pre-merge/refs/output-schema.md`) — the
-committed universal report in the PRD's `reports/` folder carries it. For each
+committed universal report in the PRD's `reports/` folder carries it verbatim
+(`../shared/refs/report-schema.md` § *`test_selection` in the paired `.json`*, the
+durable source; the verdict JSON itself is stdout and doesn't survive the run). For each
 failing check name that names a test:
 
 - Look up that test's owning component (`unit`/`integration`/`regression`) in
@@ -136,8 +138,9 @@ failing check name that names a test:
   it) **and** the failing test isn't among the ones it selected → this is a
   genuine miss: the minified run never exercised the test that just broke.
 - Record a `high` finding — category the owning component when the closed
-  category vocabulary has a slot for it (`unit`/`integration`; `regression` has
-  none yet, so use `other`), `rule: "test-selection-miss"` — naming the failing
+  category vocabulary has a slot for it (`unit`/`integration`; a `regression`
+  miss uses `other` by the deliberate convention in `refs/output-schema.md`
+  § *Test-selection-miss finding*), `rule: "test-selection-miss"` — naming the failing
   test, its file, and the exclusion reason read straight off the
   `test_selection` block: `not-affected` (excluded by the affected-diff rule),
   `not-tagged` (no critical marker, so a widened tier still passed over it), or
@@ -145,8 +148,12 @@ failing check name that names a test:
   at tier M). This finding is **additive** to the `red_ci` refusal already in
   play — it explains the refusal, it never manufactures a new one or turns a
   green run red on its own.
-- Component ran full (`selected == total`, or carries no `fallback_reason`) →
-  this is an ordinary regression, not a selection miss; no finding here.
+- Component ran full (it **carries** a `fallback_reason` — the rule fell back —
+  or `selected == total`, or it has no `per_check` entry at all) → this is an
+  ordinary regression, not a selection miss; no finding here. Note the polarity:
+  a `fallback_reason` **present** means that component ran the full suite;
+  **absent** means it genuinely ran minified
+  (`../../pre-merge/refs/output-schema.md`).
 
 **`post-merge`/`both` backstop — Step 7's human test outcome.** The full suite
 here is the human exercising staging, so attribution is necessarily coarser: on

@@ -72,6 +72,13 @@ silent (AC-PF2).
 | `depends_on` | string[] | hard effect edges only (AC-CAT3): `coverage→[unit,integration]`, `smoke→[preview]`, `regression`→all other universal/prd |
 | `status` | enum `ready`\|`no_tooling`\|`n/a` | **detection fact** (not a user decision): `ready` = present+tooling · `no_tooling` = active but no runner (a gap) · `n/a` = surface absent / gate not met |
 | `notes` | string | freeform evidence — what was detected, degrade reasons, mandatory notes |
+| `run_minified` | string \| `null` | **additive (v4, `policies.test_selection`)** — the resolved **selection-capable** invocation of the same runner (affected ∪ critical). Non-null only on the three selection-capable components (`unit`, `integration`, `regression` — catalog legend `ˢᵉˡ`); **`null` on every other check**, which is what the shared `mk_report` helper emits when a script passes nothing. `null` ⇒ that component always runs full, silently (not a gap) |
+| `test_selector` | string \| `null` | **additive (v4)**, sibling of `run_minified` — freeform note naming the selection mechanism the script detected (`vitest related --changed`, `pytest-testmon`, `xcodebuild -testPlan Critical`, …), for audit. `null` when nothing selection-capable was detected |
+
+Both v4 fields are emitted by `preflight-common.sh`'s `mk_report` on **every**
+check (as `null` where the script passed nothing), so the round-trip rule below
+holds unchanged; ingestion carries them onto the `components[]` entry
+(`policy-schema.md` § `components[]`).
 
 ### `status` — detection facts only
 
@@ -112,6 +119,9 @@ diff honest: a script re-reporting `no_tooling` never overwrites a settled `opte
 | `findings` | canonical finding[] | `../shared/refs/finding-schema.md` shape, `source = <check>` |
 | `log_path` | string | raw stage log |
 | `skip_reason` | string \| `null` | required when `verdict: skipped` (AC-RR6) |
+| `selected` / `total` | int | **additive (v4)** — test counts, written **only** by a selection-capable check that actually ran minified (`pre-merge/refs/universal/protocol-unit.md` / `-integration.md` / `-regression.md`). A full or selection-off run carries neither |
+| `fallback_reason` | string | **additive (v4)** — written only when selection was on but this check ran full anyway; the rule step that fired, verbatim in `pre-merge/refs/output-schema.md`'s vocabulary. The executor reads these three fields to build the verdict JSON's `test_selection.per_check` |
+| `test_selection_note` | string | **additive (v4)**, `coverage` only — set when an upstream `unit`/`integration` ran minified and the total-coverage ratchet was therefore skipped (`pre-merge/refs/universal/protocol-coverage.md`) |
 
 The universal report (`report-prd-<N>-<K>.json`, C7) is **derived** from these per-check
 result reports — `checks[]` = the full run picture, `issues[]` = the flattened+deduped

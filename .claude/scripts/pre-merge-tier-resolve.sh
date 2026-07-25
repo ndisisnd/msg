@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # pre-merge-tier-resolve.sh — deterministic S/M/L size-tier calculator for
-# policies.test_selection (plan-msg-test-selection.md §4b; executor.md §3c.1).
+# policies.test_selection (pre-merge refs/executor.md §3c.1).
 #
 # Computes the test-selection size tier for a diff against <base-ref> from three
 # signals: `modules` (distinct top-level module/package dirs touched, derived
@@ -172,11 +172,20 @@ elif [[ "$modules_count" -le "$small_max_modules" ]] \
   trigger="modules=$modules_count<=$small_max_modules, ratio=$ratio<=$small_max_affected_ratio, fan_in_pct=$fan_in<$medium_max_fan_in_pct"
 else
   tier="M"
-  if [[ -z "$fan_in" ]]; then
-    trigger="fan_in_pct unavailable — not eligible for tier S (AC-TS10); modules=$modules_count<=$medium_max_modules, ratio=$ratio<=$max_affected_ratio"
-  else
-    trigger="modules=$modules_count<=$medium_max_modules, ratio=$ratio<=$max_affected_ratio, fan_in_pct=$fan_in>=$medium_max_fan_in_pct — within M bounds, not S"
+  # Name the S bound(s) that actually failed — the trigger is the audit trail a
+  # miss is attributed to (AC-TS10), so it must never assert a bound that held.
+  why=""
+  [[ "$modules_count" -gt "$small_max_modules" ]] && \
+    why="modules=$modules_count>small_max_modules=$small_max_modules"
+  if ! awk -v r="$ratio" -v m="$small_max_affected_ratio" 'BEGIN{exit !(r<=m)}'; then
+    why="${why:+$why, }ratio=$ratio>small_max_affected_ratio=$small_max_affected_ratio"
   fi
+  if [[ -z "$fan_in" ]]; then
+    why="${why:+$why, }fan_in_pct unavailable — treated as exceeding the small bound (AC-TS10)"
+  elif ! awk -v f="$fan_in" -v b="$medium_max_fan_in_pct" 'BEGIN{exit !(f<b)}'; then
+    why="${why:+$why, }fan_in_pct=$fan_in>=medium_max_fan_in_pct=$medium_max_fan_in_pct"
+  fi
+  trigger="not S ($why); within M bounds: modules=$modules_count<=$medium_max_modules, ratio=$ratio<=$max_affected_ratio"
 fi
 
 ratio_json="null"; [[ -n "$ratio" ]] && ratio_json="$ratio"

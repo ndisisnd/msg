@@ -61,8 +61,9 @@ that happens — nothing else in this protocol changes.
   `../executor.md` / `check-report-schema.md`'s `result` section) carries the same
   `totals: {passed, failed, skipped, flaky}` shape as a full run, plus (only on a
   minified run) `selected`/`total` test counts and, when step 1–4 fell back to full,
-  the `fallback_reason` naming which step fired (`force-full: <path>` /
-  `no_run_minified` / `fallback: <reason>` / `tier: L (<trigger>)`). A full or
+  the `fallback_reason` naming which step fired, verbatim in the
+  `../output-schema.md` vocabulary (`force-full: <path>` / `run_minified: null` /
+  `fallback: <reason>` / `tier: L (<trigger>)`). A full or
   selection-off run carries neither field — this is strictly additive.
 - **Verdict semantics never change.** Selection changes **how many** tests ran,
   never how a finding is graded: a failing selected test is a `blocker`

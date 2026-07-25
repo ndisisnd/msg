@@ -32,7 +32,7 @@ elif has_file '*.integration.test.*' 4;                    then surface='*.integ
 elif has_file '*_integration_test.dart' 4;                 then surface='*_integration_test.dart'
 fi
 
-# --- minified selection capability (Wave 2C, plan-msg-test-selection.md §3) ---
+# --- minified selection capability (policies.test_selection; see shared/refs/component-catalog.md § selection-capable tier) ---
 # NOTE (executor §3c.1): at tier M, `integration` ALWAYS runs full regardless of
 # run_minified — this field only matters at tier S. Cheap, deterministic probes only.
 run_minified=""; test_selector=""

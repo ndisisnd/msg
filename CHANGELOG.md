@@ -28,6 +28,22 @@ Absent policy key ⇒ byte-identical gate behaviour, no migration; the mandatory
 
 Enabling always verifies a real backstop or requires an explicit override; disabling is always one run with every artifact left inert-by-design; a selected-away test breaking at the backstop is always attributed, never silent.
 
+### [62] — Close the cross-wave gaps in test selection: the miss trail is durable, the tier trigger is honest
+
+- `.claude/skills/shared/refs/report-schema.md`: Changed — defines the run report's additive `test_selection` block: the paired `report-prd-<N>-<K>.json` carries the verdict JSON's `{mode, tier, signals, per_check}` object verbatim when (and only when) selection ran, plus a one-line `selected/total` + tier mention in `## Test results`. This is the **durable** source post-merge's miss detection reads — the verdict JSON is stdout and doesn't survive the run
+- `.claude/skills/pre-merge/refs/executor.md`, `.claude/skills/pre-merge/SKILL.md`: Changed — §5's aggregate/emit path now states the `test_selection` block is copied into the committed universal report (not stdout only), and §3c.1 names `pre-merge-tier-resolve.sh` as the script that resolves the tier rather than leaving it to judgment
+- `.claude/scripts/pre-merge-tier-resolve.sh`: Fixed — the tier-M `trigger` string asserted bounds that had actually held (reporting `fan_in_pct >= 0.90` when fan-in was 0.2 and it was `modules` that failed the S bound); it now names the S bound(s) that genuinely failed. The trigger is the audit trail a selection miss is attributed to (AC-TS10), so it must never assert a bound that held. Tier resolution itself was and stays correct
+- `.claude/skills/post-merge/refs/staging.md`: Fixed — the "component ran full" test had `fallback_reason` polarity inverted (a component with no `fallback_reason` is exactly the one that ran **minified**); the detection contract now spells the polarity out and points at the committed report as its source
+- `.claude/skills/post-merge/refs/output-schema.md`: Changed — documents `category: "other"` for a `regression`-component `test-selection-miss` as a deliberate convention: the shared category enum is closed with no `regression` member, so the owning component rides in `rule` + `evidence.snippet` instead of extending an enum every consumer switches on
+- `.claude/skills/shared/refs/check-report-schema.md`: Changed — the detect section documents the `run_minified` / `test_selector` fields `mk_report` now emits on every check (the round-trip rule requires every emitted key to be in the schema), and the result section documents the additive `selected`/`total`/`fallback_reason` / `coverage`'s `test_selection_note`
+- `.claude/skills/pre-merge/refs/universal/protocol-unit.md`, `protocol-integration.md`, `.claude/skills/pre-merge/refs/output-schema.md`: Fixed — `fallback_reason` vocabulary drift: the protocols wrote `no_run_minified` where the schema defines `run_minified: null`, and `integration`'s tier-M widen (`tier: M (widen-to-full)`) wasn't in the schema's value list at all
+- `.claude/skills/shared/refs/policy-schema.md`, `component-catalog.md`: Changed — `test_selector` joins the `components[]` field tables alongside `run_minified` (it was emitted by the preflight scripts but defined nowhere)
+- `.claude/skills/pre-merge/refs/_common.md`: Changed — one-line disambiguation that `--changed-only` prunes whole platform components while `policies.test_selection` selects tests inside `unit`/`integration`/`regression`; different layers, they compose, both fail open toward running more
+- `ARCHITECTURE.md`: Changed — `pre-merge-tier-resolve.sh` joins the script-layer table (it shipped unreferenced by any doc)
+- `.claude/scripts/preflight-check-02-unit.sh`, `preflight-check-03-integration.sh`, `preflight-check-04-regression.sh`: Changed — comments pointed at a local-only, gitignored planning doc; they now cite the committed contract files
+
+All twelve AC-TS acceptance criteria are represented in the shipped files; tier bounds, signal names, and the `--full` > `--minified` > policy precedence read identically everywhere.
+
 ## 2026-07-25
 
 ### [59] — Publish the v3.1.0 user-facing release notes

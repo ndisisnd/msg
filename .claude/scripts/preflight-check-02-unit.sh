@@ -22,7 +22,7 @@ elif has_dir '*.xcodeproj' 3 || has_dir '*.xcworkspace' 3; then name=Xcodebuild;
 elif has_file 'build.gradle*' 3 || has_file 'settings.gradle*' 3; then name=Gradle; cmd='./gradlew test'
 fi
 
-# --- minified selection capability (Wave 2C, plan-msg-test-selection.md §3) ---
+# --- minified selection capability (policies.test_selection; see shared/refs/component-catalog.md § selection-capable tier) ---
 # Cheap, deterministic file/config probes only — no network, no execution of the
 # runner itself. Unknown/undetectable => run_minified stays "" (=> null, silent full).
 run_minified=""; test_selector=""

@@ -274,9 +274,19 @@ Conforms to `../shared/refs/finding-schema.md`:
 }
 ```
 
-- `category` mirrors the test's owning component when the closed category
-  vocabulary has a slot for it (`unit`/`integration`); `regression` has none yet,
-  so a `regression`-component miss uses `other`.
+- `category` mirrors the test's owning component when the category vocabulary has
+  a slot for it (`unit`/`integration`). **A `regression`-component miss uses
+  `other` — deliberately, not by oversight.** The category enum in
+  `../shared/refs/finding-schema.md` is **closed** (its only sanctioned extension
+  point is documented extra keys *inside* `evidence`, never a new top-level field
+  or a new category), and it has no `regression` member — `regression` failures
+  have always been categorized under an existing member by that same file. Adding
+  one would change a shared enum every consumer switches on (the `/msg --gui`
+  board, `eng --build report=`, the dedup/regression keys), which is out of
+  proportion to one finding type. So: `category: "other"`, and the owning
+  component is carried losslessly in `rule` (`test-selection-miss`) +
+  `evidence.snippet` (which quotes the `regression:` pipeline suffix) — the miss
+  stays fully attributable without touching the enum.
 - `evidence.snippet` quotes the exact `test_selection.per_check` pipeline suffix
   (`pre-merge/refs/output-schema.md`) that shows the component ran minified and
   what excluded this test — the audit trail that makes the miss attributable,

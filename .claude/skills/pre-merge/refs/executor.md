@@ -311,6 +311,16 @@ Thresholds come from `policies.test_selection.tiers` + `max_affected_ratio`
 (defaults in `policy-schema.md`); a `force_full_paths` hit is a fourth,
 short-circuiting signal (rule step 1) that lands directly in **L**.
 
+**The tier is resolved by script, not by judgment.** Run
+`../scripts/pre-merge-tier-resolve.sh <base> [--affected-ratio <r>] [--fan-in-pct <p>]`
+— it reads the thresholds + `force_full_paths` from `devkit/policy.json`, derives
+`modules` from the diff itself, and prints `{tier, signals, trigger}`. Record that
+`tier` and those `signals` verbatim (§3c.3); `trigger` is the human-readable
+explanation of which bound decided it. The caller supplies `ratio` and `fan_in_pct`
+because only the caller can resolve the affected set and the code graph — omit
+either and the script degrades toward the larger tier on its own (AC-TS10). It is
+read-only and never writes `policy.json`.
+
 | Tier | Bounds (defaults) | `unit` | `integration` | `regression` accumulated | `regression` new |
 |---|---|---|---|---|---|
 | **S** | `modules ≤ 2` **and** `ratio ≤ 0.10` **and** `fan_in < p90` | affected ∪ critical | affected ∪ critical | critical ∪ affected | full |
@@ -460,6 +470,14 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
   casing.
 - The verdict JSON and the universal report share the **canonical finding shape**
   (AC-UR7) — neither invents fields the other lacks.
+- **On a minified run the universal report also carries the `test_selection` block**
+  — the same object emitted in the verdict JSON (§3c.3), copied verbatim at the top
+  level beside `checks[]`. Additive, and omitted entirely on a full or selection-off
+  run (AC-TS1/PF16). The verdict JSON is stdout and doesn't survive the run, so this
+  committed copy is the **durable** record post-merge reads to attribute a backstop
+  failure to a selected-away test (`../../post-merge/refs/staging.md`
+  § *Test-selection-miss detection*, AC-TS9; shape contract in
+  `../../shared/refs/report-schema.md`).
 
 ## 6 · Terminal + run report
 
