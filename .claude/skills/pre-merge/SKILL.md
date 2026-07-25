@@ -157,6 +157,7 @@ authored separately. Full detail in `refs/executor.md`; in outline:
 6. **Run report** — write `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: pre-merge`; `## Test results` = one line per check for pass AND fail, sourced from the result reports' `checks[]`; `tests_passed`/`tests_failed` summed from their `totals`; `## How to verify` lists the resolved, ordered pipeline + what flags pruned — AC-RR3/PF15). Best-effort; skip on `refused`/`skipped`.
 7. **Terminal issue summary** — on **every** report write, all verdicts, print the `Issue summary` block to the terminal (exact format owned by `../shared/refs/report-schema.md`); counts derive from the run's canonical `findings[]` (`category` / `severity`). A clean run prints exactly `Issue summary — 0 issues`.
 8. Print the JSON per `refs/output-schema.md` as the **final emission** — shape **unchanged** (AC-PF16); the optional additive `pipeline` field carries the resolved ordered pipeline for observability.
+9. **Closing message** — end the run (every verdict, including `refused`/`skipped`) with the closing message per `../shared/refs/closing-message.md` as the last **chat** output; the step-8 JSON stays the final **machine** emission, byte-identical.
 
 ## Issues-file loop (non-clean verdict)
 

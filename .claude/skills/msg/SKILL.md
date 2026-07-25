@@ -89,6 +89,8 @@ Before running any picker, check the invocation:
 3. `--help` → **Protocol: --help**.
 4. Otherwise → **Protocol: default**.
 
+**Closing message:** `--init`, `--update`, and `--init-staging` runs end with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the protocol's own output. The pure-emission modes (default picker, `--gui`, `--help`) are exempt: their "Stop. Do not emit anything else." / render contracts stand unchanged.
+
 ---
 
 ## Protocol: --init

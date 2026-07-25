@@ -299,6 +299,10 @@ and `--production` (Step 7 smoke failure / Step 6 deploy failure) — the mode's
 own skip rules (`refs/verify-deploy.md`) still apply. The fixed branch comes back
 through `/pre-merge` and this gate; the gate does not dead-end on the issues file.
 
+## Closing message
+
+End every run — both modes, every outcome including refusals and failed ships — with the closing message per `../shared/refs/closing-message.md`, as the last chat output after the mode's own emissions (human test script, refusal pattern, findings JSON, report writes).
+
 ## References
 
 - `refs/staging.md` — `--staging` steps 2/3/7 (PR locate, green-CI check, merge, sign-off stamp)

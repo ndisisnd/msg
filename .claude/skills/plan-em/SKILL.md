@@ -105,6 +105,7 @@ Follow `refs/protocol-em.md` end-to-end. It defines the full flow — Step 0 Res
 - `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
 - `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (Todos column always present) before activating agents (shared)
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
+- `../shared/refs/closing-message.md` — **every run ends with the closing message** (last chat output, after Step 5's synthesis); protocol + next-steps registry (shared)
 - `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` (same pass as the engineering section) and consumed by build agents
 - `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); consumed in Step 1c (`--exclude` the input PRD) for the multi-PRD cross-reference
 - `.claude/scripts/plan-em-exec-collision.py` — mechanical exec-table collision / parallel-safety check; emits `COLLISION`/`MISSING_FILES` lines and exits 1 on any collision; consumed by the Step 4 build lane and by `refs/protocol-team.md`

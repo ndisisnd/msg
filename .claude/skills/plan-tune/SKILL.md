@@ -96,6 +96,8 @@ Staff PM **contract certifier**, 15+ years shipping consumer and enterprise feat
 
 Emit `Step X/3 — <title>` at the start of each step, unconditionally.
 
+**Closing message (both tune types, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the certification verdict / auto-fix table.
+
 ## Step-by-step protocol
 
 **Step 1/3 — Resolve path, read PRD, auto-select tune type**

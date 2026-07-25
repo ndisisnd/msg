@@ -111,6 +111,8 @@ selected file end-to-end.
 | `--update` | `refs/protocol-update.md` | ledger scan, the full non-`completed` review table, target resolution, the `in-progress`/`completed` lock gates, the change interview, re-grade + re-split, targeted write + update log |
 | `--delete` | `refs/protocol-delete.md` | full ledger table (incl. `completed`), target resolution, the four-check warning pass (orphaned PRD / ship record / dangling `blocked-by` / log history), the confirm, no-renumber removal + `remove` log entry |
 
+**Closing message (every mode, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the row write / update log.
+
 ## Grading
 
 Every captured idea is graded in a **single-turn LLM judgment at capture time —

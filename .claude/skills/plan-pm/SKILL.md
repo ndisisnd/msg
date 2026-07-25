@@ -74,6 +74,8 @@ _Default and `--sub` modes only. In `--roadmap` mode, follow `refs/protocol-road
 
 Follow `refs/protocol-pm.md` end-to-end. It defines the full five-step autonomous flow — Step 1 Resolve the idea (intake entry paths), Step 2 Scan prior PRDs for overlap + breaking surface, Step 3 Autonomous draft (pre-flight + populate every section solo), Step 4 Pauses (batched open questions + breaking/critical safety pause — the only pauses), Step 5 Stamp the intake lifecycle and terminate recommending `plan-tune --product`.
 
+**Closing message (all modes, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output.
+
 ## PRD status lifecycle
 
 Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field immediately after completing the relevant work via the shared scalar writer `.claude/scripts/stamp-prd.sh <prd> <field> <value>` (two-path resolution) — one deterministic edit of the single frontmatter line, never improvised Bash.

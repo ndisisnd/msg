@@ -2,6 +2,21 @@
 
 ## 2026-07-25
 
+### [58] — Every skill run now ends with a clear pass/warning/fail summary and next step
+
+- `.claude/skills/shared/refs/closing-message.md`: Added — new shared contract: 🟢/🟡/🔴 protocol, message template, and a deterministic next-steps registry mapping skill/mode/verdict to the exact next command
+- `.claude/skills/eng/SKILL.md`: Changed — every mode ends its run with the closing message, after the mode's own output contract, report writes, and fix-loop offers
+- `.claude/skills/intake/SKILL.md`: Changed — every mode/outcome ends with the closing message, after the row write / update log
+- `.claude/skills/msg/SKILL.md`: Changed — `--init`, `--update`, `--init-staging` end with the closing message; pure-emission modes (default picker, `--gui`, `--help`) stay exempt
+- `.claude/skills/plan-em/SKILL.md`: Changed — references the closing-message contract; every run ends with it after Step 5's synthesis
+- `.claude/skills/plan-pm/SKILL.md`: Changed — all modes end with the closing message after Step 5's termination output
+- `.claude/skills/plan-tune/SKILL.md`: Changed — both tune types end with the closing message after the certification verdict / auto-fix table
+- `.claude/skills/post-merge/SKILL.md`: Changed — both modes, every outcome including refusals and failed ships, end with the closing message
+- `.claude/skills/pre-merge/SKILL.md`: Changed — new step 9 closing message follows the step-8 verdict JSON as the final chat output
+- `.claude/skills/shared/refs/report-schema.md`: Changed — clarifies pre-merge's verdict JSON stays the final **machine** emission, with the closing message following as chat prose
+- `ARCHITECTURE.md`: Changed — documents the closing-message contract alongside `report-schema.md` and `fix-loop.md` in the shared contract layer
+- `README.md`: Changed — documents the closing-message behaviour for users
+
 ### [57] — GitHub Actions CI is now an opt-in policy decision
 
 - `.claude/skills/shared/refs/policy-schema.md`: Changed — new `policies.github_actions: {enabled, reason}` field spec plus a §2b read-contract (`ga = policies.github_actions.enabled ?? true`; absent ⇒ prior behaviour, so no migration); `github_actions` outranks `steps.ci` on the empty-check-set path, and `/msg --update` joins the writer table and the `generated_by` enum

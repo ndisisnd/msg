@@ -140,6 +140,8 @@ Follow the work steps and output contract in the active mode file, where the mod
 - `--plan` → in one pass, append the `## Engineering — <Agent>` section, fill the Execution steps + Files columns, and write the `## Todos — <Agent>` tickets that decompose each owned F-ID (no implementation code written; inline snippets/pseudocode encouraged).
 - `--build` → write code to derived paths; emit a build summary.
 
+**Closing message (every mode, every verdict):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the mode's own output contract, report writes, and fix-loop offers.
+
 ---
 
 ## Step 6 — Scope enforcement (continuous)

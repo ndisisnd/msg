@@ -128,7 +128,7 @@ Related artifacts: the paired issues file (`report-prd-<N>-<K>.json`), eval_set.
 
 - **Best-effort write** — a failed report write never fails, blocks, or changes the verdict of the run; note the failure in the skill's own output instead.
 - **Anti-fabrication** — record only what actually happened this run; anything unmeasured is `0`, `none`, or "not measured".
-- **No output-contract changes** — pre-merge's printed JSON stays its final stdout emission (the report file write is not prose); eng's build summary gains only a `**Report:**` path line.
+- **No output-contract changes** — pre-merge's printed JSON stays its final **machine** emission (the report file write is not prose; the closing message per `closing-message.md` follows as chat prose); eng's build summary gains only a `**Report:**` path line.
 - **GUI contract** — the Reports tab groups by the containing `prd-*` folder, badges `verdict`, and renders the body sections; renaming a heading or frontmatter key silently drops that data from the board. Body sections render raw (markdown passthrough) — adding `## Issue summary` needs no GUI parser change.
 - **Terminal emission** — every report write, on every verdict (pass and fail alike), also prints the same counts to the terminal:
   ```
