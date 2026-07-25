@@ -25,7 +25,7 @@ allowed_tools:
 **Invoke**: `/msg` — two-step category → skill picker.
 **Invoke**: `/msg --init` — one-time project bootstrap (devkit/ + root files, incl. the `policy.json` release-flow seed and, on a GitHub repo, the GitHub Actions CI question). Protocol: [`refs/protocol-init.md`](refs/protocol-init.md).
 **Invoke**: `/msg --init-staging` — add a `staging` branch to a direct-flow repo and flip `policy.json` release flow to `staged` (the only mode that creates a staging branch). Protocol: [Protocol: --init-staging](#protocol---init-staging).
-**Invoke**: `/msg --update` — re-scan an already-bootstrapped repo for init components introduced since it was set up (new devkit/ files, template rows, PRD lifecycle lanes) and unclassified flat PRDs; warns before offering a full reinit. Also where you turn GitHub Actions CI on or off (`policies.github_actions`) after the fact. Protocol: [Protocol: --update](#protocol---update).
+**Invoke**: `/msg --update` — re-scan an already-bootstrapped repo for init components introduced since it was set up (new devkit/ files, template rows, PRD lifecycle lanes) and unclassified flat PRDs; warns before offering a full reinit. Also where you turn GitHub Actions CI on or off (`policies.github_actions`) after the fact, and the single-run complete off switch for minified test selection (`policies.test_selection`) — turning it on hands off to pre-merge's own enabling interview instead. Protocol: [Protocol: --update](#protocol---update).
 **Invoke**: `/msg --help` — three-question interview to find the right skill.
 **Invoke**: `/msg --gui` (or `/msg gui`) — launch the local interactive PRD board (Kanban/List, editing, todos, prompt console, project docs).
 

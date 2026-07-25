@@ -68,3 +68,34 @@ Component fields: `runner`, `report_path`, `report_source` (existing/regenerated
 `thresholds`, `totals` (overall %, files_checked, files_below_threshold), `diff_coverage`
 (changed-line %, changed-lines-covered), `base_total` (+ `delta` vs base, or
 `no_base_coverage`).
+
+## Selection-awareness — when `unit`/`integration` ran minified (§3c)
+
+`coverage` is **not** selection-capable itself (no `run_minified` — it has nothing
+to run, only reports to parse; `../../../shared/refs/component-catalog.md` legend
+`ˢᵉˡ` names only `unit`/`integration`/`regression`), but it is **selection-aware**:
+it must know when its `depends_on` — `unit` and/or `integration` — ran minified
+rather than full, because a suite-wide coverage number computed from a **partial**
+run is meaningless (it would mix "not covered" with "not even attempted").
+
+- **Trigger.** Check each dependency's own result report (`../executor.md` §4) for
+  a `selected`/`total` pair — its presence means that dependency ran minified this
+  gate run (a full or selection-off run carries neither field, per those
+  protocols' Minified-invocation sections).
+- **When either dependency ran minified:** compute the coverage deltas **only
+  over the diff's files** (reuse the same diff-file set `diff_coverage` already
+  scopes to, above) — never fold in suite-wide totals from a run that only
+  executed a subset of tests. The **total-coverage ratchet** (`base_total` /
+  `delta`) is **skipped** for this run with a note (`reason:
+  "upstream_minified"`) rather than computed against an incomparable partial
+  denominator — never fabricate a regression (or a false all-clear) from a number
+  that isn't suite-wide. `diff_coverage` itself (the blocking signal, scoped to
+  changed lines already) is unaffected — it was always diff-scoped, minified or
+  not.
+- **When both dependencies ran full (or selection is off):** behaviour is
+  **unchanged** — this section does not apply, and no note is added.
+- **Report it.** Add a `test_selection_note` field to this component's result
+  report when the minified case above fired (e.g. `"unit ran minified —
+  total-coverage ratchet skipped, diff_coverage unaffected"`), so the run report
+  and verdict JSON can surface *why* the ratchet is absent instead of silently
+  omitting it. Additive only — a full-run report carries no such field.

@@ -245,6 +245,61 @@ Sets verdict `fail` and skips the intake stamp (Step 8) and the release tag
 (Step 9). No `version_probe` declared → no finding; provenance is recorded as
 `asserted_unverified` in the platform entry, never a fail.
 
+## Test-selection-miss finding (`--staging`, additive, policy-conditional)
+
+Only emitted when `policies.test_selection.enabled` resolves `true`
+(`../shared/refs/policy-schema.md` §2c) and the backstop's full run (a red CI
+check, or the human's staging test outcome) fails a test pre-merge's minified
+verdict **selected away** — the detection contract lives in
+`refs/staging.md` § *Test-selection-miss detection*; this is its wire shape.
+Conforms to `../shared/refs/finding-schema.md`:
+
+```json
+{
+  "id": "ts-miss-001",
+  "source": "post-merge",
+  "severity": "high",
+  "category": "unit",
+  "rule": "test-selection-miss",
+  "message": "tests/unit/taskController.test.ts › applies stale-write guard failed on the ci backstop after pre-merge's minified run selected it away",
+  "file": "tests/unit/taskController.test.ts",
+  "line": null,
+  "evidence": {
+    "tool": "post-merge",
+    "snippet": "unit: minified (42/731, tier S) — excluded: not-affected"
+  },
+  "suggestion": "Tag this test critical and run `/pre-merge --update-criticality`, or disable selection with `/msg --update`.",
+  "repro": "<the exact failing CI check name, or the staging re-test command>",
+  "regression_of": null
+}
+```
+
+- `category` mirrors the test's owning component when the category vocabulary has
+  a slot for it (`unit`/`integration`). **A `regression`-component miss uses
+  `other` — deliberately, not by oversight.** The category enum in
+  `../shared/refs/finding-schema.md` is **closed** (its only sanctioned extension
+  point is documented extra keys *inside* `evidence`, never a new top-level field
+  or a new category), and it has no `regression` member — `regression` failures
+  have always been categorized under an existing member by that same file. Adding
+  one would change a shared enum every consumer switches on (the `/msg --gui`
+  board, `eng --build report=`, the dedup/regression keys), which is out of
+  proportion to one finding type. So: `category: "other"`, and the owning
+  component is carried losslessly in `rule` (`test-selection-miss`) +
+  `evidence.snippet` (which quotes the `regression:` pipeline suffix) — the miss
+  stays fully attributable without touching the enum.
+- `evidence.snippet` quotes the exact `test_selection.per_check` pipeline suffix
+  (`pre-merge/refs/output-schema.md`) that shows the component ran minified and
+  what excluded this test — the audit trail that makes the miss attributable,
+  never asserted from memory.
+- **Rolling-window escalation** (two or more of these findings inside 30 days)
+  adds one extra report line recommending `/pre-merge --update-criticality` or
+  `/msg --update` to disable the policy, and names this finding's `file` as a
+  `force_full_paths` candidate — mechanism owned by `refs/staging.md`, not a new
+  field on this finding.
+- Additive to whatever refusal/finding already covers the backstop failure
+  itself (`red_ci`, a failed staging sign-off) — it never substitutes for that
+  and never turns a clean run non-clean on its own.
+
 ## Verdict values
 
 | Verdict | Meaning | Exit |

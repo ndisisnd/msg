@@ -395,6 +395,92 @@ pre-merge's `steps.*` coherent. It still writes the `ci`/`deploy_*`/`smoke` step
 
 ---
 
+## Enabling the flag — the test-selection interview (`policies.test_selection`)
+
+The one **policy** question `--init`/`--update` own beyond the gap interview:
+*should the gate run only the tests your diff can break, instead of the whole
+suite?* It is a decision, never a detection result — so it is asked, recorded, and
+then left alone. Schema + read-contract:
+[`../../shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md)
+§ `policies.test_selection` / §2c; the run-time rule it switches on:
+`refs/executor.md` §3c.
+
+**Asked only when a test suite is detected** — i.e. at least one selection-capable
+component (`unit`, `integration`, `regression`) is `present` in the assembled
+manifest. No test suite ⇒ no question, no key, nothing to explain. Runs **after**
+the `components[]` assembly (the answer needs the resolved `run_minified` slots and
+the detected platforms), as **one** `AskUserQuestion`:
+
+1. **Explain the trade — one paragraph.** Minified runs select *affected(diff) ∪
+   the critical floor* inside `unit`/`integration`/`regression`, so a small PRD
+   stops paying for the whole suite at every gate run; the full suite still runs,
+   just later, at the declared backstop. It shifts **when** the full cost is paid,
+   never **whether**. Say both halves — the win and the deferral — in the same
+   breath.
+2. **Verify the backstop before accepting it.** `full_run_backstop` is required
+   when `enabled:true`, and `--init` checks the named one actually exists:
+
+   | `full_run_backstop` | Verified by |
+   |---|---|
+   | `ci` | a `.github/workflows/*.yml` triggering on `pull_request` (the same detection the `ci` step-key uses, above) **and** `policies.github_actions.enabled` ≠ `false` |
+   | `post-merge` | `policies.release_flow.mode == "staged"` — there is a staging stage to run the full suite at |
+   | `both` | **both** of the above verify |
+
+3. **No verified backstop ⇒ warn loudly + explicit override (AC-TS8).** Name what
+   is missing (no `pull_request` workflow / Actions opted out / `direct` flow) and
+   state plainly that enabling now means **nothing runs the full suite anywhere**.
+   Require an explicit *"enable anyway"* **plus** a `reason`; then honor it and
+   record both. Never enable on a shrug, and never silently downgrade the answer to
+   `false` — the decision stays the user's.
+4. **On enable — run the initial tagging pass** so the critical floor is non-empty
+   from day one instead of accumulating over the first N PRDs. This is
+   `refs/protocol-update-criticality.md` in **full-inventory mode** (§§1–4 with no
+   `criticality_review` stamp to diff against): propose with cited evidence → one
+   reviewable gate → write the approved markers as one
+   `test(criticality): tag prd-<n>..<m> additions` commit → stamp
+   `criticality_review`. Same machinery, same human gate — not a second
+   implementation.
+5. **Write the key** — `enabled`, `reason`, `full_run_backstop`, plus the
+   catalog-defaulted `force_full_paths` / `tiers` / `max_affected_ratio` /
+   `critical_markers` resolved for the detected platforms
+   ([`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)).
+   `enabled:true` with no `reason` is honored + one `unjustified-policy` warn
+   (AC-S3), like every other policy justification.
+
+**Settled decision — never re-prompted unasked (AC-UP2 pattern).** Once written,
+`--update` leaves `policies.test_selection` alone exactly as it leaves an
+`opted_out` step or a user-set `criticality`: it reconciles **facts** (a
+`run_minified` that appeared or vanished, a newly-detected platform's
+`critical_markers` default), never the decision. *Settled* means not re-prompted
+**unasked** — the user can always reopen it explicitly (`/pre-merge --update`,
+`/msg --update`), which is exactly how the disable below is performed.
+
+### Disabling — one `--update` run, and it is complete (AC-TS12)
+
+One run that flips `enabled:false` **is** the off switch. There is no teardown
+step, no cleanup mode, no second command — because every other artifact the
+feature created is **inert by design** when the key is off:
+
+| Artifact | State after disable |
+|---|---|
+| critical tags in test code / `Critical.xctestplan` / `@Critical` annotations | inert markers — a runner ignores them unless invoked with the selection filter; harmless to keep, instantly reusable on re-enable |
+| `components[].run_minified` | never consulted — the executor's §3c rule is only entered when selection resolves on; it runs `run` |
+| `tiers`, `force_full_paths`, `critical_markers`, the `criticality_review` stamp | dead config — read **only** inside the selection path |
+| staleness nudge + untagged-test count | not computed — the count is taken only on a minified run |
+| verdict `test_selection` block / pipeline-line suffix | absent — emitted only when selection actually ran |
+
+The disable run ends with a **one-line retained-inert audit** naming what remains
+and that it is inert — e.g. *"test_selection disabled — 48 critical tags and 3
+`run_minified` commands retained (inert); re-enable via `/pre-merge --update`."*
+It **never** offers to strip the tags or the `run_minified` entries: deleting
+reviewed tags destroys the curation investment and makes re-enabling expensive.
+Retention is the point.
+
+Escalation ladder, for clarity: `--full` (this run only, nothing written) →
+`--update` / `/msg --update` disable (repo-wide, one run, complete).
+
+---
+
 ## `--update` — reconcile the manifest with reality
 
 `/pre-merge --update` refreshes an existing manifest without a full re-setup. It
@@ -415,8 +501,13 @@ reconciles **facts about the code**, never settled policy choices.
    - `regression.needs_env` re-resolution (C23/AC-SBX8 — the suite's composition
      changed) and `env_provision` provisioner flips (a compose file / testcontainers
      dep appeared or vanished) — both **facts**, re-detected like `present`.
-   It **never** re-prompts a settled `opted_out`/`n/a` decision and **never** changes a
-   **user-set** `criticality` — those are policy, not facts.
+   It **never** re-prompts a settled `opted_out`/`n/a` decision, **never** changes a
+   **user-set** `criticality`, and **never** re-prompts a settled
+   `policies.test_selection` — those are policy, not facts. It does refresh that
+   key's **factual** halves (a `run_minified` that appeared or vanished, a
+   newly-detected platform's `critical_markers` default) and it is where an
+   **explicit** enable/disable is performed (§ *Enabling the flag* — the disable
+   is complete in this one run, AC-TS12).
 5. **Fill genuinely-new gaps** by reusing `--init`'s gated per-item install/scaffold
    offer (AC-UP3) — a newly-detected-but-untooled component follows the same
    OSS-first `AskUserQuestion` path.
@@ -438,6 +529,13 @@ current manifest**. The gate **never** writes `policy.json` or mutates `componen
 only `--init`/`--update` write it (AC-UP5/UP6). This nudge lives in the executor's
 manifest-read prose (`refs/executor.md` §0).
 
+Its **test-tree sibling** works identically and is defined in
+`refs/protocol-update-criticality.md`: a *minified* run counts untagged tests
+read-only against the `criticality_review` stamp and, over the threshold (default
+25), prints *"N untagged tests since the last criticality review — run
+`/pre-merge --update-criticality`"*, then proceeds. Same contract — the gate reads,
+never writes a tag or a policy key (AC-TS2).
+
 ---
 
 ## Boundaries (what `--init` never does)
@@ -448,4 +546,10 @@ manifest-read prose (`refs/executor.md` §0).
 - Never installs a paid/SaaS tool (AC-DR3).
 - Never mutates without an explicit per-item `AskUserQuestion` approval (AC-DR2).
 - Never writes `policies.github_actions` — it only *reads* it to decide whether the missing `ci`
-  workflow is a gap or a settled opt-out. Changing that decision is `/msg --update`'s job.
+  workflow is a gap or a settled opt-out (and to verify a `ci` backstop, § *Enabling the flag*).
+  Changing that decision is `/msg --update`'s job. `policies.test_selection` is the asymmetric
+  case: pre-merge `--init`/`--update` **do** write it (shared with `/msg --update`), because the
+  interview that sets it needs the resolved manifest.
+- Never writes a **critical tag** into a test file — that is `--update-criticality`'s write
+  (`refs/protocol-update-criticality.md`), which `--init` only *invokes* for the initial tagging
+  pass under its own human gate.

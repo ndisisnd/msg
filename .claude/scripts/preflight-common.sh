@@ -64,16 +64,23 @@ tooling() { # chosen [version]
   jq -nc --arg c "$1" --arg v "${2:-}" '{chosen:$c, version:(if $v=="" then null else $v end)}'
 }
 
-# mk_report check id group present active_when tooling_json run criticality cost depends_on_json status notes
+# mk_report check id group present active_when tooling_json run criticality cost depends_on_json status notes [run_minified] [test_selector]
 #   present         : "true" | "false"        (JSON bool)
 #   tooling_json    : "null" or an object     (JSON)
 #   run             : command | protocol ref | ""  ("" → null)
 #   depends_on_json : "[]" or a JSON array
+#   run_minified    : the selection-capable invocation (affected ∪ critical), or ""  ("" → null)
+#                      — ADDITIVE (Wave 2C, policies.test_selection); only unit/integration/
+#                      regression pass this. Every other caller omits it and gets null, same
+#                      as before this field existed (AC-PF5 style, never a breaking change).
+#   test_selector   : freeform note naming the selection mechanism detected (or "" → null) —
+#                      ADDITIVE, sibling of run_minified.
 # Writes to .pre-merge/preflight/<check>.json AND stdout (AC-CK2).
 mk_report() {
   local check="$1" id="$2" group="$3" present="$4" active_when="$5" \
         tooling_json="$6" run="$7" criticality="$8" cost="$9" \
-        depends_on_json="${10}" status="${11}" notes="${12}"
+        depends_on_json="${10}" status="${11}" notes="${12}" \
+        run_minified="${13:-}" test_selector="${14:-}"
   local out_dir=".pre-merge/preflight"
   mkdir -p "$out_dir" 2>/dev/null || true
   local json
@@ -84,6 +91,7 @@ mk_report() {
     --arg criticality "$criticality" --arg cost "$cost" \
     --argjson depends_on "$depends_on_json" \
     --arg status "$status" --arg notes "$notes" \
+    --arg run_minified "$run_minified" --arg test_selector "$test_selector" \
     '{
       check: $check,
       id: $id,
@@ -96,7 +104,9 @@ mk_report() {
       cost: $cost,
       depends_on: $depends_on,
       status: $status,
-      notes: $notes
+      notes: $notes,
+      run_minified: (if $run_minified == "" then null else $run_minified end),
+      test_selector: (if $test_selector == "" then null else $test_selector end)
     }')
   printf '%s\n' "$json" | tee "$out_dir/$check.json"
 }

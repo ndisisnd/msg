@@ -19,6 +19,9 @@ elif has_file 'pytest.ini' 3 || has_file 'conftest.py' 3 || \
      find tests test -maxdepth 3 -name 'test_*.py' -print -quit 2>/dev/null | grep -q .; then
   name=pytest; cmd='python3 -m pytest <files>'
 elif pubspec_flutter; then name='Dart/Flutter'; cmd='flutter test integration_test/'
+elif has_file 'go.mod' 2;                             then name=Go;        cmd='go test ./...'
+elif has_dir '*.xcodeproj' 3 || has_dir '*.xcworkspace' 3; then name=Xcodebuild; cmd='xcodebuild test -scheme <scheme>'
+elif has_file 'build.gradle*' 3 || has_file 'settings.gradle*' 3; then name=Gradle; cmd='./gradlew test'
 fi
 
 # integration-surface probe (new — the old detector has none)
@@ -29,8 +32,52 @@ elif has_file '*.integration.test.*' 4;                    then surface='*.integ
 elif has_file '*_integration_test.dart' 4;                 then surface='*_integration_test.dart'
 fi
 
+# --- minified selection capability (policies.test_selection; see shared/refs/component-catalog.md § selection-capable tier) ---
+# NOTE (executor §3c.1): at tier M, `integration` ALWAYS runs full regardless of
+# run_minified — this field only matters at tier S. Cheap, deterministic probes only.
+run_minified=""; test_selector=""
+case "$name" in
+  Vitest)
+    run_minified='npx vitest related --changed <base>'
+    test_selector='vitest related --changed'
+    ;;
+  Jest)
+    run_minified='npx jest --changedSince=<base>'
+    test_selector='jest --changedSince'
+    ;;
+  pytest)
+    if req_has 'pytest-testmon' || pyproject_has 'pytest-testmon'; then
+      run_minified='python3 -m pytest --testmon'
+      test_selector='pytest-testmon'
+    else
+      run_minified='python3 -m pytest -m critical <files>'
+      test_selector='pytest -m critical marker filter (no pytest-testmon detected)'
+    fi
+    ;;
+  Go)
+    run_minified='go test <affected_packages>'
+    test_selector='go list changed-package graph (reverse deps)'
+    ;;
+  Xcodebuild)
+    if has_file 'Critical.xctestplan' 4; then
+      run_minified='xcodebuild test -testPlan Critical'
+      test_selector='xcodebuild -testPlan Critical'
+    else
+      run_minified='xcodebuild test -only-testing:<target>'
+      test_selector='xcodebuild -only-testing target mapping (no Critical.xctestplan)'
+    fi
+    ;;
+  Gradle)
+    run_minified='./gradlew <affected_modules>:test -Pandroid.testInstrumentationRunnerArguments.annotation=<critical_marker>'
+    test_selector='gradle affected-module graph + annotation filter'
+    ;;
+  *)
+    : # Mocha/Flutter/unknown — no native selection support; stays null (silent full)
+    ;;
+esac
+
 if [[ -n "$name" ]]; then
-  mk_report integration 03 universal true always "$(tooling "$name")" "$cmd" blocking moderate '[]' ready "runner: $name; integration surface: $surface"
+  mk_report integration 03 universal true always "$(tooling "$name")" "$cmd" blocking moderate '[]' ready "runner: $name; integration surface: $surface" "$run_minified" "$test_selector"
 else
-  mk_report integration 03 universal false always "$NO_TOOLING" "" blocking moderate '[]' no_tooling "no test runner detected; integration surface: $surface"
+  mk_report integration 03 universal false always "$NO_TOOLING" "" blocking moderate '[]' no_tooling "no test runner detected; integration surface: $surface" "" ""
 fi
