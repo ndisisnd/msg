@@ -27,9 +27,16 @@
 #   CLASS_<class>=<n>            one line per signature class present
 #   TRIAGE=<count>|<logged>|<graduated>|<skill+mode>|<signature>|<first-date>|<last-date>
 #
+# Column resolution: the date / skill+mode / signature / status columns are looked
+# up BY NAME from the Incidents header row (the pattern script-intake-stamp.sh and
+# script-cert-status.sh use), not by fixed position. A column inserted or reordered
+# used to shift every field one place, so no first cell parsed as a date, the tally
+# reported DOCTOR_ROWS=0 at exit 0, and a ledger at threshold looked clean.
+#
 # Exit codes:
 #   0  tally reported (including "nothing at threshold")
-#   2  usage error, or the file exists but has no `## Incidents` table
+#   2  usage error, the file exists but has no `## Incidents` table, or the table
+#      has body rows but not one parsed (LEDGER_ROWS_UNPARSED)
 #   3  target file absent — no ledger to read
 
 set -uo pipefail
@@ -62,16 +69,47 @@ fi
 # doctor triages the most recurrent signature first.
 out=$(awk -v threshold="$THRESHOLD" -v file="$file" '
 function trim(s) { gsub(/^[[:space:]]+|[[:space:]]+$/, "", s); return s }
-BEGIN { FS = "|" }
-# Only the Incidents table counts. Header and separator rows fall out on their own:
-# a row is an incident only if its first cell is a date.
+function is_sep(   i, c, sep) {
+  sep = 1
+  for (i = 2; i < NF; i++) { c = trim($i); if (c !~ /^:?-+:?$/ && c != "") sep = 0 }
+  return sep
+}
+BEGIN { FS = "|"; DATE_RE = "^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$"
+        c_date = 0; c_skill = 0; c_sig = 0; c_status = 0 }
+# Only the Incidents table counts. Separator rows fall out on their own; the
+# header row is consumed once, to resolve the columns this tally reads BY NAME.
 /^##[[:space:]]+Incidents[[:space:]]*$/ { in_table = 1; next }
 !in_table { next }
 $0 !~ /^\|/ { next }
+is_sep() { next }
+# ── A18: resolve the columns from the header row ─────────────────────────────
+!header_done {
+  header_done = 1
+  if (trim($2) ~ DATE_RE) {
+    # No header row at all (a bare table of rows) — keep the historical fixed
+    # positions so a header-less ledger tallies exactly as it always did, and
+    # fall through to treat this line as data.
+    c_date = 2; c_skill = 3; c_sig = 4; c_status = 6
+    headers_seen = "(no header row)"
+  } else {
+    for (i = 2; i < NF; i++) {
+      c = tolower(trim($i))
+      headers_seen = headers_seen (headers_seen == "" ? "" : ", ") c
+      if (c == "date" || c ~ /date/)        { if (!c_date)   c_date = i }
+      else if (c ~ /skill/)                 { if (!c_skill)  c_skill = i }
+      else if (c ~ /signature/)             { if (!c_sig)    c_sig = i }
+      else if (c == "status" || c ~ /status/) { if (!c_status) c_status = i }
+    }
+    next
+  }
+}
 {
-  d = trim($2)
-  if (d !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) next
-  skill = trim($3); sig = trim($4); status = trim($6)
+  body_rows++
+  d = (c_date ? trim($c_date) : "")
+  if (d !~ DATE_RE) next
+  skill = (c_skill ? trim($c_skill) : "")
+  sig   = (c_sig   ? trim($c_sig)   : "")
+  status = (c_status ? trim($c_status) : "")
   if (status != "graduated") status = "logged"
   rows++
   if (status == "graduated") ngrad++; else nlog++
@@ -88,6 +126,16 @@ $0 !~ /^\|/ { next }
   if (status == "graduated") gcount[key]++; else lcount[key]++
 }
 END {
+  # A18: body rows exist but not one of them parsed as an incident. Either the
+  # date column did not resolve or every row is shaped unexpectedly — both mean
+  # this tally has no idea what is in the ledger, and DOCTOR_ROWS=0 at exit 0
+  # would read as "nothing to triage".
+  if (body_rows > 0 && rows == 0) {
+    printf "LEDGER_ROWS_UNPARSED=%d\n", body_rows
+    printf "%s: the Incidents table in %s has %d body row(s) but not one parsed as an incident — header cells seen: %s; refusing to report an empty tally\n",
+           "script-doctor-tally", file, body_rows, (headers_seen == "" ? "(none)" : headers_seen) > "/dev/stderr"
+    exit 9
+  }
   for (i = 1; i <= ngroups; i++) {
     k = order[i]
     if (count[k] >= threshold && lcount[k] > 0) flagged++
@@ -112,6 +160,11 @@ END {
 ' "$file")
 
 rc=$?
+if [[ $rc -eq 9 ]]; then
+  # A18 refusal — awk already wrote the reason to stderr; surface the key and stop.
+  printf '%s\n' "$out"
+  exit 2
+fi
 if [[ $rc -ne 0 ]]; then
   echo "$SELF: internal error tallying $file (awk rc=$rc)" >&2
   exit 2

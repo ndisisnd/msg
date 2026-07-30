@@ -2,6 +2,13 @@
 
 ## 2026-07-30
 
+### [88] — v5.0.1-P2: parser fail-silent assertions — digests, scans, tallies name their misses (A14–A18)
+
+- `script-prd-digest.py`: Changed — a §3 row digesting with an empty id ⇒ exit 2 `FEATURE_ID_EMPTY=<row>` in every mode (stdout/slice/cache — no poisoned cache left behind); a `--feature` filter that empties a non-empty set ⇒ exit 2 `FEATURE_NOT_RESOLVED=<fid>` naming the ids actually seen (A14/A15); all four real PRDs digest byte-identically
+- `script-prd-scan.sh`: Changed — fullness anchors on section titles, not hardcoded §-numbers; decorated ids (`**F1**`) count; "written but unparsed" now distinct from "never written" (`acceptance-criteria-unparsed`/`exec-table-unparsed`); branch names resolve via script-policy-read.py with a loud grep fallback (A16/A17). Bonus fix: the old grep block could abort the whole scan under `set -e` on an ungreppable policy.json — every PRD line silently vanished, exit 1
+- `script-doctor-tally.sh`: Changed — Incidents columns resolved from the header by name (a shifted column no longer tallies zero rows / misreads status); body rows present but none parsed ⇒ exit 2 `LEDGER_ROWS_UNPARSED=<n>`; empty and header-less ledgers keep today's behaviour (A18)
+- Caller docs: eng build/review protocols + protocol-doctor now say what the new non-zero exits mean (stop and surface — never guess)
+
 ### [87] — v5.0.1-P1: Tier 2 fail-silent assertions — writers and ledgers refuse to corrupt (A8–A13)
 
 - `script-em-exec-skeleton.py`: Changed — `--write` refuses (exit 1 `REFUSING_OVERWRITE=<n>`, or `=unresolved-columns` on an unreadable header) instead of wiping a populated exec table; new `--force` overrides; writes now go temp-file + os.replace so a crash can never truncate the PRD (A8/A8b)

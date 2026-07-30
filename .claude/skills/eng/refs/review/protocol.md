@@ -25,7 +25,7 @@ Uncommitted work if there is any (`git diff HEAD`), otherwise the branch against
 |---|---|---|
 | **The diff** | Step 1 — the only required input | No diff, no review: stop |
 | **The tickets' `done-when`** | The `## Todos — <Agent>` blocks the build worked (parent-injected on the spawned path) | Judge scope against the diff's own stated intent |
-| **PRD acceptance criteria** | The digest, never the whole PRD: `script-prd-digest.py "<prd-path>" --slice build --feature <F-ID>` — the F-ID row carries the criterion verbatim | Standalone runs usually have no PRD; review the diff on its own terms |
+| **PRD acceptance criteria** | The digest, never the whole PRD: `script-prd-digest.py "<prd-path>" --slice build --feature <F-ID>` — the F-ID row carries the criterion verbatim | Standalone runs usually have no PRD; review the diff on its own terms. A non-zero digest exit (`FEATURE_NOT_RESOLVED`/`FEATURE_ID_EMPTY`) counts as absent — and is itself worth a finding |
 
 No `/cook` call — coding standards are not this mode's job.
 

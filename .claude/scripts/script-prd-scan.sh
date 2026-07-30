@@ -7,9 +7,19 @@
 # depends_on[], affects[], parent, created, path, full, missing[].
 #
 #   full     — true iff the PRD is roadmap-ready: pipeline stamps complete AND a
-#              real §3 acceptance-criteria table AND a real §6 execution table.
+#              real acceptance-criteria table AND a real execution table. Both
+#              tables are located by section TITLE (the same match cert-mech /
+#              prd-shape use), never by section number — a renumbered PRD is
+#              still a full PRD.
 #   missing  — JSON array of the tokens that failed the fullness check, empty when
-#              full. Tokens: "stamps", "acceptance-criteria", "exec-table".
+#              full. Tokens:
+#                "stamps"
+#                "acceptance-criteria"           no features section at all
+#                "acceptance-criteria-unparsed"  section present, zero F-ID rows
+#                "exec-table"                    no execution-table section at all
+#                "exec-table-unparsed"           section present, zero F-ID rows
+#              The `-unparsed` pair distinguishes "the PRD never wrote this table"
+#              from "the table is there but nothing in it parsed as a row".
 #
 # Usage:
 #   script-prd-scan.sh                    scan features/ from the project root
@@ -39,7 +49,10 @@
 # ONE stderr note total (never per-PRD, never blocks, exit stays 0). git itself
 # absent -> refinement is skipped entirely and today's frontmatter bucket stands.
 #
-# Pure shell + awk; no Python dependency. Run from the project root.
+# Shell + awk. Under --git the release branch names come from script-policy-read.py
+# (the one policy reader) when python3 and the reader are both available; the
+# shell-only grep fallback survives for python-less environments and now says so
+# on stderr when it misses over an existing policy file. Run from the project root.
 # Unparseable frontmatter is skipped with a note on stderr (exit stays 0).
 
 set -euo pipefail
@@ -89,13 +102,41 @@ if [[ -n "$GIT_MODE" ]]; then
     GIT_OK=1
   fi
 
-  # Release branch names from devkit/policy.json (mirror of release_branches()),
-  # with server.py's main/staging fallbacks. Grepped, not JSON-parsed (no Python).
-  if [[ -f devkit/policy.json ]]; then
-    pb="$(grep -o '"prod_branch"[[:space:]]*:[[:space:]]*"[^"]*"' devkit/policy.json 2>/dev/null | sed -n '1s/.*"\([^"]*\)"[[:space:]]*$/\1/p')"
-    sb="$(grep -o '"staging_branch"[[:space:]]*:[[:space:]]*"[^"]*"' devkit/policy.json 2>/dev/null | sed -n '1s/.*"\([^"]*\)"[[:space:]]*$/\1/p')"
-    [[ -n "${pb:-}" ]] && PROD_BRANCH="$pb"
-    [[ -n "${sb:-}" ]] && STAGING_BRANCH="$sb"
+  # A17 — Release branch names from devkit/policy.json (mirror of
+  # release_branches()), with server.py's main/staging fallbacks. Resolved through
+  # script-policy-read.py, the ONE reader of policy.json: an ad-hoc grep that
+  # missed (nested key, reformatted JSON, a comment) silently handed back `main`
+  # and `staging`, and on a `master` repo every PRD's --git rung under-reported.
+  # Two-path resolution (repo copy, then the global install), exactly as
+  # script-branch-protection.sh does it.
+  POLICY_FILE_PATH="${POLICY_FILE:-devkit/policy.json}"
+  policy_reader=""
+  for cand in ".claude/scripts/script-policy-read.py" "$HOME/.claude/scripts/script-policy-read.py"; do
+    [[ -f "$cand" ]] && { policy_reader="$cand"; break; }
+  done
+  if [[ -n "$policy_reader" ]] && command -v python3 >/dev/null 2>&1; then
+    policy_out="$(python3 "$policy_reader" --file "$POLICY_FILE_PATH" 2>/dev/null || true)"
+    pb="$(printf '%s\n' "$policy_out" | sed -n 's/^PROD_BRANCH=//p' | head -1)"
+    sb="$(printf '%s\n' "$policy_out" | sed -n 's/^STG_BRANCH=//p' | head -1)"
+    # NB: plain `if`, not `[[ … ]] && …` — under `set -e` a trailing AND-list
+    # whose test fails would abort the whole scan.
+    if [[ -n "${pb:-}" ]]; then PROD_BRANCH="$pb"; fi
+    # STG_BRANCH is empty under `direct` flow; server.py's release_branches()
+    # keeps the "staging" fallback in that case, so this mirror does too.
+    if [[ -n "${sb:-}" ]]; then STAGING_BRANCH="$sb"; fi
+  elif [[ -f "$POLICY_FILE_PATH" ]]; then
+    # Fallback for a python-less environment. Loud on a miss: a policy file that
+    # exists but yields no branch names is drift, not a default. The `|| true` is
+    # load-bearing — under `set -euo pipefail` a grep that matches nothing used to
+    # abort the ENTIRE scan (exit 1, zero PRDs emitted), which is how the old
+    # block behaved on any policy.json the grep could not read.
+    pb="$(grep -o '"prod_branch"[[:space:]]*:[[:space:]]*"[^"]*"' "$POLICY_FILE_PATH" 2>/dev/null | sed -n '1s/.*"\([^"]*\)"[[:space:]]*$/\1/p' || true)"
+    sb="$(grep -o '"staging_branch"[[:space:]]*:[[:space:]]*"[^"]*"' "$POLICY_FILE_PATH" 2>/dev/null | sed -n '1s/.*"\([^"]*\)"[[:space:]]*$/\1/p' || true)"
+    if [[ -z "${pb:-}" && -z "${sb:-}" ]]; then
+      echo "script-prd-scan: script-policy-read.py unavailable and no prod_branch/staging_branch grepped out of $POLICY_FILE_PATH — falling back to $PROD_BRANCH/$STAGING_BRANCH, which may be wrong for this repo" >&2
+    fi
+    if [[ -n "${pb:-}" ]]; then PROD_BRANCH="$pb"; fi
+    if [[ -n "${sb:-}" ]]; then STAGING_BRANCH="$sb"; fi
   fi
 
   if [[ "$GIT_OK" == "1" ]]; then
@@ -170,7 +211,17 @@ emit_prd() {
       }
       return out "]"
     }
-    BEGIN { infm = 0; seen = 0; sec = 0; has_f3 = 0; has_f6 = 0 }
+    # A16 — section title normaliser, mirroring script-prd-shape.py norm() and
+    # script-cert-mech.py norm_title(): drop the "## ", drop a leading "N. ",
+    # lowercase. The section NUMBER is never load-bearing.
+    function norm_title(s) {
+      sub(/^##[ \t]*/, "", s)
+      sub(/^[0-9]+[.][ \t]*/, "", s)
+      gsub(/^[ \t]+|[ \t]+$/, "", s)
+      return tolower(s)
+    }
+    BEGIN { infm = 0; seen = 0; insec = ""
+            has_f3 = 0; has_f6 = 0; saw_f3_sec = 0; saw_f6_sec = 0 }
     {
       if (NR == 1 && $0 ~ /^---[ \t]*$/) { infm = 1; next }
       if (infm && $0 ~ /^---[ \t]*$/)    { infm = 0; next }   # end frontmatter, read body
@@ -188,21 +239,27 @@ emit_prd() {
         seen = 1
         next
       }
-      # --- body scan: §3 acceptance-criteria + §6 execution-table completeness ---
-      # Track the current numbered H2 section. A real feature/exec row is a table
+      # --- body scan: acceptance-criteria + execution-table completeness ---
+      # Track the current H2 section BY TITLE. A real feature/exec row is a table
       # row whose first data cell is an F-ID (F1, F2, …) — this excludes header
       # rows (| ID |, | F-ID |), separators (|----|), and the template placeholders.
       if ($0 ~ /^##[ \t]/) {
-        # legacy unnumbered exec-table heading (pre-v5 PRDs) counts as the §6 home
-        if (tolower($0) ~ /^##[ \t]*execution table[ \t]*$/) { sec = 6; next }
-        h = $0
-        sub(/^##[ \t]*/, "", h)
-        sec = ($0 ~ /^##[ \t]*[0-9]+[.]/) ? h + 0 : 0
+        h = norm_title($0)
+        # The exec table is tested FIRST: "feature execution table" also starts
+        # with "feature" and would otherwise be read as the acceptance table.
+        # Legacy unnumbered `## Execution Table` (pre-v5 PRDs) is the same home.
+        if (h ~ /^(feature )?execution table/) { insec = "f6"; saw_f6_sec = 1 }
+        else if (h ~ /^feature/ || h ~ /acceptance cri/) { insec = "f3"; saw_f3_sec = 1 }
+        else insec = ""
         next
       }
-      # §3 rows read `| F1 | …`; §6 rows read `| F1: <name> — <concern> | …`
-      if (sec == 3 && $0 ~ /^[|][ \t]*F[0-9]+([.][0-9]+)?[ \t]*[|:]/) has_f3 = 1
-      if (sec == 6 && $0 ~ /^[|][ \t]*F[0-9]+([.][0-9]+)?[ \t]*[|:]/) has_f6 = 1
+      # Acceptance rows read `| F1 | …`; exec rows read `| F1: <name> — <concern> |`.
+      # Markdown decoration around the id (`| **F1** |`, `| `F1` |`, `| _F1_ |`)
+      # is stripped — a bolded id is still an id, and the old strict regex read a
+      # decorated table as an empty one.
+      if (insec != "" && $0 ~ /^[|][ \t]*[*_`]*F[0-9]+([.][0-9]+)?[*_`]*[ \t]*[|:]/) {
+        if (insec == "f3") has_f3 = 1; else has_f6 = 1
+      }
     }
     END {
       if (!seen) { print "script-prd-scan: no frontmatter in " file > "/dev/stderr"; exit 0 }
@@ -242,11 +299,13 @@ emit_prd() {
         else                           bucket = "product"
       }
 
-      # --- fullness: pipeline stamps + real §3 rows + real §6 rows ---
+      # --- fullness: pipeline stamps + real acceptance rows + real exec rows ---
+      # A16: "the section is missing" and "the section is there but nothing in it
+      # parsed" are different defects and now carry different tokens.
       missing = ""
       if (complete != "true") missing = missing (missing == "" ? "" : ",") "\"stamps\""
-      if (!has_f3)            missing = missing (missing == "" ? "" : ",") "\"acceptance-criteria\""
-      if (!has_f6)            missing = missing (missing == "" ? "" : ",") "\"exec-table\""
+      if (!has_f3)            missing = missing (missing == "" ? "" : ",") (saw_f3_sec ? "\"acceptance-criteria-unparsed\"" : "\"acceptance-criteria\"")
+      if (!has_f6)            missing = missing (missing == "" ? "" : ",") (saw_f6_sec ? "\"exec-table-unparsed\"" : "\"exec-table\"")
       full = (missing == "") ? "true" : "false"
 
       printf "{"

@@ -18,6 +18,15 @@ Behaviour:
   - Non-standard headings are recorded under `unparsed_sections` so a consumer
     can fall back to prose for them (never a hard failure).
 Prints the digest path on success (or the JSON with --stdout).
+
+Exit codes:
+  0  digest written / printed
+  1  --verify-rows found an unowned or unknown row
+  2  usage error, missing PRD, or a loud parse refusal:
+       FEATURE_ID_EMPTY=<row>      a §3 features row digested with an empty id
+                                   (A14 — the id column did not resolve)
+       FEATURE_NOT_RESOLVED=<fid>  --feature emptied a previously non-empty
+                                   features / exec_table set (A15)
 """
 import sys, os, re, json, hashlib, argparse
 
@@ -88,7 +97,23 @@ def sections(lines, start, level):
         out.append((title, i + 1, end, lines[i + 1:end]))   # 1-indexed heading line
     return out
 
+# A14 — §3 features rows whose `id` cell did not resolve, as
+# (section title, row label, headers seen). Populated by build(), refused in main().
+ID_GAPS = []
+
+
+class FeatureNotResolved(Exception):
+    """A15 — `--feature <fid>` filtered a non-empty set down to nothing."""
+    def __init__(self, fid, emptied, seen_features, seen_rows):
+        super().__init__(fid)
+        self.fid = fid
+        self.emptied = emptied
+        self.seen_features = seen_features
+        self.seen_rows = seen_rows
+
+
 def build(prd_path):
+    del ID_GAPS[:]
     with open(prd_path, encoding="utf-8") as f:
         text = f.read()
     lines = text.split("\n")
@@ -130,10 +155,18 @@ def build(prd_path):
                                 "agent": pick(r, "agent", "owner")} for r in rows]
             d["exec_table_prose_lines"] = f"{s}-{e}"; KNOWN.add(title)
         elif low.startswith("feature") or "acceptance cri" in low:
-            _, rows = md_table(block)
-            for r in rows:
+            headers, rows = md_table(block)
+            for n, r in enumerate(rows, 1):
+                # A14: `pick()` returns "" when the id column does not resolve, so
+                # a header drift ("F-ID", "Ref", a dropped column) yields features
+                # with empty ids — and `--feature F1` then hands eng --build an
+                # empty-but-well-formed spec. Record the drift; main() refuses.
+                fid = pick(r, "id", "feature id")
+                if not fid:
+                    label = pick(r, "feature", "name") or f"row-{n}"
+                    ID_GAPS.append((title, label, headers or []))
                 d["features"].append({
-                    "id": pick(r, "id", "feature id"),
+                    "id": fid,
                     "title": pick(r, "feature", "name"),
                     "acceptance": pick(r, "acceptance", "acceptance criterion", "acceptance criteria", "criterion"),
                     "dependencies": pick(r, "dependencies", "dependency", "depends"),
@@ -222,9 +255,28 @@ def slice_digest(d, name, feature=None):
         if k in d: out[k] = d[k]
     if feature and "features" in out:
         fid = feature.upper()
-        out["features"] = [f for f in out["features"] if f["id"].upper() == fid]
+        # A15: the filters below are deliberately strict — features match on an
+        # exact id, exec rows on the canonical `F<k>: <name>` rendering. A PRD
+        # written `F1 — name` (or an unresolved id column) used to filter down to
+        # an empty-but-well-formed slice and eng --build would implement nothing.
+        # Strictness stays; the silence goes.
+        before_features = out["features"]
+        before_exec = out.get("exec_table")
+        out["features"] = [f for f in before_features
+                           if (f.get("id") or "").upper() == fid]
         if "exec_table" in out:
-            out["exec_table"] = [r for r in out["exec_table"] if r["feature"].upper().startswith(fid + ":")]
+            out["exec_table"] = [r for r in before_exec
+                                 if (r.get("feature") or "").upper().startswith(fid + ":")]
+        emptied = []
+        if before_features and not out["features"]:
+            emptied.append("features")
+        if before_exec and not out.get("exec_table"):
+            emptied.append("exec_table")
+        if emptied:
+            raise FeatureNotResolved(
+                fid, emptied,
+                [f.get("id") or "(empty)" for f in before_features],
+                [(r.get("feature") or "(empty)") for r in (before_exec or [])])
     return out
 
 def verify_rows(d, rows, agent):
@@ -259,6 +311,20 @@ def main():
         print(f"error: no such PRD: {prd}", file=sys.stderr); sys.exit(2)
 
     d, text = build(prd)
+
+    # A14 — refuse before anything is emitted or cached. An empty `id` means the
+    # features table's id column did not resolve, and every downstream consumer
+    # (--feature slices, F-ID coverage, eng --build) reads it as "no such feature"
+    # rather than "the parse missed".
+    if ID_GAPS:
+        title, label, headers = ID_GAPS[0]
+        print(f"FEATURE_ID_EMPTY={label}")
+        print(f"script-prd-digest: {len(ID_GAPS)} row(s) in '{title}' of {prd} "
+              f"digested with an empty 'id' (first: '{label}') — headers seen: "
+              f"{', '.join(headers) or '(none)'}; refusing to emit a digest whose "
+              "features cannot be addressed by F-ID", file=sys.stderr)
+        sys.exit(2)
+
     if a.verify_rows is not None:
         fails = verify_rows(d, a.verify_rows, a.agent)
         for line in fails:
@@ -267,7 +333,23 @@ def main():
             sys.exit(1)
         print("ROWS_OK"); return
     if a.slice:
-        print(json.dumps(slice_digest(d, a.slice, a.feature), indent=2, ensure_ascii=False)); return
+        try:
+            sliced = slice_digest(d, a.slice, a.feature)
+        except FeatureNotResolved as exc:
+            print(f"FEATURE_NOT_RESOLVED={exc.fid}")
+            detail = []
+            if "features" in exc.emptied:
+                detail.append("features ids seen: "
+                              + (", ".join(exc.seen_features) or "(none)"))
+            if "exec_table" in exc.emptied:
+                detail.append("exec-table Feature cells seen: "
+                              + (", ".join(exc.seen_rows) or "(none)"))
+            print(f"script-prd-digest: --feature {exc.fid} emptied "
+                  f"{' and '.join(exc.emptied)} in {prd} — "
+                  + "; ".join(detail)
+                  + "; refusing to hand back an empty slice", file=sys.stderr)
+            sys.exit(2)
+        print(json.dumps(sliced, indent=2, ensure_ascii=False)); return
     if a.stdout:
         print(json.dumps(d, indent=2, ensure_ascii=False)); return
 
