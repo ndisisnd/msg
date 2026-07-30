@@ -2,6 +2,10 @@
 
 ## 2026-07-30
 
+### [84] — Retire the last tracked improve/ plan docs
+
+- `.claude/skills/improve/_INDEX.md`, `plan-msg-v2.md`: Removed — improve/ plans are local scratch docs, not shipped skill surface; these two were the last tracked remnants (their siblings were already untracked)
+
 ### [83] — Publish the v5.0.0 user-facing release notes
 
 - `RELEASES.md`: Added — the v5.0.0 section, covering the 18-phase v5 build ([65]–[82]) and [64]'s release-history repair (release bookkeeping for the `v5.0.0` GitHub release)
