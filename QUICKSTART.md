@@ -189,4 +189,4 @@ Then start the feature loop with `/intake`.
 
 ---
 
-**Next:** [README.md](README.md) for the full skill surface · [ARCHITECTURE.md](ARCHITECTURE.md) for how the layers fit together.
+**Next:** [README.md](README.md) for the full skill surface · [ARCHITECTURE.md](ARCHITECTURE.md) for how the layers fit together · [RELEASES.md](RELEASES.md) for what each release changed for you.

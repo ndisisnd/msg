@@ -2,6 +2,11 @@
 
 ## 2026-07-30
 
+### [85] — README + QUICKSTART point at the release history
+
+- `README.md`: Added — a current-release line (v5.0.0) linking `RELEASES.md` under the install section
+- `QUICKSTART.md`: Changed — the closing Next line gains the `RELEASES.md` link alongside README/ARCHITECTURE
+
 ### [84] — Retire the last tracked improve/ plan docs
 
 - `.claude/skills/improve/_INDEX.md`, `plan-msg-v2.md`: Removed — improve/ plans are local scratch docs, not shipped skill surface; these two were the last tracked remnants (their siblings were already untracked)
