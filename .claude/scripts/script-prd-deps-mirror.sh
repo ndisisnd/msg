@@ -18,7 +18,10 @@
 # - Prints `ADDED <id>` to stdout for each newly-added id (none added → no output).
 # - Idempotent. Writes via a temp file + mv. `depends_on: []` when the union empty.
 #
-# Exit codes: 0 = mirrored (or nothing to add); 2 = missing file / no frontmatter.
+# Exit codes: 0 = mirrored (or nothing to add); 2 = missing file / no frontmatter
+#             / no §3 section matched (SECTION_NOT_FOUND=features) / a §3 table
+#             that mentions dependencies but resolves no such column
+#             (DEPS_COLUMN_UNRESOLVED). Nothing is written on a refusal.
 
 set -uo pipefail
 
@@ -69,20 +72,28 @@ FNR==NR {
     next
   }
   # body — locate §3 and its Dependencies column
-  if (tolower($0) ~ /^##[[:space:]]*([0-9]+\.[[:space:]]*)?features[[:space:]]*&/) { insec=1; next }
+  # Heading match tolerates both "Features & acceptance criteria" and the
+  # "Features and acceptance criteria" spelling — the literal `&` requirement is
+  # exactly how this section went undetected while the run still exited 0 (A13).
+  if (tolower($0) ~ /^##[[:space:]]*([0-9]+\.[[:space:]]*)?features[[:space:]]*(&|and)[[:space:]]/) { insec=1; sawsec=1; next }
   if (insec==1 && $0 ~ /^## /) { insec=0 }
   if (insec==1 && $0 ~ /\|/) {
-    if (depcol==0 && tolower($0) ~ /dependencies/) {
-      n=splitcells($0, hc)
-      for (j=1;j<=n;j++) if (tolower(trim(hc[j]))=="dependencies") depcol=j
+    # Loose detector: anything in the §3 table that says "dependencies" means the
+    # column is meant to exist. If the strict resolution below never finds it, the
+    # run mirrors zero ids — that is the silent miss, and it is now loud (exit 4).
+    if (tolower($0) ~ /dependencies/) loose=1
+    n=splitcells($0, dc)
+    first=""
+    for (j=1;j<=n;j++) { if (trim(dc[j])!="") { first=trim(dc[j]); break } }
+    isdata = (first ~ /^F[0-9]/)
+    if (depcol==0 && !isdata) {
+      # Header candidate. Containing-match, so "Dependencies (PRD ids)" resolves;
+      # data rows are excluded so a criteria cell mentioning dependencies can
+      # never be mistaken for the header.
+      for (j=1;j<=n;j++) if (index(tolower(trim(dc[j])), "dependencies") > 0) { depcol=j; break }
       next
     }
-    if (depcol>0) {
-      n=splitcells($0, dc)
-      first=""
-      for (j=1;j<=n;j++) { if (trim(dc[j])!="") { first=trim(dc[j]); break } }
-      if (first ~ /^F[0-9]/) extract(dc[depcol], sixset, sixord)
-    }
+    if (depcol>0 && isdata) extract(dc[depcol], sixset, sixord)
   }
   next
 }
@@ -117,14 +128,27 @@ FNR==1 {
   }
   print > out
 }
-END { if (badfm) exit 2 }
+END {
+  if (badfm) exit 2
+  if (!sawsec) exit 3
+  if (loose && depcol==0) exit 4
+}
 ' "$file" "$file"
 rc=$?
 
-if [[ $rc -ne 0 ]]; then
-  echo "script-prd-deps-mirror: no YAML frontmatter block in $file" >&2
-  exit 2
-fi
+case $rc in
+  0) ;;
+  2) echo "script-prd-deps-mirror: no YAML frontmatter block in $file" >&2
+     exit 2 ;;
+  3) echo "SECTION_NOT_FOUND=features"
+     echo "script-prd-deps-mirror: no '## N. Features & acceptance criteria' section in $file — nothing could be mirrored; refusing to report success" >&2
+     exit 2 ;;
+  4) echo "DEPS_COLUMN_UNRESOLVED"
+     echo "script-prd-deps-mirror: the §3 table mentions dependencies but no header cell resolves a Dependencies column in $file — refusing to mirror zero ids silently" >&2
+     exit 2 ;;
+  *) echo "script-prd-deps-mirror: internal error (awk rc=$rc)" >&2
+     exit 2 ;;
+esac
 
 # Only replace the file when the mirror actually changed a byte.
 if cmp -s "$tmp" "$file"; then

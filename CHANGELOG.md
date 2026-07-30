@@ -2,6 +2,14 @@
 
 ## 2026-07-30
 
+### [87] — v5.0.1-P1: Tier 2 fail-silent assertions — writers and ledgers refuse to corrupt (A8–A13)
+
+- `script-em-exec-skeleton.py`: Changed — `--write` refuses (exit 1 `REFUSING_OVERWRITE=<n>`, or `=unresolved-columns` on an unreadable header) instead of wiping a populated exec table; new `--force` overrides; writes now go temp-file + os.replace so a crash can never truncate the PRD (A8/A8b)
+- `script-prd-number`: Changed — a lane-agnostic sweep after the four-lane max catches parked PRD folders; a colliding id ⇒ exit 2 `NUMBER_COLLISION=<id>` instead of handing out a duplicate number (A9)
+- `script-ledger.py`: Changed — rows present but no parsable `#` ⇒ exit 2 `LEDGER_NUMBERING_UNPARSABLE=<cell>` instead of renumbering from 1 alongside them (A10); a drifted findings heading ⇒ exit 2 `SECTION_TITLE_DRIFT=<heading>` instead of appending a duplicate section; EOF-fallback creation now says so (`LEDGER_PLACEMENT=eof-fallback`) (A11)
+- `script-intake-stamp.sh`: Changed — `stamp` and `append-row` refuse (exit 2 `COLUMN_ABSENT=<name>`) when a supplied value's column is missing from the header, instead of silently dropping it; well-formed writes proven byte-identical; GUI intake render verified per [i104] (A12)
+- `script-prd-deps-mirror.sh`: Changed — an unmatched §3 heading ⇒ exit 2 `SECTION_NOT_FOUND=features` (and the heading match now tolerates "and"/"&"); a table that mentions dependencies but resolves no such column ⇒ exit 2 `DEPS_COLUMN_UNRESOLVED`; decorated headers like "Dependencies (PRD ids)" now resolve (A13)
+
 ### [86] — v5.0.1-P0: Tier 1 fail-silent assertions — safety gates can no longer open quietly (A1–A7)
 
 - `script-cert-status.sh`: Changed — §7 ledger header drift now exits 2 `LEDGER_HEADER_UNRESOLVED=…` instead of reporting CERTIFIED past an open Critical (A1)
