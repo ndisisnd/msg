@@ -11,13 +11,20 @@
 #
 # Allowed fields (scalar lifecycle stamps only — arrays are owned by
 # plan-pm-deps-mirror.sh): status, product-tuned, eng-tuned, reviewed,
-# completion, module.
+# completion, module, staging-signoff.
+#
+# `staging-signoff` is post-merge's ship-gate stamp — `<YYYY-MM-DD>@<certified
+# sha>`, written by `--staging` on approval and re-written by `--production`
+# when an unpinned legacy stamp is confirmed. It is the one field the whole
+# production safety check keys on, so it is written here rather than by an
+# improvised whole-file re-emit.
 #
 # Behaviour:
 #   - Field present in frontmatter  → rewrite that one line in place.
 #   - Same value already set        → no write, exit 0 (idempotent).
-#   - Field absent from frontmatter → refuse (exit 2), EXCEPT `completion`
-#                                     (an optional override) which is inserted
+#   - Field absent from frontmatter → refuse (exit 2), EXCEPT `completion` and
+#                                     `staging-signoff` (both optional, absent
+#                                     until first stamped) which are inserted
 #                                     before the closing `---`.
 #   - Unknown field                 → usage + allowed list on stderr, exit 2.
 #   - Missing file / no frontmatter → reason on stderr, exit 2.
@@ -27,7 +34,8 @@
 
 set -uo pipefail
 
-ALLOWED="status product-tuned eng-tuned reviewed completion module"
+ALLOWED="status product-tuned eng-tuned reviewed completion module staging-signoff"
+INSERTABLE="completion staging-signoff"
 
 usage() {
   echo "usage: stamp-prd.sh <prd.md> <field> <value>" >&2
@@ -55,9 +63,9 @@ if [[ ! -f "$file" ]]; then
   exit 2
 fi
 
-# `completion` is the only field allowed to be inserted when absent.
+# Only the optional fields may be inserted when absent.
 insert=0
-[[ "$field" == "completion" ]] && insert=1
+[[ " $INSERTABLE " == *" $field "* ]] && insert=1
 
 dir=$(dirname "$file")
 tmp=$(mktemp "$dir/.stamp-prd.XXXXXX") || { echo "stamp-prd: cannot create temp file" >&2; exit 2; }
@@ -99,7 +107,7 @@ case $rc in
      exit 0 ;;
   3) # idempotent: value already set, leave the file untouched
      exit 0 ;;
-  4) echo "stamp-prd: field '$field' absent from frontmatter — refusing (only 'completion' is insertable)" >&2
+  4) echo "stamp-prd: field '$field' absent from frontmatter — refusing (insertable fields: $INSERTABLE)" >&2
      exit 2 ;;
   5) echo "stamp-prd: no YAML frontmatter block in $file" >&2
      exit 2 ;;

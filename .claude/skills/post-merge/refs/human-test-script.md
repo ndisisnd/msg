@@ -1,6 +1,6 @@
 ---
 name: post-merge-human-test-script
-description: post-merge --staging Step 6 — render the plain-language human test script by CONSUMING pre-merge's structured, significance-rated manual-test-plan artifact (C22/AC-MTP6, the 2nd render site — HIGH first), with a graceful fallback to deriving it from the report "How to verify" prose + acceptance criteria when the artifact is absent (older PRDs), then STOP for a human to test staging.
+description: post-merge --staging Step 6 — render the plain-language human test script by CONSUMING pre-merge's structured, significance-rated manual-test-plan artifact (the 2nd render site — HIGH first), with a graceful fallback to deriving it from the report "How to verify" prose + acceptance criteria when the artifact is absent (older PRDs), then STOP for a human to test staging.
 ---
 
 # Step 6 — Emit a human test script, then STOP
@@ -16,7 +16,7 @@ only happens after the human returns.
 Prefer the **structured, significance-rated manual-test-plan** generated **once** at
 pre-merge — do **not** re-derive the list from prose when it exists. This is the same
 generate-once checklist pre-merge emits; post-merge renders
-it as the staging human-test script (C22/AC-MTP6 — the second render site).
+it as the staging human-test script (the second render site).
 
 1. **The structured manual-test-plan (preferred).** Consume the significance-rated
    checklist produced by `manual-test-plan` (`pre-merge/refs/prd/protocol-manual-test-plan.md`),
@@ -35,7 +35,7 @@ it as the staging human-test script (C22/AC-MTP6 — the second render site).
    of the existing artifact, not a re-derivation.
 
 2. **Fallback — prose derivation (artifact absent, older PRDs).** When **no** structured
-   manual-test-plan exists (a PRD shipped before C22, or the artifact/structured section is
+   manual-test-plan exists (the artifact/structured section is
    missing), gracefully fall back to deriving the list from prose, in priority order:
    a. **The shipped PRD's run reports** — the (prose) `## How to verify` sections of
       `features/prd-<n>-*/reports/report-*.md`, already in plain step-by-step language
@@ -61,4 +61,4 @@ do not proceed to Step 7, do not stamp anything. The human runs the script; when
 they return, Step 7's `AskUserQuestion` records their verdict.
 
 The same script is written verbatim into the staging run report's `## How to
-verify` section so the GUI Reports tab surfaces it (H4).
+verify` section so the GUI Reports tab surfaces it.

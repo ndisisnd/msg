@@ -2,6 +2,15 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P14 — post-merge content: three release scripts, router −44%, gate moved pre-merge-side (i54–i61/i73/i99/i100)
+
+- `.claude/scripts/`: Added — `script-signoff-coverage.sh` (ancestry + newest-stamp + uncovered-commit verdicts), `script-release-lock.sh` (acquire/release/status on the transient tag; ~1,100 words of lock spec retired), `script-release-identity.sh` (read-only tag parse/bump/build/monotonicity/regression/provenance); `stamp-prd.sh` gains `staging-signoff` (+ insert-when-absent); both stamp sites call it — no improvised frontmatter edits remain
+- `post-merge/SKILL.md`: Changed — pure router, 4,769 → 2,662 words (−44%); Persona → 3-line Posture; sanctioned-writes bridge keeps the floor's citation landing
+- Citation strip: 316 decision-ID tokens → 0 across 12 files (fence balance proven per file); submitted-not-live single-homed; resolver boilerplate 4→1; output-schema essays cut (−29%)
+- Direct-flow human test: Changed — moved BEFORE the merge (after Step-3 double-confirm, before lock + release PR); Cancel leaves main untouched and holds no lock; matches the floor's Direct-flow bullet (i73)
+- Rollback offers for server platforms carry the redeploy-≠-un-migrate caveat (i99); submission.md re-scoped store-agnostic with a MAS row + platform→console table; macOS release-model is declared, never inferred from identity (i100)
+- post-merge total 27,170 → 21,795 words (−20%)
+
 ### v5-P13 — the preview-gate cut (i93) — v5's one safety-floor amendment, isolated commit
 
 - Removed — the preview component end-to-end: `protocol-preview.md` (212 ln incl. R1–R4, park/resume, the commit-bound approval token — machinery that existed only there), `preflight-check-16-preview.sh`, catalog row 16 (tombstoned, never reused), executor wave/prune/promote wiring, output-schema preview object, PLATFORMS `preview_kind`/`preview_deploy_cmd` columns (19→17; three readers fixed)

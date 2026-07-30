@@ -1,6 +1,6 @@
 ---
 name: post-merge-staging
-description: post-merge --staging — locate the feature→staging PR, verify green CI, merge into staging, verify the deploy with the platform smoke check, and stamp the harness-readable staging sign-off (D11). Deploy, verification, and the human test script have their own refs.
+description: post-merge --staging — locate the feature→staging PR, verify green CI, merge into staging, verify the deploy with the platform smoke check, and stamp the harness-readable staging sign-off. Deploy, verification, and the human test script have their own refs.
 ---
 
 # `--staging` — merge to staging, hand off to a human
@@ -27,10 +27,10 @@ Before locating the PR, read the `staging_ready` record `--init` wrote
 not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"`
 (mirrors `branch_protection`'s stance + default). Then:
 
-- **Record absent** (pre-C9 init, or the repo was never `/post-merge --init`ed) →
+- **Record absent** (the repo was never `/post-merge --init`ed) →
   add **one `low` note** to the run report — *"staging readiness was never
   recorded; run `/post-merge --init` to verify the staging environment"* — and
-  **proceed**. Never refuse solely because the record predates C9.
+  **proceed**. Never refuse solely because the record predates the readiness check.
 - **Present, every shipping platform `ready:true`** → proceed silently.
 - **Present, any platform with `gaps[]`:**
   - `enforced` → **refuse** (`refs/refusal-patterns.md` → `staging_unready`),
@@ -45,49 +45,38 @@ has already refused `no_staging_stage` (there is no staging to check).
 
 `staging_ready` is a **resolved fact** re-derived at each `--init`, so it can go
 **stale** between init and this run (a platform's declared artifacts changed since
-readiness was last derived) — D14 accepts this (the record reflects the last
+readiness was last derived) — accepted (the record reflects the last
 `--init`, not live state; re-run `/post-merge --init` to refresh it).
 
-## In-flight-production check (pre-flight, before Step 2) — C8
+## In-flight-production check (pre-flight, before Step 2)
 
 A `--staging` merge lands new commits on `staging` **while** a `--production` run
-may be mid-flight — the exact race the release lock names. If a production ship has
-already opened its `staging→main` PR (Step 4) and is between merge and verify,
-merging into `staging` now advances the branch the release is shipping: the PR
-silently grows past what the human double-confirmed, and past the commit the
-sign-off certified — **reopening C2's uncertified-commit hole at the concurrency
-level**. So `--staging` **reads** the production release lock and refuses if one is
-held (`../shared/refs/policy-schema-post-merge.md` §6):
+may be mid-flight. If a production ship is between merge and verify, merging into
+`staging` now advances the branch the release is shipping: the PR silently grows
+past what the human double-confirmed and past the commit the sign-off certified —
+reopening the uncertified-commit hole at the concurrency level. So `--staging`
+**reads** the production release lock (`../shared/refs/policy-schema-post-merge.md` §6):
 
 ```bash
-PROD=${prod_branch:-main}; LOCK="release-lock-$PROD"
-git fetch origin "refs/tags/$LOCK:refs/tags/$LOCK" --force --quiet 2>/dev/null
-git rev-parse -q --verify "refs/tags/$LOCK" >/dev/null   # exists ⇒ a production release holds the lock
+S=.claude/scripts/script-release-lock.sh; bash "$S" status --prod "$PROD"
 ```
 
-- **Lock held, not stale** (age ≤ 2h) → **refuse** `release_in_flight`
-  (`refs/refusal-patterns.md`), naming the in-flight production run (holder/when/sha
-  from the tag message). The merge has not happened — refusing here keeps the
-  running release's certified window intact. Wait for it to finish, then re-run.
-- **Lock held, stale** (age > 2h) → same stale handling as `--production`: a terminal
-  `release_in_flight` (stale variant) that **prints the one-line manual unlock**,
-  never a blind permanent refusal:
-  > **Release lock is stale** — held by `<holder>` since `<at>` (> 2h ago), likely an
-  > aborted run. If no release is actually in flight, clear it and re-run:
-  > `git push origin :refs/tags/release-lock-<prod>`  (then `git tag -d release-lock-<prod>` locally)
-- **No lock** → proceed to Step 2.
+| Exit | Meaning | Do |
+|---|---|---|
+| 0 (`free`) | no production ship in flight | proceed to Step 2 |
+| 3 (`held`) | a release holds the lock | **refuse** `release_in_flight`, naming `HELD_BY` / `ACQUIRED_AT` / `SHA`. The merge has not happened — refusing keeps the running release's certified window intact. Wait for it to finish, then re-run |
+| 5 (`held` + stale) | held > 2h, likely an aborted run | terminal `release_in_flight` (stale variant) that prints the script's `UNLOCK_CMD` verbatim, so a wedged lock never dead-ends a solo dev. Never auto-steal |
+| 4 (`error`) | infra/network | one `low` note, proceed — the lock is a safety assist, not a floor |
 
-This lock read closes the race from the **staging side** — a staging merge that would
-start *while* a production ship holds the lock. The **reverse** window — a `--staging`
-merge that landed *before* the production run acquired the lock — is closed from the
-**production side**: `--production` re-verifies sign-off coverage immediately after
-acquiring the lock and refuses `stale_signoff` on drift (`refs/production.md`
-§ *Re-verify sign-off coverage immediately after acquire*).
+This closes the race from the **staging side**. The **reverse** window — a
+`--staging` merge that landed *before* the production run acquired the lock — is
+closed from the **production side** (`refs/production.md` § *Re-verify sign-off
+coverage immediately after acquire*).
 
 **Asymmetric by design:** `--staging` **reads** the lock but never **acquires** one.
 A staging merge (a single `gh pr merge`) is near-atomic — the reverse window (a
 production ship starting mid-staging-merge) is sub-second and not worth the machinery
-or the friction (AC-LK3). The production ship is the long-lived hold; it is the only
+or the friction. The production ship is the long-lived hold; it is the only
 acquirer.
 
 ## Step 2 — Locate the PR + verify green CI
@@ -117,12 +106,12 @@ acquirer.
 Read-only, additive, and only relevant when `policies.test_selection.enabled`
 resolves `true` (`../shared/refs/policy-schema-pre-merge.md` §2c) — otherwise nothing in
 this section is read, per the same dead-config rule every other selection
-artifact follows (AC-TS12). When it's on, pre-merge's minified runs traded
+artifact follows. When it's on, pre-merge's minified runs traded
 full-suite coverage for speed on the promise that the full suite still runs
 somewhere — the declared `full_run_backstop` (`ci` \| `post-merge` \| `both`).
 This is where that promise is checked: a test the minified run **selected away**
 breaking at the backstop is the false-green risk the plan calls out, and it must
-be observable, not anecdotal (AC-TS9).
+be observable, not anecdotal.
 
 **`ci` backstop — off the Step 2 `red_ci` check just above.** When Step 2 finds a
 failing check, resolve the pre-merge run that produced this PR's head commit and
@@ -233,28 +222,21 @@ Only after the human returns. Ask once:
 > - **Staging works** — stamp the sign-off and finish
 > - **Not yet** — leave unstamped; re-run `--staging` (or fix + re-gate) later
 
-On **Staging works**, stamp the PRD frontmatter (the harness-readable half of
-D11 — `--production` Step 1 reads it, the GUI ladder reads it):
-
-- Key: `staging-signoff`, value: `<YYYY-MM-DD>@<sha>` — today's date **and the
-  certified sha** (Step 3's `CERTIFIED_SHA`, full 40 chars). The sha is what
-  makes the stamp verifiable: `--production` Step 1 refuses if `staging` has
-  advanced past every stamped sha, so commits merged after sign-off cannot ride
-  to production uncertified (AC-SO1).
-- Idempotent: if the key exists, overwrite its value; else append it inside the `---` frontmatter block.
-- Write only the frontmatter line — never touch the PRD body.
+On **Staging works**, stamp the PRD frontmatter through the shared scalar writer
+— the one sanctioned writer for this field, never a hand-rolled edit or a
+whole-file re-emit (`SKILL.md` § *Sanctioned writes*, item 2):
 
 ```bash
-# resolve both halves once
-SIGNOFF_DATE=$(date -u +%Y-%m-%d)
-SIGNOFF="${SIGNOFF_DATE}@${CERTIFIED_SHA}"       # CERTIFIED_SHA from Step 3
+S=.claude/scripts/stamp-prd.sh
+bash "$S" <prd-path> staging-signoff "$(date -u +%Y-%m-%d)@${CERTIFIED_SHA}"   # CERTIFIED_SHA from Step 3
 ```
 
-Frontmatter edit shape (preserve every other line verbatim):
-
-```yaml
-staging-signoff: 2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8
-```
+- Value shape `<YYYY-MM-DD>@<sha>` — today's date **and the certified sha**, full
+  40 chars. The sha is what makes the stamp verifiable: `--production` Step 1
+  refuses if `staging` has advanced past every stamped sha, so commits merged
+  after sign-off cannot ride to production uncertified.
+- The writer is idempotent, inserts the key when absent, rewrites it when
+  present, and preserves every other byte — including the PRD body.
 
 **Never stamp a sha other than the one that was deployed and tested.** If
 `git rev-parse origin/staging` no longer equals `CERTIFIED_SHA` at stamp time,

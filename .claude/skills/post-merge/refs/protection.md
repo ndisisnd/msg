@@ -1,6 +1,6 @@
 ---
 name: post-merge-protection
-description: post-merge Step 1/2 — verify branch protection via post-merge-protection.sh before any merge, policy-conditional per branch_protection mode (enforced refuses / optional warns + proceeds / skip doesn't verify). The machine-enforced half of the v2 safety floor (D11 / C3).
+description: post-merge Step 1/2 — verify branch protection via post-merge-protection.sh before any merge, policy-conditional per branch_protection mode (enforced refuses / optional warns + proceeds / skip doesn't verify). The machine-enforced half of the v2 safety floor.
 ---
 
 # Step 1/2 — Branch protection is a policy-conditional precondition
@@ -28,12 +28,11 @@ run `--verify` at all — record "protection check skipped by policy" and procee
 
 ## The check
 
-When `mode_b` is `enforced` or `optional`, resolve the script locally-first, then
-the global install:
+When `mode_b` is `enforced` or `optional` (resolution form: `../SKILL.md`
+§ *Sanctioned writes*):
 
 ```bash
 S=.claude/scripts/post-merge-protection.sh
-[ -f "$S" ] || S="$HOME/.claude/scripts/post-merge-protection.sh"
 bash "$S" --verify <branch>       # <branch> = staging (--staging) or main (--production)
 ```
 
@@ -51,7 +50,7 @@ governs **only** the `UNPROTECTED` case; `NO_GH`/`NO_REMOTE` refuse in every mod
 
 `<missing>` is a comma list: `status-checks` (green-CI requirement absent),
 `force-pushes` (force-push not blocked), `required-reviews` (main lacks the ≥1
-approval rule — the D11 machine half).
+approval rule).
 
 ## The bootstrap (setup instruction to surface on refusal)
 

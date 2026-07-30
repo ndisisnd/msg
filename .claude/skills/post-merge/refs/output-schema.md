@@ -1,13 +1,18 @@
 ---
 name: post-merge-output-schema
-description: What post-merge emits — a clean run's summary, and the canonical finding it raises on a deploy failure or refusal. Findings conform to shared/refs/finding-schema.md with source `post-merge`.
+description: What post-merge emits — a clean run's summary, and the canonical findings it raises on a deploy failure, a smoke failure, a macOS release-check failure, a provenance mismatch or a test-selection miss. Findings conform to shared/refs/finding-schema.md with source `post-merge`.
 ---
 
 # Output Schema
 
-Post-merge's primary artifact is its **run report** (`../shared/refs/report-schema.md`,
-`skill: post-merge`). It additionally emits structured JSON in two cases: a
-refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
+Post-merge's primary artifact is its **run report**
+(`../shared/refs/report-schema.md`, `skill: post-merge`). It additionally emits
+structured JSON in two cases: a refusal (`refs/refusal-patterns.md`) and a
+failure (a canonical finding).
+
+Every block below is **additive**: fields are only ever added, never renamed or
+reshaped, and a reader that predates a block simply does not see it. That rule
+holds for the whole file and is not restated per block.
 
 ## Clean-run summary (printed on success)
 
@@ -20,136 +25,119 @@ refusal (`refs/refusal-patterns.md`) and a deploy failure (a canonical finding).
   "merge_commit": "<sha>",
   "deploy": { "ran": true, "target": "<url/build id>", "skipped": [] },
   "verify": { "ran": true, "passed": true, "skipped": [] },
-  "platforms": [                        // ADDITIVE (C1/C5/CV2/AC-CONTRACT1) — per-platform release model + outcome; absent on pre-C1 runs
-    { "platform": "web", "release_model": "deploy",     "outcome": "deployed" },   // deploy model: exit 0 ⇒ live
-    { "platform": "ios", "release_model": "submission", "outcome": "submitted",    // submission model: exit 0 ⇒ submitted, never "live"
-      "track": "App Store review (Waiting for Review)",                            // C5 lifecycle fields (additive)
+  "platforms": [
+    { "platform": "web", "release_model": "deploy",     "outcome": "deployed" },
+    { "platform": "ios", "release_model": "submission", "outcome": "submitted",
+      "track": "App Store review (Waiting for Review)",
       "submitted_at": "2026-07-21T11:07:18Z",
-      "monitor": "App Store Connect",                                             // console name for the handoff
-      "live_status": "handed_off" }                                              // AC-SB5 polling seam; default "handed_off"
+      "monitor": "App Store Connect",
+      "live_status": "handed_off" }
   ],
-  "staging_signoff": "2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",  // <date>@<certified sha>; --staging only, on approval; null otherwise
-  "release_identity": {                 // ADDITIVE (C4/CV2) — --production only; absent on --staging & pre-C4 runs
-    "version": "2.3.0",                 // resolved next version (default minor bump from the last v* tag on prod)
-    "build": 418,                       // commit count on prod at release — monotonic by construction
-    "tag": "v2.3.0+418",                // cut on prod ONLY on a successful release (Step 9); null on a failed/skipped tag
-    "bump": "minor"                     // "major" | "minor" (default) | "patch" | "explicit"
+  "staging_signoff": "2026-07-13@4f2c9a1e8b7d6c5a4938271605f4e3d2c1b0a9f8",
+  "release_identity": {                 // --production only
+    "version": "2.3.0",
+    "build": 418,
+    "tag": "v2.3.0+418",                // null on a failed/skipped tag
+    "bump": "minor"                     // "major" | "minor" | "patch" | "explicit"
   },
-  "release_lock": {                     // ADDITIVE (C8/P5/CV2) — --production only; absent on --staging & pre-P5 runs
-    "ref": "release-lock-main",         // the lock tag (release-lock-<prod>)
-    "acquired": true,                   // did THIS run acquire the lock (false on infra-error fail-open)
-    "acquired_at": "2026-07-21T11:07:18Z",  // tagger date of the acquire; null if not acquired
-    "released": true,                   // released at ship-terminal (before any fix-loop handoff) / run end; false ONLY on a hard-kill dangle (TTL then reclaims)
-    "released_at": "2026-07-21T11:14:02Z"   // when this run released it; null if still held / never acquired
+  "release_lock": {                     // --production only
+    "ref": "release-lock-main",
+    "acquired": true,
+    "acquired_at": "2026-07-21T11:07:18Z",
+    "released": true,
+    "released_at": "2026-07-21T11:14:02Z"
   },
   "report": "features/prd-101-.../reports/report-3.md"
 }
 ```
 
-**`platforms[]` — additive per-platform release-model surface (C1).** New fields
-only — nothing above is renamed or reshaped (CV2/AC-CONTRACT1). Each entry carries
-the resolved `release_model` (`deploy` | `submission`) and an `outcome`:
+`verify`: `ran:false` / `passed:null` when nothing was configured; `passed:false`
+alongside the finding on a failure; `skipped` lists platforms with no usable
+`smoke_cmd`.
+
+### `platforms[]`
 
 | `outcome` | Meaning | Applies to |
 |---|---|---|
 | `deployed` | the target is live and (if smoked) verified | `deploy` model |
-| `submitted` | the artifact was submitted to its store track — **never** "live" (AC-RM3/AC-SB1); `track` names the target | `submission` model |
+| `submitted` | the artifact was submitted to its store track — **never** "live"; `track` names the target | `submission` model |
 | `skipped` | no deploy command configured | either |
 
-A `submission` entry additionally carries the C5 lifecycle fields, all **additive**
-— none renames or reshapes the fields above (CV2/AC-CONTRACT1):
+A `submission` entry additionally carries:
 
 | Field | Meaning |
 |---|---|
-| `track` | the store track the artifact was submitted to (e.g. `App Store review (Waiting for Review)`, `Play production (staged rollout 10%, pending review)`) |
+| `track` | the store track submitted to (e.g. `App Store review (Waiting for Review)`, `Mac App Store review (Waiting for Review)`, `Play production (staged rollout 10%, pending review)`) |
 | `submitted_at` | ISO-8601 timestamp of the accepted submit |
-| `monitor` | the console name for the handoff (`App Store Connect` / `Google Play Console`) — the human pointer, AC-SB3 |
-| `live_status` | the **polling seam** (AC-SB5): defaults to **`handed_off`**; v4 always emits this (post-merge does not poll, D2). Reserved values for v4.1 store-status polling — `processing` \| `in_review` \| `rejected` \| `rolling_out` \| `live` — can populate it **without a breaking change**. Readers treat an unknown value as opaque and **absence as `handed_off`**. |
+| `monitor` | the console for the handoff (`App Store Connect` / `Google Play Console`) |
+| `live_status` | the polling seam: defaults to **`handed_off`**, which is what post-merge always emits — it does not poll. Reserved values for a future store-status poll — `processing` \| `in_review` \| `rejected` \| `rolling_out` \| `live`. Readers treat an unknown value as opaque and **absence as `handed_off`** |
 
-`deploy` entries carry none of these — they are `submission`-only, so a
-`deploy`-model reader is unaffected.
-
-**Release-identity per-platform fields (C4/CV2/AC-CONTRACT1 — additive).** On a
-`--production` run each `platforms[]` entry may additionally carry (all optional,
-absent on `--staging` and pre-C4 runs):
+On a `--production` run each entry may also carry:
 
 | Field | Meaning |
 |---|---|
-| `build_number` | the build derived for this release (all platforms share the repo-wide `release_identity.build`) — surfaced per platform because stores gate on it |
-| `provenance` | `verified` (a `version_probe` reported a commit inside the signed-off release), `asserted_unverified` (no `version_probe` declared — structural assertion only), or `fail` (probe reported a commit **outside** the signed-off release — AC-RI2; drives verdict `fail`) |
+| `build_number` | the build derived for this release (all platforms share `release_identity.build`) — surfaced per platform because stores gate on it |
+| `provenance` | `verified` \| `asserted_unverified` \| `fail` (a probe reported a commit **outside** this release's window — drives verdict `fail`) |
+| `smoke` | how the v2 smoke contract ran (below) |
+| `rollback` | the failed-ship rollback offer (below) |
 
-**Rollback-offer fields (C3/CV2/AC-CONTRACT1 — additive, failed-ship only).** On a
-failed ship, each failing `platforms[]` entry carries a `rollback` object recording
-the always-ask offer (`SKILL.md` § *Failed-ship loop* step 1) — present only when a
-rollback was offered, absent on a clean run:
+**Smoke** (`refs/verify-deploy.md` § *Smoke contract v2*):
+
+```json
+"smoke": { "mode": "one_shot", "attempts": 1, "window": null }
+```
+
+| Field | Meaning |
+|---|---|
+| `mode` | `one_shot` (bare `smoke_cmd`) · `poll` (waited for a late-live target) · `watch` (re-checked health over a window) · `poll+watch` |
+| `attempts` | total `cmd` invocations: `1` for one-shot; `1 + poll-retries`; `1 + watch-re-checks`; summed when composed |
+| `window` | `held` (every re-check passed) · `degraded` (a re-check failed → `smoke-failed`, routes to the rollback offer) · `timed_out` (a poll never saw exit 0 → `smoke-never-live`) · `null` (one-shot) |
+
+**Rollback** — present only when a lever was offered on a failed ship
+(`SKILL.md` § *Failed-ship loop*):
 
 ```json
 "rollback": {
-  "offered": true,                 // was the lever offered (a configured rollback_cmd / rollout_halt_cmd)
-  "lever": "rollback_cmd",         // "rollback_cmd" (deploy) | "rollout_halt_cmd" (submission) | null (unconfigured → notes-only gap, AC-RB2)
-  "approved": false,               // did the human approve running it (never auto — D12); false = declined / autonomy-default-decline
-  "cmd_exit": null,                // the lever's exit code when approved+run; null when declined or unconfigured
-  "outcome": "declined"            // "rolled_back" | "halted" | "declined" | "unconfigured_gap" | "failed" (lever ran non-zero)
+  "offered": true,
+  "lever": "rollback_cmd",         // "rollback_cmd" | "rollout_halt_cmd" | null
+  "approved": false,               // never auto — false = declined / autonomy-default
+  "cmd_exit": null,
+  "outcome": "declined"
 }
 ```
 
 | `outcome` | Meaning |
 |---|---|
-| `rolled_back` | `deploy` platform: `rollback_cmd` ran, exit 0 — last-good restored |
-| `halted` | `submission` platform: `rollout_halt_cmd` ran, exit 0 — staged rollout / phased release halted |
-| `declined` | offered, human said no (or autonomy-default-decline) — the fix loop still runs (AC-RB3) |
-| `unconfigured_gap` | no lever configured — notes-only, flagged as a gap (AC-RB2) |
+| `rolled_back` | `rollback_cmd` ran, exit 0 — last-good restored |
+| `halted` | `rollout_halt_cmd` ran, exit 0 — staged rollout / phased release halted |
+| `declined` | offered, human said no (or autonomy-default-decline) — the fix loop still runs |
+| `unconfigured_gap` | no lever configured — notes-only, flagged as a gap |
 | `failed` | the lever ran but exited non-zero — surfaced with its `cmd_exit` |
 
-**Smoke v2 fields (C7/CV2/AC-CONTRACT1 — additive).** Each `platforms[]` entry
-carries the smoke verification mode, recording how the v2 contract ran
-(`refs/verify-deploy.md` § *Smoke contract v2*). All additive — a bare one-shot
-smoke emits the defaults below, so a pre-v2 reader is unaffected (AC-SM1):
+### `release_lock`
 
-```json
-"smoke": {
-  "mode": "one_shot",      // "one_shot" | "poll" | "watch" | "poll+watch"
-  "attempts": 1,           // how many times `cmd` ran (poll retries + watch re-checks + 1)
-  "window": null           // "held" | "degraded" | "timed_out" | null (one-shot / no window)
-}
-```
+Recorded straight from `script-release-lock.sh`'s keys
+(`refs/production.md` § *Release lock*).
 
 | Field | Meaning |
 |---|---|
-| `mode` | `one_shot` (bare `smoke_cmd`, AC-SM1) · `poll` (waited for a late-live target, AC-SM3) · `watch` (re-checked health over a window, AC-SM2) · `poll+watch` (both — poll then watch) |
-| `attempts` | total `cmd` invocations: `1` for one-shot; `1 + poll-retries`; `1 + watch-re-checks`; summed when composed |
-| `window` | `held` (every watch re-check passed) · `degraded` (a watch re-check failed → `smoke-failed`, routes to the rollback offer) · `timed_out` (a poll never saw exit 0 within the bound → `smoke-never-live`) · `null` (one-shot, or poll-that-passed with no watch declared) |
-
-**Release-lock fields (C8/CV2/AC-CONTRACT1 — additive, `--production` only).** The
-`release_lock` block (above) records the concurrency lock's per-run state
-(`refs/production.md` § *Release lock*, `../shared/refs/policy-schema-post-merge.md` §6). All
-additive — absent on `--staging` and pre-P5 runs, so no existing reader is affected:
-
-| Field | Meaning |
-|---|---|
-| `ref` | the lock tag name, `release-lock-<prod>` (e.g. `release-lock-main`) |
-| `acquired` | did **this** run acquire the lock. `false` only on the infra-error fail-open (a non-contention push error → proceed without the guard, one `low` note) |
-| `acquired_at` | ISO-8601 tagger date of the acquire; `null` when not acquired |
-| `released` | did this run release it (AC-LK2). `true` on every graceful exit — success, failed ship (released at **ship-terminal, before the fix-loop handoff** — `refs/production.md` § *Release lock*), refusal-after-acquire; `false` **only** on a hard process kill, which the 2h TTL + manual unlock then reclaim |
+| `ref` | the lock tag, `release-lock-<prod>` |
+| `acquired` | did **this** run acquire it. `false` only on the infra-error fail-open |
+| `acquired_at` | ISO-8601 acquire time; `null` when not acquired |
+| `released` | `true` on every graceful exit — success, failed ship (released at ship-terminal, before the fix-loop handoff), refusal-after-acquire; `false` **only** on a hard process kill, which the TTL + manual unlock reclaim |
 | `released_at` | when this run released it; `null` if never acquired or still held |
 
-This clean-run block carries **no `stale_detected` field**. A run that **held** the
-lock cleanly never encountered a stale one (had it, it would have refused, not run
-clean). **Stale detection lives in the `release_in_flight` refusal's `lock` block**
-(`lock.stale: true`, `refs/refusal-patterns.md`) — the run that hit a stale lock is
-the *blocked* run, which terminates as that refusal, never as a clean run.
-
-A **contended** acquire does not produce this block — it produces the
-`release_in_flight` **refusal** instead (its own `lock` block names the holder and
-carries `stale`, `refs/refusal-patterns.md`). The clean-run `release_lock` block is
-for the run that **held** the lock; the refusal's `lock` block is for the run that
-was **blocked**.
+This block carries **no `stale_detected` field**. A run that *held* the lock
+cleanly never met a stale one — had it, it would have refused. Stale detection
+lives in the `release_in_flight` refusal's `lock` block
+(`refs/refusal-patterns.md`): the clean-run block belongs to the run that **held**
+the lock, the refusal's block to the run that was **blocked**.
 
 ## Deploy-failure finding
 
-A non-zero deploy exit does not un-merge anything — the merge already happened —
-so post-merge surfaces it as a finding rather than swallowing it. Conforms to
-`../shared/refs/finding-schema.md` (the same object every gate stage emits):
+A non-zero deploy exit does not un-merge anything, so post-merge surfaces it as a
+finding rather than swallowing it. Conforms to
+`../shared/refs/finding-schema.md`:
 
 ```json
 {
@@ -171,42 +159,33 @@ so post-merge surfaces it as a finding rather than swallowing it. Conforms to
 }
 ```
 
-- `source` is `post-merge` (the value added to the finding-schema source enum in P5).
-- `category: deploy` is used for deploy failures; a refusal uses the refusal JSON shape instead (it carries no findings).
+`category: deploy` covers deploy failures; a refusal uses the refusal JSON shape
+instead (it carries no findings).
 
-## Smoke-verification failure finding (incl. v2 verdicts)
+## Smoke-verification failure findings
 
-A deploy that succeeds but fails its smoke emits the same canonical shape — full
-example and consequences in `refs/verify-deploy.md`. The v2 contract adds two
-**distinct** failure rules alongside the plain one; all `category: deploy`,
-`severity: high`, verdict `fail`:
+Same canonical shape; consequences in `refs/verify-deploy.md`. All
+`category: deploy`, `severity: high`, verdict `fail`:
 
-| `rule` | When (v2, `refs/verify-deploy.md` § *Smoke contract v2*) |
+| `rule` | When |
 |---|---|
-| `smoke-failed` | the first-verdict `cmd` ran and exited non-zero (one-shot or the first poll pass), **or** a `watch_window` re-check degraded after an initial pass (`window: "degraded"`) — the target is up but unhealthy |
-| `smoke-never-live` | a `poll` ran to its `<timeout>` without a single exit 0 (`window: "timed_out"`) — the target **never came up within the bounded wait**; a different diagnosis than *up-but-broken*, so a distinct rule (AC-SM3) |
+| `smoke-failed` | the first-verdict `cmd` exited non-zero, **or** a `watch_window` re-check degraded after an initial pass (`window: "degraded"`) — the target is up but unhealthy |
+| `smoke-never-live` | a `poll` ran to its timeout without a single exit 0 (`window: "timed_out"`) — the target **never came up within the bounded wait**, a different diagnosis than *up-but-broken* |
 
-The clean-run summary's `verify` block records the outcome either way: `ran: false`
-/ `passed: null` when nothing was configured, `passed: false` alongside the finding
-on a failure, `skipped` listing platforms with no usable `smoke_cmd`. The
-per-platform `smoke: {mode, attempts, window}` object (above) records which v2 mode
-ran.
+## macOS release-check findings (`deploy` model)
 
-## macOS release-check findings (`--staging` / `--production`, C6, `deploy` model)
+A directly-distributed macOS platform carries three config-gated checks
+(`refs/verify-deploy.md` § *macOS release checks*). Undeclared ⇒ nothing runs and
+nothing is flagged. When declared and failing, each emits a **distinct, specific**
+finding — never a generic deploy failure — all `source: post-merge`,
+`category: deploy`, `severity: high`, verdict `fail`:
 
-macOS (`release_model: deploy`) carries three config-gated checks
-(`refs/verify-deploy.md` § *macOS release checks*). Each undeclared surface runs
-**nothing** and emits **no finding** (D13). When declared and failing, each emits a
-**distinct, specific** finding — never a generic deploy failure (AC-MAC1) — all
-`source: post-merge`, `category: deploy`, `severity: high`, verdict `fail`, routed
-through the same failed-ship loop (rollback offer before the fix loop):
-
-| `rule` | Check | Fires when | AC |
-|---|---|---|---|
-| `notarization-stall` | notarization (`notarize_status_cmd`, polled via the C7 poll primitive) | the notary status is still non-terminal (`In Progress`) at the poll ceiling — a **stall**, distinct from a reject and from a build break (the P0 finding #4 defect) | AC-MAC1 |
-| `notarization-invalid` | notarization | the notary reached a terminal `Invalid` / `Rejected` status | AC-MAC1 |
-| `signing-fail` | signing / Gatekeeper (`signing_smoke_cmd`) | `spctl --assess` / `codesign --verify` rejected the built artifact — the shipped `.app` will not open on a user's Mac | AC-MAC2 |
-| `appcast-stale` | appcast (`appcast_url`) | the Sparkle feed is unreachable **or** missing the release-identity `NEXT_VERSION` — the update channel did not publish the new version | AC-MAC3 |
+| `rule` | Check | Fires when |
+|---|---|---|
+| `notarization-stall` | notarization (`notarize_status_cmd`, polled) | still non-terminal (`In Progress`) at the poll ceiling — a **stall**, distinct from a reject and from a build break |
+| `notarization-invalid` | notarization | the notary reached a terminal `Invalid` / `Rejected` status |
+| `signing-fail` | signing / Gatekeeper (`signing_smoke_cmd`) | `spctl --assess` / `codesign --verify` rejected the artifact — the shipped `.app` will not open on a user's Mac |
+| `appcast-stale` | appcast (`appcast_url`) | the Sparkle feed is unreachable **or** missing the release's `NEXT_VERSION` — the update channel did not publish |
 
 Canonical shape (notarization-stall shown; the others differ only in `rule` /
 `message` / `repro`):
@@ -231,28 +210,26 @@ Canonical shape (notarization-stall shown; the others differ only in `rule` /
 }
 ```
 
-The notarization async shape **mirrors a `submission`'s *processing* state**
+The notarization async shape mirrors a `submission`'s *processing* state
 (`refs/submission.md`) — the vocabulary (submit → processing → terminal) and the
 poll primitive are shared, not re-invented.
 
-## Provenance-failure finding (`--production`, C4/AC-RI2)
+## Provenance-failure finding (`--production`)
 
-A declared `version_probe` reporting a commit **outside** the signed-off release
-(not the certified sha, not an ancestor of prod) emits the canonical shape with
-`category: deploy`, `rule: "provenance-mismatch"`, `severity: high` — the artifact
-that shipped was built from a commit no human certified (`refs/release-identity.md`).
-Sets verdict `fail` and skips the intake stamp (Step 8) and the release tag
-(Step 9). No `version_probe` declared → no finding; provenance is recorded as
-`asserted_unverified` in the platform entry, never a fail.
+A declared `version_probe` reporting a commit **outside** this release's window
+emits the canonical shape with `category: deploy`,
+`rule: "provenance-mismatch"`, `severity: high` — the artifact that shipped was
+built from a commit no human certified (`refs/release-identity.md`). Sets verdict
+`fail` and skips the intake stamp, the tag and the `done` transition. No probe →
+no finding; provenance is recorded as `asserted_unverified`.
 
-## Test-selection-miss finding (`--staging`, additive, policy-conditional)
+## Test-selection-miss finding (`--staging`, policy-conditional)
 
 Only emitted when `policies.test_selection.enabled` resolves `true`
-(`../shared/refs/policy-schema-pre-merge.md` §2c) and the backstop's full run (a red CI
-check, or the human's staging test outcome) fails a test pre-merge's minified
-verdict **selected away** — the detection contract lives in
-`refs/staging.md` § *Test-selection-miss detection*; this is its wire shape.
-Conforms to `../shared/refs/finding-schema.md`:
+(`../shared/refs/policy-schema-pre-merge.md` §2c) and the backstop's full run
+fails a test pre-merge's minified verdict **selected away**. The detection
+contract lives in `refs/staging.md` § *Test-selection-miss detection*; this is its
+wire shape:
 
 ```json
 {
@@ -274,31 +251,22 @@ Conforms to `../shared/refs/finding-schema.md`:
 }
 ```
 
-- `category` mirrors the test's owning component when the category vocabulary has
-  a slot for it (`unit`/`integration`). **A `regression`-component miss uses
-  `other` — deliberately, not by oversight.** The category enum in
-  `../shared/refs/finding-schema.md` is **closed** (its only sanctioned extension
-  point is documented extra keys *inside* `evidence`, never a new top-level field
-  or a new category), and it has no `regression` member — `regression` failures
-  have always been categorized under an existing member by that same file. Adding
-  one would change a shared enum every consumer switches on (the `/msg --gui`
-  board, `eng --build report=`, the dedup/regression keys), which is out of
-  proportion to one finding type. So: `category: "other"`, and the owning
-  component is carried losslessly in `rule` (`test-selection-miss`) +
-  `evidence.snippet` (which quotes the `regression:` pipeline suffix) — the miss
-  stays fully attributable without touching the enum.
+- `category` mirrors the test's owning component where the vocabulary has a slot
+  (`unit`/`integration`). **A `regression`-component miss uses `other` —
+  deliberately.** The category enum in `../shared/refs/finding-schema.md` is
+  **closed** (its only sanctioned extension point is documented extra keys inside
+  `evidence`), and it has no `regression` member; adding one would change a shared
+  enum every consumer switches on. The owning component is carried losslessly in
+  `rule` + `evidence.snippet`, so the miss stays fully attributable.
 - `evidence.snippet` quotes the exact `test_selection.per_check` pipeline suffix
-  (`pre-merge/refs/output-schema.md`) that shows the component ran minified and
-  what excluded this test — the audit trail that makes the miss attributable,
-  never asserted from memory.
-- **Rolling-window escalation** (two or more of these findings inside 30 days)
-  adds one extra report line recommending `/pre-merge --update-criticality` or
-  `/msg --update` to disable the policy, and names this finding's `file` as a
-  `force_full_paths` candidate — mechanism owned by `refs/staging.md`, not a new
-  field on this finding.
-- Additive to whatever refusal/finding already covers the backstop failure
-  itself (`red_ci`, a failed staging sign-off) — it never substitutes for that
-  and never turns a clean run non-clean on its own.
+  showing the component ran minified and what excluded this test — the audit trail
+  that makes the miss attributable, never asserted from memory.
+- Two or more of these findings inside 30 days adds one report line recommending
+  `/pre-merge --update-criticality` or `/msg --update`, and names this finding's
+  `file` as a `force_full_paths` candidate — mechanism owned by `refs/staging.md`.
+- Additive to whatever refusal/finding already covers the backstop failure itself
+  (`red_ci`, a failed staging sign-off); it never substitutes for it and never
+  turns a clean run non-clean on its own.
 
 ## Verdict values
 
@@ -306,5 +274,5 @@ Conforms to `../shared/refs/finding-schema.md`:
 |---|---|---|
 | `pass` | merged (+ deployed or deploy-skipped-with-note, + smoke verified or verify-skipped-with-note, + provenance verified/asserted, + tagged) | 0 |
 | `fail` | merged but a deploy errored, failed its smoke check, or failed provenance (finding emitted) — no tag cut | 1 |
-| `refused` | a precondition/gate blocked before the sanctioned action (incl. `nonmonotonic_build` before a submission submit) | 1 |
+| `refused` | a precondition/gate blocked before the sanctioned action (incl. `nonmonotonic_build` before a submission's submit) | 1 |
 | `skipped` | a human cancelled at a gate | 0 |

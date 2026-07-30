@@ -1,6 +1,6 @@
 ---
 name: post-merge-verify-deploy
-description: Post-deploy verification per release_model. deploy platforms — run the platform's smoke against the live target (exit 0 = verified). submission platforms — verification = submission accepted; a configured smoke is reported as backend/build health, never app liveness. Smoke is the v2 contract — a bare smoke_cmd is one-shot (back-compat), an optional watch_window re-checks health over a bounded window, and an optional poll waits for a late-live target up to a bounded timeout. Non-zero smoke = a high `smoke-failed` finding that fails the run; a watch-window degrade or a poll timeout are distinct verdicts. Unconfigured ⇒ skipped with a note, never invented. macOS deploy platforms additionally get config-gated notarization, signing/Gatekeeper, and appcast checks (C6) — each a distinct finding, silent when undeclared.
+description: Post-deploy verification per release_model. deploy platforms — run the platform's smoke against the live target (exit 0 = verified). submission platforms — verification = submission accepted; a configured smoke is reported as backend/build health, never app liveness. Smoke is the v2 contract — a bare smoke_cmd is one-shot (back-compat), an optional watch_window re-checks health over a bounded window, and an optional poll waits for a late-live target up to a bounded timeout. Non-zero smoke = a high `smoke-failed` finding that fails the run; a watch-window degrade or a poll timeout are distinct verdicts. Unconfigured ⇒ skipped with a note, never invented. macOS deploy platforms additionally get config-gated notarization, signing/Gatekeeper, and appcast checks — each a distinct finding, silent when undeclared.
 ---
 
 # Verify the deploy — verification per `release_model`
@@ -10,22 +10,20 @@ deploy — `--staging` Step 5 and `--production` Step 7 — post-merge verifies 
 platform **according to its `release_model`** (`../shared/refs/policy-schema-post-merge.md`
 §4):
 
-- **`deploy`** (web, macOS, server) → the target is live, so post-merge runs the
-  platform's `smoke_cmd` **against the live target** and treats its exit code as
-  the verdict on whether the release is actually up. This is the pipeline's only
-  look at the running system; without it a mechanically-clean deploy of a broken
-  app reports `pass`. This path is **unchanged from before the release-model
-  split** (AC-RM2).
-- **`submission`** (iOS, Android) → **nothing is live yet** — the artifact is in
-  store review. "Smoke the live target" does not apply. Verification is that the
-  **submission was accepted** (deploy exit 0 + track recorded, `refs/deploy.md`).
-  The accept/reject verdict is the deploy-cmd's **exit code**: exit 0 = accepted;
-  a non-zero exit = **rejected-at-upload**, which is a **deploy-step failure**
-  (`refs/deploy.md`), not a smoke failure. A later **review** rejection is
-  out-of-band — post-merge never sees it (`refs/submission.md`). A configured
-  `smoke_cmd` still runs, but it is checking the **backend or the build** and is
-  **reported as backend/build health, never as "the app is live"** (AC-RM3,
-  AC-SB2). See `refs/submission.md`.
+- **`deploy`** (web, server, directly-distributed macOS) → the target is live, so
+  post-merge runs the platform's `smoke_cmd` **against the live target** and
+  treats its exit code as the verdict on whether the release is actually up. This
+  is the pipeline's only look at the running system; without it a
+  mechanically-clean deploy of a broken app reports `pass`.
+- **`submission`** (iOS, Android, Mac App Store macOS) → **nothing is live yet** —
+  the artifact is in store review, so "smoke the live target" does not apply.
+  Verification is that the **submission was accepted** (deploy exit 0 + track
+  recorded), the accept/reject verdict being the deploy-cmd's **exit code**; a
+  non-zero exit is **rejected-at-upload**, a deploy-step failure (`refs/deploy.md`),
+  not a smoke failure. A configured `smoke_cmd` still runs but checks the backend
+  or the build. The full rule — submitted-not-live, the backend/build-health
+  label, the out-of-band review rejection — is specified once in
+  `refs/submission.md`.
 
 ## Resolve
 
@@ -35,7 +33,7 @@ platform **according to its `release_model`** (`../shared/refs/policy-schema-pos
    the `smoke_cmd` column is `cmd`; the optional `smoke_watch_window` /
    `smoke_poll` columns fill `watch_window` / `poll` when present. A row with only
    `smoke_cmd` filled resolves to `{cmd}` — a **bare, one-shot** smoke, unchanged
-   from before v2 (AC-SM1).
+   from before v2.
 2. Missing file, missing column (pre-`smoke_cmd` PLATFORMS.md), empty `smoke_cmd`
    cell, or a `[USER: …]` placeholder → **skip verification for that platform with
    a note** (`verify.skipped += <platform>`). Never invent or infer a smoke
@@ -91,7 +89,7 @@ what an exit code means.
 Smoke is no longer inherently one-shot. The declaration is
 `smoke: {cmd, watch_window?, poll?}` (§ *Resolve*); the two optional modifiers are
 independent and composable. **In-scope: watch-window + poll only. Explicit
-non-goals (D9/CV1):** canary / percentage traffic-splitting, progressive delivery,
+non-goals:** canary / percentage traffic-splitting, progressive delivery,
 and **auto-rollback triggers** — a small-team harness has none of that
 infrastructure. v2 re-runs one health `cmd`; it never splits traffic and never
 reverts on its own.
@@ -100,14 +98,14 @@ The mode is recorded per platform as `one_shot` | `watch` | `poll` (both modifie
 present ⇒ `poll` then `watch`, recorded `poll+watch`) alongside `attempts` and a
 `window` outcome (`refs/output-schema.md`).
 
-### one-shot — a bare `smoke_cmd` (AC-SM1, back-compat is sacred)
+### one-shot — a bare `smoke_cmd` (back-compat is sacred)
 
 `smoke_watch_window` and `smoke_poll` both absent ⇒ the smoke runs **exactly once**
 and its exit code is the verdict, byte-for-byte the pre-v2 behavior. This is the
 default and the common case; nothing about the bare-string path changes. `attempts:
 1`, `mode: one_shot`.
 
-### poll — wait for a late-live target (AC-SM3)
+### poll — wait for a late-live target
 
 Some targets go live **after a delay**: CDN / DNS propagation, store processing, a
 just-published appcast, macOS notarization. A one-shot smoke fired the instant the
@@ -128,7 +126,7 @@ deploy cmd exits would spuriously fail against a target that is simply not up
 Poll never waits unbounded — the `<timeout>` is the hard ceiling. post-merge does
 not background-wait or re-invoke itself; the loop runs inline within the run.
 
-### watch-window — re-check health after it passes (AC-SM2)
+### watch-window — re-check health after it passes
 
 A deploy that passes its *first* health check can still degrade seconds later
 (a bad rollout that only fails under warm traffic, a leaking process, an appcast
@@ -143,10 +141,10 @@ that 200s once then 404s). `smoke_watch_window: <duration>/<interval>` (e.g.
   the degradation (`"web live target passed initially then degraded at <t> into a
   5m watch-window (exit <code>)"`), `window: "degraded"`. This routes to the
   **same failed-ship loop as any smoke failure** — including the **executable
-  rollback/rollout-halt offer before the fix loop** (P3; `SKILL.md` § *Failed-ship
+  rollback/rollout-halt offer before the fix loop** (`SKILL.md` § *Failed-ship
   loop*, `deploy` platforms' `rollback_cmd`). The watch-window is exactly the
   signal a redeploy-last-good rollback exists to answer — but the revert is still
-  **always-ask, never auto** (D12): a degrade *offers* the rollback, it never fires
+  **always-ask, never auto**: a degrade *offers* the rollback, it never fires
   it.
 
 Watch-window is bounded by `<duration>`; post-merge does not monitor indefinitely.
@@ -165,18 +163,18 @@ went live to watch). Recorded `mode: poll+watch`.
 | Mode | On smoke failure |
 |---|---|
 | `--staging` | Verdict `fail`. **Skip the human test script and the sign-off ask** (Steps 6–7) — never hand a human a script for a broken environment. The report points at fixing forward through `/pre-merge`. |
-| `--production` | Verdict `fail`. **Skip the intake `completed` stamp** (Step 8) **and the release tag** (Step 9) — a release that isn't verifiably live doesn't close its PRD or earn a version identity. The failed-ship loop **offers to execute the rollback / rollout-halt** (`rollback_cmd` / `rollout_halt_cmd`) before the fix loop (`SKILL.md`, D12/AC-RB1/RB3); an unconfigured lever falls back to the `rollback_possible` notes for manual restore, flagged as a gap (AC-RB2). |
+| `--production` | Verdict `fail`. **Skip the intake `completed` stamp** (Step 8) **and the release tag** (Step 9) — a release that isn't verifiably live doesn't close its PRD or earn a version identity. The failed-ship loop **offers to execute the rollback / rollout-halt** (`rollback_cmd` / `rollout_halt_cmd`) before the fix loop (`SKILL.md`); an unconfigured lever falls back to the `rollback_possible` notes for manual restore, flagged as a gap. |
 
 The merge already happened in both cases — verification failure is surfaced
 loudly, never silently swallowed, and never pretends to un-merge anything. The
-rollback offer is **always-ask, never auto** (D12): a false-positive smoke must not
+rollback offer is **always-ask, never auto**: a false-positive smoke must not
 revert a good release.
 
 ## Record
 
 Carry the outcome into the clean-run summary (`refs/output-schema.md`). The
 per-platform smoke result carries the v2 fields (all **additive** — the top-level
-`verify` block is unchanged, CV2):
+`verify` block is unchanged):
 
 ```json
 "verify": { "ran": true, "passed": true, "skipped": [] }
@@ -189,9 +187,9 @@ per-platform smoke result carries the v2 fields (all **additive** — the top-le
 Each platform's entry in `platforms[]` additionally carries the smoke `mode`
 (`one_shot` | `poll` | `watch` | `poll+watch`), `attempts` (how many times `cmd`
 ran), and the `window` outcome (`held` | `degraded` | `timed_out` | `null` for
-one-shot) — see `refs/output-schema.md` § *Smoke v2 fields*. A bare one-shot smoke
+one-shot) — see `refs/output-schema.md` § *`platforms[]`*. A bare one-shot smoke
 emits `mode: one_shot`, `attempts: 1`, `window: null`, so a pre-v2 reader sees no
-change (AC-SM1).
+change.
 
 The run report's `## Test results` gets one line per platform: for `deploy`
 platforms — verified / smoke-failed / **smoke-never-live** (poll timeout) /
@@ -199,37 +197,43 @@ platforms — verified / smoke-failed / **smoke-never-live** (poll timeout) /
 `submission` platforms — submitted (+ track) / backend-health-ok /
 backend-health-failed / skipped, never "live" (`refs/submission.md`).
 
-## macOS release checks — notarization / signing / appcast (C6, `deploy` model)
+## macOS release checks — notarization / signing / appcast (`deploy` model only)
+
+These apply to a **directly-distributed** macOS app — the `.app` a user downloads
+and Sparkle updates. A macOS platform declared `release_model: submission` (the
+Mac App Store) does **not** run them: Apple notarizes and signs Mac App Store
+builds internally, and there is no appcast feed — it follows `refs/submission.md`
+exactly as iOS does.
 
 A macOS (`release_model: deploy`) release has three verifiable facts the generic
 smoke cannot express: the artifact was **notarized** by Apple, it is **signed** and
 will pass Gatekeeper, and the **Sparkle appcast** update feed carries the new
 version. Today these are folded invisibly into `production_deploy_cmd` — a stall or
-a Gatekeeper reject looks like a generic deploy failure (P0 finding #4). C6 makes
-each a **distinct, config-gated, declared-artifact check** run during verification
+a Gatekeeper reject looks like a generic deploy failure. Each is instead a
+**distinct, config-gated, declared-artifact check** run during verification
 (`--staging` Step 5 / `--production` Step 7), alongside the smoke. **Every check is
 gated on its own declared surface: undeclared ⇒ it does not run and nothing is
-flagged** (D13). They apply only to `deploy`-model platforms (a `submission`
-platform's App Store notarization is Apple-internal and out-of-band —
+flagged**. They apply only to `deploy`-model platforms (a Mac App Store
+macOS build is notarized and signed by Apple internally, out-of-band —
 `refs/submission.md`).
 
-### Notarization — a distinct verifiable step (AC-MAC1)
+### Notarization — a distinct verifiable step
 
 Notarization is an **asynchronous Apple call**: the notary service accepts the
 upload, then works through `In Progress` → a terminal `Accepted` / `Invalid`. This
 is the **same async shape as a `submission`'s *processing* state**
 (`refs/submission.md` § *The submission lifecycle* — submit → **processing** →
-review): a bounded wait for a store/service to reach a terminal status. C6 **reuses
-that vocabulary and C7's poll primitive** rather than inventing a parallel
-mechanism.
+review): a bounded wait for a store/service to reach a terminal status. It
+**reuses that vocabulary and the smoke `poll` primitive** rather than inventing a
+parallel mechanism.
 
 When the macos row declares `notarize_status_cmd` (the minimal surface — a command
 that prints the notary status, `status: Accepted` / `In Progress` / `Invalid`, the
 `xcrun notarytool info` / `notarytool submit --wait` shape; the fixture deploy logs
 show this exact output, `evals/fixtures/post-merge/macos/`), post-merge treats
-notarization as a **distinct step**, polled with the **C7 poll primitive** bounded
+notarization as a **distinct step**, polled with the **smoke `poll` primitive** bounded
 by the platform's `smoke_poll`. **When `smoke_poll` is absent, apply a default bounded
-poll of `15m/30s`** (L3) — never a single one-shot read: a lone `In Progress` read
+poll of `15m/30s`** — never a single one-shot read: a lone `In Progress` read
 would spuriously report a stall on a notary that is simply still working. A
 non-terminal (`In Progress`) read **inside** the bound is **pending** (keep polling);
 **only ceiling-exhaustion** (still non-terminal at the timeout) is a
@@ -240,18 +244,18 @@ non-terminal (`In Progress`) read **inside** the bound is **pending** (keep poll
   **`notarization-invalid`**, category `deploy`, severity `high`,
   `message: "macOS notarization returned Invalid for <artifact> (submission <id>)"`.
   This is **not** a generic deploy failure — it names notarization as the failing
-  step (AC-MAC1). Verdict `fail`; the failed-ship loop runs.
+  step. Verdict `fail`; the failed-ship loop runs.
 - **Still non-terminal (`In Progress`) at the poll ceiling** → a **specific** finding
   — rule **`notarization-stall`**, category `deploy`, severity `high`,
   `message: "macOS notarization did not reach a terminal status within <timeout>
   (last: In Progress, submission <id>)"`. A **stall is diagnostically distinct** from
-  an outright reject and from a build break — exactly the P0 finding #4 defect
-  (a stall folded into the deploy cmd read as a generic failure). Verdict `fail`.
+  an outright reject and from a build break (a stall folded into the deploy cmd
+  reads as a generic failure). Verdict `fail`.
 
 Undeclared `notarize_status_cmd` → notarization stays folded in the deploy cmd
 (today's behavior, unchanged and unflagged — config-gated).
 
-### Signing / Gatekeeper smoke (AC-MAC2)
+### Signing / Gatekeeper smoke
 
 When the macos row declares `signing_smoke_cmd`, run it against the **built
 artifact** during verification — the Gatekeeper/signing assessment a user's machine
@@ -264,10 +268,10 @@ rejected <artifact> (spctl: rejected)"` — separate from a generic `smoke-faile
 because "the shipped app will not open on a user's Mac" is its own diagnosis.
 Verdict `fail`. Undeclared ⇒ no signing check runs, nothing flagged.
 
-### Appcast (AC-MAC3, D13 — config-gated)
+### Appcast (config-gated)
 
-The appcast check is **`--production`-only** (L2). The "new version" it asserts is
-P3's release identity — the resolved `NEXT_VERSION` (`refs/release-identity.md`) —
+The appcast check is **`--production`-only**. The "new version" it asserts is
+the release identity — the resolved `NEXT_VERSION` (`refs/release-identity.md`) —
 which **exists only in `--production`** (there is no release version in `--staging`).
 So in `--production`, when the macos row declares `appcast_url` (the Sparkle update
 feed), verify the feed is **reachable** and carries `NEXT_VERSION`, asserting *the
@@ -286,7 +290,7 @@ curl -fsS "$APPCAST_URL" | grep -q "$NEXT_VERSION"   # feed reachable AND new ve
 - **On `--staging`** there is no `NEXT_VERSION` to assert, so the appcast check does
   **not** run; at most emit a note that the appcast is verified at release
   (`--production`). Never fabricate a staging version to check against.
-- **Undeclared `appcast_url` ⇒ nothing runs, nothing is flagged** (D13) — a repo
+- **Undeclared `appcast_url` ⇒ nothing runs, nothing is flagged** — a repo
   that ships macOS without Sparkle sees zero added friction.
 
 ### Ordering + failure routing
@@ -296,6 +300,6 @@ notarization (poll to terminal) → signing/Gatekeeper → appcast, then the gen
 `smoke_cmd`/watch-window. Any of the four distinct findings above sets verdict
 `fail` and enters the **same failed-ship loop** as a smoke failure — the
 `deploy`-model `rollback_cmd` (re-publish the prior appcast build) is **offered
-before the fix loop**, always-ask/never-auto (D12; `SKILL.md` § *Failed-ship loop*).
+before the fix loop**, always-ask/never-auto (`SKILL.md` § *Failed-ship loop*).
 None of these is a **refusal** — the merge already stands; they are ship *failures*
 surfaced loudly (`refs/refusal-patterns.md` § *macOS release-check findings*).
