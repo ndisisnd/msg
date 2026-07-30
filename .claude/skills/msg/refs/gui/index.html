@@ -704,8 +704,8 @@ function renderRoadmap() {
 
   if (!ROADMAP || !ROADMAP.exists || phases.length === 0) {
     root.appendChild(el('<div class="empty-state"><div class="big">No roadmap yet</div>' +
-      'Nothing at <code>roadmap/roadmap.md</code>. Run <code>/plan-pm --roadmap</code> ' +
-      'to arrange your PRDs into phases.</div>'));
+      'Nothing at <code>roadmap/roadmap.md</code>. Write one from ' +
+      '<code>roadmap/TEMPLATE-roadmap.md</code> to arrange your PRDs into phases.</div>'));
     return;
   }
 
@@ -872,7 +872,7 @@ function splitSections(detail) {
   });
   push();
   return secs
-    .filter(function (s) { return !/^(?:\d+\.\s*)?(Todos|Audit|Plan tune findings)\b/i.test(s.heading); })
+    .filter(function (s) { return !/^(?:\d+\.\s*)?(Todos|Audit|Plan review findings|Plan tune findings)\b/i.test(s.heading); })
     .map(function (s, idx) {
       var body = s.preamble ? s.body.replace(/^#\s+.*(\n|$)/, "").trim() : s.body;   // drop the duplicate H1
       body = stripEngFindings(body);
@@ -881,9 +881,9 @@ function splitSections(detail) {
     .filter(function (s) { return s.body; });
 }
 
-/* ---- Plan-tune findings parsing (Edit 4) ----------------------------------------
+/* ---- Plan-review findings parsing (Edit 4) ----------------------------------------
    Two producers feed one table. The product findings section — new
-   `## N. Plan tune findings` (legacy `## Audit — <date>` still supported) — is now a
+   `## N. Plan review findings` (legacy `## Plan tune findings` and `## Audit — <date>` still supported) — is now a
    markdown table (columns: #, Date, Auditor, Severity, What is wrong, Suggested fix,
    Why it matters, Status). Legacy PRDs used prose blocks (Finding N — Severity — Title,
    then What is wrong / Why it matters / Suggested fix) — still parsed as a fallback.
@@ -919,7 +919,7 @@ function parseFindingsTable(seg) {
     function cell(idx) { return idx >= 0 && idx < cells.length ? cells[idx] : ""; }
     var sev = cell(sevIdx);
     if (!sev || sev === "—" || sev === "-") continue; // skip Clean / empty rows
-    out.push({ source: "Plan tune", n: cell(numIdx), date: cell(dateIdx), auditor: cell(audIdx),
+    out.push({ source: "Plan review", n: cell(numIdx), date: cell(dateIdx), auditor: cell(audIdx),
       severity: sev, title: "", wrong: cell(wrongIdx), fix: cell(fixIdx),
       matters: cell(mattersIdx), status: cell(statusIdx) });
   }
@@ -951,7 +951,7 @@ function parseAuditFindings(detail) {
   var lines = text.split("\n");
   var out = [];
   for (var a = 0; a < lines.length; a++) {
-    if (!/^##\s+(?:\d+\.\s*)?(Plan tune findings|Audit)\b/i.test(lines[a])) continue;
+    if (!/^##\s+(?:\d+\.\s*)?(Plan review findings|Plan tune findings|Audit)\b/i.test(lines[a])) continue;
     var b = a + 1;
     while (b < lines.length && !/^##\s+/.test(lines[b])) b++;   // to next H2
     var seg = lines.slice(a + 1, b);
@@ -983,7 +983,7 @@ function findingsAccordion(p) {
   if (!rows.length) return null;
   var open = state.openSections.__findings === true;
   var det = el('<details class="collapsible section findings-section"' + (open ? " open" : "") + ">" +
-    '<summary><span class="chev">▸</span> Plan-tune findings <span class="n">' + rows.length + "</span></summary>" +
+    '<summary><span class="chev">▸</span> Plan-review findings <span class="n">' + rows.length + "</span></summary>" +
     '<div class="body"></div></details>');
   det.addEventListener("toggle", function () { state.openSections.__findings = det.open; });
   var wrap = el('<div class="table-wrap findings-table"></div>');
@@ -1067,7 +1067,7 @@ function renderDetail(id) {
         sectionsHost.appendChild(d);
       });
     }
-    var findings = findingsAccordion(p);   // Edit 4 — plan-tune findings table (own accordion)
+    var findings = findingsAccordion(p);   // Edit 4 — plan-review findings table (own accordion)
     if (findings) sectionsHost.appendChild(findings);
   }
   function showEditor() {
@@ -1464,7 +1464,7 @@ function renderFiles(sel) {
 }
 
 /* ========================================================================= */
-/*  REPORTS PAGE — run reports written by eng --build / pre-merge / post-merge */
+/*  REPORTS PAGE — run reports written by eng --build / pre-merge / merge */
 /*  (report-prd-<N>-<K>.md per shared/refs/report-schema.md)                  */
 /* ========================================================================= */
 function findReport(file) {
@@ -1484,7 +1484,7 @@ function reportStatsFrag(r) {
     bits.push((s.testsPassed || 0) + " passed" + (s.testsFailed ? " · " + s.testsFailed + " failed" : ""));
   return bits.length ? '<span class="pill muted">' + esc(bits.join(" · ")) + "</span>" : "";
 }
-// H4 — a production post-merge report carries the literal token IRREVERSIBLE in
+// H4 — a production merge report carries the literal token IRREVERSIBLE in
 // its body when a no-rollback platform (iOS) ships; surface it prominently.
 function reportIrreversible(r) { return /\bIRREVERSIBLE\b/.test(String(r && r.detail || "")); }
 function irreversibleBadge() {
@@ -1514,7 +1514,7 @@ function renderReports() {
   root.appendChild(topbar("reports", { title: "Run Reports", count: REPORTS.length }));
   if (!REPORTS.length) {
     root.appendChild(el('<div class="empty-state"><div class="big">No reports yet</div>' +
-      "<code>eng --build</code>, <code>/pre-merge</code> and <code>/post-merge</code> write " +
+      "<code>eng --build</code>, <code>/pre-merge</code> and <code>/merge</code> write " +
       "<code>report-prd-[N]-[K].md</code> under <code>features/…/reports/</code> when a run completes.</div>"));
     return;
   }
@@ -1570,7 +1570,7 @@ var seenJobDone = {};
 var QUICK_PROMPTS = [
   ["Generate a PRD", "/plan-pm "],
   ["Write eng plan + todos", "/eng --plan "],
-  ["Tune a PRD", "/plan-tune "],
+  ["Tune a PRD", "/plan-review "],
   ["Ask about the project", "Looking at this project's PRDs and docs: "]
 ];
 function renderPrompts() {

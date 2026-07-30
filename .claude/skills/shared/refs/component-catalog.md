@@ -10,21 +10,23 @@ type: reference
 The per-project `devkit/policy.json` `components[]` array is the *resolved
 instance*: catalog defaults + live detection + user overrides (`--init`/`--update`
 seed it; see `pre-merge/refs/protocol-init.md`). The executor, the `refs/`
-folder split, the `preflight-check-*` scripts, wave sequencing, and result
+folder split, the `script-preflight-*` scripts, wave sequencing, and result
 reporting all key off this file — nothing downstream re-derives component
 metadata by hand.
-
-> **This phase (P1).** This file transcribes the catalog defaults and wires the
-> `ref` pointers to the moved protocol files. The `preflight-check-<nn>-<slug>.sh`
-> scripts named by `check` below do not exist yet — they land in Phase 2 (C4).
-> Nothing in this phase changes gate run order or pass/fail behavior.
 
 ## Entry schema
 
 ```
 { id, nn, group, kind, criticality, cost, depends_on[], active_when,
-  platforms[], needs_env, mandatory, run, run_minified, test_selector, ref, check }
+  platforms[], needs_env, mandatory, run, run_minified, ref, check }
 ```
+
+Everything here except `run` / `run_minified` is a **constant** — identical in every
+repo. The per-project `components[]` manifest therefore stores only the resolved
+`run`/`run_minified`/`tooling`/`status`/`present` plus explicit user overrides, and
+joins back to this table by `id` at run time (`policy-schema-pre-merge.md`
+§ `components[]`). A catalog edit is live for every repo on the next gate run, with
+no migration.
 
 | Field | Meaning |
 |---|---|
@@ -40,18 +42,18 @@ metadata by hand.
 | `needs_env` | **C23** — `true` iff the component requires a running app/DB and therefore runs **inside** the ephemeral test-sandbox (legend `env` column; see "The env-needing tier", below). `false` = static/in-process, runs outside, never triggers provisioning |
 | `mandatory` | `true` only for `security` and `migration` (AC-CAT4) — never opts out, only degrades per their own safety-floor rules |
 | `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
-| `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema.md`; `pre-merge/refs/executor.md` § *Test selection*) |
-| `test_selector` | **additive**, sibling of `run_minified` — the freeform note naming the selection mechanism detected (`vitest related --changed`, `pytest-testmon`, `xcodebuild -testPlan Critical`, …). Audit only, never branched on; `null` wherever `run_minified` is |
+| `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema-pre-merge.md`; `pre-merge/refs/executor.md` § *Test selection*) |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
-| `check` | `preflight-check-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
+| `check` | `script-preflight-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
 
-## The components (17 live, 18 authored)
+## The components (16)
 
-**C20 note:** `qa` (`15`) is merged into `preview` (`16`) — the single human-review
-gate. Id `15` is **retired, not reused**; `[NN]` stays a stable global id. The
-catalog below carries 18 rows for continuity with the id space, one of which is
-a retired tombstone (so 17 are live). Row 18 (`manual-test-plan`, C22) is the
-newest live component.
+**Ids `15` and `16` are retired and never reused** — `qa` merged into `preview`
+(`16`), and `preview` itself was **cut** (the feature-branch preview duplicated the
+staging human test; the human judgment moved to merge's staging sign-off and
+the direct-flow attestation — `shared/refs/safety-floor.md`). `nn` is a stable
+global id, so the sequence skips both rather than renumbering. Row 18
+(`manual-test-plan`, C22) is the newest component.
 
 | nn | id | group | kind | criticality | cost | depends_on | active_when | platforms | env | mandatory |
 |----|----|-------|------|------|------|-----------|-------------|-----------|-----|------|
@@ -61,7 +63,7 @@ newest live component.
 | 04 | regression | universal | hybrid | blocking | expensive | **tail (all others)** | always | all | condᶜ | – |
 | 05 | security | universal | hybrid | **critical** | moderate | sync | always | all | – | **✔** |
 | 06 | coverage | universal | script | config-driven† | moderate | **unit, integration** | always | all | – | – |
-| 07 | prd-consistency | **prd** | subagent | blocking | expensive | sync | **prd** | all | – | – |
+| 07 | prd-consistency | **prd** | subagent | **advisory** ᴸ | expensive | sync | **prd**ᵃ | all | – | – |
 | 08 | e2e | platform | subagent | blocking | expensive | sync | ui-surface | **web** | **✔**ˢ | – |
 | 09 | a11y | platform | subagent | **blocking** | moderate | sync | ui-surface | UI | **✔**ˢ | – |
 | 10 | perf | platform | subagent | config-driven† | expensive | sync | perf-config | UI | **✔**ˢ | – |
@@ -69,10 +71,8 @@ newest live component.
 | 12 | load | platform | subagent | config-driven† | expensive | sync | api-surface **+ diff-scoped**ᵈ | srv | **✔**ˢ | – |
 | 13 | migration | platform | hybrid | **critical** | moderate | sync | **migrations** | DB³ | **✔**ˢ | **✔** |
 | 14 | mobile | platform | subagent | blocking | expensive | sync | mobile-surface | mob✦ | **✔**ˢ | – |
-| **15** | ~~qa~~ | — | — | — | — | — | **retired (qa merged into preview, C20/D26); never reused** | — | — | — |
-| 16 | preview | platform | **gate** | blocking | expensive | sync (only-on-green, late wave) | **UI or api/migration/deploy surface** (union, C20) | all‡ | ➜ᵖ | – ᵍ |
-| 17 | smoke | platform | subagent | blocking | moderate | **preview** | preview-fired | all‡ | **✔**ˢ | – |
-| 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd** | all | – | – |
+| 17 | smoke | platform | subagent | blocking | **cheap** | sync | **UI or api/migration/deploy surface** (union) | all‡ | **✔**ˢ | – |
+| 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd**ᵃ | all | – | – |
 
 ### `run` / `ref` / `check` resolution
 
@@ -82,24 +82,22 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 
 | nn | id | run (detection field / mechanism) | ref | check |
 |----|----|------------------------------------|-----|-------|
-| 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `preflight-check-01-mechanical.sh` |
-| 02 | unit | `test_runner` **+ `test_selector`ˢᵉˡ** | `universal/protocol-unit.md` | `preflight-check-02-unit.sh` |
-| 03 | integration | `test_runner` (same field as `unit`; Phase 2 splits detection) **+ `test_selector`ˢᵉˡ** | `universal/protocol-integration.md` | `preflight-check-03-integration.sh` |
-| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring **+ `test_selector`ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾** | `universal/protocol-regression.md` | `preflight-check-04-regression.sh` |
-| 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `preflight-check-05-security.sh` |
-| 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `preflight-check-06-coverage.sh` |
-| 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `preflight-check-07-prd-consistency.sh` |
-| 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `preflight-check-08-e2e.sh` |
-| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (`--init`, AC-A11Y4) | `platform/protocol-a11y.md` | `preflight-check-09-a11y.sh` |
-| 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `preflight-check-10-perf.sh` |
-| 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `preflight-check-11-api.sh` |
-| 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `preflight-check-12-load.sh` |
-| 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `preflight-check-13-migration.sh` |
-| 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
-| ~~15~~ | ~~qa~~ | — retired, no script — | — | — no `preflight-check-15-qa.sh` — |
-| 16 | preview | `preview_deploy_cmd` + `qa_runner` (visual capture, merged) | `platform/protocol-preview.md` | `preflight-check-16-preview.sh` |
-| 17 | smoke | `smoke_runner` (resolves Q3) — **default-liveness floor** when unconfigured on a fired preview + **critical-tagged e2e-flow subset** (C21/D29) | `platform/protocol-smoke.md` (C21) | `preflight-check-17-smoke.sh` |
-| 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `preflight-check-18-manual-test-plan.sh` |
+| 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `script-preflight-01-mechanical.sh` |
+| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-unit.md` | `script-preflight-02-unit.sh` |
+| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-integration.md` | `script-preflight-03-integration.sh` |
+| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾ | `universal/protocol-regression.md` | `script-preflight-04-regression.sh` |
+| 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `script-preflight-05-security.sh` |
+| 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `script-preflight-06-coverage.sh` |
+| 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `script-preflight-07-prd-consistency.sh` |
+| 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `script-preflight-08-e2e.sh` |
+| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (`--init`, AC-A11Y4) | `platform/protocol-a11y.md` | `script-preflight-09-a11y.sh` |
+| 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `script-preflight-10-perf.sh` |
+| 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `script-preflight-11-api.sh` |
+| 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `script-preflight-12-load.sh` |
+| 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `script-preflight-13-migration.sh` |
+| 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `script-preflight-14-mobile.sh` |
+| 17 | smoke | `smoke_runner` — **default-liveness floor** when unconfigured + the configured golden-path command (C21) | `platform/protocol-smoke.md` (C21) | `script-preflight-17-smoke.sh` |
+| 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `script-preflight-18-manual-test-plan.sh` |
 
 ## Legend
 
@@ -123,10 +121,17 @@ web-only *runner* against a broader applicability is an **enforced
   an expensive component affordable to gate — but does **not** change whether configured
   thresholds block (criticality stays `†` config-driven); diff-scoping governs *when* it
   runs, not *whether* thresholds block.
-- **ᵍ** — **human-review gate** (C19 → merged C20): `preview` captures the
-  feature's UI states **and** stands up the live/pokeable env, then serves one
-  unified artifact for explicit human sign-off — blocking; no auto
-  pixel-threshold pass. Absorbs the retired `qa`.
+- **ᴸ** — **advisory by epistemic limit** (C11): `prd-consistency` grades a diff with an
+  LLM. It can judge *"is there evidence someone attempted this criterion, and does a
+  test exist?"*; it cannot certify correctness. So its findings are **recorded, never
+  blocking** — they are routed to the human who can judge, via `manual-test-plan`'s
+  significance-rated checklist, walked at merge `--staging`. This includes the `out-of-scope` scope-creep finding:
+  the same limit applies, so it is evidence for the human walk-through, not a hard
+  block.
+- **ᵃ** — **`active_when: prd` resolves from PRD auto-discovery**: a `features/prd-<N>-*/`
+  directory matched to the branch enables the `prd` group by default; `--prd <path>` is
+  an explicit override for an unmatched or ambiguous case. **No PRD found ⇒ the whole
+  `prd` group is pruned**, exactly as a no-PRD hotfix always did.
 - **ᵐ** — **emit-only** (C22): `manual-test-plan` is `advisory` and **never blocks
   the PR** — it generates a significance-rated human-test checklist (reusing
   `prd-consistency`'s per-item evidence grades) and emits it; it never contributes a
@@ -140,12 +145,8 @@ web-only *runner* against a broader applicability is an **enforced
   integration-level tests; resolved at `--init`/`--update` and recorded in the manifest.
 - **ˡ** — **live-half only** (C23): the `api` **component** is `needs_env: false` — its
   base-vs-PR **spec-diff** is static and runs outside. Only its **#3 live-conformance
-  pass** (spec-vs-implementation against a running server, parked to the preview tail)
-  runs inside the sandbox.
-- **ᵖ** — **promoted-sandbox consumer** (C23, AC-SBX5): `preview` does not provision an
-  env of its own — the executor **promotes the same C23 sandbox** the env-needing wave
-  ran in to serve as the pokeable preview. One env, whole lifecycle; never a second
-  provision.
+  pass** (spec-vs-implementation against a running server) runs inside the sandbox,
+  with the env wave.
 - **ˢᵉˡ** — **selection-capable** (`policies.test_selection`): the component can resolve a
   `run_minified` invocation and therefore participate in minified runs. **Exactly three
   rows** — `unit` (02), `integration` (03), `regression` (04, accumulated half only). Every
@@ -157,8 +158,8 @@ web-only *runner* against a broader applicability is an **enforced
 
 ## Only-on-green tier
 
-`regression` (its authoring sub-step), `preview`, and `smoke` run only after the
-correctness components have passed — no deploying/authoring onto a red branch.
+`regression` (its authoring sub-step) runs only after the correctness components
+have passed — no authoring onto a red branch.
 This is an **execution policy layered on top of `depends_on`**, not a hard edge
 in the dependency graph itself. **The C23 sandbox provisioning joins this tier**
 (below): the env-needing wave's environment is stood up only after the static
@@ -175,22 +176,22 @@ before; a static component never triggers provisioning and never enters the sand
 - **Only-on-green provisioning** (AC-SBX3): the sandbox is stood up **only after** the
   static correctness waves pass — a run that fails `mechanical`/`unit` never provisions,
   zero env cost on a fail-fast. Same policy layer as the only-on-green tier above.
-- **One env, promoted to preview** (AC-SBX5): after the env-needing wave, the **same**
-  sandbox is promoted to serve as the C20 `preview` (legend `ᵖ`) — no second env.
+- **One env, one lifecycle** (AC-SBX5): every env-needing component — including
+  `smoke`'s liveness/golden-path run and `api`'s live-conformance half — shares that
+  single sandbox. No component ever provisions a second env.
 - **Seed strategy** (S-Q1 resolved): migrate-from-zero + a committed, versioned seed
   fixture — never a prod-like snapshot. `perf`/`load` may declare a generated larger
   dataset (scale factor in the manifest, produced by the seed script).
 - **Fix-loop reuse** (S-Q2 resolved): within one fix-loop, the stack stays warm and
-  the DB is reset (drop → remigrate → re-seed) between iterations; the final green run
-  promoted to preview gets a **fresh** provision.
-- **`env_provision`** — *how* the env comes up is project-specific (docker-compose /
-  testcontainers / ephemeral DB branch / preview-deploy / simulator), detected/declared
-  at `--init` and recorded as the manifest's `env_provision` resolution
-  (`policy-schema.md`) — a neutral provision / seed / reset / teardown interface,
-  designed post-merge-consumable (schema shared, machinery not). A repo needing two
-  provisioners at once (full-stack mobile: simulator + compose backend) records a
-  composite **`stacks[]`** — still **one logical sandbox**, all stacks provisioned and
-  torn down together.
+  the DB is reset (drop → remigrate → re-seed) between iterations.
+- **`devkit/ENV.md`** — *how* the env comes up is project-specific (docker-compose /
+  testcontainers / ephemeral DB branch / preview-deploy / simulator), detected at
+  `--init` and recorded in the committed **`devkit/ENV.md`** contract file
+  (`env-contract.md`) — human prose around one fenced block with a neutral
+  provision / seed / reset / teardown interface, read by both gates (schema shared,
+  machinery not). A repo needing two provisioners at once (full-stack mobile:
+  simulator + compose backend) records a composite **`stacks[]`** — still **one
+  logical sandbox**, all stacks provisioned and torn down together.
 - **No provisioner ⇒ loud degrade** (AC-SBX6, the D28 safety-floor pattern):
   non-destructive env-needing checks run against the ambient environment with a `high`
   `sandbox-unprovisioned` finding ("cannot run hermetically — no sandbox provisioner");
@@ -201,7 +202,7 @@ before; a static component never triggers provisioning and never enters the sand
 
 Three components carry a `run_minified` (legend `ˢᵉˡ`): `unit`, `integration`,
 `regression`. When `policies.test_selection` resolves **enabled** (opt-IN — absent
-⇒ off, `policy-schema.md` §2c), the executor may run them over
+⇒ off, `policy-schema-pre-merge.md` §2c), the executor may run them over
 **affected(diff) ∪ critical-floor** instead of the whole suite, per the size-tier
 rubric in `pre-merge/refs/executor.md` § *Test selection*. Everything below is a
 **default** the per-project `policy.json` overrides — the catalog never dictates a
@@ -267,16 +268,16 @@ its report says so.
 
 `depends_on` carries **only** true effect edges. Everything else in the table
 above marked `sync` means "needs the synced branch, otherwise independent" —
-**not** a dependency edge. The four real edges:
+**not** a dependency edge. The three real edges (the retired 2nd edge,
+`smoke → preview`, died with the `preview` component):
 
 1. `coverage → {unit, integration}` — coverage parses their output.
-2. `smoke → preview` — smoke checks the fired preview's liveness.
-3. `regression` **tail-pins** — `depends_on` every other universal/prd component
+2. `regression` **tail-pins** — `depends_on` every other universal/prd component
    (C5); it authors + commits this PRD's tests only after everything else has
    validated the branch, then runs the accumulated suite last.
-4. `manual-test-plan → prd-consistency` (C22) — `manual-test-plan` **reuses**
+3. `manual-test-plan → prd-consistency` (C22) — `manual-test-plan` **reuses**
    `prd-consistency`'s per-item evidence grades to compute each checklist item's
-   automation-gap, so it runs after `prd-consistency`. This is the **4th** hard
+   automation-gap, so it runs after `prd-consistency`. This is the **3rd** hard
    edge (amends AC-CAT3 / AC-SEQ6's "only edges" enumeration). It does not create a
    cycle: `prd-consistency` has no `depends_on` back onto `manual-test-plan` (it
    `depends_on sync` only), so the edge is one-directional and the DAG stays acyclic.
@@ -295,14 +296,12 @@ there is no green-gate path without secret-scan coverage. The scanner install st
 per-item approved at `--init` (`AC-DR2`). See
 `pre-merge/refs/universal/protocol-security.md` (C9) and `safety-floor.md`.
 
-## Firming notes (platform rows, 2026-07-18; `qa` merged into `preview` by C20)
+## Firming notes (platform rows, 2026-07-18)
 
 - **Applicability vs. runner coverage.** `a11y`/`perf` apply to **all clients**
   (`UI`); their current runners are web-only (axe, Lighthouse) — mobile/macOS
   coverage is an **enforced `platform-coverage-gap` finding** (C12), not a
-  silent pass. (`qa`'s visual review folded into the `preview` gate, C20 — which
-  produces a per-platform artifact, so no web-only-runner gap there.) `e2e`
-  stays **web**: native UI-e2e is `mobile`'s concern (the e2e↔mobile split), so
+  silent pass. `e2e` stays **web**: native UI-e2e is `mobile`'s concern (the e2e↔mobile split), so
   an iOS target's UI-e2e gap fires via `mobile`, not `e2e`.
 - **`mobile`** is a self-contained Android/iOS vertical. As of **C18** it detects + runs
   **native iOS (XCUITest/XCTest, Swift)** and **native Android (Espresso/JUnit, Kotlin)**
@@ -314,28 +313,29 @@ per-item approved at `--init` (`AC-DR2`). See
   enforced**: a declared target with no available device/simulator (incl. no macOS host
   for iOS XCUITest) is a `high` `platform-coverage-gap` (C12), **not** a silent
   `pass_with_warnings` (AC-MOB2); `--init` establishes the matrix when absent.
-- **`perf`** (C14) measures **interaction latency under e2e-flow-driven heavy state** (INP
-  under load / long-task / scroll jank — D29: `e2e` owns the flows), not only cold-load,
-  and carries a **no-regression ratchet vs base** (runtime + bundle may not worsen vs base
-  even with no absolute budget — `ratchet-vs-base.md`); configured budgets stay the hard
-  bar (`†` unchanged). Bundle findings **attribute the culprit import** (`attribute-the-cause.md`).
+- **`perf`** (C14) measures **cold-load runtime metrics + bundle size** against the
+  project's configured budgets (the hard bar, `†`), with a **no-regression ratchet vs
+  base** applied only when comparable base numbers exist (`ratchet-vs-base.md`; no base
+  numbers ⇒ skipped with a note). Bundle findings **attribute the culprit import** when
+  the bundle stats resolve one (`attribute-the-cause.md`), else size + route.
 - **`api`** (C15) gains a **backward-compatibility spec-diff vs base** (`oasdiff`/`openapi-diff`
   — removed/narrowed/required/deleted → `high`/blocking, the contract-compat ratchet,
   `ratchet-vs-base.md`); findings are **consumer-named** (Pact broker → optional `consumers[]`
   hint → endpoint+change, no fabricated consumer — `attribute-the-cause.md` +
-  `name-the-user-impact.md`). Rec #3 (live-server conformance) is **parked to `preview`**.
+  `name-the-user-impact.md`); no base spec ⇒ the diff is skipped with a note. Rec #3
+  (live-server conformance) runs in the **env wave**, against the C23 sandbox.
 - **`load`** (C16) is **diff-scoped** (legend `ᵈ` — runs/gates only on an endpoint/data-path
-  touch, scoped to the affected endpoints) under a **declared read/write `traffic_mix`**
-  (`--init`-captured, sane default) that exercises the write path; breaches **name the
-  bottleneck** (`attribute-the-cause.md`). Config-driven criticality unchanged (`†`).
+  touch, scoped to the affected endpoints) and runs the project's own runner profile
+  (an optional declared `traffic_mix` overrides it); breaches **name the bottleneck**
+  when a per-operation trace exists (`attribute-the-cause.md`), else metric + endpoint.
+  Config-driven criticality unchanged (`†`).
 - **`migration`** carries an optional **`hot_tables[]`** hint (C17) — the project's
-  large/hot tables, declared at `--init` (`protocol-init.md`). It gives the migration
-  stage size context to **scale lock-risk severity** (escalate on a hot table, quiet on
-  a tiny one) when no schema/stats source is available; absent both stats and the list,
-  lock findings keep their flat severity (AC-MIG3/MIG4). Optional — an empty/absent list
-  means "no size context", never a validation error.
-- **`a11y`** (C13) audits **interactive states reached by the e2e flows** (dialog/error/
-  menu — D29), not just static page loads, and gains **native runner support** (iOS/macOS
+  large/hot tables. With it (or live table stats) lock-risk severity scales: escalate on
+  a hot table, quiet on a tiny one. **Absent both — the default — lock findings keep
+  their flat severity**, and nothing is asked for up front.
+- **`a11y`** (C13) audits the **resolved target set** (the runner's own config, else
+  route discovery, else Storybook — a project whose specs drive interactive states gets
+  those states audited), and gains **native runner support** (iOS/macOS
   `performAccessibilityAudit` + Android accessibility-test-framework — real coverage when
   a native runner is present, no longer a C12 flag). Findings **lead with user impact +
   flow** (`name-the-user-impact.md`), WCAG id secondary. Its **default enablement/
@@ -343,16 +343,16 @@ per-item approved at `--init` (`AC-DR2`). See
   default-on/blocking; internal tool / backend → default-off/advisory — the row's default
   `blocking` is the public-facing default, not unconditional. Tagged **low-priority** in
   the build sequence (AC-A11Y5).
-- **`smoke`** (C21) resolves Q3 (`depends_on preview`, the 2nd hard edge — unchanged) and
-  gains two behaviors: a **no-vacuous-skip default-liveness floor** (a fired preview with
-  no `smoke_cmd` still runs a liveness check — URL 200 / artifact launches — so C20's R1
-  precondition can never pass vacuously; safety-floor pattern like C9/D28) and
-  **critical-path coverage** (the `critical`-tagged e2e-flow subset — 1–3 golden paths
-  incl. the core action, D29 — not just homepage 200). It runs **first among the
-  preview-tail checks and short-circuits** the expensive api-drift / migration-up→down→up /
-  capture suite on failure (`preview-unhealthy`), feeds C20/R2 evidence, and **blocks the
-  R1 approval prompt**. A genuinely un-smokeable surface degrades **loudly** (surfaced in
-  R2), never silent green.
+- **`smoke`** (C21) is a **cheap env-wave** component with no hard edge — it runs the app the
+  C23 sandbox stood up and answers *"is this build actually alive on its golden paths?"*.
+  Two behaviors: a **no-vacuous-skip default-liveness floor** (no `smoke_cmd` still runs a
+  liveness check — URL 200 / artifact launches — so the component can never pass
+  vacuously; safety-floor pattern like C9/D28) and **critical-path coverage** (the
+  project's configured smoke command — 1–3 golden paths incl. the core action — not just
+  homepage 200). Its result feeds the verdict directly as a `blocking` component. A
+  genuinely un-smokeable surface degrades **loudly**, never silent green. *(Its former
+  role — preview's health precondition, the 2nd hard edge, the R1 prompt block — died
+  with the `preview` cut; the checks themselves survive unchanged.)*
 
 ## Resolves
 

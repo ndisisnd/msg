@@ -84,13 +84,13 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
 - **View project docs** — `GET /api/files` lists root `*.md` (README, CLAUDE.md, CHANGELOG…)
   and `devkit/*.md`, grouped; `GET /api/file?path=…` returns one file, rendered as markdown
   in the Files view.
-- **View the roadmap** — `GET /api/roadmap` parses `roadmap/roadmap.md` (written by
-  `plan-pm --roadmap`) into ordered phases, each cross-referenced against the live PRD set so
-  a card shows the same completion pill the Board uses. The same payload is also folded into
-  `/api/data` under `roadmap`, so both live and static modes render the tab. The Roadmap view
-  is **read-only for v1** (no write endpoints — the roadmap is authored by `plan-pm`). The
-  server accepts `--view <board|roadmap>` to choose the initial tab; `plan-pm --roadmap`
-  launches with `--view roadmap`. The **Roadmap** nav tab appears only when a roadmap exists
+- **View the roadmap** — `GET /api/roadmap` parses `roadmap/roadmap.md` (**hand-authored by the
+  human** against `roadmap/TEMPLATE-roadmap.md`; no skill generates it) into ordered phases, each
+  cross-referenced against the live PRD set so a card shows the same completion pill the Board
+  uses. The same payload is also folded into `/api/data` under `roadmap`, so both live and static
+  modes render the tab. The Roadmap view is **read-only** (no write endpoints — the roadmap is the
+  human's file). The server accepts `--view <board|roadmap>` to choose the initial tab. The
+  **Roadmap** nav tab appears only when a roadmap exists
   (or in interactive mode); each phase renders as a lane (reusing the Kanban column, header,
   and card/pill components) with `Phase 0 — Shipped` first and the tune log in a footer accordion.
 
@@ -106,8 +106,9 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   (`features/{planned,wip,done}/prd-*/`, or the legacy flat `features/prd-*/`) plus
   the single root `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
   writes no other INTAKE.md cell, and never writes the issues file
-  `report-prd-<N>-<K>.json` (the finding→ticket projection stays read-time;
-  `followUp.status` is written solely by `eng --build`).
+  `report-prd-<N>-<K>.json` (the finding→ticket projection stays read-time —
+  `server.py` imports `.claude/scripts/script-project-findings.py` as a module and
+  projects per request; `followUp.status` is written solely by `eng --build`).
 
 ## Step 2 — Data model (what the server parses)
 
@@ -118,9 +119,9 @@ Same read model as before — now implemented in `server.py`, re-run per request
    by PRD id so one PRD is listed once) (missing fields are normal → `null`;
    missing/unparseable frontmatter → `skipped[]`, keep going).
 2. **F-ID feature rows** from `## N. Features…` (any leading number, e.g.
-   `## 6. Features & acceptance criteria`), falling back to `## Execution Table` (legacy)
-   or `## N. Feature execution table` (new).
-3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 11. Todos`) → tickets per
+   `## 3. Features & acceptance criteria`), falling back to `## N. Feature execution
+   table` (the v5 home) or `## Execution Table` (legacy, pre-v5 PRDs).
+3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 8. Todos`) → tickets per
    `.claude/skills/eng/refs/plan/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
@@ -131,7 +132,9 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `features/[<lane>/]prd-*/prd-*/reports/report-prd-*-*.json` (`<lane>` ∈ the three
    lanes or absent for the flat path), plus `features/reports/report-*.json`
    (the no-PRD fallback), via the shared **finding → issue-ticket projection** in
-   `eng/refs/build/report-fix.md` (read-time view, never re-serialized). No issues file →
+   `.claude/scripts/script-project-findings.py` — `server.py` loads it as a module, so the
+   GUI and `eng --plan`/`--build` project findings through the same code, not through two
+   readings of the same prose (read-time view, never re-serialized). No issues file →
    `gateIssues: []`.
 5. **Run reports** from `features/[<lane>/]prd-*/reports/report-prd-*-*.md` (one level of
    nested `prd-*` sub-dirs included, resolved across the three lanes and the flat path)
@@ -183,12 +186,12 @@ is unchanged from the previous protocol revision, with these notes:
   HTML-escaped before any markup transformation; no external libraries, no network) and
   now **splits it into one collapsible accordion per `##` section**. Section-name
   matching tolerates an optional leading section number, so both the legacy unnumbered
-  headings and the new numbered template render: `## Todos` / `## 11. Todos`,
-  `## Execution Table` / `## 7. Feature execution table`, and `## 3. Features` /
-  `## 6. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
+  headings and the new numbered template render: `## Todos` / `## 8. Todos`,
+  `## Execution Table` (legacy) / `## 6. Feature execution table`, and
+  `## Features` / `## 3. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
   omitted (todos render in their own section). The findings section — new
-  `## N. Plan tune findings` (legacy `## Audit — <date>` still supported) — plus any
-  nested `### 12. Findings` eng list is parsed into a dedicated **Plan-tune findings**
+  `## N. Plan review findings` (legacy `## Plan tune findings` and `## Audit — <date>` still supported) — plus any
+  nested `### 12. Findings` eng list is parsed into a dedicated **Plan-review findings**
   table. In the new template that section is itself a **markdown table** with columns
   `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`
   (Auditor is `P` or `E`; Status is Open / Fixed / Still open / Clean; `Clean`/empty-
@@ -224,7 +227,7 @@ is unchanged from the previous protocol revision, with these notes:
   "gateIssues": [ { "file": "features/prd-100-…/reports/report-prd-100-1.json", "runId": "100-1", "verdict": "fail",
     "context": { "prd": "…", "branch": "…", "base": "staging" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per report-fix.md" } ] } ],
+    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected by script-project-findings.py" } ] } ],
   "reports": [ { "file": "features/prd-101-task-crud/reports/report-prd-101-1.md", "reportId": "101-1",
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",
@@ -333,9 +336,9 @@ across every project (light + dark, responsive); it is **not** sourced from
   the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
   `prdId` matches an enumerated PRD.
 - **Producers, not the GUI, write reports.** `eng --build`, `/pre-merge`, and
-  `/post-merge` own `report-prd-<N>-<K>.md` (`.claude/skills/shared/refs/report-schema.md`); the
-  board renders them and never writes, renumbers, or toggles them. Post-merge reports join
-  the per-PRD grouping by their `skill: post-merge` frontmatter — staging reports carry the
+  `/merge` own `report-prd-<N>-<K>.md` (`.claude/skills/shared/refs/report-schema.md`); the
+  board renders them and never writes, renumbers, or toggles them. Merge reports join
+  the per-PRD grouping by their `skill: merge` frontmatter — staging reports carry the
   human test script in `## How to verify`; production reports render release-style, and when
   the body contains the literal token `IRREVERSIBLE` (a no-rollback platform like iOS) the
   Reports tab surfaces a prominent badge on the card and a callout banner on the detail page.

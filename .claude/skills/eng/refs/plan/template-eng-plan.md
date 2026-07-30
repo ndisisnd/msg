@@ -33,7 +33,7 @@ Bullet list. Cite the PRD path, the version hash or date, and any tune audit app
 
 ### 3. Alternatives considered
 
-Document every meaningful approach that was evaluated and rejected. This is the most important section for future readers who wonder "why not just do X?" If no alternative was seriously considered, write a single sentence explaining why the chosen approach is obviously correct — do not write `None.`
+Document the approaches that were genuinely evaluated and rejected — as many as are real, and no invented ones. This is the most important section for future readers who wonder "why not just do X?" If no alternative was seriously considered, write a single sentence explaining why the chosen approach is obviously correct — do not write `None.`
 
 | Option | Description | Rejected because |
 |--------|-------------|-----------------|
@@ -53,7 +53,7 @@ Document every meaningful approach that was evaluated and rejected. This is the 
 
 ### 4. Design decisions
 
-One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §13.
+One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §12.
 
 **Format per decision:**
 
@@ -105,7 +105,7 @@ Numbered phases. Each phase names its blocking dependency and exit criterion.
 
 ### 7. Integration contracts
 
-Cover all cross-service and cross-layer contracts introduced or changed by this plan. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
+Cover the cross-service and cross-layer contracts introduced or changed by this plan — the shared surfaces the tickets cannot hold: contract tables between agents and the auth-flow narrative. **Do not restate per-identifier detail that a ticket's `files` / `done-when` already carries** — the tickets are the build spec (`refs/build/protocol.md` § Spec source); §7 exists for the cross-agent agreement, not a second copy of it. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
 
 **API contracts:** List every new or changed API endpoint (REST, GraphQL, or RPC). For each, state the method, path or operation name, request shape, response shape, and the owning agent. Mark `NEW` or `CHANGED`.
 
@@ -165,21 +165,9 @@ State explicitly whether this plan introduces breaking changes and what the upgr
 
 ---
 
-### 10. Branching and CI strategy
+### 10. Risks and mitigations
 
-Bullet list. State the branching model, integration points, and CI gates.
-
-- **Base branch:** `main`.
-- **Feature branch:** `feat/prd-[n]-<short-name>`.
-- **Commit mode:** under `ship` (default `direct`), build agents commit straight to the feature branch (agents own disjoint file sets, so parallel commits are safe). Under standalone `eng --build` with `commit_mode: sub-branch`, each agent works a per-agent sub-branch `feat/prd-[n]-<short-name>/<agent-id>` and merges to the feature branch via PR.
-- **CI gates:** unit tests, integration tests, build green on the target platform (e.g., iOS 16+), backend schema migration reversible.
-- **Release strategy:** target platform release through its store or deploy channel; backend behind a feature flag (`prd_[n]_enabled`).
-
----
-
-### 11. Risks and mitigations
-
-Table form. One row per risk that could block ship.
+Table form. One row per risk that could block ship — **as many as are real**, not a quota. If there is genuinely no ship-blocking risk, write `None — <reason>`.
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|-----------|
@@ -189,7 +177,7 @@ Table form. One row per risk that could block ship.
 
 ---
 
-### 12. Findings — PRD gaps
+### 11. Findings — PRD gaps
 
 Numbered findings. Each carries a severity and a required action. If `plan-em` ran clarifying questions during drafting, capture the unresolved ones here. If no findings, write `None.` and continue.
 
@@ -199,12 +187,12 @@ Numbered findings. Each carries a severity and a required action. If `plan-em` r
 - **Minor** — Note for future PRDs; no action required this cycle.
 
 **Worked example:**
-1. **Critical** — PRD §5 F2 acceptance criterion does not name timezone reference. **Action:** PM clarifies before backend schema is frozen.
-2. **Minor** — PRD §6 success metric for "notification opt-in" lacks measurement window. **Action:** PM adds a window in next PRD revision.
+1. **Critical** — PRD §3 F2 acceptance criterion does not name timezone reference. **Action:** PM clarifies before backend schema is frozen.
+2. **Minor** — PRD §3 acceptance criterion for "notification opt-in" lacks a measurement window. **Action:** PM adds a window in next PRD revision.
 
 ---
 
-### 13. Open questions for human gate
+### 12. Open questions for human gate
 
 Numbered. Each question must be answerable with a single decision. Mark any design decisions from §4 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
 
@@ -217,14 +205,14 @@ Numbered. Each question must be answerable with a single decision. Mark any desi
 | Gate | Rule |
 |------|------|
 | Summary | §1 states what is being built, the agent's owned stack, and shipping shape. |
-| Alternatives | §3 documents at least one rejected option with a reason. |
+| Alternatives | §3 documents each alternative that was genuinely considered, with a reason for rejecting it — or one sentence why the chosen approach is obviously correct. No invented options. |
 | Design decisions | §4 has a subsection for every non-obvious implementation choice. Each has trade-offs and a resolution or is marked OPEN. |
 | PRD coverage | Every assigned PRD feature ID appears in §5 (Scope mapping). |
 | Phases | Every phase names a blocking dependency and an exit criterion. |
 | Integration contracts | §7 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
 | Developer experience | §8 shows a before/after or explicitly states no user-facing change. |
 | Migration | §9 explicitly states whether breaking changes exist and names the rollback plan. |
-| Risks | At least three risks named, each with a mitigation. |
+| Risks | Every real ship-blocking risk named, each with a mitigation — as many as are real, or `None — <reason>`. |
 | Findings | If PRD gaps exist, every finding has severity and action. |
-| Open questions | Any OPEN design decision in §4 appears in §13. |
-| Exact identifiers | Every function name, table name, column name, migration filename, and API endpoint is verified against the codebase scan — no guessed or approximate names. Any name that cannot be confirmed is a gap in §12, not a placeholder. |
+| Open questions | Any OPEN design decision in §4 appears in §12. |
+| Exact identifiers | Every function name, table name, column name, migration filename, and API endpoint is verified against the codebase scan — no guessed or approximate names. Any name that cannot be confirmed is a gap in §11, not a placeholder. |

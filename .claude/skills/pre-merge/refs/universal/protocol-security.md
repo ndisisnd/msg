@@ -1,9 +1,9 @@
 ---
 name: security
-description: Gate Step 6 — Security stage (safety floor, every profile). Stage 0 secret scan + dependency/SAST scanners, then a /cook-backed semantic pass over the diff's domains. Migrated from /review Security mode + the old pre-merge security component.
+description: The security component (safety floor, every profile). Stage 0 secret scan + dependency/SAST scanners, then a /cook-backed semantic pass over the diff's domains. Migrated from /review Security mode + the old pre-merge security component.
 ---
 
-# Step 6 — SECURITY stage (safety floor)
+# `security` — the safety-floor component
 
 Runs in **every** profile — tolerance never relaxes it. Two layers: deterministic
 scanners (Stage 0) then a `/cook`-backed semantic pass. Both surface to the verdict;
@@ -11,8 +11,8 @@ they are independent signals (no short-circuit between them).
 
 ## Stage 0 — Scanners (deterministic)
 
-Run every scanner the Step 1 fingerprint reported (`detected.security_scanners[]`),
-in parallel:
+Run every scanner resolved for this component in `devkit/policy.json` `components[]`
+(`detected.security_scanners[]`), in parallel:
 
 | Type | Scanner | Command | Finding |
 |---|---|---|---|
@@ -33,23 +33,22 @@ the rubric do not apply to secrets). Scanner logs → `.pre-merge/<ts>/security-
 a repo with **no scanner and no `/cook`** could run nothing and still green. C9 closes
 that: **secret-scan coverage is a hard requirement to *pass*.**
 
-- **Secret scanner present** → always run it (above). A hit → `blocker` (AC-SF1).
+- **Secret scanner present** → always run it (above). A hit → `blocker`.
 - **No secret scanner detected at all** (`detected.secret_scanner` empty / no
   gitleaks/trufflehog) → emit a `blocker` **without** running one:
   `rule: no-secret-scanner`, `category: security`, `source: pre-merge:security`,
   message *"No secret scanner is configured — the safety floor requires secret-scan
   coverage before this gate can pass"* + `evidence.snippet: "safety-floor-unmet"`.
-  There is **no green-gate path without secret-scan coverage** (AC-SF1/SF4). The fix
+  There is **no green-gate path without secret-scan coverage**. The fix
   is `/pre-merge --init` (it strongly offers gitleaks), not a forced install here —
-  the install stays per-item approved (`AC-DR2` preserved).
+  the install stays per-item approved.
 - **This blocker is not declinable at gate time** — a passing gate can never have had
-  zero secret-scan coverage (AC-SF4). Only `--init` recording the scanner (or the user
+  zero secret-scan coverage. Only `--init` recording the scanner (or the user
   installing one) clears it.
 
-**Everything else stays best-effort/degradable (AC-SF3).** Absence of SAST (semgrep),
+**Everything else stays best-effort/degradable.** Absence of SAST (semgrep),
 dependency scanning (audit/trivy/osv), container scanning (trivy image), or the `/cook`
-semantic pass is a **note**, never a blocker — recorded as `skipped` with a `reason`
-(`no_sast` / `no_dep_scanner` / `no_cook`), a degrade, not a failure. The secret
+semantic pass is a **note**, never a blocker — recorded as `skipped` with a `reason` (`no_sast` / `no_dep_scanner` / `no_cook`), a degrade, not a failure. The secret
 scanner is the **only** layer whose absence blocks; the rest inform.
 
 ## Semantic pass (/cook-backed)

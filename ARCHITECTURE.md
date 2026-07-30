@@ -8,7 +8,9 @@ MSG is a Claude Code skill harness — a collection of slash-command skills for 
 
 Shallow-clones this repo into a temp directory, then copies:
 - `skills/` → `~/.claude/skills/` (each skill as its own subdirectory; `improve/` is excluded — it's a repo-internal plan tracker, never an installed skill)
-- `scripts/` → `~/.claude/scripts/` (all `.sh` files made executable)
+- `scripts/` → `~/.claude/scripts/` (all `.sh` files and `script-prd-number` made executable)
+
+The installer copies but never overwrites by deletion, so a **renamed** skill or script would otherwise leave its old copy behind forever — and a stale `~/.claude/skills/<old-name>/` shadows its replacement. Two explicit sweeps run before the copy: retired skill directories (`plan-tune`, `post-merge` — both renamed in v5) are removed, and every pre-v5 script filename is deleted so nothing can resolve an old copy through a fallback path. Only names msg itself shipped are ever listed.
 
 Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook) dependency, which provides the `/cook` skill MSG skills call for domain-specific coding standards.
 
@@ -17,41 +19,95 @@ Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook
 Each skill is a directory containing a `SKILL.md` — a structured prompt consumed by Claude Code's skill system when the user invokes `/name`. Skills are self-contained: they declare their `allowed_tools`, `model`, and protocol inline.
 
 Skills compose in two ways:
-- **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-tune` or `plan-em` directly)
+- **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-review` or `plan-em` directly)
 - **Subagent delegation** via the `Agent` tool (e.g. `/pre-merge` fans out `/cook` sub-agents in parallel for its security stage)
 
 The `shared/` skill holds common prompt fragments imported by multiple skills, including
-`shared/refs/component-catalog.md` — the single source of pre-merge/post-merge component
+`shared/refs/component-catalog.md` — the single source of pre-merge/merge component
 metadata (schema, defaults, grouping) that gate sequencing, folder placement, and
 check-script naming all key off.
 
 ### 3. Script layer — `~/.claude/scripts/`
 
-Bash helpers invoked by skills at runtime. Skills resolve scripts locally first (`./claude/scripts/`), then fall back to the global install.
+Bash and Python helpers invoked by skills at runtime. Skills resolve scripts locally first (`./claude/scripts/`), then fall back to the global install.
+
+**Naming convention.** Every script is named `script-<slug>.<ext>` (v5). The prefix marks the shared script library at a glance, and — deliberately — the slug carries **no owning-skill prefix**, so renaming a skill never cascades into renaming its scripts. The one exception is `changelog-gate.py`, whose path is pinned inside a `PreToolUse` hook in `.claude/settings.json` that Claude Code resolves at session start; renaming it would break the hook for any session already running, so it keeps its pre-v5 name.
+
+There are ~58 scripts. Grouped by what they own:
+
+**PRD lifecycle**
 
 | Script | Purpose |
 |--------|---------|
-| `preflight-check-*.sh` (+ `preflight-common.sh`) | The per-check detect+normalize family — one script per component, sharing the probe primitives in `preflight-common.sh`. Each emits a normalized check-report `detect` section; `/pre-merge --init` / `--update` run them to assemble the `components[]` manifest. **Replaced the retired monolithic `pre-merge-tooling-detect.sh`** at v3 P3 |
-| `pre-merge-aggregate-verdict.sh` | Merges per-component pre-merge results into a single verdict |
-| `pre-merge-tier-resolve.sh` | Deterministic S/M/L **size-tier** resolver for minified test selection — reads the diff's `modules` + the caller-supplied `ratio`/`fan_in_pct` against `policies.test_selection.tiers`/`max_affected_ratio`, short-circuits to `L` on a `force_full_paths` hit, and resolves the **largest** tier any signal lands in (an unavailable signal always widens). Emits `{tier, signals, trigger}`; read-only, never writes `policy.json`. Consumed by `/pre-merge`'s executor (`refs/executor.md` §3c.1) |
-| `scan-n.prd` | Assigns the next available PRD number |
-| `scan-prd-digest.py` | Deterministic PRD → JSON digest with per-stage slices (`plan`/`build`/`synth`); carries `engineering_agents` for plan-em's wave-mode detection |
-| `plan-pm-roadmap-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2, plan-em Step 1c, and roadmap Step 1–2 |
-| `plan-pm-roadmap-sequence.py` | Deterministic roadmap sequencer — DAG phase layering with intake `S:`-band bias, rerun stability, cycle detection; emits `PHASE`/`CYCLE`/`PRUNED` lines for `--roadmap` Step 4 |
-| `plan-pm-deps-mirror.sh` | §6 Dependencies → frontmatter `depends_on` union writeback (`ADDED <id>` lines, idempotent) |
-| `plan-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet/wave decomposition consumed by the team orchestrator |
-| `plan-em-branch-resolve.sh` | Read-only parent-aware branch resolver — emits `BRANCH`/`ACTION`/`LANE_MOVE` for the build wave (merged-branch reuse impossible) |
-| `plan-em-exec-skeleton.py` | Renders the §7 exec-table skeleton (exact row text + todos anchors) from plan-em's JSON `(fid, concern, agent)` spec |
-| `plan-tune-preflight.sh` | Validates PRD structure before a tune pass |
-| `plan-tune-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the tune stamp + §9 ledger; gates plan-em's plan/build waves |
-| `stamp-prd.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, tune stamps, reviewed, completion, module); single-line edit, idempotent |
-| `stamp-intake.sh` | INTAKE.md ledger row writer — rewrites only the named row's `status`/`prd` cells; never renumbers |
-| `eng-db-touch.sh` | DB/data/production-config touch detector on a diff (`category<TAB>path` lines); the after-every-wave guard in team builds |
-| `changelog-gate.py` | Validates CHANGELOG.md format |
-| `eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
-| `eng-commit-cap.sh` | A5 small-commit cap — blocks a staged diff over 500 changed LOC (300 with `--breaking`); `--oversize-reason` escape hatch |
-| `post-merge-protection.sh` | Branch-protection `--bootstrap` (sets required status checks + no-force-push on `staging`/`main`, plus ≥1 required review on `main`) and `--verify` (machine `PROTECTED`/`UNPROTECTED` lines; `NO_GH`/`NO_REMOTE` when degraded). Run by `/post-merge` Step 1; offered by `/msg --init-staging` and `--init` |
-| `doctor-detect-repo.sh` | Read-only probe of repo visibility, branch-protection availability (Free-plan 403 sniff), and staging/prod branch topology → JSON. Consumed by `/pre-merge --init` and `/post-merge --init` to seed `devkit/policy.json`'s `repo` block + `release_flow` |
+| `script-prd-number` | Assigns the next available PRD (or sub-PRD) number |
+| `script-prd-shape.py` | Mechanical PRD shape validator — the eight canonical sections, the §3 features table, F-ID sequencing, reserved placeholders, frontmatter keys |
+| `script-prd-digest.py` | Deterministic PRD → JSON digest with per-stage slices (`plan`/`build`/`synth`); carries `engineering_agents` for plan-em's wave-mode detection |
+| `script-prd-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2 and plan-em Step 1c |
+| `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, tune stamps, reviewed, completion, module); single-line edit, idempotent |
+| `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `depends_on` union writeback (`ADDED <id>` lines, idempotent) |
+| `script-intake-stamp.sh` | The `INTAKE.md` ledger writer — `--append-row`, `--set-cell`, `--remove-row`, `--find-row`, `--log-append`, plus the `status`/`prd` stamps. Header-derived columns, escaped pipes, temp-file writes; never renumbers |
+
+**Certification (plan-review)**
+
+| Script | Purpose |
+|--------|---------|
+| `script-cert-preflight.sh` | Resolves and validates the PRD path, and detects which tune type the content calls for |
+| `script-cert-mech.py` | The mechanical half of certification — every check verdict decidable from PRD text alone, so the model only judges what needs judgment |
+| `script-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the tune stamp + the §7 ledger; gates plan-em's plan and build waves |
+| `script-ledger.py` | Writer for the PRD's §7 *Plan review findings* ledger — locate-or-create, dedup against prior rows, monotonic `#`, clean-marker row |
+
+**Engineering (plan-em, eng)**
+
+| Script | Purpose |
+|--------|---------|
+| `script-em-exec-skeleton.py` | Renders the §6 exec-table skeleton (exact row text + todo anchors) from plan-em's JSON `(fid, concern, agent)` spec |
+| `script-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet decomposition consumed by the team orchestrator |
+| `script-em-branch-resolve.sh` | Read-only parent-aware branch resolver — emits `BRANCH`/`ACTION`/`LANE_MOVE` for the build wave (reusing a merged branch is impossible) |
+| `script-eng-plan-shape.py` | Mechanical validator for an `eng --plan` pass — the three coupled artifacts it writes must agree |
+| `script-eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
+| `script-eng-commit-cap.sh` | A5 small-commit cap — measures a staged diff against 500 changed LOC (300 with `--breaking`); pairs the cap with the prepared message and its `Oversize-reason:` trailer |
+| `script-eng-db-touch.sh` | DB/data/production-config touch detector on a diff (`category<TAB>path` lines); the guardrail behind every build's sign-off pause |
+| `script-eng-fix-grade.py` | The one simple/complex fix-complexity grader — the rubric lives in code, not in each protocol's prose |
+| `script-eng-close-loop.py` | The single sanctioned write to an issues file when `eng --build report=` closes a fix loop |
+
+**Gates (pre-merge, merge)**
+
+| Script | Purpose |
+|--------|---------|
+| `script-preflight-*.sh` | The per-check detect+normalize family — one script per component (`01-mechanical` … `18-manual-test-plan`), each emitting a normalized check-report `detect` section. `/pre-merge --init` / `--update` run them to assemble the `components[]` manifest. **Replaced the retired monolithic `pre-merge-tooling-detect.sh`** at v3 P3 |
+| `script-check-common.sh` | The probe primitives every `script-preflight-*.sh` sources. Named outside the family glob on purpose, so the ingestion loop never mistakes the library for a check |
+| `script-pipeline-resolve.py` | Prunes the manifest to what this project has, topo-sorts on dependencies, and emits the parallel wave plan |
+| `script-tier-resolve.sh` | Deterministic S/M/L **size-tier** resolver for minified test selection — reads the diff's `modules` + the caller-supplied `ratio`/`fan_in_pct` against `policies.test_selection.tiers`/`max_affected_ratio`, short-circuits to `L` on a `force_full_paths` hit, and resolves the **largest** tier any signal lands in (an unavailable signal always widens). Read-only |
+| `script-ts-miss.py` | Test-selection miss attribution — the CI-backstop half of the minified-selection bargain |
+| `script-aggregate-verdict.sh` | Merges the per-component result reports into a single severity-graded verdict |
+| `script-resolve-diff.sh` | Structured diff-vs-base summary (bundled with pre-merge, not in the shared library) |
+| `script-ci-status.py` | Check-state set + policy → one CI verdict, so merge's three call sites cannot drift apart |
+| `script-branch-protection.sh` | Branch-protection `--bootstrap` (required status checks + no-force-push on `staging`/`main`, plus ≥1 required review on `main`) and `--verify` (`PROTECTED`/`UNPROTECTED`; `NO_GH`/`NO_REMOTE` when degraded). Run by `/merge` Step 1; offered by `/msg --init-staging` and `--init` |
+| `script-signoff-coverage.sh` | Read-only staging sign-off coverage check — does the newest staging commit still fall under the signed-off sha? |
+| `script-release-identity.sh` | Read-only release identity for `merge --production` — current tag, next version, build, monotonicity, provenance |
+| `script-release-lock.sh` | Production release lock (`acquire`/`release`/`status`) so two concurrent `--production` runs cannot both ship |
+| `script-smoke-run.sh` | Executor for the v2 smoke contract plus the config-gated macOS release checks (notarization, signing, appcast) |
+
+**Project state**
+
+| Script | Purpose |
+|--------|---------|
+| `script-policy-read.py` | The reader for `devkit/policy.json` — fail-safe defaults when the file is absent |
+| `script-policy-set.py` | The writer for `devkit/policy.json` — seeds, merges, preserves siblings, stamps `generated`/`generated_by` |
+| `script-platforms-parse.py` | The one parser for `devkit/PLATFORMS.md` |
+| `script-branch-topology.sh` | Read-only git branch topology — the single place msg answers "which branches exist and which is prod" |
+| `script-doctor-detect.sh` | Read-only probe of repo visibility, branch-protection availability (Free-plan 403 sniff), and staging/prod branch topology → JSON. Seeds `devkit/policy.json`'s `repo` block + `release_flow` |
+| `script-project-findings.py` | The one finding → issue-ticket projection, and the single home of the legacy wire-value map every finding reader inherits |
+
+**File-owned writers** — a file, not a skill, owns each of these; any skill that records something writes through the file's writer rather than editing it freehand.
+
+| Script | Purpose |
+|--------|---------|
+| `script-aha.sh` | Writer for `devkit/AHA.md` |
+| `script-openq.sh` | Writer for `devkit/OPEN-QUESTIONS.md` |
+| `script-doctor-log.sh` | Writer for `devkit/DOCTOR.md`, the harness-incident ledger |
+| `script-doctor-tally.sh` | Reader for `devkit/DOCTOR.md` — everything decidable about the ledger, including which incidents have recurred enough to graduate |
+| `changelog-gate.py` | Validates `CHANGELOG.md` format at the commit gate (hook-pinned name — see above) |
 
 ### 4. Devkit layer (scaffolded projects)
 
@@ -60,30 +116,35 @@ Bash helpers invoked by skills at runtime. Skills resolve scripts locally first 
 | File | Role |
 |------|------|
 | `devkit/AHA.md` | Institutional knowledge log — past learnings agents must not repeat |
+| `devkit/DOCTOR.md` | Harness-incident ledger — one row per time the harness itself misbehaved (a script that failed, a write that did not land, a validator that misfired). Written by every skill via `script-doctor-log.sh`, read by `/msg --doctor`. **Gitignored**: it describes this machine, not the product |
+| `devkit/ENV.md` | The project's environment contract — the commands, tools, and variables a run may assume, so a skill never guesses how to build or test |
 | `devkit/GLOSSARY.md` | Canonical domain terms — consistent naming across all agents |
 | `devkit/ARCHITECTURE.md` | System constraints, layers, integration points — scopes what agents may touch |
 | `devkit/DESIGN-SYSTEM.md` | Component registry — which UI components exist and what needs data ingestion |
 | `devkit/OPEN-QUESTIONS.md` | Unresolved decisions — build agents write here when they hit ambiguity |
-| `devkit/PLATFORMS.md` | Per-platform tolerance profiles + release pipeline — read by `/pre-merge` and `/post-merge`. Each platform row declares its `release_model` (`deploy` \| `submission` — inferred with a warn when absent), deploy/smoke cmds (smoke as one-shot, watch-window, or poll), staging config, rollback/rollout-halt cmds, a version probe for provenance, and the config-gated macOS surfaces (notarization status, signing smoke, appcast) |
+| `devkit/PLATFORMS.md` | Per-platform tolerance profiles + release pipeline — read by `/pre-merge` and `/merge`. Each platform row declares its `release_model` (`deploy` \| `submission` — inferred with a warn when absent), deploy/smoke cmds (smoke as one-shot, watch-window, or poll), staging config, rollback/rollout-halt cmds, a version probe for provenance, and the config-gated macOS surfaces (notarization status, signing smoke, appcast) |
 | `devkit/policy.json` | Committed, shared gate policy — release-flow shape (`staged`/`direct`), branch-protection stance, whether GitHub Actions CI is wanted at all (`github_actions.enabled` — off ⇒ the gates stop expecting PR checks and stop offering a workflow scaffold), whether pre-merge should minify its `unit`/`integration`/`regression` runs to *affected(diff) ∪ critical-floor* (`test_selection.enabled` — opt-in, absent ⇒ full suites exactly as before), staging-readiness stance (`staging_readiness` mode + the per-platform `staging_ready` record `--init` resolves), and per-step tooling decisions. Read by both gates at run time; **decisions only** (never per-machine tool presence). Schema: `shared/refs/policy-schema.md` |
 
-`devkit/policy.json` is the one **co-written** devkit file: `/msg --init` seeds it (`version`, `init:false`, `release_flow`, plus `github_actions` when it asked the CI question), `--init` completes it (tooling + branch-protection, flips `init:true`), `/msg --init-staging` flips the flow to `staged`, and `/msg --update` revisits the `github_actions` decision and is the single-run complete off switch for `test_selection` (enabling that key is deferred entirely to pre-merge's own interview — the two keys `/msg --update` writes). It gates the pipeline: a gate run with `init:false` auto-runs `--init` first; with `init:true` it runs the protocol; with no file at all it falls back to today's behavior (unmanaged repo). See the `--init` protocol refs (`{pre,post}-merge/refs/protocol-init.md`). `--doctor` is a deprecated one-release alias for `--init` on both gates.
+`devkit/policy.json` is the one **co-written** devkit file: `/msg --init` seeds it (`version`, `init:false`, `release_flow`, plus `github_actions` when it asked the CI question), `--init` completes it (tooling + branch-protection, flips `init:true`), `/msg --init-staging` flips the flow to `staged`, and `/msg --update` revisits the `github_actions` decision and is the single-run complete off switch for `test_selection` (enabling that key is deferred entirely to pre-merge's own interview — the two keys `/msg --update` writes). It gates the pipeline: a gate run with `init:false` auto-runs `--init` first; with `init:true` it runs the protocol; with no file at all it falls back to today's behavior (unmanaged repo). See the `--init` protocol refs (`{pre,post}-merge/refs/protocol-init.md`).
 
-The root `INTAKE.md` backlog ledger is **not** a devkit file — it is scaffolded by `/msg --init` at the repo root (D13) but, unlike the read-only devkit docs, it is a living ledger written by `intake` (rows), `plan-pm` (status/prd mapping), and `post-merge --production` (completed status). Both it and its sibling `INTAKE-UPDATE.md` — the append-only edit history `intake --update`/`--delete` write, lazy-created on first edit — are **gitignored** (the shared table was a standing merge-conflict source), so the ledger and the completed stamp are local-only.
+The root `INTAKE.md` backlog ledger is **not** a devkit file — it is scaffolded by `/msg --init` at the repo root (D13) but, unlike the read-only devkit docs, it is a living ledger written by `intake` (rows), `plan-pm` (status/prd mapping), and `merge --production` (completed status). Both it and its sibling `INTAKE-UPDATE.md` — the append-only edit history `intake --update`/`--delete` write, lazy-created on first edit — are **gitignored** (the shared table was a standing merge-conflict source), so the ledger and the completed stamp are local-only.
 
 ## Skill pipelines
 
 ```
-Planning:   intake → plan-pm → plan-tune --product → plan-em → plan-tune --eng
-Execution:  eng --plan → eng --build → pre-merge → post-merge --staging → (human) → post-merge --production
-Roadmap:    plan-pm --roadmap → (approve reshaping) → roadmap/roadmap.md → eng --build roadmap= (orchestrated execution)
+Planning:   intake → plan-pm → plan-review --product → plan-em → plan-review --eng
+Execution:  eng --plan → eng --build → pre-merge → merge --staging → (human) → merge --production
 ```
 
-The planning pipeline starts at `intake`, the graded backlog front door: it captures every feature idea and bug as a row in the root `INTAKE.md` ledger (chronological table `# | date | type | idea | goal | grade | status | prd`), owning the requirements interview (flesh-out, adjacent-idea suggestion, hybrid/XL splitting) and grading each idea in a single-turn banded judgment (complexity / token-cost / sequencing — bands only). `plan-pm` then consumes a graded row and drafts the PRD autonomously; the row's `status` walks `backlog` (intake) → `in-progress` (plan-pm, which also fills the `prd` mapping) → `completed` (`post-merge --production`), giving the harness a living ledger connecting "things we want" to "PRDs that shipped."
+`roadmap/roadmap.md` still exists as a place to sequence PRDs into phases, and the `/msg --gui` Roadmap tab still renders it — but it is **hand-authored by a person** against `roadmap/TEMPLATE-roadmap.md`. No skill generates or executes it.
 
-Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The two deliberate exceptions are the roadmap orchestrator (below) and `plan-em`'s **certification preconditions**: `plan-em` auto-runs `plan-tune --product` before the plan wave and `plan-tune --eng` before the build wave (D18), so the build wave can never start on an uncertified plan. `plan-tune` itself is a **contract certifier** — it runs a fixed seven-check certification, each check bound to a named downstream consumer that executes a PRD field blindly (regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads); "no check without a consumer" is its governing rule. It auto-fixes every Critical + Major and writes a category-tagged learning to `devkit/AHA.md`, which `plan-pm` reads on its next draft — a self-healing loop that trends fresh-PRD defect counts toward zero. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
+The planning pipeline starts at `intake`, the graded backlog front door: it captures every feature idea and bug as a row in the root `INTAKE.md` ledger (chronological table `# | date | type | idea | goal | grade | status | prd`), owning the requirements interview (flesh-out, adjacent-idea suggestion, hybrid/XL splitting) and grading each idea in a single-turn banded judgment (complexity / token-cost / sequencing — bands only). `plan-pm` then consumes a graded row and drafts the PRD autonomously; the row's `status` walks `backlog` (intake) → `in-progress` (plan-pm, which also fills the `prd` mapping) → `completed` (`merge --production`), giving the harness a living ledger connecting "things we want" to "PRDs that shipped."
 
-The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roadmap` analyses the existing PRDs — flagging bloat/overlap and proposing `SPLIT`/`MERGE`/`FOLD`/`TRIM` ops, applied only on per-op approval — then sequences them into phases in `roadmap/roadmap.md` (viewable on the `/msg --gui` Roadmap tab). `eng --build roadmap=roadmap/roadmap.md` turns the current session into a **product-operations orchestrator** that executes the roadmap phase-by-phase, spawning `eng`, `pre-merge`, and `post-merge --staging` subagents (pre-merge is the single CI gate; post-merge is the single merger), fixing critical+major (`blocker`+`high`) by default, and looping until each phase is clean. Its per-PRD chain is `eng --build → pre-merge → (clean PR) → post-merge --staging → STOP` — the chain ends at staging. It stays within the standing convention's spirit — it emits a plan and asks **once** before executing, then runs autonomously behind guardrails: all work on `feat/prd-<n>-*` branches, a pause for sign-off on any database/data/production-config touch (`eng-db-touch.sh`), and it never merges with its own hands (staging merges go through the `post-merge --staging` subagent) and **never** ships to production — `post-merge --production` is always a human release.
+Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The one deliberate exception is `plan-em`'s **certification preconditions**: `plan-em` auto-runs `plan-review --product` before the plan wave and `plan-review --eng` before the build wave (D18), so the build wave can never start on an uncertified plan. `plan-review` itself is a **contract certifier** — it runs a fixed seven-check certification, each check bound to a named downstream consumer that executes a PRD field blindly (regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads); "no check without a consumer" is its governing rule. It auto-fixes every Critical + Major and writes a category-tagged learning to `devkit/AHA.md`, which `plan-pm` reads on its next draft — a self-healing loop that trends fresh-PRD defect counts toward zero. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
+
+`plan-em` runs **one wave per invocation**: the first `/plan-em <prd>` certifies the product side and runs the plan wave, the second certifies the eng side and runs the build wave. Its closing message says which of the two just finished and therefore what to run next — re-run `/plan-em`, or move on to `/pre-merge`.
+
+Parallelism lives *inside* a wave, not across skills. In `--team` mode (the default) an Opus orchestrator engineer decomposes the wave into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents; `--solo` runs one leaf subagent per roster stack. Either way the guardrails hold: all work on `feat/prd-<n>-*` branches, a sign-off pause on any database/data/production-config touch (`script-eng-db-touch.sh`), no skill merges with its own hands, and production is always a human release.
 
 ## Skill inventory
 
@@ -91,17 +152,17 @@ The **Roadmap** pipeline is the one deliberately-autonomous path. `plan-pm --roa
 |-------|------------|
 | `intake` | Yes (idea/bug capture + interview + grading into the root `INTAKE.md` backlog — the planning front door) |
 | `plan-pm` | Yes (autonomous PRD writer — consumes a graded intake row; interview lives in `intake`) |
-| `plan-tune` | Yes (contract certifier — seven consumer-bound checks; `--product` runs 1/2/3/6, `--eng` runs 2/4/5/6/7; auto-run by `plan-em` before each wave) |
+| `plan-review` | Yes (contract certifier — seven consumer-bound checks; `--product` runs 1/2/3/6, `--eng` runs 2/4/5/6/7; auto-run by `plan-em` before each wave) |
 | `plan-em` | Yes |
-| `eng` | Yes (`--plan` / `--build` / `--build --loop`) |
-| `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`; runs a **preflight-driven pipeline executor** over the `components[]` manifest in `devkit/policy.json` — no manifest → refuses `no_manifest` naming `--init`; `--init`/`--update` detect the pipeline and write the manifest; `--doctor` is a deprecated one-release alias. The **merged `preview` gate** (absorbs the retired `qa`, id 15) is the **sole human gate**: it captures visual states **and** stands up an ephemeral pokeable env for one unified Approve/Reject; **`smoke` is its health precondition** — default-liveness floor + critical-path golden flows, runs first and short-circuits so a dead preview never reaches the human. Opt-in **minified test selection** (`policies.test_selection`, `executor.md` §3c) narrows `unit`/`integration`/`regression` to *affected(diff) ∪ critical-floor*, sized by a deterministic S/M/L tier rubric computed from the diff's blast radius alone — never critical-only, always fail-open to the full suite on any resolution failure, with `--minified`/`--full` as per-run overrides and `--update-criticality` reconciling tag drift) |
-| `post-merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; verifies each deploy per platform `release_model` — `deploy` platforms (web, macOS) smoke the live target under the v2 contract (one-shot / watch-window / poll), plus config-gated macOS notarization/signing/appcast checks; `submission` platforms (iOS, Android) never report live — a deploy is `submitted` + track, verified as submission-accepted + backend/build-health smoke, with an explicit monitor-handoff; any deploy/smoke failure offers an executable rollback or rollout-halt before the fix loop; `--production` additionally resolves read-only release identity (version/build off the last `v*` tag, provenance checked against the signed-off sha) and holds a release lock against a concurrent release; `--init` sets up protection/deploy tooling + release-flow policy and verifies per-platform staging readiness; `--doctor` is a deprecated one-release alias) |
+| `eng` | Yes (`--plan` / `--build` / `--review` — `--build` spawns the reviewer by default before the commit confirm) |
+| `pre-merge` | Yes (the CI gate — absorbs the retired `/review` + `/test`; runs a **preflight-driven pipeline executor** over the `components[]` manifest in `devkit/policy.json` — no manifest → refuses `no_manifest` naming `--init`; `--init`/`--update` detect the pipeline and write the manifest. Pre-merge holds **no human gate** — the human look at a running build is merge's (staging sign-off, or the direct-flow attestation). **`smoke`** is the machine stand-in: a default-liveness floor + critical-path golden flows, run first inside the ephemeral test sandbox so a dead build short-circuits the expensive checks. Opt-in **minified test selection** (`policies.test_selection`, `executor.md` §3c) narrows `unit`/`integration`/`regression` to *affected(diff) ∪ critical-floor*, sized by a deterministic S/M/L tier rubric computed from the diff's blast radius alone — never critical-only, always fail-open to the full suite on any resolution failure, with `--minified`/`--full` as per-run overrides and `--update-criticality` reconciling tag drift) |
+| `merge` | Yes (the ship gate — `--staging` / `--production`; the only skill that merges; verifies each deploy per platform `release_model` — `deploy` platforms (web, macOS) smoke the live target under the v2 contract (one-shot / watch-window / poll), plus config-gated macOS notarization/signing/appcast checks; `submission` platforms (iOS, Android) never report live — a deploy is `submitted` + track, verified as submission-accepted + backend/build-health smoke, with an explicit monitor-handoff; any deploy/smoke failure offers an executable rollback or rollout-halt before the fix loop; `--production` additionally resolves read-only release identity (version/build off the last `v*` tag, provenance checked against the signed-off sha) and holds a release lock against a concurrent release; `--init` sets up protection/deploy tooling + release-flow policy and verifies per-platform staging readiness) |
 | `msg` | Yes (interactive skill browser; `--init` runs the one-time project bootstrap + seeds `devkit/policy.json`; `--init-staging` adds a staging branch and flips the release flow to `staged`; `--gui` serves the local interactive PRD board — Kanban/table, PRD editing, todo toggling, prompt console, project-doc viewer, run-report reader — via `refs/gui/server.py`, bound to 127.0.0.1) |
 | `shared` | Internal only |
 
 ## Run reports
 
-`eng --build`, `pre-merge`, and `post-merge` end every completed run by writing a `report-[n].md` (schema: `shared/refs/report-schema.md`) to the PRD's `features/prd-<n>-<slug>/reports/` folder, or `features/reports/` when no PRD is resolvable — `[n]` is the standard `max+1` counter per directory. The report carries GUI-parseable frontmatter (skill, PRD, branch, verdict, features, diff/test stats) and fixed sections covering work done, code changes, test results, **what the user can expect**, and **how to verify** the work — written for a human, derived from the PRD's acceptance criteria and the tests that ran. Post-merge's staging report carries the human test script in `## How to verify`; its production report renders release-style — the resolved version/tag and per-platform release-model outcomes (`live` for deploy platforms, `submitted` + track + monitor-handoff for store apps), any rollback/halt offer and its outcome, and any no-rollback platform (iOS) flagged `IRREVERSIBLE`. Writes are best-effort (a failed write never fails, blocks, or re-verdicts a run) and supplement — never replace — each skill's existing output contract (eng's build summary, pre-merge's final JSON emission, post-merge's merge/deploy summary). The `/msg --gui` **Reports** tab groups them by PRD and renders them read-only.
+`eng --build`, `pre-merge`, and `merge` end every completed run by writing a `report-[n].md` (schema: `shared/refs/report-schema.md`) to the PRD's `features/prd-<n>-<slug>/reports/` folder, or `features/reports/` when no PRD is resolvable — `[n]` is the standard `max+1` counter per directory. The report carries GUI-parseable frontmatter (skill, PRD, branch, verdict, features, diff/test stats) and fixed sections covering work done, code changes, test results, **what the user can expect**, and **how to verify** the work — written for a human, derived from the PRD's acceptance criteria and the tests that ran. Merge's staging report carries the human test script in `## How to verify`; its production report renders release-style — the resolved version/tag and per-platform release-model outcomes (`live` for deploy platforms, `submitted` + track + monitor-handoff for store apps), any rollback/halt offer and its outcome, and any no-rollback platform (iOS) flagged `IRREVERSIBLE`. Writes are best-effort (a failed write never fails, blocks, or re-verdicts a run) and supplement — never replace — each skill's existing output contract (eng's build summary, pre-merge's final JSON emission, merge's merge/deploy summary). The `/msg --gui` **Reports** tab groups them by PRD and renders them read-only.
 
 ## Closing message
 
@@ -109,8 +170,8 @@ Every pipeline skill run ends with a standardised chat closing message (`shared/
 
 ## Safety floor
 
-Write powers are scoped per skill rather than blanket-forbidden: eng commits to `feat/prd-<n>-*` feature branches only; pre-merge opens exactly one feature→staging PR (+ the D7 sync-merge commit) and never merges; **post-merge is the only merger** — staging via a green-CI PR merge, production via the double-confirmed staging→main release — and nothing reaches `main` any other way. Post-merge's two release tags — the `v<x.y.z>+<build>` version tag and the in-flight release lock — are commit **metadata**, not source writes, and are its only writes beyond the merges, stamps, and reports. DB/data/prod-config pauses, breaking-change pauses, branch isolation, secret scan, frontmatter stamps, F-ID stability, PRD §9 ledger, gate-fail ticket, pre-merge refusals, and the human gates (preview approval, staging sign-off — pinned to the tested commit, the direct-flow inline human-test, the always-ask rollback offer, production double-confirm) are **never relaxed** (`shared/refs/safety-floor.md`).
+Write powers are scoped per skill rather than blanket-forbidden: eng commits to `feat/prd-<n>-*` feature branches only; pre-merge opens exactly one feature→staging PR (+ the D7 sync-merge commit) and never merges; **merge is the only merger** — staging via a green-CI PR merge, production via the double-confirmed staging→main release — and nothing reaches `main` any other way. Merge's two release tags — the `v<x.y.z>+<build>` version tag and the in-flight release lock — are commit **metadata**, not source writes, and are its only writes beyond the merges, stamps, and reports. DB/data/prod-config pauses, breaking-change pauses, branch isolation, secret scan, frontmatter stamps, F-ID stability, PRD §7 ledger, gate-fail ticket, pre-merge refusals, and the human gates (staging sign-off — pinned to the tested commit, the direct-flow inline human-test, the always-ask rollback offer, production double-confirm) are **never relaxed** (`shared/refs/safety-floor.md`).
 
 ## Cook integration
 
-`cook` is an optional but recommended dependency. MSG skills load project-specific coding standards from cook before generating code. Standalone skill runs call cook directly (`eng`/`plan-em` pass explicit `--<domain>` flags, e.g. `--flutter --dart`, for a cacheable, P0-guaranteed compile). On orchestrated paths, the orchestrator (`plan-em`, `review`, roadmap `eng --build`) compiles cook **once per stack** and injects the compiled standards payload into each subagent prompt, so leaf agents never re-invoke cook. Without cook, skills still work — they just skip the standards-loading step.
+`cook` is an optional but recommended dependency. MSG skills load project-specific coding standards from cook before generating code. Standalone skill runs call cook directly (`eng`/`plan-em` pass explicit `--<domain>` flags, e.g. `--flutter --dart`, for a cacheable, P0-guaranteed compile). On orchestrated paths, the orchestrator (`plan-em --team`, `eng --build`'s review spawn) compiles cook **once per stack** and injects the compiled standards payload into each subagent prompt, so leaf agents never re-invoke cook. Without cook, skills still work — they just skip the standards-loading step.

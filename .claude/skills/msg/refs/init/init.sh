@@ -157,6 +157,8 @@ done
 
 for pair in \
   "AHA.md:template-AHA.md" \
+  "DOCTOR.md:template-DOCTOR.md" \
+  "ENV.md:template-ENV.md" \
   "GLOSSARY.md:template-GLOSSARY.md" \
   "OPEN-QUESTIONS.md:template-OPEN-QUESTIONS.md"
 do
@@ -268,7 +270,8 @@ fi
 
 # ── features/ lifecycle lanes ─────────────────────────────────────────────────
 # Three lanes mirror the pipeline stage — planned (drafted), wip (in build),
-# done (shipped). Each carries a tracked .gitkeep so the empty lane commits.
+# done (shipped). Each carries a .gitkeep marking the empty lane on disk;
+# features/ is gitignored, so the lanes are local working state, not committed.
 # Idempotent: a lane that already exists is skipped, never emptied or recreated.
 
 for lane in planned wip done; do
@@ -281,6 +284,21 @@ for lane in planned wip done; do
     FAILED+=("features/$lane/")
   fi
 done
+
+# ── roadmap/ scaffold ─────────────────────────────────────────────────────────
+# roadmap/roadmap.md is hand-authored by the human — no skill generates it. What
+# ships here is the format guide it must follow, so the human has something to
+# author against and the /msg --gui Roadmap tab can parse the result.
+# Idempotent: an existing TEMPLATE-roadmap.md is skipped, never overwritten.
+
+if [[ -e "$TARGET/roadmap/TEMPLATE-roadmap.md" ]]; then
+  SKIPPED+=("roadmap/TEMPLATE-roadmap.md")
+elif mkdir -p "$TARGET/roadmap"; then
+  content=$(extract_body "$REFS/TEMPLATE-roadmap.md")
+  write_file "TEMPLATE-roadmap.md" "$content" "roadmap"
+else
+  FAILED+=("roadmap/TEMPLATE-roadmap.md")
+fi
 
 # ── .claude/msg/ execution-mode preference ────────────────────────────────────
 # The persisted team/solo planning execution mode consumed by plan-em (Step 0).
@@ -304,7 +322,8 @@ fi
 #   merged staging->prod release PR (or a shipped tag) that names the PRD → done/
 #   a live unshipped feat/prd-<n>-* branch (local or remote)             → wip/
 #   otherwise                                                            → planned/
-# git mv when the dir is tracked (history-preserving rename); plain mv otherwise.
+# plain mv is the normal path (features/ is gitignored, so nothing is tracked);
+# git mv only for the legacy case of a dir tracked before features/ was ignored.
 # Idempotent: a PRD already inside a lane is never matched, and a brand-new repo
 # with an empty features/ matches nothing and migrates nothing.
 

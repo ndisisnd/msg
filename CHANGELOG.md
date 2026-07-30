@@ -1,5 +1,151 @@
 # Changelog
 
+## Unreleased — v5.0.0
+
+### v5-P17 — the rename commit (i1/i12/i101/Q5)
+
+- Renamed — `plan-tune` → **`plan-review`** (rename only, both modes stay; 91 citations, 38 files) and `post-merge` → **`merge`** (468 citations, 58 files; the old name is retired and reserved); `policy-schema-post-merge.md` → `policy-schema-merge.md`
+- Renamed — **37 scripts** to `script-<slug>` (slug carries no skill prefix so future renames never cascade); one sanctioned exception: `changelog-gate.py` (hook-config-pinned, session snapshot cannot reload — documented in ARCHITECTURE); latent glob collision dodged (`preflight-common` → `script-check-common`, outside the `script-preflight-*` ingestion glob)
+- Wire tolerance — `"post-merge": "merge"` joins the P7 legacy map; the report envelope's `skill` field now normalizes too (`normalize_skill()`, same imported map); PRD §7 heading → "Plan review findings" with legacy tolerance in all four readers (nothing on disk rewritten); GUI proven rendering a legacy report end-to-end
+- Registry — row keys renamed; dead `--roadmap` label gone; plan-em row split plan-wave/build-wave (i83: the old 🟢 step was wrong for both)
+- Docs — README/ARCHITECTURE/QUICKSTART fully scrubbed: roadmap-orchestrator remnants dead, 4 wrong §-refs fixed, scripts table → six grouped tables (~58 scripts), eng --review + DOCTOR + ENV.md + lighter manifest documented; pre-existing working-tree doc changes reviewed and absorbed
+- `install.sh` — removes retired skill dirs + 21 stale script names on install (the shadow trap); DOCTOR gitignore top-up gap closed (ROW_GAPS + Step 3b row)
+
+### v5-P16 — the calm pass: no unconditional step counters (i80)
+
+- Removed — every unconditional `Step X/N` progress-emission mandate across 10 files/12 sites (plan-pm, plan-em, plan-tune, msg ×3 protocols, intake ×3 protocols + lead-ins); generalises i26/i41 repo-wide
+- Kept — three event-driven markers in plan-em's team protocol (agent completions, orchestrator returns): output when something real happens, not per-step ceremony
+- eng/pre-merge/post-merge verified mandate-free already (their Step N/M strings are document structure, not output instructions)
+
+### v5-P15 — post-merge mechanisation: five fixed-result scripts (i94–i98)
+
+- `.claude/scripts/`: Added — `script-ci-status.py` (five-way CI verdict + failing names + PR resolution rider, exit-coded), `script-platforms-parse.py` (17-column PLATFORMS table → per-platform key=value; macOS must DECLARE release_model per i100, malformed rows loud), `script-smoke-run.sh` (one-shot/poll/watch loops, bounded ceilings, config-gated macOS notarization/signing/appcast; never asks/rolls back/writes), `script-policy-read.py` (all ?? defaults in one call against the split schema; fail-safe full-default emission on absent/malformed), `script-ts-miss.py` (CI-backstop half only; `HUMAN_HALF=model` standing marker; 30-day window count)
+- `stamp-intake.sh`: Changed — read-only `--find-row --prd` verb reusing the existing parser (existing verbs regression-tested)
+- Call sites rewired across SKILL/staging/production/deploy/verify-deploy; Step-10 lane move now resolves across all lanes (glob was hardcoded wip/ while claiming otherwise)
+- Shared-ref pickups: policy-schema.md:211 now agrees with i73 (ask BEFORE the merge); policy-schema-post-merge.md deploy typing softened per i100
+- Honest ledger: protocols +552 words net — verdict→action contract tables and three pieces of owed content (glob fix, i100 rule ×3, scripts inventory); prose parses and loop mechanics are gone
+
+### v5-P14 — post-merge content: three release scripts, router −44%, gate moved pre-merge-side (i54–i61/i73/i99/i100)
+
+- `.claude/scripts/`: Added — `script-signoff-coverage.sh` (ancestry + newest-stamp + uncovered-commit verdicts), `script-release-lock.sh` (acquire/release/status on the transient tag; ~1,100 words of lock spec retired), `script-release-identity.sh` (read-only tag parse/bump/build/monotonicity/regression/provenance); `stamp-prd.sh` gains `staging-signoff` (+ insert-when-absent); both stamp sites call it — no improvised frontmatter edits remain
+- `post-merge/SKILL.md`: Changed — pure router, 4,769 → 2,662 words (−44%); Persona → 3-line Posture; sanctioned-writes bridge keeps the floor's citation landing
+- Citation strip: 316 decision-ID tokens → 0 across 12 files (fence balance proven per file); submitted-not-live single-homed; resolver boilerplate 4→1; output-schema essays cut (−29%)
+- Direct-flow human test: Changed — moved BEFORE the merge (after Step-3 double-confirm, before lock + release PR); Cancel leaves main untouched and holds no lock; matches the floor's Direct-flow bullet (i73)
+- Rollback offers for server platforms carry the redeploy-≠-un-migrate caveat (i99); submission.md re-scoped store-agnostic with a MAS row + platform→console table; macOS release-model is declared, never inferred from identity (i100)
+- post-merge total 27,170 → 21,795 words (−20%)
+
+### v5-P13 — the preview-gate cut (i93) — v5's one safety-floor amendment, isolated commit
+
+- Removed — the preview component end-to-end: `protocol-preview.md` (212 ln incl. R1–R4, park/resume, the commit-bound approval token — machinery that existed only there), `preflight-check-16-preview.sh`, catalog row 16 (tombstoned, never reused), executor wave/prune/promote wiring, output-schema preview object, PLATFORMS `preview_kind`/`preview_deploy_cmd` columns (19→17; three readers fixed)
+- `shared/refs/safety-floor.md`: Changed — "Preview-deploy approval" leaves **Human gates — never removed**; replaced by relocation notes: staging sign-off is THE human look in staged flow, the direct-flow pre-merge attestation ([i73]) is its equivalent; C3's three cleanups landed in the same edit (C9 cites, post-merge row → pointer, doubled secret-scan line)
+- smoke: survives re-anchored — depends_on preview→sync, env wave scheduled FIRST (cost `cheap` makes the tie-break mechanical), short-circuit now protects the expensive env-wave checks; api/migration live checks run in the env wave they were always bound for
+- manual-test-plan generation survives; sole render site = post-merge --staging's human-test script; pre-merge now explicitly holds no human gate
+- Proofs: zero preview references in pre-merge+scripts; resolver parses the 16-row catalog, smoke lands first in the env wave; verdict script unaffected
+
+### v5-P12 — pre-merge protocols: registry subtraction, enrichment cut, single-home, prd-consistency advisory (i65–i67/i69–i71/i74)
+
+- Removed — the dangling D29 flow registry: a11y/perf/smoke/preview each state their real fallback as the behaviour; protocol-e2e.md promises only what it defines; catalog's four enrichment sentences reconciled
+- Removed — the enrichment layer's mechanism prose (perf/api ratchets → degrade lines with named skip reasons; consumer-naming → Pact-or-declared-else-endpoint; traffic_mix → runner default; hot_tables/size-aware lock severity → flat default); coverage's ratchet KEPT (it works)
+- Single-homed — fail-fast table (severity-rubric, contradiction fixed: critical class = {mechanical, security, migration} everywhere incl. protocol-unit), selection rule (executor §3c), minified boilerplate, refusal + staleness + untagged-test rules; 244 AC-id archaeology citations → 0; pre-v3 "Gate Step" dialect → 0
+- `_common.md`: Changed — hollow-green closed: an erroring component whose surface the diff touches grades a medium `component-errored` finding; repeats surface via --prior-issues (i69)
+- `--init`: Changed — nine upfront interview blocks → two (env provisioner → ENV.md, CI gap); the rest seeded-not-asked with ask-on-first-activation via --update (i70)
+- Grading: a11y minor/best-practice → low; commit-cap audit scoped to commits since the last gated sha (i71)
+- prd-consistency + manual-test-plan: blocking → **advisory** (LLM grade = evidence of attempt, incl. out-of-scope), `active_when: prd` auto-discovers features/prd-<N>-*/ from the branch with --prd as override; grades → manual-test-plan wiring intact, render site = post-merge's staging walk-through (i74)
+
+### v5-P11 — pre-merge structure: lighter manifest, pipeline resolver, schema split, ENV.md (i62/i63/i64/i68/i72/i82)
+
+- `components[]` manifest: Changed — entries shrink ~15 fields → 6 (+ user overrides only); catalog constants resolve at run time from component-catalog.md; `test_selector` + `source` dropped; the AC-UP2 drift hole closes by construction (catalog edits are live next run, no migration)
+- `shared/refs/policy-schema.md`: Split — core (243 ln, both gates) + `policy-schema-pre-merge.md` (272) + `policy-schema-post-merge.md` (212); a gate run loads 515 ln instead of 693 and none of the other gate's; §-numbers stable; "scripts can't date" premise fixed at all four sites
+- `.claude/scripts/script-pipeline-resolve.py`: Added — policy+catalog+flags+diff → plan JSON (prune with reasons, C12 gap findings, topo waves, only-on-green from the catalog marker); `--check-complete` exits 5 with MISSING= lines; fails open without a diff
+- `.claude/scripts/pre-merge-aggregate-verdict.sh`: Rewritten — v3 result reports replace the pre-v3 BUCKETS (qa/functional gone); dedup by (category,file,line,rule), §2/§4 path downgrades with exemptions, verdict math, abort signal, gap ingestion; merged `source` joined by comma (GUI wire contract — caught by the i104 grep)
+- `devkit/ENV.md` (i82): Added — `shared/refs/env-contract.md` + `template-ENV.md` (init-scaffolded, committed not gitignored) + executor §3b read + `--init` detect/scaffold + `--update` reconcile; `env_provision` OUT of policy.json (zero live refs); absent/placeholder → the same loud sandbox-unprovisioned degrade; compose + seed stubs join refs/stubs/
+- v3 residue reaped: Q2 migration table, steps.* dual-write prose, retired-qa tombstones, unit_int, stale P1 banner
+- GUI verified: only policy read is release_branches(); build_data green on the new-shape manifest
+
+### v5-P10 — plan-em: resume rules, strips, closing message, roster intent (i76–i79/i81/i83/i92)
+
+- `refs/protocol-em.md`: Changed — Step 3 resume rules (exec table present → verify-never-reappend, duplicate/orphan rows = hard stop; roster matching engineering_agents → one-line confirm, per-PRD not per-wave; 3a /cook payloads still run — build wave needs them); roster gate opens with a 2–3 line PRD-intent summary (suppressed on resume)
+- Removed — `refs/principles.md` (665 words); the two house rules ("one innovation token per plan, max" · "extract on the third occurrence") relocated into Step 4 + the team input contract so they bind subagents
+- `SKILL.md`: Changed — router (synopsis, Step-0 restatement, References re-documentation gone); Persona → the one non-inferable rule under Outputs; 1,332 → 850 words
+- Step 5's next-steps AskUserQuestion menu → the shared closing message (registry row verbatim)
+- DOCTOR bindings: the standard sentence + five signature-explicit call sites + protocol-team's respawn logs retry/tool-error rows
+
+### v5-P9 — DOCTOR: the harness-incident ledger + /msg --doctor (i50/i51)
+
+- `msg/refs/init/templates/template-DOCTOR.md`: Added — devkit/DOCTOR.md scaffold (AHA=learned · OPEN-QUESTIONS=undecided · DOCTOR=harness misbehaved); class enum write-miss/retry/tool-error/validator-fail/gate-infra; Incidents table last-in-file so appends are true appends; gitignored, scaffolded by /msg --init + top-up
+- `.claude/scripts/script-doctor-log.sh`: Added — validated-enum appender (exit 3 = absent = skip silently; pipes/newlines folded, never dropped)
+- `.claude/scripts/script-doctor-tally.sh`: Added — groups by skill+signature, threshold 3-ever, re-flags recurrence after graduation
+- `shared/refs/doctor-logging.md`: Added — both channels once (mechanical: undocumented non-zero exits; model: tool error/retry/missed write); designed exit-3 skips carved out; one binding sentence in 7 SKILL.md files (plan-em deferred to P10 per i81)
+- `msg/refs/protocol-doctor.md`: Added — /msg --doctor tallies, diagnoses, graduates on the ledger, triage-reports; hard boundary: NEVER fixes, never edits harness files; registry row added
+
+### v5-P8 — msg: policy writer, branch topology, router collapse (i36/i37/i39/i40)
+
+- `.claude/scripts/script-policy-set.py`: Added — the one surgical devkit/policy.json writer (dotted-path set, parent creation, sibling preservation verified in-script, seed-on-absent, --skip-if-exists, --stamp-by dating the file — the "scripts can't date" premise retired); all four msg write sites rewired, ~400 words of be-careful prose gone
+- `.claude/scripts/script-branch-topology.sh`: Added — read-only topology resolver (prod branch main→master→current, staging, remotes, gh); four inline git-detection blocks replaced; zero inline show-ref/rev-parse remain in msg
+- `msg/SKILL.md`: Changed — pure router (one Dispatch table; inline --init-staging protocol → new `refs/protocol-init-staging.md`); 2,631 → 1,464 words (−44%)
+- `--help` table: Removed — 3 unreachable rows (intake --update/--delete rows, the dead roadmap row) + fixed the shadowed rough-idea rows the audit pass surfaced
+- `protocol-gui.md`: Changed — projection pointers → script-project-findings.py; Roadmap view no longer claims plan-pm --roadmap authorship
+
+### v5-P7 — eng --review born, per-ticket pair review deleted (i2/i11)
+
+- `eng/refs/review/protocol.md`: Added — whole-change adversarial review by a spawned reviewer subagent: seven priority classes, verify-before-report, diff-only context with the public-contract trigger, silence-is-an-outcome; findings per shared finding-schema with `source: eng:review`; only blocker/high gate the commit confirm; the merge floor stays pre-merge's green run
+- `eng/refs/build/protocol.md`: Changed — new Step 5a spawns the reviewer by default on every build with a diff (after the full-suite gate, before the human commit confirm); Step 4e per-ticket review deleted; A4 "enforced twice" → enforced once mechanically + judged at 5a
+- Removed — `eng/refs/build/pair-review.md` (406 words); zero live citations remain
+- `shared/refs/finding-schema.md`: Changed — `source` enum `pair-review` → `eng:review` + new Legacy wire values section (never-reject rule); the one legacy map lives in `script-project-findings.py` (`LEGACY_SOURCE`), inherited by the GUI via the module import — P17 adds `post-merge`→`merge` as one line; dedup/regression keys verified source-free
+- GUI proven rendering both `eng:review` and legacy `pair-review` reports; on-disk files never rewritten
+
+### v5-P6 — eng mechanisation: five scripts (i42/i43/i44/i45/i46)
+
+- `.claude/scripts/script-eng-plan-shape.py`: Added — 7-check fail-loud plan validator (headings, ticket schema, F-ID↔exec alignment both ways, depends-on acyclic, sentinel, pointer resolution, files-vs-reality); wired as eng --plan's closing check
+- `.claude/scripts/script-eng-fix-grade.py`: Added — the [i31] rubric executable (fixed-order predicate; fast=sonnet/deep=opus); model may only escalate simple→complex, stated at the script + both call sites
+- `.claude/scripts/script-project-findings.py`: Added — the single finding→issue-ticket projection + issues-file validator; `server.py` loads it as a module (26-line duplicate deleted; degrade = explicit skipped entry); board output proven byte-identical before/after
+- `.claude/scripts/script-eng-close-loop.py`: Added — the one sanctioned followUp.status write; splices into original bytes, asserts outside-span byte-identity + masked-document equality before os.replace; idempotent
+- `.claude/scripts/eng-commit-cap.sh`: Changed — `--message/--message-file` pair the Oversize-reason trailer with an over-cap diff (exit 3 when missing); under-cap never blocked, advisory posture unchanged
+
+### v5-P5 — eng content: roadmap orchestrator removed, tickets-final, fix-* renames (i29/i30/i31/i33/i34/i47/i48/i49)
+
+- Renamed — report-fix.md ×3 → `fix-plan.md` / `fix-build.md` / `fix-build-orchestrated.md`; 39 citations across 9 files; `.gitignore` gains a scoped negation so fix-plan.md isn't eaten by the scratch-plan rule
+- Removed — `eng/refs/build/protocol-roadmap.md` (166 ln): roadmap orchestration no longer exists anywhere; its Subagent contract moved into fix-build-orchestrated.md (its one real citer); protocol-team.md now cites its own contract; msg --help's orchestrator row deleted (hand-authored roadmap + GUI tab stay)
+- `eng --build`: Changed — todo tickets are the only and final spec (exec-table steps → `→ F2-T1, F2-T2` pointers; fallback path → hard failure); brevity mandate at work-step 4c; AHA/OPEN-QUESTIONS prose → script-aha.sh/script-openq.sh calls; fix-complexity rubric single-homed in fix-build-orchestrated (fast/deep tier naming)
+- `eng --plan`: Changed — template gates relaxed ("as many as are real"); §10 Branching-and-CI deleted (§11–13 → §10–12); short-form template deliberately skipped
+- `scan-prd-digest.py`: Added — `--verify-rows/--agent` ownership check (ROWS_OK / per-row hard failures); todos join the build slice
+- eng total 19,291 → 16,366 words (−15%)
+
+### v5-P4 — the PRD template sweep (i15/i18/i21/i22/i23/i75)
+
+- `plan-pm/refs/template-prd.md`: Changed — 11 sections → 8 in four categories (Intent/Contract/Unresolved/Reserved): User flow, Key user interactions, Glossary deleted; Features §3, Error cases §4 (absorbs template-error.md), Open questions §5, exec table §6, tune ledger §7, Todos §8; template-feature-table.md + template-error.md deleted (folded)
+- Cross-skill §-reference sweep: 14 skill files + 7 scripts renumbered; proving grep zero stale references under .claude/
+- Fixed — three latent parser bugs the renumber exposed: scan-prd-digest.py + script-cert-mech.py exec-table-vs-features `startswith("feature")` misparse; plan-pm-roadmap-scan.sh exec-table fullness signal could never fire (`| F1 |` vs `| F1: |` + unnumbered heading); script-ledger.py anchored inserts on the deleted Glossary
+- `.claude/scripts/script-prd-shape.py`: Added — 5-check PRD shape validator (sections/order, acceptance table, F-ID contiguity, reserved-placeholder integrity, frontmatter), wired as protocol-pm Step 3 Part 5 gate; 11 seeded defects each fail with a distinct code
+- `plan-em`: Changed — exec table's one home is §6 (skeleton script gains `--write`, targets the reserved section); protocol-em.md collision-checker awk now matches numbered + legacy headings; dangling `refs/protocol-exec.md` pointers fixed to eng's real path
+- GUI verified: parse_features + build_data + scan-prd-digest identical output on new-shape and legacy fixtures
+
+### v5-P3 — plan-pm content: --roadmap removed, principles/persona folded, intake-only entry (i16/i17/i19/i20/i27/i28)
+
+- Removed — `plan-pm --roadmap` (refs/protocol-roadmap.md + plan-pm-roadmap-sequence.py, zero live callers); `roadmap/roadmap.md` is hand-authored now, its format skeleton rescued into new `TEMPLATE-roadmap.md` scaffolded by /msg --init; `plan-pm-roadmap-scan.sh` survives (Step 2 + plan-em consumers)
+- Removed — `plan-pm/refs/principles.md`; 5 stable rules relocated (F-ID stability + §6 purity + acceptance-criterion → template-prd.md; one-problem-one-PRD + only-what-was-asked → protocol-pm Step 3)
+- `plan-pm/SKILL.md`: Changed — router collapse (step synopsis + --sub delta → pointers), Persona → relocated autonomy rule + [USER:…] convention, closing-message rows per the shared contract; 1,584 → 1,171 words; plan-pm total −32%
+- `plan-pm/refs/protocol-pm.md`: Changed — Step 1 "Resolve the intake row": prose invocations auto-capture via Skill("intake"), no bounce question; Step 5 recommends /plan-em (registry drift fixed); protocol-sub.md D2 rewritten to the mandatory marked-row rule
+
+### v5-P2 — intake: deterministic row writer + single-homed rules (i102/i103)
+
+- `.claude/scripts/stamp-intake.sh`: Changed — four new verbs beside the untouched stamp path: `--append-row` (dup-# refused), `--set-cell` (old value on stdout for the diff echo; `#`/`date`/`status`/`prd` refused), `--remove-row` (never renumbers), `--log-append` (lazy-creates `INTAKE-UPDATE.md` with the canonical header, `modify|add|remove` only); exit codes extended 0/1/2 → +3 refused / +4 dup / +5 write-fail; shared awk parser, env-passed values, escaped-pipe safe
+- `.claude/skills/intake/refs/*.md`: Changed — the three protocols' write steps call the writer (byte-for-byte-preservation promises → script guarantees); INTAKE-UPDATE format single-homed in `protocol-update.md` § The update log; ≥8-gate split why→rubric / mechanics→protocol-intake; "Two edit surfaces" retitled "Three edit surfaces"
+
+### v5-P1 — plan-tune slim + mechanise (i4–i10)
+
+- `.claude/skills/plan-tune/SKILL.md`: Changed — Persona → 2-line Posture (non-inferable rules relocated), Step-3 re-verification checklist cut, no-op instructions cut, certification.md restatements → pointers, D*/G* plan-history citations stripped, glossary Minor + Step-1 GLOSSARY read cut; §9-ledger and cert-check prose replaced by script calls. 2,946 → 2,239 words (−24%)
+- `.claude/scripts/`: Added — `script-cert-mech.py` (mechanical checks 4/5/6: scope map, tickets, edges/buckets; 9 finding codes, exit 0/1/2), `script-ledger.py` (§9 locate/create/fill, carry-forward dedup, severity-sorted monotonic numbering, Clean row), `script-aha.sh` + `script-openq.sh` (file-owned devkit appenders; openq never touches `## Resolved`, rejects `--status resolved`)
+- `.claude/skills/plan-tune/refs/certification.md`: Changed — gains the "who runs what" split (scripts own 4/5/6-structure; model keeps 1/2/3/7 + fixes + product pause); citation strip applied
+
+### v5-P0 — Quick wins (one commit per phase; queue: update/plan-msg-v5.md §4) (i13/i14/i35/i38/i52/i53)
+
+- `.claude/skills/plan-pm/SKILL.md`: Changed — `allowed_tools` gains `Edit`, `WebFetch`, `WebSearch`; `refs/principles.md`'s web rule is now executable and scoped to convention lookups
+- `.claude/skills/msg/SKILL.md`: Changed — `allowed_tools` gains `Edit`; `--update` precondition corrected to key on `devkit/` (`INITIALISED`), not `policy.json` (also in `refs/protocol-update.md`, where a missing `policy.json` is now explicitly a top-up case, not a refusal)
+- 8 files: Removed — every mention of the expired `--doctor` one-release alias for the gates' `--init` (msg, pre-merge, post-merge, `shared/refs/policy-schema.md`); the name is now free
+- `features/` is gitignored: Added to `template-gitignore.md` + `protocol-init.md` docs; new `--update` Step 3-FT offers `git rm -r --cached features/` (stage-only, confirmed) for legacy tracked repos; lane moves now branch tracked→`git mv` / untracked→`mv` (`plan-em-branch-resolve.sh`, post-merge refs, `init.sh` comments)
+
+
 ## 2026-07-26
 
 ### [60] — The gate can now run only the tests your diff can break (contract core)

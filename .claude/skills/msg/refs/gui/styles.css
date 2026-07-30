@@ -636,7 +636,7 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
 .sections-host > .collapsible { margin-bottom: var(--sp-3); }
 .detail-head .tuned-row { margin-top: var(--sp-2); }
 
-/* ---- Plan-tune findings table (Edit 4) ------------------------------------------- */
+/* ---- Plan-review findings table (Edit 4) ------------------------------------------- */
 .findings-table thead th { cursor: default; }
 .findings-table td.f-title { font-weight: 600; min-width: 150px; }
 .findings-table td.prose {
@@ -706,7 +706,7 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
   .file-content { padding: var(--sp-4); }
 }
 
-/* ---- Roadmap view (plan-pm --roadmap) — reuses .kanban/.column/.card/.pill ---- */
+/* ---- Roadmap view (hand-authored roadmap/roadmap.md) — reuses .kanban/.column/.card/.pill ---- */
 .roadmap-lanes .column-head { text-transform: none; }
 /* Phase goal sits between head and body, which have no side padding of their own —
    inset it so the text lines up inside the lane instead of hugging the edges. */

@@ -34,8 +34,8 @@ twice `C:3`+`C:1`".
 | Dim | Cell | Scale | Bands |
 |---|---|---|---|
 | **Complexity** | `C:` | `1 / 2 / 3 / 5 / 8 / 13` | counts **moving parts** — see the anchors below. `13` = max |
-| **Token cost** | `T:` | `1 / 2 / 3 / 5 / 8 / 13` | derived from complexity + platform count: more platforms → more eng agents; more tickets → more pair reviews; migrations → a stricter gate. A **band**, not a total. `13` = max |
-| **Sequencing** | `S:` | `now / next / later / blocked-by-#n` | position vs the other `INTAKE.md` rows + existing PRD `depends_on`/`affects` edges. `blocked-by-#n` cites an intake row `#` (or a `prd-<n>`). Feeds `plan-pm --roadmap`, which sequences from this graded backlog |
+| **Token cost** | `T:` | `1 / 2 / 3 / 5 / 8 / 13` | derived from complexity + platform count: more platforms → more eng agents; more tickets → a bigger change for `eng --review`; migrations → a stricter gate. A **band**, not a total. `13` = max |
+| **Sequencing** | `S:` | `now / next / later / blocked-by-#n` | position vs the other `INTAKE.md` rows + existing PRD `depends_on`/`affects` edges. `blocked-by-#n` cites an intake row `#` (or a `prd-<n>`). Feeds the hand-authored `roadmap/roadmap.md`, sequenced from this graded backlog |
 
 `S:` is **not** on the Fibonacci scale and never will be — it's a position in a
 queue, not a size. Nothing about it changes when `C:`/`T:` change.
@@ -85,21 +85,21 @@ grade above `1`**, or the rubric is just measuring file counts.
 
 ## Complexity drives the split gate
 
+This section owns **why** the gate exists and why it sits at `8`. The question's
+wording, the accept/decline branches and the replacement semantics are the
+protocol's: `refs/protocol-intake.md` Step 4.
+
 A **`C:` ≥ 8 complexity grade is actionable, not just descriptive.** It triggers the
 split question at capture — "this grades 8 — break it into smaller ideas?" — the
-same muscle as hybrid-ask detection (`refs/protocol-intake.md`).
+same muscle as hybrid-ask detection.
 
 **Why the gate exists: reviewability.** An idea that stays whole above `8` produces
 tickets whose moving parts no single review holds at once — the reviewer either
 rubber-stamps what they can't fully reason about, or the ticket sits. Splitting at
 the front door is cheaper than splitting at build time, and the split is what makes
 each piece reviewable. The gate is not defending a line count; it is defending the
-point at which a human (or a pair-review agent) can still say "yes, all of this is
+point at which a human (or `eng --review`) can still say "yes, all of this is
 correct" in one pass.
-
-On accept → replace the one `≥8` row with the split rows (each re-graded, typically
-`3`/`5`). On decline → keep the single `≥8` row (the downstream reviewability
-pressure is now a known, recorded risk).
 
 **The gate fires at `≥ 8`, not at `13`.** Six bands spread across the range that
 four bands used to cram into one, so firing on the top band alone would catch *less*

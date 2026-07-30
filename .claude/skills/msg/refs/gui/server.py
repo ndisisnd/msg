@@ -30,11 +30,13 @@ Stdlib only. Python 3.9+.
 
 import argparse
 import glob
+import importlib.util
 import json
 import os
 import re
 import secrets
 import subprocess
+import sys
 import threading
 import time
 import shlex
@@ -110,9 +112,9 @@ def as_badge(v):
 
 
 def parse_features(body):
-    """F-ID rows from `## N. Features…` (any leading number, e.g. `## 6. Features &
-    acceptance criteria`) or, failing that, `## Execution Table` (legacy) /
-    `## N. Feature execution table` (new)."""
+    """F-ID rows from `## N. Features…` (any leading number, e.g. `## 3. Features &
+    acceptance criteria`) or, failing that, the exec table under its v5 home
+    `## N. Feature execution table` / the legacy `## Execution Table`."""
     feats, order = {}, []
 
     def scan(section_re):
@@ -146,8 +148,8 @@ def parse_features(body):
         return found
 
     if not scan(r"^##\s*\d+\.\s*Features.*$"):
-        if not scan(r"^##\s*Execution Table.*$"):
-            scan(r"^##\s*\d+\.\s*Feature execution table.*$")
+        if not scan(r"^##\s*\d+\.\s*Feature execution table.*$"):
+            scan(r"^##\s*Execution Table.*$")   # legacy heading, pre-v5 PRDs
     return feats, order
 
 
@@ -300,7 +302,7 @@ def infer_completion(fm, num, slug, lane=None):
     if override in BUCKETS:
         return override, "frontmatter completion override"
 
-    # Lane signal (improvement #24): post-merge --production moves a PRD into the
+    # Lane signal (improvement #24): merge --production moves a PRD into the
     # done/ lane atomically with stamping status: done, so a PRD physically in
     # done/ has shipped. This outranks the gh/git rungs (which may lag on a repo
     # without gh/remote) but yields to an explicit frontmatter override above.
@@ -404,36 +406,55 @@ def parse_prd_dir(d):
 
 # --------------------------------------------------------------------------- test issues
 
-CATEGORY_TEST = {"unit", "e2e", "functional", "qa", "a11y", "api", "mobile",
-                 "coverage", "load", "perf", "integration", "contract"}
+# The finding → issue-ticket projection has exactly ONE implementation:
+# `.claude/scripts/script-project-findings.py`. eng --build/--plan run it as a
+# CLI; the board loads the same file as a module and calls the same function,
+# so the two consumers of a drift-prevention contract cannot themselves drift.
+# Do NOT re-implement the mapping here — change the script instead.
+# That import also carries the legacy-wire-value map (LEGACY_SOURCE in the
+# script): a committed report whose `source` names a retired producer — e.g.
+# `pair-review` before it became `eng:review` — is mapped on read and rendered
+# normally. The board therefore needs no source tolerance of its own, and a
+# future rename is one line in the script, not two.
+
+PROJECTOR_REL = os.path.join(".claude", "scripts", "script-project-findings.py")
+_PROJECTOR = None            # cached module, or the string reason it is missing
 
 
-def project_finding(f):
-    """Canonical finding → issue-ticket (eng/refs/build/report-fix.md 'Finding → issue-ticket projection')."""
-    msg = f.get("message") or f.get("title") or f.get("id") or "finding"
-    suggestion = f.get("suggestion")
-    repro = f.get("repro")
-    ev = f.get("evidence") or {}
-    return {
-        "kind": "issue",
-        "id": f.get("id"),
-        "title": msg,
-        "objective": (suggestion if suggestion else "Restore correct behavior — %s" % msg),
-        "type": "test" if (f.get("category") in CATEGORY_TEST) else "code",
-        "files": ([{"path": f["file"], "action": "edit"}] if f.get("file") else []),
-        "dependsOn": [],
-        "doneWhen": ("%s passes and the covering test file is green" % repro) if repro
-                    else "the finding no longer reproduces",
-        "severity": f.get("severity"),
-        "category": f.get("category"),
-        "source": f.get("source"),
-        "rule": f.get("rule"),
-        "repro": repro,
-        "evidence": {"snippet": ev.get("snippet")},
-        "suggestion": suggestion,
-        "flaky": bool(ev.get("flaky")),
-        "regression_of": f.get("regression_of"),
-    }
+def load_projector():
+    """Import script-project-findings.py (project copy first, then ~/.claude).
+    Returns the module, or a reason string when it cannot be loaded."""
+    global _PROJECTOR
+    if _PROJECTOR is not None:
+        return _PROJECTOR
+    candidates = [os.path.join(root_path(), PROJECTOR_REL),
+                  os.path.expanduser(os.path.join("~", PROJECTOR_REL))]
+    path = next((p for p in candidates if os.path.isfile(p)), None)
+    if path is None:
+        _PROJECTOR = ("script-project-findings.py not found (looked in %s) — the "
+                      "shared finding→issue-ticket projection is unavailable"
+                      % ", ".join(candidates))
+        print("msg --gui: %s" % _PROJECTOR, file=sys.stderr)
+        return _PROJECTOR
+    spec = importlib.util.spec_from_file_location("script_project_findings", path)
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception as e:                                   # pragma: no cover
+        _PROJECTOR = "script-project-findings.py failed to load: %s" % e
+        print("msg --gui: %s" % _PROJECTOR, file=sys.stderr)
+        return _PROJECTOR
+    _PROJECTOR = mod
+    return _PROJECTOR
+
+
+def normalize_skill(value):
+    """Map a retired producer name onto its current one, via the same
+    LEGACY_SOURCE table the findings path uses. Unknown values pass through."""
+    projector = load_projector()
+    if isinstance(projector, str) or not isinstance(value, str):
+        return value
+    return projector.LEGACY_SOURCE.get(value.strip(), value)
 
 
 def report_glob_pats(leaf):
@@ -455,6 +476,10 @@ def report_glob_pats(leaf):
 
 def collect_gate_issues(skipped):
     out = []
+    projector = load_projector()
+    if isinstance(projector, str):
+        skipped.append({"path": PROJECTOR_REL, "reason": projector})
+        return out
     pats = report_glob_pats("report-prd-*-*.json") + [
         os.path.join(root_path(), "features", "reports", "report-*.json"),
     ]
@@ -476,7 +501,8 @@ def collect_gate_issues(skipped):
             "context": doc.get("context") or {},
             "summary": doc.get("summary") or {},
             "followUp": doc.get("followUp") or {"status": "open"},
-            "tickets": [project_finding(f) for f in (doc.get("issues") or [])],
+            "tickets": [projector.project_finding(f)
+                        for f in (doc.get("issues") or [])],
         })
     return out
 
@@ -511,7 +537,10 @@ def parse_report_file(path, skipped):
     return {
         "file": rel,
         "reportId": int(pm.group(2)) if pm else (int(nm.group(1)) if nm else 0),
-        "skill": fm.get("skill"),
+        # A report committed before a producer was renamed carries the old name.
+        # Same tolerance as `source` on findings, same single map (shared/refs/
+        # finding-schema.md § Legacy wire values) — the file on disk is untouched.
+        "skill": normalize_skill(fm.get("skill")),
         "prd": None if (not prd or prd == "none") else prd,
         "prdId": prd_id,
         "branch": fm.get("branch"),

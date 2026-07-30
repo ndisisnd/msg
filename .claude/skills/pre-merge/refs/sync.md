@@ -1,9 +1,9 @@
 ---
 name: sync
-description: Gate Step 1 — fetch + merge latest staging into the feature branch. Trivial conflicts auto-resolve; semantic same-hunk conflicts pause for a human. This sync-merge commit is pre-merge's ONLY direct write.
+description: SYNC — the un-prunable DAG root: fetch + merge latest staging into the feature branch. Trivial conflicts auto-resolve; semantic same-hunk conflicts pause for a human. This sync-merge commit is pre-merge's ONLY direct write.
 ---
 
-# Step 1 — SYNC (D7)
+# SYNC (D7) — the un-prunable DAG root
 
 Bring the feature branch up to date with `staging` before gating, so the gate
 grades what will actually merge. The resulting sync-merge commit is pre-merge's
@@ -12,7 +12,7 @@ grades what will actually merge. The resulting sync-merge commit is pre-merge's
 ## Preconditions
 
 1. `rtk git fetch origin`.
-2. **Resolve the sync target.** The v2 topology (D3) is `feature → staging → main`, so `staging` is the preferred target. If neither `origin/staging` nor a local `staging` resolves, **fall back to `main`** (`origin/main`, else local `main`) — do not refuse or warn. Use the resolved branch as the sync target below and as Step 9's PR base. (Emit no `no_staging` refusal — that failure mode is retired.)
+2. **Resolve the sync target.** The v2 topology (D3) is `feature → staging → main`, so `staging` is the preferred target. If neither `origin/staging` nor a local `staging` resolves, **fall back to `main`** (`origin/main`, else local `main`) — do not refuse or warn. Use the resolved branch as the sync target below and as the OPEN-PR base. (Emit no `no_staging` refusal — that failure mode is retired.)
 
 ## Merge + conflict handling
 
@@ -33,7 +33,7 @@ Run `rtk git merge origin/<target>` into the current feature branch, where `<tar
 
 ## Re-run gate after sync
 
-Steps 3 (unit + integration) and 4 (regression) **always re-run post-sync** — the
+The test components (`unit`, `integration`, `regression`) **always re-run post-sync** — the
 merge may have changed behavior, so a bad auto-merge cannot pass silently. This is
 non-negotiable regardless of profile.
 
@@ -41,5 +41,5 @@ non-negotiable regardless of profile.
 
 The sync-merge commit is the sole carve-out to pre-merge's no-write rule. Pre-merge
 still never edits source, never `git push`, never `gh pr merge`/`git merge` into
-`main`. Regression-test writes happen via the spawned eng subagent (Step 4), never
+`main`. Regression-test writes happen via the `regression` component's spawned eng subagent, never
 by pre-merge's own hand.

@@ -10,9 +10,8 @@ Loaded when `plan-em` runs in **`--team`** mode (the default — see `refs/proto
 Step 0). plan-em spawns **one orchestrator engineer agent on Opus** at Step 4 and
 hands it the active wave; this file is that agent's protocol. The orchestrator does
 **not** write engineering sections or code itself — it decomposes the wave and
-coordinates leaf `eng` subagents (`--plan` planners or `--build` implementers), the
-same way the roadmap orchestrator (`eng/refs/build/protocol-roadmap.md`) coordinates a
-whole roadmap. The single difference from solo mode: solo dispatches **one leaf
+coordinates leaf `eng` subagents (`--plan` planners or `--build` implementers) per the
+§ Subagent contract below. The single difference from solo mode: solo dispatches **one leaf
 subagent per roster stack, whole-stack scope, on the inherited model**; team decomposes
 **below the stack level** into many file-disjoint packets and runs each on a
 model-appropriate tier (Opus or Sonnet), to parallelise as much as the collision graph
@@ -37,6 +36,7 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 | `$BRANCH` | resolved feature branch (**build wave only** — the orchestrator never resolves or creates it) |
 | `standards payloads` | the compiled `/cook` output **per stack** (**build wave only**), retained from plan-em Step 3a |
 | `devkit digest` | canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows (from plan-em's Step 1 pre-flight) |
+| `house rules` | **plan wave only** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
 
 **Escape hatch (pass through to every leaf):** *"The full PRD is at `<prd-path>`; read it
 (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve
@@ -61,7 +61,7 @@ reasoning-heavy — a bad split poisons the whole wave). Leaf model assignment:
 | Wave / packet | Model | Why |
 |---------------|-------|-----|
 | Plan-wave planners (all) | **Opus** | Writing the design doc + todo tickets + Files column is the highest-leverage reasoning in the flow; a weak plan costs far more downstream than the Opus premium. |
-| Build packet — **load-bearing** | **Opus** | Touches core state/data model, public API contracts, auth/security, a schema **migration** or any `eng-db-touch` category, cross-cutting refactors, non-trivial algorithms, or a todo carrying open questions / high ambiguity. |
+| Build packet — **load-bearing** | **Opus** | Touches core state/data model, public API contracts, auth/security, a schema **migration** or any `script-eng-db-touch` category, cross-cutting refactors, non-trivial algorithms, or a todo carrying open questions / high ambiguity. |
 | Build packet — **mechanical** | **Sonnet** | Well-scoped and fully specified: boilerplate, straightforward CRUD/UI wiring, config/lint fixes, tests whose acceptance criteria are explicit, low blast radius, no open questions. |
 | Any packet — **uncertain** | **Opus** | Default up on genuine uncertainty. Under-powering a risky packet is worse than the cost of an extra Opus run. |
 
@@ -82,7 +82,7 @@ governs both scheduling and committing.
 resolution) and consume its output as the **authoritative baseline decomposition**:
 
 ```bash
-S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"; python3 "$S" --waves <exec-table source>
+S=.claude/scripts/script-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-collision.py"; python3 "$S" --waves <exec-table source>
 ```
 
 After the `COLLISION` / `MISSING_FILES` lines the script emits the decomposition:
@@ -151,7 +151,7 @@ real. Decompose per § Parallelism model into file-disjoint, model-tiered packet
 waves, then:
 
 0. **Run the collision checker first (before emitting the decomposition).** Run
-   `plan-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
+   `script-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
    model) on the in-scope exec-table rows. Two consequences gate the decomposition:
    - A `MISSING_FILES row<N> <feature>` line (equivalently an `UNPACKETED` id) on any
      **in-scope** row is a **hard failure**, equivalent to the empty-`Files`-column hard
@@ -173,7 +173,7 @@ waves, then:
    proceed to the next.
 3. **DB / data guard after every wave.** Run the touch check on the accumulated diff:
    ```bash
-   S=.claude/scripts/eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/eng-db-touch.sh"; bash "$S" main
+   S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" main
    ```
    Non-zero exit (it prints `category<TAB>path`) → **pause** and `AskUserQuestion`
    (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM
@@ -197,7 +197,7 @@ Then the leaf's fields, by wave:
 
 | Wave | Invocation | Injected |
 |------|-----------|----------|
-| Plan | `eng --plan prd-path=<p> rows=<packet rows> agent=<eng-stack>` | scoped context (rows + mapped PRD feature sections + devkit digest) + escape hatch. No standards payload (`--plan` pulls no standards). |
+| Plan | `eng --plan prd-path=<p> rows=<packet rows> agent=<eng-stack>` | scoped context (rows + mapped PRD feature sections + devkit digest) + escape hatch + the **house rules** verbatim. No standards payload (`--plan` pulls no standards). |
 | Build | `eng --build prd-path=<p> rows=<packet rows> branch=$BRANCH agent=<eng-stack> commit_mode=direct` | scoped context + escape hatch **+ the stack's compiled `standards payload`** (the leaf uses it and does **not** call `/cook`). |
 
 `rows` is the exact semicolon-separated `<ID>: <name> — <concern>` Feature-cell text of
@@ -208,7 +208,10 @@ files and commits only to `$BRANCH`.
 **Return contract.** Each leaf returns its structured summary (plan: section-written
 confirmation; build: build summary) — never free-form prose. A leaf that dies or returns
 unparseable output is a failed packet: re-spawn it once; a second failure escalates to
-the user via the orchestrator's summary (do not silently drop a packet).
+the user via the orchestrator's summary (do not silently drop a packet). **Log both arms
+to `devkit/DOCTOR.md`** per `../../shared/refs/doctor-logging.md` — a `retry:packet-<p>` row
+when the re-spawn fires and a `tool-error:packet-<p>` row when the second attempt also
+fails; logging never changes the escalation above.
 
 ## Guardrails
 

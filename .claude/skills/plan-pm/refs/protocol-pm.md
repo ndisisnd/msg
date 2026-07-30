@@ -6,38 +6,47 @@ type: reference
 
 # Plan Protocol
 
-The five-step protocol plan-pm follows end-to-end. Emit progress per § Progress
-emission in SKILL.md. In `--sub` mode, substitute the nested sub-PRD path
+The five-step protocol plan-pm follows end-to-end. In `--sub` mode, substitute the nested sub-PRD path
 (§ Sub-PRD mode, delta D3) everywhere the steps write the drafted PRD's own path
 `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`.
 
 **Autonomy contract (F3).** The interview is gone — it moved to `/intake`, which
 delivers a graded, fleshed-out row (`idea`, `goal`, `type`, `grade`). plan-pm drafts
-the **full PRD solo** — edge cases, feature/acceptance table, user flows, error
-handling — with **no per-section gates**. It pauses for **exactly two** things:
-batched open questions the draft couldn't resolve (Step 4), and breaking/critical
-touches (Step 4 safety pause). Nothing else.
+the **full PRD solo** — objective, scope boundaries, feature/acceptance table, error
+cases — with **no per-section gates**. Do not re-interview the user and do not
+gate section by section: the instinct to check in mid-draft is the one this contract
+overrides. It pauses for **exactly two** things: batched open questions the draft
+couldn't resolve (Step 4), and breaking/critical touches (Step 4 safety pause).
+Nothing else.
 
-## Step 1/5 — Resolve the idea (entry paths)
+## Step 1/5 — Resolve the intake row
 
-Determine what to plan. Three entry paths:
+**Every PRD is planned from an `INTAKE.md` row. There is no other entry path** — no
+PRD is ever drafted against a row that does not exist, which is what lets `plan-review`
+check 3 compare every PRD against its source intent. Two ways in:
 
 1. **No args** → read `INTAKE.md` (repo root). List every **non-`completed`** row
    (`# · type · idea · grade · status`). If the ledger is missing or empty, emit
-   `No backlog rows — run /intake to capture an idea first.` and offer to hand off to
-   `/intake` (recommend, do not invoke). Otherwise `AskUserQuestion` (single-select, up
-   to 4 rows per call; page if more) — "Which idea should I plan?" — and take the pick.
+   `No backlog rows — capturing this idea through /intake first.` and take path 3
+   below if the user supplied prose; otherwise stop and ask them for an idea.
+   Otherwise `AskUserQuestion` (single-select, up to 4 rows per call; page if more) —
+   "Which idea should I plan?" — and take the pick.
 2. **Intake row reference** (`#n`) **or explicit idea text that matches a row** → resolve
    it against `INTAKE.md` and plan it directly, no picker.
-3. **Direct prose with NO matching intake row** → offer **one bounce**: `AskUserQuestion`
-   "Log this through `/intake` first so it's graded in the backlog?" — **Yes** hands off to
-   `/intake` (recommend it, then resume on the new row); **No, plan it now** proceeds
-   directly but **notes the ledger gap** (a PRD with no intake ancestor — plan-tune check 3
-   will skip intent-fidelity with a note).
+3. **Direct prose with NO matching intake row** → **capture it, do not bounce it back.**
+   Invoke `Skill("intake", "<the user's prose verbatim>")` — intake's capture mode
+   interviews within its ≤2-question budget, grades the idea against its own rubric
+   (`C:`/`T:`/`S:` bands) and appends the row. Then re-read `INTAKE.md`, take the newly
+   appended row, and continue as path 2. `intake` stays the sole writer of new rows
+   (D14); plan-pm never appends one itself. If capture returns no row (the user
+   abandoned it), stop — there is nothing to plan.
+
+The capture happens **here, before Step 2** — the prior-PRD scan reconciles against the
+row's `S:blocked-by-#n` grade, which does not exist until the row does.
 
 Hold the resolved row in context: `idea`, `goal`, `type`, `grade`, and its `#`
-(for the Step 5 stamp). A `--sub` invocation pre-seeds from the parent instead
-(§ Sub-PRD mode, D2). Produce no file in this step.
+(for the Step 5 stamp). A `--sub` invocation seeds from the parent and captures its own
+marked row instead (§ Sub-PRD mode, D2). Produce no file in this step.
 
 ## Step 2/5 — Scan prior PRDs for overlap + breaking surface
 
@@ -46,7 +55,7 @@ Step 3 Part 1) rather than a lane-blind glob — it emits one JSONL object per P
 lanes (`planned/`, `wip/`, `done/`) and the legacy flat path, nested sub-PRDs included:
 
 ```bash
-S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S"
+S=.claude/scripts/script-prd-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-scan.sh"; bash "$S"
 ```
 
 If it emits nothing, emit `No prior PRDs.` and proceed. Otherwise, for each prior PRD line:
@@ -67,7 +76,7 @@ The intake `grade` cell's `S:blocked-by-#n`/`prd-<n>` is a second dependency sig
 **Part 1 — Pre-flight.** Resolve the next PRD number (ships in the global scripts dir; resolve there when the project has no vendored copy):
 
 ```bash
-S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd"; bash "$S" prd
+S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" prd
 ```
 
 Store as `n`. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
@@ -87,54 +96,76 @@ if absent. Write `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 - `summary`: 2–3 sentence single-line plain-prose gist (core objective + headline features), reconciled in Part 3
 - `module`: primary domain inferred from the idea · `platform`: detected above
 - `affects`: prior-PRD IDs from Step 2 (`[]` if none)
-- `depends_on`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §6 at the end of Part 3** (§ Dependency mirroring) — §6 is the source of truth for cross-PRD edges
+- `depends_on`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §3 at the end of Part 3** (§ Dependency mirroring) — §3 is the source of truth for cross-PRD edges
 - `status: product` · `product-tuned: no` · `eng-tuned: no` · `reviewed: no` · `created`: today `YYYY-MM-DD`
-- **`intake: #<n>`** — the source intake row `#` (omit only on the no-intake-ancestor path from Step 1.3)
+- **`intake: #<n>`** — the source intake row `#`. Always present; every PRD has an
+  ancestor row (Step 1)
 
-**Part 3 — Populate every section solo.** Read `refs/principles.md` first and apply it
-throughout. Draft each section from the intake `idea` + `goal` + prior-PRD context —
-autonomously, no interview, no per-section gate. Canonical order per `refs/template-prd.md`:
+**Part 3 — Populate every section solo.** Draft each section from the intake `idea` +
+`goal` + prior-PRD context — autonomously, no interview, no per-section gate. Two scope
+rules govern the whole draft:
+
+- **One problem, one PRD.** A single PRD addresses one user problem. If the resolved row
+  spans multiple problems, surfaces, or ship cycles, propose a split into separate PRDs
+  rather than bundling them.
+- **Only what was asked.** Every requirement traces to the intake row. If something seems
+  missing, raise it as a §5 open question — never silently add it to the PRD.
+
+Canonical order per `refs/template-prd.md`:
 
 | Section | Autonomous source |
 |---------|-------------------|
 | 1. Product objective | One paragraph from the intake `goal` — the user/business outcome that defines success. No feature list, no implementation |
 | 2. Out-of-scope | Boundaries the draft draws around the idea; non-targeted platforms auto-added |
-| 3. User flow | One ASCII user-visible flow per feature; dependencies (Step 2) as preconditions. No engineering detail |
-| 4. Key user interactions | The core actions the feature must support, derived from the idea + goal |
-| 5. Error cases | Draft the concrete, triggerable error/edge cases per feature (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format from `refs/template-error.md`. Genuinely unresolvable ones → Step 4 open questions |
-| 6. Features & acceptance criteria | Derive the feature set from the idea; assign F-IDs (`refs/template-feature-table.md`); one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
-| 7. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
-| 8. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
-| 9. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder — plan-tune owns it |
-| 10. Glossary | GLOSSARY.md cross-reference; add new terms from this PRD |
-| 11. Todos | Leave the `_Populated by /todo …_` placeholder |
+| 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
+| 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. Genuinely unresolvable ones → Step 4 open questions |
+| 5. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
+| 6. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
+| 7. Plan review findings | Leave the `_Populated by plan-review …_` placeholder — plan-review owns it |
+| 8. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |
 
-Carry every F-ID into §6 unchanged — plan-em keys §7 on them. Reconcile the frontmatter
-`summary` against the finalized §1 + §6 (single-line, plain prose). Components and files
-are engineering detail → §7 (plan-em), never the User flow.
+New domain terms go straight into `devkit/GLOSSARY.md`, where the whole pipeline sees
+them — the PRD carries no glossary of its own.
 
-**Part 4 — Dependency mirroring (mechanical, never skipped).** §6 is the source of truth
-for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §6 Dependencies cell must also appear
-in frontmatter `depends_on`. Do not author the two independently — after §6 is finalized,
-reconcile the frontmatter *from* §6 so the two cannot drift (`plan-tune` check 6 is a backstop,
+Carry every F-ID into §3 unchanged — plan-em keys §6 on them. Reconcile the frontmatter
+`summary` against the finalized §1 + §3 (single-line, plain prose). Components and files
+are engineering detail → §6 (plan-em), never the product sections.
+
+**Part 4 — Dependency mirroring (mechanical, never skipped).** §3 is the source of truth
+for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §3 Dependencies cell must also appear
+in frontmatter `depends_on`. Do not author the two independently — after §3 is finalized,
+reconcile the frontmatter *from* §3 so the two cannot drift (`plan-review` check 6 is a backstop,
 not the primary catch). Run the deterministic mirror — it extracts every `prd-<n>-<slug>` token
-from the §6 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
+from the §3 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
 mirrored), unions it with the seeded array, and rewrites `depends_on` in place (`[]` when empty):
 
 ```bash
 PRD=features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md
-S=.claude/scripts/plan-pm-deps-mirror.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-deps-mirror.sh"; bash "$S" "$PRD"
+S=.claude/scripts/script-prd-deps-mirror.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-deps-mirror.sh"; bash "$S" "$PRD"
 ```
 
 It prints `ADDED <id>` for each newly-mirrored id and is idempotent. Sub-PRD ids
 (`prd-2.1-slug`) count. No file / no frontmatter → exit 2.
+
+**Part 5 — Shape check (mechanical, never skipped).** The template is only a contract if
+something verifies it was followed. Run the shape validator on the drafted PRD — it is the
+last action of Step 3 and it gates Step 4:
+
+```bash
+S=.claude/scripts/script-prd-shape.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-shape.py"; python3 "$S" "$PRD"
+```
+
+It prints one `FAIL check=<n> code=<slug> ref=<locator> detail=…` line per defect and a
+`SUMMARY checks=5 failures=<n>` line, exiting `1` on any failure and `2` on a usage or
+read error. **Exit 1 → fix the PRD and re-run until it exits 0** — never proceed to Step 4
+on a failing shape, and never edit the checker to match the draft.
 
 ## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 
 **Open questions.** Batch everything the draft couldn't resolve into **one**
 `AskUserQuestion` (≤4 questions per call, `multiSelect` where apt; each entry offers plausible
 answers + "Skip"). Apply every answer **autonomously** — write it into the relevant section and
-mark its §8 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
+mark its §5 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
 entirely.
 
 **Breaking-change / critical-cut safety pause (never relaxed).** If Step 2 flagged a
@@ -159,29 +190,26 @@ pause fired). Format:
 Under `## Entries`, most recent first. Create `devkit/AHA.md` from
 `.claude/skills/msg/refs/init/templates/template-AHA.md` if absent. Write only on a real learning.
 
-**Intake lifecycle stamp (F4).** Unless this PRD had no intake ancestor (Step 1.3), stamp the
-source row in `INTAKE.md` via the shared ledger writer — set its `status` cell to `in-progress`
+**Intake lifecycle stamp (F4).** Always stamp the source row — every PRD has one (Step 1).
+Write it in `INTAKE.md` via the shared ledger writer — set its `status` cell to `in-progress`
 and its `prd` cell to `prd-[n]-[feature_slug]`. `<row-#>` is the resolved row's `#` held from
 Step 1. The writer edits only that row's two cells, preserving every other row verbatim:
 
 ```bash
-S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"; bash "$S" INTAKE.md <row-#> --status in-progress --prd prd-[n]-[feature_slug]
+S=.claude/scripts/script-intake-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-intake-stamp.sh"; bash "$S" INTAKE.md <row-#> --status in-progress --prd prd-[n]-[feature_slug]
 ```
 
 Missing `INTAKE.md` → the writer exits 2; skip with a one-line note. Row not found → exit 1.
 
-**Completion summary + follow-up ask.** Emit:
-
-```
-PRD generated for <feature>. There are <value> open questions.
-```
-
-Then **one** final `AskUserQuestion` (single-select) — "Anything to follow up on this PRD?":
+**Follow-up ask.** **One** final `AskUserQuestion` (single-select) — "Anything to follow up
+on this PRD?":
 - **No, done** — terminate.
 - **Yes** — capture the follow-up (batched, ≤4), apply it autonomously, then terminate.
 
-On termination, **recommend** (never invoke) `plan-tune --product` on this PRD as the next step:
-`Next: run /plan-tune --product on features/planned/prd-[n]-[feature_slug]/… to certify the contract.`
+There is no separate completion line: the PRD path and the open-questions count are
+mandatory rows of the closing message (SKILL.md § Step-by-step protocol), which is the
+run's last output. Take the next step from the `closing-message.md` registry's plan-pm
+row — `/plan-em` on green — and **recommend** it, never invoke it.
 
 **Multi-PRD note.** There is no multi-PRD loop in v2 — compound asks are split into discrete
 rows at `/intake` (hybrid-ask detection + the ≥8-split gate), so plan-pm always plans exactly one

@@ -20,7 +20,7 @@ TARGET="${1:-.}"
 # file missing from it can never be noticed on an already-bootstrapped repo — the
 # protocol stops at "nothing to initialise" before init.sh gets a chance to write
 # it. Anything init.sh (or the skill) creates MUST be listed here.
-TARGETS=(devkit/AHA.md devkit/GLOSSARY.md devkit/ARCHITECTURE.md devkit/DESIGN-SYSTEM.md devkit/OPEN-QUESTIONS.md devkit/PLATFORMS.md devkit/policy.json .claude/msg/pref.json README.md .gitignore CLAUDE.md CHANGELOG.md INTAKE.md features/planned/ features/wip/ features/done/)
+TARGETS=(devkit/AHA.md devkit/DOCTOR.md devkit/ENV.md devkit/GLOSSARY.md devkit/ARCHITECTURE.md devkit/DESIGN-SYSTEM.md devkit/OPEN-QUESTIONS.md devkit/PLATFORMS.md devkit/policy.json .claude/msg/pref.json README.md .gitignore CLAUDE.md CHANGELOG.md INTAKE.md features/planned/ features/wip/ features/done/)
 STACK_FILES=(package.json tsconfig.json Cargo.toml go.mod pyproject.toml Gemfile pom.xml build.gradle Podfile pubspec.yaml)
 
 PRESENT=(); MISSING=(); STACK_DETECTED=()
@@ -78,6 +78,12 @@ initialised=false
 ROW_GAPS=()
 if [[ -e "$TARGET/CLAUDE.md" ]] && ! grep -q '^- \*\*Language\*\*:' "$TARGET/CLAUDE.md" 2>/dev/null; then
   ROW_GAPS+=("CLAUDE.md:language")
+fi
+# devkit/DOCTOR.md is a local incident ledger and must never be committed. A repo
+# bootstrapped before the ledger existed has a .gitignore with no line for it, and
+# the top-up that creates DOCTOR.md cannot add one — so flag the gap here.
+if [[ -e "$TARGET/.gitignore" ]] && ! grep -q '^devkit/DOCTOR\.md$' "$TARGET/.gitignore" 2>/dev/null; then
+  ROW_GAPS+=(".gitignore:doctor")
 fi
 
 echo "ALL_COMPLETE=$all_complete"

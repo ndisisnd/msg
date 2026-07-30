@@ -1,0 +1,48 @@
+# Minimal ephemeral test-sandbox stack for the C23 gate sandbox.
+#
+# Copied by `/pre-merge --init` under per-item approval, then referenced from
+# `devkit/ENV.md`'s fenced `env` block:
+#
+#   provision: docker compose -f docker-compose.test.yml up -d --wait
+#   teardown:  docker compose -f docker-compose.test.yml down -v
+#
+# `down -v` drops the volumes — the sandbox is ephemeral by construction, and the
+# gate tears it down after every run, pass or fail.
+#
+# Tune before relying on it:
+#   * swap/add the services this project actually needs (cache, queue, object store)
+#   * the ports below are deliberately non-default so a gate run never collides with
+#     a developer's local stack
+#   * concurrency: if two gate runs may overlap on one machine, set
+#     `COMPOSE_PROJECT_NAME` per run (e.g. `pre-merge-$RUN_ID`) so the containers,
+#     network and volumes are namespaced.
+
+name: pre-merge-test-sandbox
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: test
+      POSTGRES_PASSWORD: test
+      POSTGRES_DB: test
+    ports:
+      - "55432:5432"
+    tmpfs:
+      - /var/lib/postgresql/data   # RAM-backed: fast, and nothing survives the run
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test -d test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Uncomment if the project needs a cache/broker in its integration path.
+  # redis:
+  #   image: redis:7-alpine
+  #   ports:
+  #     - "56379:6379"
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 2s
+  #     timeout: 3s
+  #     retries: 30

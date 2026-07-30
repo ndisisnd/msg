@@ -33,7 +33,7 @@ Emoji are the circle set only — 🟢/🟡/🔴. Never ✅/⚠️/❌ or other 
 | 🟡 Warning! | Run completed but something needs a human decision: warnings, skipped checks, open questions asked, flagged non-blocking issues | Steps ordered by priority; each step is one decision or one action. Every warning row in the table maps to a numbered step — no orphan warnings. |
 | 🔴 Fail! | Verdict fail/block, mid-run stop on a blocker, refusal, deploy error | Step 1 is the exact recovery command with real paths filled in. If the blocker needs the user first (missing credential, dirty tree), step 1 says exactly what to provide or do and the recovery command becomes step 2. |
 
-**Verdict → protocol (deterministic):** `pass` → 🟢 · `pass_with_warnings` / `warn` / `n/a` / early refusal with nothing broken → 🟡 · `fail` / `block` / deploy error / mid-run stop → 🔴. Skills without a formal verdict (plan-pm, plan-em, plan-tune, intake, msg): clean completion → 🟢; completed with open questions or skipped inputs → 🟡; could not produce the artifact → 🔴.
+**Verdict → protocol (deterministic):** `pass` → 🟢 · `pass_with_warnings` / `warn` / `n/a` / early refusal with nothing broken → 🟡 · `fail` / `block` / deploy error / mid-run stop → 🔴. Skills without a formal verdict (plan-pm, plan-em, plan-review, intake, msg): clean completion → 🟢; completed with open questions or skipped inputs → 🟡; could not produce the artifact → 🔴.
 
 ## Language rules (all protocols)
 
@@ -46,18 +46,22 @@ Emoji are the circle set only — 🟢/🟡/🔴. Never ✅/⚠️/❌ or other 
 
 Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from THIS run's actual artifacts. Fail-path commands must match `fix-loop.md` byte-for-byte.
 
+`plan-em` has two rows because it runs one wave per invocation: pick the row for the wave that just finished (`$MODE` at Step 4 — `plan` or `build`).
+
 | Skill / mode | 🟢 | 🟡 | 🔴 |
 |---|---|---|---|
 | intake (all modes) | Run `/plan-pm` when ready to turn the backlog into a PRD | Answer the open question(s), then re-run `/intake` | Fix the stated blocker, then re-run `/intake` |
-| plan-pm (default / --sub / --roadmap) | Run `/plan-em` now | Resolve each flagged decision in `<prd>`, then run `/plan-em` | Provide the missing input named above, then re-run `/plan-pm` |
-| plan-em | Run `/eng --build` now | Approve or edit the flagged rows in `<prd>`, then run `/eng --build` | Provide the missing input named above, then re-run `/plan-em` |
-| plan-tune (Product / Eng) | Nothing to do — you're done. | Review the flagged tune items, then re-run `/plan-tune` if you change them | Fix the stated blocker, then re-run `/plan-tune` |
+| plan-pm (default / --sub) | Run `/plan-em` now | Resolve each flagged decision in `<prd>`, then run `/plan-em` | Provide the missing input named above, then re-run `/plan-pm` |
+| plan-em — plan wave | Run `/plan-em <prd>` again to start the build wave | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again for the build wave | Provide the missing input named above, then re-run `/plan-em <prd>` |
+| plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` |
+| plan-review (Product / Eng) | Nothing to do — you're done. | Review the flagged tune items, then re-run `/plan-review` if you change them | Fix the stated blocker, then re-run `/plan-review` |
 | eng --plan | Run `/eng --build` now | Review the plan's open questions in `<fix-plan path>`, then run `/eng --build` | Fix the stated blocker, then re-run `/eng --plan report=<path>` |
 | eng --build | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Run `/eng --plan report=<report .json path>` (or `/eng --build report=<path>` to fix directly, per fix-loop.md) |
-| pre-merge | Run `/post-merge --staging` now | Review the warnings in the report, then run `/post-merge --staging` | Run `/eng --build report=<report .json path>` (or `/eng --plan report=<path>` first, per fix-loop.md) |
-| post-merge --staging | Work through the test checklist above on staging, then reply **approved** | Resolve each flagged item, then re-run `/post-merge --staging` | Fix the stated blocker, then re-run `/post-merge --staging` |
-| post-merge --production | Nothing to do — you're done. The release is live. | Watch the flagged platform(s) per the rollback notes above | Follow the failed-ship loop step named above, then re-run `/post-merge --production` |
+| pre-merge | Run `/merge --staging` now | Review the warnings in the report, then run `/merge --staging` | Run `/eng --build report=<report .json path>` (or `/eng --plan report=<path>` first, per fix-loop.md) |
+| merge --staging | Work through the test checklist above on staging, then reply **approved** | Resolve each flagged item, then re-run `/merge --staging` | Fix the stated blocker, then re-run `/merge --staging` |
+| merge --production | Nothing to do — you're done. The release is live. | Watch the flagged platform(s) per the rollback notes above | Follow the failed-ship loop step named above, then re-run `/merge --production` |
 | msg (--init / --update / --init-staging) | Run the stage command the pipeline table above points at | Answer the open question(s), then re-run the same `/msg` command | Fix the stated blocker, then re-run the same `/msg` command |
+| msg --doctor | Nothing to do — the harness is healthy. | Start a new session to fix the graduated issue(s) in `devkit/DOCTOR.md` — this mode never fixes | Fix the stated blocker, then re-run `/msg --doctor` |
 
 Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pure-emission modes — default picker, `--gui`, `--help` — whose strict output contracts ("Stop. Do not emit anything else." / board render) stay untouched.
 
@@ -93,7 +97,7 @@ Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pur
 > **Next steps**
 > 1. Reply **keep** or **drop** for the `date-fns` dependency
 > 2. Reply **accept** to proceed without the F3 test, or **add test** to have it written first
-> 3. Then run `/post-merge --staging`
+> 3. Then run `/merge --staging`
 
 **🔴 — pre-merge, fail:**
 

@@ -47,7 +47,7 @@ use(art)                                         # or fall back to sources on pa
 ```
 
 ## Consumers
-- **PRD digest** — `scan-prd-digest.py` → `prd-<slug>.digest.json`. See each
+- **PRD digest** — `script-prd-digest.py` → `prd-<slug>.digest.json`. See each
   planning/verify stage's read step.
 - **devkit digest** — `scan-devkit-digest.py` → `devkit.digest.json`.
 - **verify prelude** — diff-resolve + tooling-detect →

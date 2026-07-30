@@ -1,6 +1,6 @@
 ---
 name: check-report-schema
-description: The single normalized check-report schema shared by both gates' preflight layer. ONE schema, two sections — `detect` (written by the preflight-check-*.sh scripts at --init/--update) and `result` (written by the executor at gate time, Phase 3). Ingestion (--init/--update) reads `detect` to assemble components[]; aggregation reads `result`.
+description: The single normalized check-report schema shared by both gates' preflight layer. ONE schema, two sections — `detect` (written by the script-preflight-*.sh scripts at --init/--update) and `result` (written by the executor at gate time, Phase 3). Ingestion (--init/--update) reads `detect` to assemble components[]; aggregation reads `result`.
 type: reference
 ---
 
@@ -11,7 +11,7 @@ here once (AC-CK5, resolves **Q8**: one schema, not two). A report has two secti
 
 | Section | Written by | When | Consumed by |
 |---|---|---|---|
-| `detect` | `preflight-check-<nn>-<slug>.sh` (C4) | `--init` / `--update` | ingestion → `components[]` (this phase, P2) |
+| `detect` | `script-preflight-<nn>-<slug>.sh` (C4) | `--init` / `--update` | ingestion → `components[]` (this phase, P2) |
 | `result` | the pipeline executor (C6/C7) | every gate run | verdict/universal-report aggregation (**P3**) |
 
 The two sections share the normalized-format discipline so ingestion and aggregation
@@ -29,7 +29,7 @@ are uniform end-to-end (no bespoke per-check parsing — AC-CK7).
 | `result` | `.pre-merge/<ts>/<slug>.json` | one per gate run (`<ts>` = run timestamp); written **always** — pass, fail, or skip (P3) |
 
 `<slug>` is the component id (`mechanical`, `unit`, …) — matches the `protocol-<slug>.md`
-stem and the `preflight-check-<nn>-<slug>.sh` script. `.pre-merge/` is a runtime
+stem and the `script-preflight-<nn>-<slug>.sh` script. `.pre-merge/` is a runtime
 artifact dir (gitignored), never committed.
 
 ---
@@ -37,7 +37,7 @@ artifact dir (gitignored), never committed.
 ## `detect` section (written by the preflight scripts — P2)
 
 Emitted to `.pre-merge/preflight/<slug>.json` **and** stdout by every
-`preflight-check-*.sh`. Mandatory components (`security`, `migration`) **always** emit a
+`script-preflight-*.sh`. Mandatory components (`security`, `migration`) **always** emit a
 report even when nothing is detected (`present:false`) — the safety floor can't go
 silent (AC-PF2).
 
@@ -64,21 +64,21 @@ silent (AC-PF2).
 | `id` | string | the stable, zero-padded **`nn`** catalog id (`"01"`…`"17"`, minus retired `15`) — never reused, group-orthogonal |
 | `group` | enum `universal`\|`platform`\|`prd` | the component's gating source (its `refs/` folder, C3) |
 | `present` | bool | `true` only when the check's tooling **or** surface is detected (AC-PF2/CK3) |
-| `active_when` | string | the presence gate: `always` \| `prd` \| `ui-surface` \| `api-surface` \| `perf-config` \| `migrations` \| `mobile-surface` \| `ui-or-deploy-surface` \| `preview-fired` |
+| `active_when` | string | the presence gate: `always` \| `prd` \| `ui-surface` \| `api-surface` \| `perf-config` \| `migrations` \| `mobile-surface` \| `ui-or-deploy-surface` |
 | `tooling` | `{chosen, version}` \| `null` | the resolved runner (`chosen` may be a comma-list for multi-runner checks; `version` best-effort, often `null`); `null` for subagent/surface-only checks |
 | `run` | string \| `null` | **script/hybrid**: the resolved command · **subagent/gate**: the `<group>/protocol-<slug>.md` ref (AC-CK3, per catalog `kind`); `null` when nothing resolved |
 | `criticality` | enum `critical`\|`blocking`\|`advisory`\|`config-driven` | catalog default (a profile may override at assembly; `config-driven` = advisory until the project sets budgets) |
 | `cost` | enum `cheap`\|`moderate`\|`expensive` | relative runtime — informs wave scheduling |
-| `depends_on` | string[] | hard effect edges only (AC-CAT3): `coverage→[unit,integration]`, `smoke→[preview]`, `regression`→all other universal/prd |
+| `depends_on` | string[] | hard effect edges only (AC-CAT3): `coverage→[unit,integration]`, `manual-test-plan→[prd-consistency]`, `regression`→all other universal/prd |
 | `status` | enum `ready`\|`no_tooling`\|`n/a` | **detection fact** (not a user decision): `ready` = present+tooling · `no_tooling` = active but no runner (a gap) · `n/a` = surface absent / gate not met |
 | `notes` | string | freeform evidence — what was detected, degrade reasons, mandatory notes |
 | `run_minified` | string \| `null` | **additive (v4, `policies.test_selection`)** — the resolved **selection-capable** invocation of the same runner (affected ∪ critical). Non-null only on the three selection-capable components (`unit`, `integration`, `regression` — catalog legend `ˢᵉˡ`); **`null` on every other check**, which is what the shared `mk_report` helper emits when a script passes nothing. `null` ⇒ that component always runs full, silently (not a gap) |
 | `test_selector` | string \| `null` | **additive (v4)**, sibling of `run_minified` — freeform note naming the selection mechanism the script detected (`vitest related --changed`, `pytest-testmon`, `xcodebuild -testPlan Critical`, …), for audit. `null` when nothing selection-capable was detected |
 
-Both v4 fields are emitted by `preflight-common.sh`'s `mk_report` on **every**
+Both v4 fields are emitted by `script-check-common.sh`'s `mk_report` on **every**
 check (as `null` where the script passed nothing), so the round-trip rule below
 holds unchanged; ingestion carries them onto the `components[]` entry
-(`policy-schema.md` § `components[]`).
+(`policy-schema-pre-merge.md` § `components[]`).
 
 ### `status` — detection facts only
 
@@ -132,7 +132,7 @@ section (AC-UR6).
 
 ## Round-trip rule (AC-CK5)
 
-Every check round-trips clean against this schema: the JSON a `preflight-check-*.sh`
+Every check round-trips clean against this schema: the JSON a `script-preflight-*.sh`
 writes re-parses with all `detect` keys present and correctly typed, `check` matching the
 filename slug, and `id` matching the catalog `nn`. Ingestion validates this on read and
 rejects a malformed report rather than assembling a bad `components[]` entry.
