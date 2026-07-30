@@ -12,7 +12,7 @@ about the real gaps, **offers to install** the missing pieces (gated, per-item, 
 into an explicit, persisted `components[]` decision the gate reads at run time.
 
 `--init` **never runs the gate, never opens a PR, never merges, never deploys, and never writes
-`devkit/PLATFORMS.md`** (AC-DR1). Its only outputs are repo mutations under explicit per-item
+`devkit/PLATFORMS.md`**. Its only outputs are repo mutations under explicit per-item
 approval (binaries, stub configs) and the `policy.json` write.
 
 The `devkit/policy.json` schema, status vocabulary, validation rules, and gate read-contract are
@@ -31,17 +31,18 @@ contract"). Pre-merge's flavor:
    concern.)
 2. **Load or seed** the policy file — read `devkit/policy.json` if present (re-run = update in
    place, never overwrite from scratch); else start empty.
-3. **Detect** — run the `preflight-check-*.sh` family (the v3 preflight ingestion below) and resolve the Step-0 profile.
-4. **Interview** — one `AskUserQuestion` per real gap and per open policy question. Every answer
-   is recorded, including "skip" and "N/A", so the choice is durable and the next run does not
-   re-ask (AC-DR4).
+3. **Detect** — run the `preflight-check-*.sh` family (the preflight ingestion below) and resolve the platform profile.
+4. **Interview** — one `AskUserQuestion` per real **tooling gap** only. Component tuning
+   questions are seeded with their documented default instead of being asked
+   (§ *Component questions are seeded, not asked*), and `policies.test_selection` is not
+   raised at all. Every answer is recorded, including "skip" and "N/A", so the choice is
+   durable and the next run does not re-ask.
 5. **Offer install** — for each gap the user wants filled, run the OSS-first command, gated
-   per-item (AC-DR2). A tool installed this run is persisted as `ready` — never `installed` (that
+   per-item. A tool installed this run is persisted as `ready` — never `installed` (that
    is a transient terminal-display state only; see policy-schema.md's status vocabulary).
 6. **Write** `devkit/policy.json` via `.claude/scripts/script-policy-set.py` — the one
-   sanctioned writer. It stamps `generated` + `generated_by` from the system clock
-   (`--stamp-by "pre-merge --init"`) and flips `init:true`. The written file must re-load
-   with **zero** validation warnings (AC-S6). Scaffold `devkit/ENV.md` in the same pass.
+   sanctioned writer. It stamps `generated` + `generated_by` from the system clock (`--stamp-by "pre-merge --init"`) and flips `init:true`. The written file must re-load
+   with **zero** validation warnings. Scaffold `devkit/ENV.md` in the same pass.
 7. **Summary** — a step→status table to the terminal. No gate run, no PR, no merge.
 
 ---
@@ -75,10 +76,9 @@ one entry per catalog row; the slot names are the catalog's `run` column):
 | _(subagent — no runner slot)_ | `prd-consistency` · `manual-test-plan` |
 | _(`.github/workflows/*.yml` presence — no runner slot)_ | **`steps.ci`** — the one non-component key `--init` writes |
 
-**Cross-reference against `required_buckets`.** Resolve the Step-0 profile from `devkit/PLATFORMS.md`
-(`refs/platform-profiles.md`): a `null` slot is only a **gap** if its component is in the profile's
+**Cross-reference against `required_buckets`.** Resolve the Step-0 profile from `devkit/PLATFORMS.md` (`refs/platform-profiles.md`): a `null` slot is only a **gap** if its component is in the profile's
 `required_buckets`. A `null` slot whose component is **not** required (e.g. `a11y` on a backend-only
-repo) is *correctly absent* — propose it as `n/a`, never nag it as a gap (AC-ST1 territory). The
+repo) is *correctly absent* — propose it as `n/a`, never nag it as a gap (territory). The
 `security` and `migration` safety-floor steps run in every profile, so their nulls are always real
 gaps, never `n/a`.
 
@@ -86,43 +86,31 @@ gaps, never `n/a`.
 > `ready` when the diff surface warrants it and `n/a` for repos with no migrations; there is
 > nothing to install.
 
-> **Large/hot tables question (C17, AC-MIG3).** When `migration` is active (the repo has a
-> migrations surface), `--init` asks **one** `AskUserQuestion` for the project's **large or hot
-> tables** — the ones where a lock-taking migration (CREATE INDEX without CONCURRENTLY, a
-> whole-table rewrite) would be an apparent outage. The answer is recorded on the `migration`
-> component as an optional `hot_tables[]` hint (see `component-catalog.md`). It gives the migration
-> stage size context to **scale lock-risk severity** (escalate on a hot table, quiet on a tiny
-> one) when no schema/stats source is available; with neither stats nor a declared list, lock
-> findings keep their current flat severity (AC-MIG4). A sane default is an empty list (no
-> size context — flat severity). This is policy, not a tool — nothing is installed.
+> **Component questions are seeded, not asked (default-and-defer).** Several components
+> can be *tuned* by a project fact — `mobile`'s target `{platform, os}` matrix, `a11y`'s
+> enablement/criticality, `regression`'s `needs_env` composition. **`--init` asks none of
+> them.** It records the documented sane default silently and moves on, because a repo
+> that has never run the gate has no basis to answer, and nine upfront questions are the
+> most expensive part of first-run setup.
+>
+> | Component | Seeded default at `--init` | Asked when |
+> |---|---|---|
+> | `mobile` | the matrix detection resolved (`.flutter-test-matrix.json` / project settings); nothing declared ⇒ no enforced matrix | the first gate run where `mobile` actually activates |
+> | `a11y` | the catalog default (`blocking`) for a UI surface | the first gate run where `a11y` actually activates |
+> | `regression` | `needs_env` resolved from the suite's composition; ambiguous ⇒ `false` | the first gate run where the resolution is still ambiguous |
+> | `migration` | no `hot_tables[]` — lock findings keep flat severity | only if the project asks for size-aware grading |
+> | `load` | no declared `traffic_mix` — the runner's own profile is used | only if the project asks for a declared mix |
+> | `api` | no `consumers[]` — breaking-change findings name endpoint + change | only if the project asks for consumer-named findings |
+>
+> **Ask-on-first-activation.** The first time a component actually runs in a gate run
+> with its question unanswered, the gate prints **one** line naming the tuning it could
+> use and the command that records it — *"`a11y` ran on its default (blocking); run
+> `/pre-merge --update` to set its project-level enablement."* The answer is written by
+> `--update` through its existing approved-delta path, so **the gate stays a pure
+> reader** — it never writes `policy.json`. One nudge per component per repo; the
+> defaults keep working if it is ignored forever.
 
-> **Mobile device/OS matrix (C18, AC-MOB5).** When `mobile` is active (a native iOS/Android
-> or Flutter surface), and **no** declared matrix exists (`.flutter-test-matrix.json` /
-> manifest mobile matrix), `--init` asks **one** `AskUserQuestion` for the target
-> **platforms + OS versions** (e.g. iOS 17, Android 14). The answer is the **enforced**
-> `{platform, os}` matrix recorded on the `mobile` component: a declared target with no
-> available device/simulator (incl. no macOS host for iOS XCUITest) becomes a `high`
-> coverage-gap at gate time, not a silent pass (see `platform/protocol-mobile.md`). This is
-> policy, not a tool — nothing is installed.
-
-> **API consumers hint (C15, AC-API4 — optional).** When `api` is active and **no** Pact
-> broker is configured (`PACT_BROKER_BASE_URL` absent), `--init` may ask **one** optional
-> `AskUserQuestion` for the API's known **consumers** (`ios`/`android`/`web`), recorded as
-> the `api` component's optional `consumers[]` hint so a breaking-change finding can name
-> which client breaks. Absent both broker and hint, findings degrade to endpoint+change (no
-> fabricated consumer). Optional — an empty/absent list is valid, never a validation error.
-
-> **a11y relevance (C13, AC-A11Y4).** When `a11y` is active (a UI surface), `--init` asks
-> **one** `AskUserQuestion` for whether accessibility is a **default check for this
-> project** — is it **public-facing** (a product real users touch) or **internal/backend**
-> (an admin tool, a service). The answer sets the `a11y` component's default **enablement +
-> criticality**, recorded in the manifest: **public-facing → default-on / blocking**
-> (fails on serious/critical WCAG); **internal / backend → default-off or advisory**
-> (findings recorded as context, never block). This makes a11y a project-level decision
-> rather than an unconditional default (see `platform/protocol-a11y.md`) — a profile
-> override still layers on top. Policy, not a tool — nothing is installed.
-
-> **Env provisioner (C23, AC-SBX6).** When any `needs_env: true` component is present
+> **Env provisioner (C23).** When any `needs_env: true` component is present
 > (catalog `env` column — integration, migration, e2e, a11y, perf, load, smoke, mobile,
 > api-live), `--init` **detects** the project's sandbox provisioner candidates —
 > `docker-compose*.yml` / a testcontainers dep / an ephemeral-DB-branch CLI (e.g.
@@ -153,24 +141,14 @@ gaps, never `n/a`.
 > finding per run (`refs/executor.md` §3b), never a silent pass. A remaining
 > `[USER: …]` placeholder in a consumed verb resolves the same way. A provisioner
 > without a seed script is also recorded and flagged loudly. The provisioner itself may
-> be an install offer (e.g. Docker absent) under the normal per-item gate (AC-DR2).
+> be an install offer (e.g. Docker absent) under the normal per-item gate.
 
-> **Regression suite composition (C23, AC-SBX8).** When `regression` is present,
-> `--init` resolves **`regression.needs_env`** from the accumulated suite's
-> composition: contains integration-level tests (DB/network-touching — detectable from
-> the suite's imports/markers, e.g. a testcontainers/DB fixture) → `true` (its
-> accumulated-suite run executes inside the sandbox); pure-unit suite → `false`. When
-> detection is ambiguous, ask **one** `AskUserQuestion`. Recorded on the `regression`
-> component in `components[]`; `--update` re-resolves it as a fact (not a settled
-> policy choice) when the suite's composition changes. Policy, not a tool — nothing is
-> installed.
-
-> **Load read/write mix (C16, AC-LOAD2).** When `load` is active (an endpoint/data-path
-> surface), `--init` asks **one** `AskUserQuestion` for the project's realistic **read/write
-> mix** (ratio + concurrency + think-time), recorded as the `load` component's `traffic_mix`
-> so the profile exercises the write path and surfaces read/write contention. A **sane
-> default** (e.g. 80/20 read/write, moderate concurrency, short think-time) is offered so a
-> skip still yields a runnable profile. Policy, not a tool — nothing is installed.
+> **Regression suite composition.** `--init` resolves **`regression.needs_env`** from the
+> accumulated suite's composition: integration-level tests (DB/network-touching —
+> detectable from the suite's imports/markers) → `true`; a pure-unit suite → `false`;
+> **ambiguous → `false`, recorded, and re-resolved on the first run that proves
+> otherwise** (no upfront question). `--update` re-resolves it as a fact when the
+> suite's composition changes.
 
 > `ci` has no runner slot either — it's the **CI workflow** that runs the gate on the PR and
 > produces the status checks that post-merge's "green CI" and branch protection depend on. Detect
@@ -210,8 +188,7 @@ the `ci` record at item 2 but never writes it — see its `protocol-init.md`.)
 
 ## Gap taxonomy — the flavors
 
-Every gap the detector surfaces is one of these flavors, read off the detector's own signals
-(plus, for `ci`, the `policies.github_actions` decision):
+Every gap the detector surfaces is one of these flavors, read off the detector's own signals (plus, for `ci`, the `policies.github_actions` decision):
 
 | Flavor | How the detector shows it | `--init` action | Recorded status |
 |---|---|---|---|
@@ -222,16 +199,14 @@ Every gap the detector surfaces is one of these flavors, read off the detector's
 | **N/A for surface** | slot `null` **and** the component is **not** in `required_buckets` | record only — offer nothing | `n/a` (with `reason`) |
 
 Declining any offered install always records `opted_out` (won't revisit) or `deferred` (will
-revisit) **with a `reason`** and installs nothing (AC-DR2). Both non-`ready` statuses require a
+revisit) **with a `reason`** and installs nothing. Both non-`ready` statuses require a
 `reason` per the schema.
 
-**Secret scanner — the safety-floor exception (C9, AC-SF2).** The `security` secret scanner
-(gitleaks/trufflehog) is **not** an ordinary declinable tool. `--init` **strongly offers** it and,
+**Secret scanner — the safety-floor exception (C9).** The `security` secret scanner (gitleaks/trufflehog) is **not** an ordinary declinable tool. `--init` **strongly offers** it and,
 if the user declines, records the decision as an explicit **safety-floor gap** (not a quiet
 `opted_out`): the interview states that **the gate will `blocker` on every run until a secret
-scanner is configured** — there is no green-gate path without secret-scan coverage
-(`refs/universal/protocol-security.md`, C9). The **install itself still goes through per-item
-approval** (`AC-DR2` — no forced mutation); C9 changes the *framing and the recorded gap*, never
+scanner is configured** — there is no green-gate path without secret-scan coverage (`refs/universal/protocol-security.md`, C9). The **install itself still goes through per-item
+approval** (no forced mutation); C9 changes the *framing and the recorded gap*, never
 the consent model. Every other `security` layer (SAST / deps / container / `/cook`) stays an
 ordinary best-effort gap — declining it is a plain note, not a floor gap.
 
@@ -240,7 +215,7 @@ ordinary best-effort gap — declining it is a plain note, not a floor gap.
 ## OSS-first install catalog
 
 **Reputable, open-source, free only.** `--init` offers the Preferred tool first, the OSS fallback if
-the user prefers it, and **never auto-offers a paid/SaaS tool** (AC-DR3). When a step's only real
+the user prefers it, and **never auto-offers a paid/SaaS tool**. When a step's only real
 option is paid, `--init` **names it, explains why**, and records `deferred`/`opted_out` with the paid
 tool named in `reason` — it never installs it.
 
@@ -279,8 +254,7 @@ For each real gap (after the `required_buckets` cross-reference), `--init` asks 
   is persisted `ready`, never `installed`.
 - **Config-missing flavor** → additionally scaffold the minimal stub config (below) so the gate has
   something runnable immediately.
-- **Workflow-missing flavor (`ci`)** → no catalog tool; the only offer is **Scaffold `pre-merge.yml`**
-  (copy the stub to `.github/workflows/`, substitute the detected gate commands) or **Skip**. Scaffold
+- **Workflow-missing flavor (`ci`)** → no catalog tool; the only offer is **Scaffold `pre-merge.yml`** (copy the stub to `.github/workflows/`, substitute the detected gate commands) or **Skip**. Scaffold
   → `steps.ci = { status: "ready", chosen: ".github/workflows/pre-merge.yml" }`; skip →
   `deferred`/`opted_out` with a `reason`.
 - **Actions-opted-out flavor (`ci`)** → make **no offer at all**: no question, no scaffold, no
@@ -292,7 +266,7 @@ For each real gap (after the `required_buckets` cross-reference), `--init` asks 
 - **Paid-only slot** → present the free `deferred`/`opted_out` path only; name the paid tool in the
   `reason`. Never an install button.
 
-**Re-run behavior (AC-DR4).** A second `--init` reads the existing `policy.json` and updates it in
+**Re-run behavior.** A second `--init` reads the existing `policy.json` and updates it in
 place. A step already `opted_out` is **not** re-prompted unless the user explicitly asks to
 re-tune. Answers persist across runs precisely so the interview shrinks each time.
 
@@ -326,8 +300,7 @@ ruleset) when no project config exists, so no scaffold is needed.
 
 Scaffolding is a mutation, so it is **gated by the same per-item `AskUserQuestion`** as a binary
 install — the user approves the config write explicitly. The dep is installed alongside the stub so
-the pairing is runnable. `--init` should confirm a copied stub matches the installed tool version
-(pinned schema/toolchain refs can drift).
+the pairing is runnable. `--init` should confirm a copied stub matches the installed tool version (pinned schema/toolchain refs can drift).
 
 ---
 
@@ -343,8 +316,7 @@ vocabulary — **the schema, statuses, and required-field rules are defined in
 - **not in `required_buckets`** → `n/a` (+ `reason`), `present:false`.
 - **known unresolved gap left as-is** → `no_tooling` (+ `reason`), `present:false`.
 
-The one **`steps`** key `--init` writes is `ci`
-(`../../shared/refs/policy-schema-post-merge.md` § `steps.<key>`) — post-merge's green-CI
+The one **`steps`** key `--init` writes is `ci` (`../../shared/refs/policy-schema-post-merge.md` § `steps.<key>`) — post-merge's green-CI
 check reads it. Pre-merge itself never consults `steps`.
 
 On completion `--init` **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote)
@@ -353,7 +325,7 @@ and stamps `generated` + `generated_by: "pre-merge --init"` — all three via
 from the system clock. `--init`'s job is to *record*; the gate's job is to *read*.
 
 The written file must round-trip clean — re-loading it in a gate run produces **zero** validation
-warnings (AC-S6). Never write `installed`, and never write a `steps` key other than `ci`.
+warnings. Never write `installed`, and never write a `steps` key other than `ci`.
 
 ---
 
@@ -372,32 +344,28 @@ detected) and **before** the write:
 
 1. **Run all checks.** Execute every `.claude/scripts/preflight-check-*.sh` (ids 01–17,
    `15` retired). Each detects its own tooling/surface and writes a normalized `detect`
-   report to `.pre-merge/preflight/<slug>.json` + stdout (AC-CK2/CK3). A missing runner
+   report to `.pre-merge/preflight/<slug>.json` + stdout. A missing runner
    is never fatal — the check emits `present:false` + `status:no_tooling`/`n/a`.
    Mandatory checks (`security`, `migration`) always emit a report even when nothing is
-   detected (AC-PF2).
+   detected.
 2. **Ingest the 16 reports.** For each, validate it round-trips against the check-report
-   schema (AC-CK5); reject a malformed report rather than assembling a bad entry.
-3. **Assemble `components[]` — deltas only** (AC-CAT9). Each entry gets exactly the
+   schema; reject a malformed report rather than assembling a bad entry.
+3. **Assemble `components[]` — deltas only**. Each entry gets exactly the
    five detection fields (`id`, `present`, `run`, `run_minified`, `tooling`, `status`)
-   plus any **explicit** user override from the interview (`opted_out`/`deferred`
-   decisions with their `reason`, a user-set `criticality`, the C17/C15/C16/C18 hints,
-   and `regression.needs_env` — the one resolved `needs_env`, AC-SBX8).
+   plus any **explicit** user override from the interview (`opted_out`/`deferred` decisions with their `reason`, a user-set `criticality`, any component tuning hints the project has since supplied (`hot_tables[]`, `consumers[]`, `traffic_mix`, the mobile matrix), and `regression.needs_env` — the one resolved `needs_env`).
    **Do not copy catalog metadata into the manifest**: `nn`, `group`, `kind`, `cost`,
    `depends_on`, `active_when`, `platforms`, `mandatory`, the default `criticality`
    and every other component's `needs_env` resolve from
    [`component-catalog.md`](../../shared/refs/component-catalog.md) by `id` at run time.
-   Copying them is what created the AC-UP2 drift class — a catalog change could never
-   reach an existing manifest. Also **not** persisted: `test_selector` (audit-only; it
+   Copying them is what created the drift class this shape closes — a catalog
+   change could never reach an existing manifest. Also **not** persisted: `test_selector` (audit-only; it
    stays in the check reports) and `source` (derivable from `id` + the catalog's
-   `check` column). Ingestion needs **zero** per-check special-casing (AC-CK7) — one
+   `check` column). Ingestion needs **zero** per-check special-casing — one
    uniform loop keyed on `id`.
-4. **Validate the DAG is acyclic** (AC-PF3): topo-check the union of every present
-   component's **catalog** `depends_on`. A cycle → report it and write **no** manifest
-   (leave `policy.json` unchanged). `script-pipeline-resolve.py` exits `4` on a cycle;
+4. **Validate the DAG is acyclic**: topo-check the union of every present
+   component's **catalog** `depends_on`. A cycle → report it and write **no** manifest (leave `policy.json` unchanged). `script-pipeline-resolve.py` exits `4` on a cycle;
    reuse it rather than hand-checking.
-5. **Write `components[]`** with **no `order` field** (AC-PF4 — ordering is the
-   executor's runtime topo-sort) and **stamp `source_signature`** (AC-UP4) — the
+5. **Write `components[]`** with **no `order` field** (ordering is the executor's runtime topo-sort) and **stamp `source_signature`** — the
    sha256 defined in `policy-schema-pre-merge.md` over the sorted
    `id:present:run:tooling.chosen` lines across all reports. The write goes through
    `.claude/scripts/script-policy-set.py` (`--set components=<json>`), the one
@@ -411,19 +379,20 @@ detected) and **before** the write:
 
 ## Enabling the flag — the test-selection interview (`policies.test_selection`)
 
-The one **policy** question `--init`/`--update` own beyond the gap interview:
-*should the gate run only the tests your diff can break, instead of the whole
-suite?* It is a decision, never a detection result — so it is asked, recorded, and
-then left alone. Schema + read-contract:
+Test selection is **opt-in and off by default** — an absent key means the gate runs
+full suites, which is the safe shape. So `--init` **does not ask about it**: it seeds
+nothing, explains nothing, and adds no key. The interview below runs **on request** —
+`/pre-merge --update` or `/msg --update`, or whenever the user asks to stop paying for
+the whole suite on every run. Schema + read-contract:
 [`../../shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md)
 § `policies.test_selection` / §2c; the run-time rule it switches on:
 `refs/executor.md` §3c.
 
-**Asked only when a test suite is detected** — i.e. at least one selection-capable
-component (`unit`, `integration`, `regression`) is `present` in the assembled
-manifest. No test suite ⇒ no question, no key, nothing to explain. Runs **after**
-the `components[]` assembly (the answer needs the resolved `run_minified` slots and
-the detected platforms), as **one** `AskUserQuestion`:
+**Meaningful only when a test suite is detected** — at least one selection-capable
+component (`unit`, `integration`, `regression`) is `present` in the manifest. No test
+suite ⇒ nothing to enable. It runs **after** the `components[]` assembly (the answer
+needs the resolved `run_minified` slots and the detected platforms), as **one**
+`AskUserQuestion`:
 
 1. **Explain the trade — one paragraph.** Minified runs select *affected(diff) ∪
    the critical floor* inside `unit`/`integration`/`regression`, so a small PRD
@@ -440,7 +409,7 @@ the detected platforms), as **one** `AskUserQuestion`:
    | `post-merge` | `policies.release_flow.mode == "staged"` — there is a staging stage to run the full suite at |
    | `both` | **both** of the above verify |
 
-3. **No verified backstop ⇒ warn loudly + explicit override (AC-TS8).** Name what
+3. **No verified backstop ⇒ warn loudly + explicit override.** Name what
    is missing (no `pull_request` workflow / Actions opted out / `direct` flow) and
    state plainly that enabling now means **nothing runs the full suite anywhere**.
    Require an explicit *"enable anyway"* **plus** a `reason`; then honor it and
@@ -456,12 +425,10 @@ the detected platforms), as **one** `AskUserQuestion`:
    implementation.
 5. **Write the key** — `enabled`, `reason`, `full_run_backstop`, plus the
    catalog-defaulted `force_full_paths` / `tiers` / `max_affected_ratio` /
-   `critical_markers` resolved for the detected platforms
-   ([`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)).
-   `enabled:true` with no `reason` is honored + one `unjustified-policy` warn
-   (AC-S3), like every other policy justification.
+   `critical_markers` resolved for the detected platforms ([`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)).
+   `enabled:true` with no `reason` is honored + one `unjustified-policy` warn, like every other policy justification.
 
-**Settled decision — never re-prompted unasked (AC-UP2 pattern).** Once written,
+**Settled decision — never re-prompted unasked (pattern).** Once written,
 `--update` leaves `policies.test_selection` alone exactly as it leaves an
 `opted_out` step or a user-set `criticality`: it reconciles **facts** (a
 `run_minified` that appeared or vanished, a newly-detected platform's
@@ -469,7 +436,7 @@ the detected platforms), as **one** `AskUserQuestion`:
 **unasked** — the user can always reopen it explicitly (`/pre-merge --update`,
 `/msg --update`), which is exactly how the disable below is performed.
 
-### Disabling — one `--update` run, and it is complete (AC-TS12)
+### Disabling — one `--update` run, and it is complete
 
 One run that flips `enabled:false` **is** the off switch. There is no teardown
 step, no cleanup mode, no second command — because every other artifact the
@@ -506,32 +473,29 @@ reconciles **facts about the code**, never settled policy choices.
    flipped (tool added/removed), which `active_when` surface appeared/vanished (first
    migration, new API/mobile surface), any newly-detected component not yet in the
    manifest.
-3. **Present the delta for approval BEFORE writing** (AC-UP1) — a compact
+3. **Present the delta for approval BEFORE writing** — a compact
    added/changed/removed table; nothing is written until the user approves.
-4. **Apply only** (AC-UP2):
+4. **Apply only**:
    - `present` flips (a runner appeared or disappeared),
    - `active_when` flips (a surface appeared or disappeared),
    - **new** components, seeded with **catalog defaults**,
-   - `regression.needs_env` re-resolution (C23/AC-SBX8 — the suite's composition
-     changed) — a **fact**, re-detected like `present`,
+   - `regression.needs_env` re-resolution (C23 — the suite's composition changed) — a **fact**, re-detected like `present`,
    - **`devkit/ENV.md` deltas** — a compose file appeared, a seed script moved, a
      placeholder is now resolvable. Proposed in the same approved-delta table; a
      hand-edited verb is never silently overwritten (`env-contract.md`).
    **Catalog metadata needs no reconcile at all** — the manifest never copied it, so a
-   new `depends_on` edge or a shifted criticality default is live on the next run
-   (this is the AC-UP2 drift hole, closed by the delta-only shape).
+   new `depends_on` edge or a shifted criticality default is live on the next run (this is the drift hole, closed by the delta-only shape).
    It **never** re-prompts a settled `opted_out`/`n/a` decision, **never** changes a
    **user-set** `criticality`, and **never** re-prompts a settled
    `policies.test_selection` — those are policy, not facts. It does refresh that
    key's **factual** halves (a `run_minified` that appeared or vanished, a
    newly-detected platform's `critical_markers` default) and it is where an
-   **explicit** enable/disable is performed (§ *Enabling the flag* — the disable
-   is complete in this one run, AC-TS12).
+   **explicit** enable/disable is performed (§ *Enabling the flag* — the disable is complete in this one run).
 5. **Fill genuinely-new gaps** by reusing `--init`'s gated per-item install/scaffold
-   offer (AC-UP3) — a newly-detected-but-untooled component follows the same
+   offer — a newly-detected-but-untooled component follows the same
    OSS-first `AskUserQuestion` path.
-6. **Restamp `source_signature`** (AC-UP4) and stamp `generated_by: "pre-merge --update"`
-   — both via `.claude/scripts/script-policy-set.py`. Re-validate the DAG (AC-PF3)
+6. **Restamp `source_signature`** and stamp `generated_by: "pre-merge --update"`
+   — both via `.claude/scripts/script-policy-set.py`. Re-validate the DAG
    before writing. `--update` writes no pre-merge `steps` entry; it only touches the
    post-merge-owned `ci`/`deploy_*`/`smoke` step-keys, same as `--init`.
 
@@ -540,35 +504,28 @@ reconciles **facts about the code**, never settled policy choices.
 `--update` (there's nothing to reconcile against) — `--update` says so and points to
 `--init`.
 
-### Gate staleness nudge (Fork E — the gate stays a pure reader)
+### Gate staleness nudges (read-only — the gate never writes)
 
-A normal `/pre-merge` run **recomputes** `source_signature` cheaply and, on mismatch,
-emits *"pipeline may be stale — run `/pre-merge --update`"*, then **proceeds on the
-current manifest**. The gate **never** writes `policy.json` or mutates `components[]` —
-only `--init`/`--update` write it (AC-UP5/UP6). This nudge lives in the executor's
-manifest-read prose (`refs/executor.md` §0).
-
-Its **test-tree sibling** works identically and is defined in
-`refs/protocol-update-criticality.md`: a *minified* run counts untagged tests
-read-only against the `criticality_review` stamp and, over the threshold (default
-25), prints *"N untagged tests since the last criticality review — run
-`/pre-merge --update-criticality`"*, then proceeds. Same contract — the gate reads,
-never writes a tag or a policy key (AC-TS2).
+Two nudges exist and neither lives here: the **manifest** nudge (`source_signature`
+mismatch → *"pipeline may be stale — run `/pre-merge --update`"*) is stated in
+`refs/executor.md` §0, and its **test-tree sibling** (untagged tests since the last
+`criticality_review`) in `refs/protocol-update-criticality.md` § *Staleness nudge*.
+Both print one line and proceed; the gate reads, `--init`/`--update`/
+`--update-criticality` write.
 
 ---
 
 ## Boundaries (what `--init` never does)
 
-- Never runs the pre-merge protocol, opens a PR, merges, or deploys (AC-DR1).
+- Never runs the pre-merge protocol, opens a PR, merges, or deploys.
 - Never writes `devkit/PLATFORMS.md` — it *reports* PLATFORMS.md-shaped gaps and delegates to
   `/msg --init` (that file stays `/msg --init`'s; policy-schema.md's writer table has the boundary).
-- Never installs a paid/SaaS tool (AC-DR3).
-- Never mutates without an explicit per-item `AskUserQuestion` approval (AC-DR2).
+- Never installs a paid/SaaS tool.
+- Never mutates without an explicit per-item `AskUserQuestion` approval.
 - Never writes `policies.github_actions` — it only *reads* it to decide whether the missing `ci`
   workflow is a gap or a settled opt-out (and to verify a `ci` backstop, § *Enabling the flag*).
   Changing that decision is `/msg --update`'s job. `policies.test_selection` is the asymmetric
   case: pre-merge `--init`/`--update` **do** write it (shared with `/msg --update`), because the
   interview that sets it needs the resolved manifest.
-- Never writes a **critical tag** into a test file — that is `--update-criticality`'s write
-  (`refs/protocol-update-criticality.md`), which `--init` only *invokes* for the initial tagging
+- Never writes a **critical tag** into a test file — that is `--update-criticality`'s write (`refs/protocol-update-criticality.md`), which `--init` only *invokes* for the initial tagging
   pass under its own human gate.

@@ -13,7 +13,7 @@ Refusals are emitted as the sole JSON output. No other text follows.
 
 ## no_diff
 
-**When it fires**: Step 1, after running `scripts/resolve-diff.sh`. `files_changed` is empty — working tree matches the base ref.
+**When it fires**: in the prelude, after running `scripts/resolve-diff.sh`. `files_changed` is empty — working tree matches the base ref.
 
 **Exit code**: 1 (non-zero)
 
@@ -30,18 +30,24 @@ Refusals are emitted as the sole JSON output. No other text follows.
 }
 ```
 
-**Never fall through**: do not fingerprint, do not show a matrix, do not gate. Terminate immediately after emitting this JSON.
+**Never fall through**: do not resolve the pipeline, do not run a component, do not gate. Terminate immediately after emitting this JSON.
 
 ---
 
 ## no_manifest
 
-**When it fires**: pre-flight (before SYNC), when `devkit/policy.json` carries **no**
-`components[]` manifest — the file is absent, malformed, `version` ≠ 1, or a **pre-v3**
-policy (has `init`/`release_flow` but no `components[]`). The v3 executor
-(`refs/executor.md`) runs the resolved `components[]` pipeline; with no manifest there is
-nothing to run. This is the **breaking cutover** (Fork C, AC-PF13/PF14) — it **retires**
-the old "file absent → run on built-in defaults" fallback (`AC-LC6`/`AC-ST5` retired).
+**The manifest gate — the one statement of it.** Before SYNC, the executor loads
+`devkit/policy.json` and gates on `components[]`. `SKILL.md` and `executor.md` §0 cite
+this table; neither restates it:
+
+| Manifest state | Behavior |
+|---|---|
+| `components[]` present, non-empty | **run** the resolved pipeline |
+| `policy.json` absent, malformed, or `version` ≠ 1 | **REFUSE `no_manifest`** — name `/pre-merge --init`, run **zero** components |
+| `policy.json` has `init`/`release_flow` but **no** `components[]` | **REFUSE `no_manifest`** + upgrade nudge — name `/pre-merge --init` |
+
+There is no built-in-defaults path: pre-merge runs the pipeline the project's manifest
+declares, and with no manifest there is nothing to run.
 
 **Exit code**: 1 (non-zero)
 
@@ -51,7 +57,7 @@ the old "file absent → run on built-in defaults" fallback (`AC-LC6`/`AC-ST5` r
 {
   "verdict": "refused",
   "reason": "no_manifest",
-  "detail": "No components[] manifest in devkit/policy.json — /pre-merge runs the preflight-resolved pipeline and cannot gate without it. Run /pre-merge --init to detect this project's pipeline and write the manifest (a pre-v3 policy.json is upgraded in place).",
+  "detail": "No components[] manifest in devkit/policy.json — /pre-merge runs the preflight-resolved pipeline and cannot gate without it. Run /pre-merge --init to detect this project's pipeline and write the manifest (an older policy.json is upgraded in place).",
   "base": "<base ref>",
   "prior_issues_loaded": false,
   "issues": []
@@ -134,7 +140,7 @@ this JSON, naming `/pre-merge --init`.
 
 | Condition | Output type | Exit code |
 |---|---|---|
-| No `components[]` manifest (absent / pre-v3 policy) | Refusal JSON (`refused/no_manifest`) | 1 |
+| No `components[]` manifest (absent / no `components[]` key) | Refusal JSON (`refused/no_manifest`) | 1 |
 | Clean tree | Refusal JSON (`refused/no_diff`) | 1 |
 | Schema mismatch | Refusal JSON (`refused/schema_mismatch`) | 1 |
 | Modify instruction | Refusal JSON (`refused/out_of_scope_modify`) | 1 |

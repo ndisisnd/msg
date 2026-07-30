@@ -1,9 +1,9 @@
 ---
 name: migration
-description: Gate Step 6 — Migration stage (safety floor, conditional). Static SQL-safety scan on added migration lines, then a /cook semantic pass when a DB flag assembles. Migrated from /review Migration mode.
+description: The migration component (safety floor, conditional). Static SQL-safety scan on added migration lines, then a /cook semantic pass when a DB flag assembles. Runs only when the diff touches a migration file.
 ---
 
-# Step 6 — MIGRATION stage (safety floor, conditional)
+# `migration` — the schema-safety component (safety floor, conditional)
 
 Part of the safety floor: runs in **every** profile, but only when the diff touches
 a migration file. No migration file → skip entirely (noted, not a finding).
@@ -33,7 +33,7 @@ On the **added** lines of each matching migration file only:
 need the `.down.sql` sibling). Supabase/Prisma are forward-only — never checked.
 Missing pair → `medium`, `rule: missing-down-migration`.
 
-## Expand/contract safety — same-PR destructive rename (C17, AC-MIG1/MIG2)
+## Expand/contract safety — same-PR destructive rename (C17)
 
 The plain static scan flags a `DROP`/`RENAME` on the migration line, but the real
 rolling-deploy disaster is a **destructive/renaming schema change shipped in the same PR
@@ -45,37 +45,33 @@ shared with `api`/`load`):
 
 1. From the migration files' **added** lines, collect each `DROP COLUMN` / `DROP TABLE` /
    `RENAME COLUMN` / `RENAME TABLE` target (the old column/table name).
-2. Scan the **app-code** changes in the *same PR* for references to that old name
-   (model fields, query strings, ORM column maps).
+2. Scan the **app-code** changes in the *same PR* for references to that old name (model fields, query strings, ORM column maps).
 3. **Same PR contains both** the destructive/renaming migration **and** an app-code
    reference to the changed name → `high` (`rule: expand-contract-unsafe`,
    `category: architecture`), with the **expand/contract remedy** in `suggestion`: *add
    the new column → backfill → dual-write → switch reads → drop the old — across separate
    deploys, never one atomic PR.*
 4. **Split across PRs** (the migration change and the app-code reference land in
-   different PRs — the safe expand step) → **no** expand/contract finding fires (AC-MIG2).
+   different PRs — the safe expand step) → **no** expand/contract finding fires.
    Correlation is same-PR only, so the safe rollout path is silent — no false positive.
 
 This is additive to the Stage 0 static findings (a `DROP COLUMN` still flags on its own
 line); the correlation adds the rolling-window `high` when app code references it too.
 
-## Size-aware lock severity (C17, AC-MIG3/MIG4)
+## Lock-risk severity — flat unless the repo supplies size context
 
-Lock-risk findings — `CREATE INDEX` without `CONCURRENTLY`, whole-table rewrites
-(`ALTER COLUMN ... TYPE`) — **scale severity by the target table's size**, so the gate
-stops crying wolf on a tiny config table and stops under-warning on a large/hot one (a
-multi-minute write-lock = apparent outage):
+Lock-risk findings (`CREATE INDEX` without `CONCURRENTLY`, whole-table rewrites via
+`ALTER COLUMN ... TYPE`) keep the **flat severity** in the Stage 0 table. A
+multi-minute write-lock on a large table is far worse than the same statement on a
+tiny config table, but the gate has no way to tell them apart without size context it
+cannot derive from the diff.
 
-- **Size context available** → adjust the static severity: a **large/hot** table
-  escalates (e.g. `CREATE INDEX` non-concurrent `medium` → `high`); a **small** table
-  quiets (→ `low`). Size context comes from a **schema/stats hint** where available
-  (row-count/table-size stats), else the **`--init`-declared `hot_tables[]`** list on the
-  `migration` catalog entry (a table named there is treated as hot/large).
-- **No size context** (no stats **and** no `hot_tables[]`) → the finding keeps its
-  **current flat severity** — no regression when the hint is absent (AC-MIG4).
-
-Note the applied adjustment in `evidence.snippet` (`"table <name> in hot_tables[] —
-escalated"` / `"no size context — flat severity"`) so the grade is auditable.
+- **Size context available** — live row-count/table-size stats, or a `hot_tables[]`
+  list declared on the `migration` component → adjust: a large/hot table escalates
+  (`medium` → `high`), a small one quiets (→ `low`). Note the adjustment in
+  `evidence.snippet` (`"table <name> in hot_tables[] — escalated"`).
+- **No size context** (the default) → **flat severity, no adjustment, no nag.** The
+  finding still fires; only its grade stays put.
 
 ## Semantic pass (/cook-backed)
 

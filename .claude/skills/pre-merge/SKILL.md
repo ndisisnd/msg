@@ -32,7 +32,7 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 - `/pre-merge` — gate the current feature branch against `staging`
 - `/pre-merge --init` — run the one-time setup: detect tooling (incl. the `.github/workflows/` CI pipeline that runs the gate on PRs, unless `policies.github_actions.enabled` is `false` — then the missing workflow is a settled opt-out, not a gap, and no scaffold is offered) → interview → gated install/scaffold → write `devkit/policy.json` (no gate run); see `refs/protocol-init.md`
 - `/pre-merge --update` — reconcile the manifest with codebase reality (re-run preflight checks → diff `components[]` → approve the delta → apply `present`/`active_when`/new-component changes only; never re-grades user-set criticality or re-prompts settled opt-outs); see `refs/protocol-init.md`
-- `/pre-merge --prd <path>` — load a PRD; enables the `prd`-group components (`prd-consistency`, `manual-test-plan`) and feeds the `regression` component (repeatable)
+- `/pre-merge --prd <path>` — name the PRD explicitly. The `prd` group (`prd-consistency`, `manual-test-plan`) runs by default whenever a `features/prd-<N>-*/` PRD matches the branch; this flag is the override for an unmatched or ambiguous match, and is repeatable
 - `/pre-merge --prior-issues <path>` — load a prior verdict JSON to mark regressions
 - `/pre-merge --full-secret-scan` — the `security` component scans the full tree (default: diff-only)
 - `/pre-merge --flaky <N>` — retry failing e2e / unit-int tests up to `N` times before counting a hard failure (`refs/_common.md`)
@@ -54,13 +54,13 @@ Natural language: "run pre-merge", "gate this before merge", "open the PR agains
 | | Name | Source / Destination |
 |--|------|----------------------|
 | In | base | resolved via `release_flow` per `../shared/refs/policy-schema.md` §1 — `staged` → `staging_branch` (falls back to `main` when the branch is absent), `direct` → `prod_branch`; no policy → default `staging`, else `main`; diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
-| In | prd_paths | `--prd` (repeatable) — feeds Steps 4 + 7 |
+| In | prd_paths | auto-discovered from `features/prd-<N>-*/` (branch match), or `--prd` (repeatable) — feeds `regression` + the `prd` group |
 | In | prior_issues | `--prior-issues` JSON, optional |
 | Out | verdict_json | single JSON per `refs/output-schema.md` — final stdout emission |
 | Out | run_report | `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (first `--prd`'s `reports/`, else `features/reports/` as `report-<K>.md`) |
 | Out | issues_file | the run report's paired `.json` (same stem + `reports/` folder as `run_report`) on a non-clean verdict — consumed by `eng --build report=` |
 | Out | run_artifacts | raw stage logs → `.pre-merge/<timestamp>/<stage>.log` |
-| Out | pr | PR feature→staging (Step 9), verdict JSON + report linked in the body |
+| Out | pr | PR feature→staging (the OPEN-PR terminal), verdict JSON + report linked in the body |
 
 Schema: `refs/output-schema.md` · finding shape: `refs/finding-schema.md` (canonical
 `../shared/refs/finding-schema.md`) · severity: `refs/severity-rubric.md`.
@@ -73,26 +73,16 @@ matched to reachability. Never modifies source (bar the sync-merge), never merge
 never grades a blocker without quoted evidence. Compact and structured — tables over
 prose, severity counts before the issue list, JSON-first.
 
-## Pre-flight — manifest gate (Fork C, BREAKING)
+## Pre-flight — the manifest gate
 
 The gate is a **preflight-driven executor** (`refs/executor.md`) — it runs the resolved
 `components[]` pipeline from `devkit/policy.json`, not a fixed step list. Load + validate
 the policy once per run (`../shared/refs/policy-schema.md` read-contract §0/§1 plus
 `../shared/refs/policy-schema-pre-merge.md` §2c — post-merge's half is never loaded),
-then gate on the **manifest**:
-
-| state | behavior |
-|---|---|
-| `components[]` present, non-empty | **run** the executor (`refs/executor.md`) |
-| file **absent** / malformed / `version` ≠ 1 | **REFUSE `no_manifest`** — name `/pre-merge --init`, run **zero** components (`refs/refusal-patterns.md`) |
-| `policy.json` with `init`/`release_flow` but **no** `components[]` | **REFUSE `no_manifest`** + upgrade nudge — name `/pre-merge --init` |
-
-This is the **breaking cutover** (Fork C, AC-PF13/PF14): the old "file absent → run on
-built-in defaults" fallback is **retired** (`AC-LC6`/`AC-ST5` retired). There is no
-defaults path and no inline auto-`--init` — a run without a `components[]` manifest does
-nothing but tell the user to run `/pre-merge --init`, which detects the pipeline and
-writes the manifest. Run-vs-skip comes from component **presence** (an absent component
-simply isn't in the pipeline). The loaded policy still drives base resolution (below).
+then gate on the **manifest** per the state table in `refs/refusal-patterns.md`
+§`no_manifest` (its one home): no `components[]` ⇒ **REFUSE `no_manifest`**, run zero
+components, name `/pre-merge --init`. There is no built-in-defaults path and no inline
+auto-`--init`. The loaded policy still drives base resolution (below).
 
 **The manifest carries deltas only.** Each entry holds `present` / `run` /
 `run_minified` / `tooling` / `status` plus explicit user overrides; every catalog
@@ -102,12 +92,10 @@ run time. `.claude/scripts/script-pipeline-resolve.py` performs the join and pri
 run's plan (waves, pruned list, coverage-gap findings) — the executor quotes it verbatim
 rather than re-deriving the order.
 
-**Manifest staleness nudge (Fork E, read-only).** With a valid manifest, the executor
-**recomputes** `source_signature` cheaply (the sha256 over the sorted
-`id:present:run:tooling.chosen` lines, per `../shared/refs/policy-schema-pre-merge.md`) and, on
-mismatch, prints one line — *"pipeline may be stale — run `/pre-merge --update`"* — then
-**proceeds on the current manifest**. The gate **never** writes `policy.json` or mutates
-`components[]`; only `--init`/`--update` do (AC-UP5/UP6).
+**Staleness nudges are read-only** and are defined once each — the manifest nudge in
+`refs/executor.md` §0, the untagged-test nudge in
+`refs/protocol-update-criticality.md`. The gate **never** writes `policy.json` or
+mutates `components[]`; only `--init`/`--update` do.
 
 ## The pipeline executor (replaces the old fixed gate sequence)
 
@@ -117,37 +105,34 @@ this file stays the spine. In outline:
 
 1. **Prelude — diff + base.** Resolve base (`staging`, else `main`) and the diff:
    consume a fresh `../shared/refs/verify-prelude.md` if present, else run
-   `scripts/resolve-diff.sh <base>`; empty diff → refuse `no_diff`
-   (`refs/refusal-patterns.md`). Best-effort write the prelude. **Tooling is
+   `scripts/resolve-diff.sh <base>`; empty diff → refuse `no_diff` (`refs/refusal-patterns.md`). Best-effort write the prelude. **Tooling is
    already resolved** into each component's `run` command in the manifest (by
    `--init`/`--update` via the `preflight-check-*.sh` family) — the gate does not
    re-detect tooling.
-2. **SYNC (D7) — the un-prunable DAG root.** Fetch + merge the sync target
-   (`staging`, else `main`); trivial conflicts auto-resolve, semantic same-hunk
+2. **SYNC (D7) — the un-prunable DAG root.** Fetch + merge the sync target (`staging`, else `main`); trivial conflicts auto-resolve, semantic same-hunk
    pause; the sync-merge commit is the sole direct write; no `staging` → fall back
    to `main` (no refusal). Every component implicitly depends on SYNC — the tree
    is synced before anything runs (`refs/sync.md`).
 3. **Resolve the pipeline** from `components[]` — include `present`/`mandatory`
    components whose `active_when` gate is met; apply `--changed-only`/`--prd`/
-   `--flaky` pruning. An absent component produces **no** step and **no** note
-   (AC-PF6). `security` + `migration` are always in (Fork D).
+   `--flaky` pruning. An absent component produces **no** step and **no** note. `security` + `migration` are always in (Fork D).
 4. **Topo-sort + run in waves.** Order = topological sort on `depends_on`, ties
-   broken by `criticality` then `cost` (AC-PF7). Independent components in a wave
-   run as **parallel subagents**; dependents never run concurrently (AC-PF8/9).
+   broken by `criticality` then `cost`. Independent components in a wave
+   run as **parallel subagents**; dependents never run concurrently.
    For universal+prd this is `{mechanical·security·unit·prd-consistency}` ‖ →
    the **env wave** `{integration·e2e·a11y·perf·load·mobile}` inside the **C23
    test-sandbox** (one ephemeral isolated env, provisioned only-on-green after the
    static waves, promoted to serve as the preview, torn down after — `refs/executor.md`
-   §3b) → `{coverage}` → `{regression}` (C5, AC-SEQ1). Static (`needs_env:false`)
+   §3b) → `{coverage}` → `{regression}` (C5). Static (`needs_env:false`)
    components never enter the sandbox; `preview`/`smoke` are the only-on-green tail.
    Each protocol loads its ref on demand (`refs/universal/*`, `refs/platform/*`,
    `refs/prd/*`).
 5. **Fail-fast by `criticality`** (`refs/severity-rubric.md`): `critical` aborts the
    remaining pipeline (mechanical/security/migration short-circuit); `blocking`
    fails the verdict, marks downstream dependents `blocked`, lets independent
-   branches finish; `advisory`/`config-driven` never aborts (AC-PF11).
+   branches finish; `advisory`/`config-driven` never aborts.
 6. **Every component writes a result report** to `.pre-merge/<ts>/<check>.json` —
-   pass, fail, or skip, on **every** run (C6, AC-RR1) — the `result` section of
+   pass, fail, or skip, on **every** run (C6) — the `result` section of
    `../shared/refs/check-report-schema.md`. `unit` emits the same shape as every
    check.
 7. **OPEN-PR / issues-loop — the un-prunable terminal.** On clean → open the PR;
@@ -155,20 +140,18 @@ this file stays the spine. In outline:
 
 **Test selection (opt-IN, off by default).** When `policies.test_selection`
 resolves enabled (`--full` > `--minified` > policy), the three selection-capable
-components — `unit`, `integration`, `regression` — run `run_minified`
-(*affected(diff) ∪ the critical floor*) instead of their full suites, at the size
+components — `unit`, `integration`, `regression` — run `run_minified` (*affected(diff) ∪ the critical floor*) instead of their full suites, at the size
 tier computed from the diff's blast radius. The rule, the tier rubric, and the
 recording contract live in **`refs/executor.md` §3c**; the key's schema in
 `../shared/refs/policy-schema-pre-merge.md` § `policies.test_selection`. Absent/disabled ⇒
-byte-identical to today: no selection artifact is read and none is emitted
-(AC-TS1). Every resolution failure fails open to the full suite;
+byte-identical to today: no selection artifact is read and none is emitted. Every resolution failure fails open to the full suite;
 `mechanical`/`security`/`migration` and this PRD's newly authored regression tests
-are never selected away (AC-TS4/TS5).
+are never selected away.
 
 ## Aggregate + emit (from the per-check result reports)
 
 The per-check result reports (§6) are the executor's **single uniform aggregation
-input** (AC-RR6/UR6) — the verdict and universal report are *derived*, never
+input** — the verdict and universal report are *derived*, never
 authored separately. Full detail in `refs/executor.md`; in outline:
 
 1. **Collect** every result report's `findings[]`; filter nulls.
@@ -176,9 +159,9 @@ authored separately. Full detail in `refs/executor.md`; in outline:
 3. **Triage** with `refs/severity-rubric.md` (in-diff weighting, dev-only / unreachable downgrades, profile coverage floor).
 4. **Mark regressions** from `--prior-issues` on `(category, file, rule)`.
 5. **Verdict:** `fail` (any blocker/high) · `pass_with_warnings` (only medium/low) · `pass` (zero) · `refused`/`skipped` (early-termination paths).
-6. **Run report** — write `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: pre-merge`; `## Test results` = one line per check for pass AND fail, sourced from the result reports' `checks[]`; `tests_passed`/`tests_failed` summed from their `totals`; `## How to verify` lists the resolved, ordered pipeline + what flags pruned — AC-RR3/PF15; on a minified run each selection-capable check's line also carries `selected/total` + tier, and the paired `.json` carries the `test_selection` block verbatim — AC-TS6/TS9). Best-effort; skip on `refused`/`skipped`.
+6. **Run report** — write `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: pre-merge`; `## Test results` = one line per check for pass AND fail, sourced from the result reports' `checks[]`; `tests_passed`/`tests_failed` summed from their `totals`; `## How to verify` lists the resolved, ordered pipeline + what flags pruned —; on a minified run each selection-capable check's line also carries `selected/total` + tier, and the paired `.json` carries the `test_selection` block verbatim). Best-effort; skip on `refused`/`skipped`.
 7. **Terminal issue summary** — on **every** report write, all verdicts, print the `Issue summary` block to the terminal (exact format owned by `../shared/refs/report-schema.md`); counts derive from the run's canonical `findings[]` (`category` / `severity`). A clean run prints exactly `Issue summary — 0 issues`.
-8. Print the JSON per `refs/output-schema.md` as the **final emission** — shape **unchanged** (AC-PF16); the optional additive `pipeline` field carries the resolved ordered pipeline for observability, and — only when selection ran — the additive `test_selection` block (AC-TS6).
+8. Print the JSON per `refs/output-schema.md` as the **final emission** — shape **unchanged**; the optional additive `pipeline` field carries the resolved ordered pipeline for observability, and — only when selection ran — the additive `test_selection` block.
 9. **Closing message** — end the run (every verdict, including `refused`/`skipped`) with the closing message per `../shared/refs/closing-message.md` as the last **chat** output; the step-8 JSON stays the final **machine** emission, byte-identical.
 
 **Harness incidents (every run):** log unexpected script failures, tool errors, retries, missed writes, and broken gate infrastructure (CI, preview, checkout) to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md`. A **check that legitimately fails is not an incident** — only the harness breaking is. Logging never changes the verdict or what the run does next.
@@ -189,10 +172,10 @@ On `fail`, write the **issues file** — the run report's paired `.json` (same s
 same `reports/` folder, sharing its N and K) — the **universal report** (C7). It
 carries the same canonical-finding `issues[]` + `context` + `summary` + `followUp`
 the prior verdict artifact carried, now **plus** an additive `checks[]` block (the
-per-check run picture, sourced from the result reports — AC-UR2). The
+per-check run picture, sourced from the result reports). The
 `followUp.status` contract is kept — **camelCase**, the key `eng --build` writes
-back and the `--gui` board reads (AC-UR4). `checks[]` is additive to the existing
-shape, not a rename (AC-PF16). It is consumed by
+back and the `--gui` board reads. `checks[]` is additive to the existing
+shape, not a rename. It is consumed by
 `eng --build report=<that .json path>`, which fixes `issues[]` using `checks[]` for
 context and the branch comes back through the gate. `followUp.suggested_command` =
 `eng --build report=<that .json path>` — kept as the deep-link fallback
@@ -225,15 +208,15 @@ so the gate never dead-ends.
 - `refs/universal/protocol-coverage.md` — `coverage` (`depends_on unit,integration`; Wave 2)
 - `refs/_common.md` + `refs/platform/*.md` — platform components + `--flaky`/`--changed-only`
 - `refs/universal/protocol-security.md`, `refs/platform/protocol-migration.md` — the mandatory safety-floor components
-- `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1, `active_when --prd`)
+- `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1; **advisory** — its LLM grades route to the human test checklist, they never block)
 - `refs/platform/protocol-preview.md` — `preview` deploy + human gate (D6/D10; only-on-green tail)
-- `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; also the test-selection enabling interview + its single-run disable
+- `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; the test-selection enabling interview (asked on request, not at `--init`) + its single-run disable
 - `refs/protocol-update-criticality.md` — `--update-criticality` mode: inventory → evidence-cited proposals → human gate → tag commit + `criticality_review` restamp; also the gate's read-only staleness nudge
 - `../shared/refs/policy-schema.md` — the shared core of the `devkit/policy.json` schema + read-contract (`init` lifecycle §0, `release_flow` §1, `github_actions` §2b, validation rules)
 - `../shared/refs/policy-schema-pre-merge.md` — pre-merge's half: the `components[]` delta manifest, `source_signature`, `policies.test_selection` §2c, the `criticality_review` stamp. Post-merge's half (`branch_protection`, `steps`, `release_model`, `staging_ready`, the release lock) is never loaded on a gate run
 - `../shared/refs/env-contract.md` — the `devkit/ENV.md` env-setup contract: the fenced `provision`/`seed`/`reset`/`teardown` block the executor reads at §3b (`--init` scaffolds it; gate runs never write it)
 - `../shared/refs/component-catalog.md` — component metadata (schema, defaults, `depends_on` edges, grouping) the manifest + executor key off
-- `refs/output-schema.md` — final emission schema (shape unchanged, AC-PF16) · `refs/finding-schema.md` — per-finding shape
+- `refs/output-schema.md` — final emission schema (shape unchanged) · `refs/finding-schema.md` — per-finding shape
 - `refs/severity-rubric.md` — grading + criticality fail-fast rules · `refs/refusal-patterns.md` — refusal shapes (incl. `no_manifest`)
 - `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/verify-prelude.md`
 - `../shared/refs/fix-loop.md` — post-failure Offer #1 → Offer #2 sequence the issues-file loop hands off to

@@ -7,9 +7,9 @@ description: Pre-merge mobile component — native iOS (XCUITest/XCTest) + nativ
 
 Guard, error rule, envelope: `../_common.md`. `mobile` is a **self-contained** native
 Android/iOS vertical — it must cover the **native** apps most teams ship (Swift, Kotlin),
-not Flutter/Dart only. Runners come from the Step 1 fingerprint (`mobile_runner`, now a
+not Flutter/Dart only. Runners come from the component's resolved tooling (`mobile_runner`, a
 set — see below). This is the mobile analog of C13's native a11y: it turns C12's
-native-mobile *flag* into real coverage (AC-MOB3).
+native-mobile *flag* into real coverage.
 
 ## Runner detection (native + Flutter — C18/M1)
 
@@ -26,7 +26,7 @@ each other — a repo is not Flutter-only:
 | **Maestro** | Maestro + `.maestro/*.yaml` | `maestro test .maestro/ --device <device>` |
 
 Patrol/Maestro run in addition to the base Flutter runner when their flag is set.
-**A native SwiftUI/Kotlin app with no Dart files is no longer green** (AC-MOB1): the old
+**A native SwiftUI/Kotlin app with no Dart files is no longer green**: the old
 "no `test/`+`integration_test/` → `pass_with_warnings` (No Dart test files found)" path
 applies **only** when *none* of the runners above is present. When a native runner **is**
 present it runs; when a native runner is **detected but has no tests**, that is a
@@ -34,15 +34,14 @@ coverage gap on that platform (below), not a silent pass.
 
 ## Enforced device/OS matrix (C18/M2)
 
-Read the **declared** `{platform, os}` matrix from the generalized declared-matrix config
-(`.flutter-test-matrix.json` or the manifest's mobile matrix; established by `--init` when
+Read the **declared** `{platform, os}` matrix from the generalized declared-matrix config (`.flutter-test-matrix.json` or the manifest's mobile matrix; established by `--init` when
 absent — see `../protocol-init.md`). The matrix is **enforced**, not a soft fallback:
 
 - For each declared `{platform, os}`, a runner must actually **execute** on an available
   device/simulator. A declared target with **no available device/simulator** (e.g. a Linux
   CI box with no iOS simulator, or **no macOS host** for the iOS XCUITest runner) is a
   **`high`** finding — `rule: platform-coverage-gap`, `category: mobile`, ties to C12's
-  enforced coverage-gap (AC-MOB2) — **never** `pass_with_warnings`. This kills the silent
+  enforced coverage-gap — **never** `pass_with_warnings`. This kills the silent
   false-green where an untested platform stays green forever.
 - iOS native (XCUITest) **requires a macOS host** — the same host constraint the simulator
   path already has; its absence is now this **enforced** M2 finding, not a silent skip.
@@ -56,9 +55,9 @@ absent — see `../protocol-init.md`). The matrix is **enforced**, not a soft fa
   devices are available with a note (no fabricated matrix).
 
 The **self-contained Flutter path is preserved** (widget/integration + Patrol/Maestro) for
-Flutter projects — no regression (AC-MOB5).
+Flutter projects — no regression.
 
-## C12 satisfaction (AC-MOB3)
+## C12 satisfaction
 
 When a platform's native runner **is** present and actually runs on a matrix device, C12's
 native-mobile coverage-gap for that platform is **satisfied** (flag → real coverage). An
@@ -72,7 +71,7 @@ Gradle test XML): failed test → finding; skipped → `totals.skipped`; setup/t
 device-degraded result.
 
 Findings **lead with the user flow + platform/OS** per
-`../../../shared/refs/name-the-user-impact.md` (AC-MOB4): `message` =
+`../../../shared/refs/name-the-user-impact.md`: `message` =
 *"swipe-to-delete broken on iOS 17"*, with the **test name secondary** in `rule` and
 `evidence`. Finding fields: `rule` = test name; `file` = test path (Dart/Swift/Kotlin);
 `evidence.platform` (`ios`/`android`/`widget`) + `evidence.os` + `evidence.device` carry

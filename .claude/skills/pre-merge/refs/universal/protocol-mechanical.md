@@ -1,17 +1,17 @@
 ---
 name: mechanical
-description: Gate Step 2 — deterministic, zero-LLM checks. Lint, format, typecheck, plain-English comment coverage, and per-commit small-commit-cap audit across the branch. Scripts only; any red short-circuits per severity.
+description: The mechanical component — deterministic, zero-LLM checks. Lint, format, typecheck, plain-English comment coverage, and a small-commit-cap audit over the commits new since the last gate run. Scripts only; it is the critical class, so a red result aborts the run.
 ---
 
-# Step 2 — MECHANICAL
+# `mechanical` — the deterministic floor
 
 All checks here are scripts — **no LLM**. Run them on the post-sync branch diff.
 Findings conform to `../finding-schema.md`; `source` uses the tool prefix.
 
 ## Lint / format / typecheck
 
-Run each detected mechanical runner from the Step 1 tooling detection
-(`detected.mechanical_runners[]`) in parallel:
+Run each mechanical runner resolved for this component in `devkit/policy.json`
+`components[]` (`detected.mechanical_runners[]`) in parallel:
 
 ```
 for runner in detected.mechanical_runners:
@@ -33,9 +33,12 @@ bash "$S" origin/staging...HEAD
 - `UNCOMMENTED <file>:<line> <symbol>` lines → one `low` finding each (`source: comment-scan`, `category: readability`, `rule: uncommented-symbol`), message names the symbol. Deterministic; the pair-programmer already checks this per ticket (A4) — this is the gate backstop.
 - `COMMENT_SCAN clean` → no findings.
 
-## Commit-cap audit (A5)
+## Commit-cap audit (A5) — new commits only
 
-Re-apply the `eng-commit-cap.sh` logic **per commit across the branch** (`origin/staging..HEAD`). For each commit, compute changed LOC = additions + deletions from `git show --numstat <sha>`, excluding the script's lockfile/generated allowlist:
+Re-apply the `eng-commit-cap.sh` logic **per commit**, over the commits that are
+**new since the last gate run on this branch**. For each such commit, compute changed
+LOC = additions + deletions from `git show --numstat <sha>`, excluding the script's
+lockfile/generated allowlist:
 
 ```
 lockfiles/generated skipped: package-lock.json, yarn.lock, pnpm-lock.yaml,
@@ -43,6 +46,16 @@ lockfiles/generated skipped: package-lock.json, yarn.lock, pnpm-lock.yaml,
   *.g.dart, *.freezed.dart, *.pb.go, dist/**, build/**, node_modules/**,
   vendor/**, */generated/**, */__generated__/**
 ```
+
+**Scope — why "new since the last run".** An oversize commit that is already pushed
+cannot gain an `Oversize-reason:` trailer without rewriting history, so auditing the
+whole branch every run re-flags the same unfixable commit forever — noise the author
+cannot clear. The audit range is therefore `<last-gated-sha>..HEAD`, where
+`<last-gated-sha>` is the branch tip recorded by the previous run's artifacts
+(`.pre-merge/<prev-ts>/plan.json`). **No prior run recorded** (first gate run on this
+branch) → audit the full `origin/<base>..HEAD` range once; every later run only sees
+what the author has added since. The real control is eng-side prevention
+(`eng-commit-cap.sh` at commit time), not repeated gate flagging.
 
 Cap = **500** LOC, or **300** when the commit contains a breaking change. A commit
 over its cap **without** an `Oversize-reason:` trailer in its body grades as a
@@ -52,7 +65,8 @@ A commit over cap **with** the trailer is recorded (not a finding) — the justi
 
 ## Short-circuit
 
-A `blocker` from lint/typecheck short-circuits the run per `../severity-rubric.md`
-(a broken build/type error makes later stages moot) — skip Steps 3–8, write the
-issues file, go to Step 9's fail path. Comment-scan and commit-cap findings never
-short-circuit on their own (they are `low`/`medium`).
+`mechanical` is in the **critical class**, so a `blocker` from lint/typecheck aborts
+the remaining pipeline (a broken build or type error makes later components moot) —
+write the issues file and take the fail path. The one statement of that rule is
+`../severity-rubric.md` § *Fail-fast by component `criticality`*. Comment-scan and
+commit-cap findings never abort on their own (they are `low`/`medium`).

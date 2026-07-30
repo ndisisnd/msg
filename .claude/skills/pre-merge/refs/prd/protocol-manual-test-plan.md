@@ -1,6 +1,6 @@
 ---
 name: manual-test-plan
-description: Gate component 18 (prd group, advisory, EMIT-ONLY) — generate a significance-rated human-test checklist mapping every in-scope acceptance criterion, error_case, and edge_case to a plain-language do-X → see-Y step. Reuses prd-consistency's (C11) per-item evidence grades for the automation-gap term; never blocks the PR. Generated once at pre-merge; rendered by both human gates (C20/R2, post-merge --staging).
+description: Gate component 18 (prd group, advisory, EMIT-ONLY) — generate a significance-rated human-test checklist mapping every in-scope acceptance criterion, error_case, and edge_case to a plain-language do-X → see-Y step. Reuses prd-consistency's (C11) per-item evidence grades for the automation-gap term; never blocks the PR. Generated once at pre-merge; its checklist is walked by the human at post-merge --staging (and rendered at the preview gate while that gate exists).
 ---
 
 # Component 18 — MANUAL-TEST-PLAN (prd group, emit-only)
@@ -9,9 +9,9 @@ Gives pre-merge post-merge's **walk-the-list** affordance: a human-testable chec
 mapping the PRD's product intent to plain-language `do X → see Y` steps, each carrying
 a **significance rating**, generated **once** at pre-merge and rendered by both human
 gates. It is `advisory` and **EMIT-ONLY — it never blocks the PR and never changes the
-verdict** (AC-MTP1). It runs only with a `--prd` (the whole `prd` group is skipped on a
-no-PRD hotfix). `depends_on: [prd-consistency]` — it **reuses** that component's per-item
-evidence grades rather than re-walking the diff (AC-MTP8).
+verdict**. It runs whenever a PRD resolves — auto-discovered from `features/prd-<N>-*/` or
+supplied with `--prd` (the whole `prd` group is skipped on a no-PRD hotfix). `depends_on: [prd-consistency]` — it **reuses** that component's per-item
+evidence grades rather than re-walking the diff.
 
 ## Read the PRD via digest slice
 
@@ -24,7 +24,7 @@ python3 "$G" "<prd-path>" --slice eval
 
 Consume `features[]` (each F-ID + acceptance criterion), `error_cases[]` (id + trigger
 + specified behavior), and `edge_cases[]` (id + scenario + expected behavior). Every
-in-scope item across all three sources becomes one checklist row (AC-MTP2).
+in-scope item across all three sources becomes one checklist row.
 
 ## Read prd-consistency's per-item evidence grades (the automation-gap input)
 
@@ -38,7 +38,7 @@ re-derive it:
 Each `grades[]` entry tags an acceptance criterion or error_case with its evidence:
 `tested` | `untested` | `unmet` (acceptance) · `handled_tested` | `handled_untested` |
 `unhandled` (error_case). This is the **automation-gap** signal — what automation could
-or could not verify — reused verbatim (AC-MTP3/MTP8).
+or could not verify — reused verbatim.
 
 ## Significance = user_impact × automation_gap
 
@@ -53,12 +53,12 @@ Each checklist item's rating is the product of two axes:
 | error_case `handled_untested` / `unhandled` | **high** — automation could not verify it |
 | `edge_case` (C11 does not grade these) | **high** — no automation grade exists, so treat as unverified |
 
-**user_impact** — from the PRD: the feature/flow's **priority** + the **core-flow
-(critical) tag** (D29's critical-tag on the canonical e2e flows). A criterion on a
+**user_impact** — from the PRD: the feature/flow's **priority** and whether the
+PRD marks it a core/critical flow. A criterion on a
 core/critical flow or a high-priority feature = **high**; otherwise **low**.
 
 **Rating** (the product — automation_gap is the dominant axis so the HIGH tier equals
-exactly C11's untested/unmet set, per AC-MTP4):
+exactly C11's untested/unmet set, per):
 
 | automation_gap | user_impact | significance |
 |---|---|---|
@@ -68,7 +68,7 @@ exactly C11's untested/unmet set, per AC-MTP4):
 
 The 🔴 HIGH set is precisely C11's `acceptance-untested` / `error-case-untested` /
 `unmet` / `unhandled` items (plus ungraded edge_cases) re-rendered as human tasks —
-the same data, second use (AC-MTP4). Order/group the list by significance, **HIGH
+the same data, second use. Order/group the list by significance, **HIGH
 first**; within a tier, order by user_impact (core flows first).
 
 ## Each item — a plain-language step
@@ -83,20 +83,21 @@ path"). Point steps at the pokeable preview/app, not internal test names.
 behavior the PRD did not specify. If an item yields no concrete, observable
 verification step from its acceptance criterion / trigger / behavior text, **flag it as
 such** (`step: null`, `note: "no concrete verification step in the PRD"`) — never
-fabricate one (AC-MTP2).
+fabricate one.
 
 ## Outputs — report section AND machine artifact (emit-only)
 
-Write the checklist to **both** sinks (AC-MTP6); neither touches the verdict:
+Write the checklist to **both** sinks; neither touches the verdict:
 
 1. **Run report `## How to verify`** — the section (`../../shared/refs/report-schema.md`)
    is upgraded from prose to a **structured, significance-rated list**: grouped by
    rating (🔴 HIGH → 🟡 MEDIUM → 🟢 LOW), each row showing the item id, the plain-language
    step, and its rating. Best-effort write (a failed report write never fails the run).
 2. **Machine artifact** — `.pre-merge/<ts>/manual-test-plan.json`, the structured list
-   the downstream human gates consume (C20/R2 renders it as the preview-approval
-   checklist; post-merge `--staging` consumes it instead of re-deriving from prose —
-   both wired in P6, not here):
+   the downstream human gate consumes. **The decisive render site is post-merge
+   `--staging`'s human-test script** — the walk-through where a person checks what
+   automation could not verify, HIGH items first. (The preview gate also renders it
+   today, while that gate exists.):
 
 ```json
 {
@@ -124,7 +125,7 @@ Each item carries its `significance` + both axes (`user_impact`, `automation_gap
 the render sites can re-sort/filter without recomputing. `kind` ∈
 `acceptance` | `error_case` | `edge_case`.
 
-## Degrade path — C11 absent or errored (AC-MTP8)
+## Degrade path — C11 absent or errored
 
 If `prd-consistency-grades.json` is **absent** or unreadable (C11 didn't run, or
 errored), do **not** fabricate automation grades. Degrade to a **priority-only** rated
@@ -137,5 +138,4 @@ list still emits; it is never blocked or omitted.
 
 `manual-test-plan` contributes **no** blocker/high/medium finding to the gate verdict —
 its result report is always `pass` (or `skipped` when no `--prd`), and the checklist is
-context, not a gate signal. Nothing in this component can flip a `pass` to a `fail`
-(AC-MTP1). The executor's fail-fast never considers it (its `criticality: advisory`).
+context, not a gate signal. Nothing in this component can flip a `pass` to a `fail`. The executor's fail-fast never considers it (its `criticality: advisory`).

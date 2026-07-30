@@ -1,6 +1,6 @@
 ---
 name: preview
-description: The single human-review gate (component 16, kind gate, blocking) — the merged qa+preview component (C20). Captures the feature's visual states in the promoted C23 test-sandbox (the same ephemeral isolated env the needs_env wave ran in — this gate provisions nothing itself, AC-SBX5), runs the pre-approval live-env checks (api spec-drift, migration up→down→up), then serves ONE unified approval artifact (evidence + the C22 manual-test-plan checklist) for a single Approve/Reject. R1 smoke-precondition · R2 informed approval · R3 commit-bound · R4 structured reject. Async park/notify/resume, ephemeral + isolated. active_when = union of UI-surface OR api/migration/deploy surface.
+description: The single human-review gate (component 16, kind gate, blocking) — the merged qa+preview component (C20). Captures the feature's visual states in the promoted C23 test-sandbox (the same ephemeral isolated env the needs_env wave ran in — this gate provisions nothing itself), runs the pre-approval live-env checks (api spec-drift, migration up→down→up), then serves ONE unified approval artifact (evidence + the C22 manual-test-plan checklist) for a single Approve/Reject. R1 smoke-precondition · R2 informed approval · R3 commit-bound · R4 structured reject. Async park/notify/resume, ephemeral + isolated. active_when = union of UI-surface OR api/migration/deploy surface.
 ---
 
 # Component 16 — PREVIEW (the single human-review gate)
@@ -30,27 +30,23 @@ triggers, per the catalog's union `active_when`):
   deploy/infra manifests.
 
 `strict` → fires regardless (always). `lenient` → fire only on UI-surface (visual)
-paths. No trigger match (and not strict) → **skip** and record it
-(`preview: { fired: false }`). The executor only runs `preview` when this union gate is
+paths. No trigger match (and not strict) → **skip** and record it (`preview: { fired: false }`). The executor only runs `preview` when this union gate is
 met — an absent surface means no gate.
 
-## The gate runs in the promoted C23 sandbox (AC-SBX5)
+## The gate runs in the promoted C23 sandbox
 
 Everything below runs against the **promoted test-sandbox** — the same ephemeral,
-isolated environment the executor provisioned for the `needs_env` wave
-(`refs/executor.md` §3b), promoted to serve as this preview. **This gate never
+isolated environment the executor provisioned for the `needs_env` wave (`refs/executor.md` §3b), promoted to serve as this preview. **This gate never
 provisions an environment of its own — no second env, ever.** The mechanism is the
 `devkit/ENV.md` contract (`shared/refs/env-contract.md` — provision /
 seed / reset / teardown; recorded at `--init`), which **supersedes** the old
-preview-scoped `preview_env` field. The promoted sandbox is a **fresh provision**
-(S-Q2): a run that arrived via warm fix-loop resets is re-provisioned before
+preview-scoped `preview_env` field. The promoted sandbox is a **fresh provision** (S-Q2): a run that arrived via warm fix-loop resets is re-provisioned before
 promotion, so the artifact the human approves is provably hermetic.
 
 **No provisioner declared (`env_provision` absent / `provisioner: "none"`) ⇒ the gate
 degrades loudly** (a `high` `sandbox-unprovisioned` finding surfaced in the evidence,
 and the destructive pre-approval checks are skipped-with-note) — it never runs
-up→down→up against shared state. The env is **torn down after the decision**
-(approve or reject), always.
+up→down→up against shared state. The env is **torn down after the decision** (approve or reject), always.
 
 > **Lineage (F3 → C23):** the F3 spike stood this env up preview-scoped; **v3.1 / C23**
 > generalized it into the shared test-sandbox for the whole `needs_env` wave. This gate
@@ -58,16 +54,15 @@ up→down→up against shared state. The env is **torn down after the decision**
 
 ## 1 · R1 precondition — never prompt on a broken preview
 
-The human approval prompt **does not fire until `smoke` passes green** (AC-PRV3). Because
-`smoke depends_on preview` and runs **before** the expensive preview checks
-(`platform/protocol-smoke.md`, C21), the executor already has smoke's result when the
+The human approval prompt **does not fire until `smoke` passes green**. Because
+`smoke depends_on preview` and runs **before** the expensive preview checks (`platform/protocol-smoke.md`, C21), the executor already has smoke's result when the
 gate reaches this point:
 
 - **`smoke` green** → proceed to §2.
 - **`smoke` fail / preview unhealthy** → **do not** stand up captures, **do not** run the
   api-drift / migration up→down→up suite against a dead preview, **do not** prompt.
   Terminate this component with a `preview-unhealthy` result — the human is never asked to
-  approve a 502. Smoke's `no smoke_cmd → default liveness` floor (C21/AC-SMK1) guarantees
+  approve a 502. Smoke's `no smoke_cmd → default liveness` floor (C21) guarantees
   this precondition can never pass **vacuously**.
 
 ## 2 · Produce the preview_kind + capture the visual states (merged qa)
@@ -82,19 +77,20 @@ For each platform in the `preview_map`, produce its `preview_kind` (D10):
 
 A multi-platform run produces one preview per platform.
 
-**Visual capture (folded from qa).** Drive the changed flows and capture their real
-states. The flow set is **owned by `e2e`** (D29 — `e2e` defines the canonical flows +
-critical tags; this gate **consumes** them, it does not reinvent a list):
+**Visual capture (folded from qa).** Capture the changed surface's states using the
+visual runner's own targets — its stories, its snapshot specs, its declared routes:
 
-- **e2e-flow-driven real states** — capture the states the flows actually reach (dialog
-  open, validation error shown, list populated), not just a static homepage.
+- **Configured targets** — capture whatever the visual runner is pointed at; where the
+  project's own specs drive interactive states (dialog open, validation error shown,
+  list populated), those states are captured too. No separate flow list is maintained
+  here.
 - **Render variants** — light/dark, key breakpoints, RTL where declared.
 - **Noise-masking** — mask timestamps, avatars, animation frames so churn isn't a diff.
 - **Unexpected-diff prioritization** — surface the visual diffs the diff didn't obviously
   cause first (the regression signal), routine expected diffs after.
 
 Runner (`qa_runner`: Playwright visual / Chromatic / Percy / BackstopJS / Loki) from the
-fingerprint. **Baseline check:** no local baseline and not Chromatic/Percy →
+resolved tooling. **Baseline check:** no local baseline and not Chromatic/Percy →
 `pass_with_warnings`, note `"No visual baselines found — run once in update mode."`
 Visual diffs become evidence for the human (each diff: `rule` = story/snapshot name,
 `evidence.file` = diff-image path), **not** an automatic pixel-threshold pass/fail — the
@@ -103,7 +99,7 @@ human decides.
 ## 3 · Pre-approval live-env checks (the parked sweep — feed R2)
 
 Against the same ephemeral env, **before** the human sees it, run the two live-env checks
-parked from their components onto this preview (AC-PRV8) — safe because the env is
+parked from their components onto this preview — safe because the env is
 disposable:
 
 - **`api` #3 — spec-vs-implementation drift.** schemathesis / Dredd vs the **live**
@@ -121,18 +117,17 @@ bundle (the human sees it before approving); it does not silently pass.
 
 Write **one** approval artifact — `.pre-merge/<ts>/preview-approval.json` — carrying the
 preview handle **and all the machine evidence**, so the human decides with the results in
-hand, never blind (AC-PRV4). It bundles:
+hand, never blind. It bundles:
 
 - The preview handle(s) — URL / artifact location / before-after captures, per platform.
 - **`smoke`** result (the R1 health pass + the critical-path golden-path outcomes — C21).
 - **`api` spec-drift** (base-vs-PR breaking-change diff **and** the §3 live-conformance
   result), **consumer-named** (`shared/refs/name-the-user-impact.md`).
 - **`migration`** up/down round-trip result (§3) + the static-scan lock findings.
-- **`a11y`** findings (interactive-state, user-impact-framed — `protocol-a11y.md`).
+- **`a11y`** findings (user-impact-framed — `protocol-a11y.md`).
 - **Visual-diff summary** (§2 — unexpected diffs first).
-- **The C22 manual-test-plan checklist (AC-MTP6).** Render the **significance-rated**
-  human-test checklist from the machine artifact `.pre-merge/<ts>/manual-test-plan.json`
-  (generated once by the `manual-test-plan` component, `prd/protocol-manual-test-plan.md`)
+- **The C22 manual-test-plan checklist.** Render the **significance-rated**
+  human-test checklist from the machine artifact `.pre-merge/<ts>/manual-test-plan.json` (generated once by the `manual-test-plan` component, `prd/protocol-manual-test-plan.md`)
   — grouped 🔴 HIGH → 🟡 MEDIUM → 🟢 LOW, **HIGH first**, so the human walks exactly what
   automation could **not** verify before approving. This is a **render**, not a
   re-derivation — the same generate-once artifact post-merge `--staging` also renders. No
@@ -146,8 +141,7 @@ This harness has **no persistent process** to await a human, so the gate **parks
 ends the run** rather than blocking:
 
 1. **Park.** With R1 green (§1) and the R2 bundle assembled (§4), **write the approval
-   artifact** and **print the resume instruction**, then **STOP** — verdict `parked`
-   (a non-terminal "awaiting-human" state; **not** `pass`, **not** a PR-open). No process
+   artifact** and **print the resume instruction**, then **STOP** — verdict `parked` (a non-terminal "awaiting-human" state; **not** `pass`, **not** a PR-open). No process
    lingers; the env stays up only until the decision returns, then is torn down (§B).
 2. **Notify.** The parked run's terminal output *is* the notification: the preview
    URL/artifact, the rendered evidence + HIGH-first checklist, and the **two resume
@@ -160,7 +154,7 @@ ends the run** rather than blocking:
 
 ## 6 · R3 — commit-bound approval (no stale approvals)
 
-**State token = `sha256(commit_sha : capture_hash : run_id)`** (AC-PRV5, F3 spike §A):
+**State token = `sha256(commit_sha : capture_hash : run_id)`** (F3 spike §A):
 `commit_sha` = reviewed branch HEAD; `capture_hash` = hash over the visual captures +
 evidence bundle; `run_id` = the parking run's id. On **resume** the token is
 **recomputed against the current branch HEAD**:
@@ -170,14 +164,13 @@ evidence bundle; `run_id` = the parking run's id. On **resume** the token is
 - **Mismatch** (a new commit landed, or captures changed) → the approval is
   **invalidated** and the gate **re-fires** (re-park with a fresh token) — closing the
   "approved at commit A, PR opens at commit C" hole.
-- **Expiry ≠ auto-pass** (AC-PRV7). The parked artifact carries a TTL; a stale/expired
+- **Expiry ≠ auto-pass**. The parked artifact carries a TTL; a stale/expired
   token on resume is **rejected the same as a mismatch** — it never silently becomes an
   approval. Re-run the gate. Expiry only ever forces re-review.
 
-## R4 · Structured rejection → the universal report (AC-PRV6)
+## R4 · Structured rejection → the universal report
 
-A **Reject** is not a freetext dead-end — it emits a **canonical finding**
-(`shared/refs/finding-schema.md`) into the universal report (C7) so a visual/UX rejection
+A **Reject** is not a freetext dead-end — it emits a **canonical finding** (`shared/refs/finding-schema.md`) into the universal report (C7) so a visual/UX rejection
 feeds `eng --build report=<path>` like any failing test:
 
 ```json
@@ -199,8 +192,7 @@ already has — never fabricate a reason.
 
 `preview` writes its per-check result report (`shared/refs/check-report-schema.md`)
 on every path: `parked` (awaiting human — carries the approval-artifact path + token),
-`pass` (approved), `fail` (rejected — carries the R4 finding), `pass_with_warnings`
-(unhealthy/degraded env, if not aborting), or `skipped` (surface absent). Pre-merge
+`pass` (approved), `fail` (rejected — carries the R4 finding), `pass_with_warnings` (unhealthy/degraded env, if not aborting), or `skipped` (surface absent). Pre-merge
 **never opens the PR without an approved preview when the gate fired**; a `parked` run
 ends without a PR until the human resumes.
 

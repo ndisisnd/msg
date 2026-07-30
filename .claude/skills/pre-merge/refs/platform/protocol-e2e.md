@@ -5,8 +5,7 @@ description: Pre-merge e2e component — run end-to-end tests via the detected r
 
 # e2e component
 
-Guard, error rule, envelope, `--flaky`/`--changed-only`: `../_common.md`. Runner
-(`e2e_runner`) from the Step 1 fingerprint.
+Guard, error rule, envelope, `--flaky`/`--changed-only`: `../_common.md`. Runner (`e2e_runner`) from the component's resolved tooling.
 
 ## Run
 

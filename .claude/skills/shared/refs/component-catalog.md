@@ -61,7 +61,7 @@ component.
 | 04 | regression | universal | hybrid | blocking | expensive | **tail (all others)** | always | all | condᶜ | – |
 | 05 | security | universal | hybrid | **critical** | moderate | sync | always | all | – | **✔** |
 | 06 | coverage | universal | script | config-driven† | moderate | **unit, integration** | always | all | – | – |
-| 07 | prd-consistency | **prd** | subagent | blocking | expensive | sync | **prd** | all | – | – |
+| 07 | prd-consistency | **prd** | subagent | **advisory** ᴸ | expensive | sync | **prd**ᵃ | all | – | – |
 | 08 | e2e | platform | subagent | blocking | expensive | sync | ui-surface | **web** | **✔**ˢ | – |
 | 09 | a11y | platform | subagent | **blocking** | moderate | sync | ui-surface | UI | **✔**ˢ | – |
 | 10 | perf | platform | subagent | config-driven† | expensive | sync | perf-config | UI | **✔**ˢ | – |
@@ -71,7 +71,7 @@ component.
 | 14 | mobile | platform | subagent | blocking | expensive | sync | mobile-surface | mob✦ | **✔**ˢ | – |
 | 16 | preview | platform | **gate** | blocking | expensive | sync (only-on-green, late wave) | **UI or api/migration/deploy surface** (union, C20) | all‡ | ➜ᵖ | – ᵍ |
 | 17 | smoke | platform | subagent | blocking | moderate | **preview** | preview-fired | all‡ | **✔**ˢ | – |
-| 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd** | all | – | – |
+| 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd**ᵃ | all | – | – |
 
 ### `run` / `ref` / `check` resolution
 
@@ -96,7 +96,7 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `preflight-check-13-migration.sh` |
 | 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
 | 16 | preview | `preview_deploy_cmd` + `qa_runner` (visual capture, merged) | `platform/protocol-preview.md` | `preflight-check-16-preview.sh` |
-| 17 | smoke | `smoke_runner` (resolves Q3) — **default-liveness floor** when unconfigured on a fired preview + **critical-tagged e2e-flow subset** (C21/D29) | `platform/protocol-smoke.md` (C21) | `preflight-check-17-smoke.sh` |
+| 17 | smoke | `smoke_runner` (resolves Q3) — **default-liveness floor** when unconfigured on a fired preview + the configured golden-path command (C21) | `platform/protocol-smoke.md` (C21) | `preflight-check-17-smoke.sh` |
 | 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `preflight-check-18-manual-test-plan.sh` |
 
 ## Legend
@@ -125,6 +125,17 @@ web-only *runner* against a broader applicability is an **enforced
   feature's UI states **and** stands up the live/pokeable env, then serves one
   unified artifact for explicit human sign-off — blocking; no auto
   pixel-threshold pass. Absorbs the retired `qa`.
+- **ᴸ** — **advisory by epistemic limit** (C11): `prd-consistency` grades a diff with an
+  LLM. It can judge *"is there evidence someone attempted this criterion, and does a
+  test exist?"*; it cannot certify correctness. So its findings are **recorded, never
+  blocking** — they are routed to the human who can judge, via `manual-test-plan`'s
+  significance-rated checklist. This includes the `out-of-scope` scope-creep finding:
+  the same limit applies, so it is evidence for the human walk-through, not a hard
+  block.
+- **ᵃ** — **`active_when: prd` resolves from PRD auto-discovery**: a `features/prd-<N>-*/`
+  directory matched to the branch enables the `prd` group by default; `--prd <path>` is
+  an explicit override for an unmatched or ambiguous case. **No PRD found ⇒ the whole
+  `prd` group is pruned**, exactly as a no-PRD hotfix always did.
 - **ᵐ** — **emit-only** (C22): `manual-test-plan` is `advisory` and **never blocks
   the PR** — it generates a significance-rated human-test checklist (reusing
   `prd-consistency`'s per-item evidence grades) and emits it; it never contributes a
@@ -312,28 +323,29 @@ per-item approved at `--init` (`AC-DR2`). See
   enforced**: a declared target with no available device/simulator (incl. no macOS host
   for iOS XCUITest) is a `high` `platform-coverage-gap` (C12), **not** a silent
   `pass_with_warnings` (AC-MOB2); `--init` establishes the matrix when absent.
-- **`perf`** (C14) measures **interaction latency under e2e-flow-driven heavy state** (INP
-  under load / long-task / scroll jank — D29: `e2e` owns the flows), not only cold-load,
-  and carries a **no-regression ratchet vs base** (runtime + bundle may not worsen vs base
-  even with no absolute budget — `ratchet-vs-base.md`); configured budgets stay the hard
-  bar (`†` unchanged). Bundle findings **attribute the culprit import** (`attribute-the-cause.md`).
+- **`perf`** (C14) measures **cold-load runtime metrics + bundle size** against the
+  project's configured budgets (the hard bar, `†`), with a **no-regression ratchet vs
+  base** applied only when comparable base numbers exist (`ratchet-vs-base.md`; no base
+  numbers ⇒ skipped with a note). Bundle findings **attribute the culprit import** when
+  the bundle stats resolve one (`attribute-the-cause.md`), else size + route.
 - **`api`** (C15) gains a **backward-compatibility spec-diff vs base** (`oasdiff`/`openapi-diff`
   — removed/narrowed/required/deleted → `high`/blocking, the contract-compat ratchet,
   `ratchet-vs-base.md`); findings are **consumer-named** (Pact broker → optional `consumers[]`
   hint → endpoint+change, no fabricated consumer — `attribute-the-cause.md` +
-  `name-the-user-impact.md`). Rec #3 (live-server conformance) is **parked to `preview`**.
+  `name-the-user-impact.md`); no base spec ⇒ the diff is skipped with a note. Rec #3
+  (live-server conformance) is **parked to `preview`**.
 - **`load`** (C16) is **diff-scoped** (legend `ᵈ` — runs/gates only on an endpoint/data-path
-  touch, scoped to the affected endpoints) under a **declared read/write `traffic_mix`**
-  (`--init`-captured, sane default) that exercises the write path; breaches **name the
-  bottleneck** (`attribute-the-cause.md`). Config-driven criticality unchanged (`†`).
+  touch, scoped to the affected endpoints) and runs the project's own runner profile
+  (an optional declared `traffic_mix` overrides it); breaches **name the bottleneck**
+  when a per-operation trace exists (`attribute-the-cause.md`), else metric + endpoint.
+  Config-driven criticality unchanged (`†`).
 - **`migration`** carries an optional **`hot_tables[]`** hint (C17) — the project's
-  large/hot tables, declared at `--init` (`protocol-init.md`). It gives the migration
-  stage size context to **scale lock-risk severity** (escalate on a hot table, quiet on
-  a tiny one) when no schema/stats source is available; absent both stats and the list,
-  lock findings keep their flat severity (AC-MIG3/MIG4). Optional — an empty/absent list
-  means "no size context", never a validation error.
-- **`a11y`** (C13) audits **interactive states reached by the e2e flows** (dialog/error/
-  menu — D29), not just static page loads, and gains **native runner support** (iOS/macOS
+  large/hot tables. With it (or live table stats) lock-risk severity scales: escalate on
+  a hot table, quiet on a tiny one. **Absent both — the default — lock findings keep
+  their flat severity**, and nothing is asked for up front.
+- **`a11y`** (C13) audits the **resolved target set** (the runner's own config, else
+  route discovery, else Storybook — a project whose specs drive interactive states gets
+  those states audited), and gains **native runner support** (iOS/macOS
   `performAccessibilityAudit` + Android accessibility-test-framework — real coverage when
   a native runner is present, no longer a C12 flag). Findings **lead with user impact +
   flow** (`name-the-user-impact.md`), WCAG id secondary. Its **default enablement/
@@ -345,8 +357,8 @@ per-item approved at `--init` (`AC-DR2`). See
   gains two behaviors: a **no-vacuous-skip default-liveness floor** (a fired preview with
   no `smoke_cmd` still runs a liveness check — URL 200 / artifact launches — so C20's R1
   precondition can never pass vacuously; safety-floor pattern like C9/D28) and
-  **critical-path coverage** (the `critical`-tagged e2e-flow subset — 1–3 golden paths
-  incl. the core action, D29 — not just homepage 200). It runs **first among the
+  **critical-path coverage** (the project's configured smoke command — 1–3 golden paths
+  incl. the core action — not just homepage 200). It runs **first among the
   preview-tail checks and short-circuits** the expensive api-drift / migration-up→down→up /
   capture suite on failure (`preview-unhealthy`), feeds C20/R2 evidence, and **blocks the
   R1 approval prompt**. A genuinely un-smokeable surface degrades **loudly** (surfaced in

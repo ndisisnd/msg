@@ -78,8 +78,8 @@ Even after downgrade, each stage has a severity floor for hard-fail signals:
 | Stage | Signal | Minimum severity |
 |---|---|---|
 | mechanical | Lint/typecheck exit non-zero (`block`) | `blocker` |
-| unit-int (Step 3) | Test suite exit non-zero | `blocker` |
-| regression (Step 4) | Named regression failure; uncited prior-test edit | `high` |
+| unit / integration | Test suite exit non-zero | `blocker` |
+| regression | Named regression failure; uncited prior-test edit | `high` |
 | e2e | Named spec failure | `high` |
 | coverage | Below floor, `enforced` profile | `high` |
 | security | Secret scanner hit | `blocker` |
@@ -87,19 +87,22 @@ Even after downgrade, each stage has a severity floor for hard-fail signals:
 | migration | `DROP TABLE`/`DROP COLUMN` | `blocker` |
 | migration | Same-PR destructive rename + app-code ref (C17 expand/contract) | `high` |
 | executor | `platform-coverage-gap` — targeted platform, applicable component, no runner (C12) | `high` |
-| prd-consistency | Acceptance criterion unmet (C11) | `high` |
-| prd-consistency | Acceptance/error-case met-but-untested (C11) | `medium` |
+| prd-consistency | Acceptance criterion unmet (C11) | `high` — **advisory**: recorded, never blocking |
+| prd-consistency | Acceptance/error-case met-but-untested (C11) | `medium` — **advisory** |
+| prd-consistency | Untraceable product surface (`out-of-scope`, C11) | `high` — **advisory** |
+| any component | Errored (crash / unreachable / auth) **and** its surface is in the diff | `medium` (`rule: component-errored`) |
 
 ## Fail-fast by component `criticality` (the executor's short-circuit)
 
-The old fixed "any red step short-circuits" rule is generalized to a **DAG fail-fast
-keyed on each component's `criticality`** (`refs/executor.md`, AC-PF11). When a component
-returns a failing verdict:
+**This is the one home for the fail-fast rule** — `refs/executor.md` §3 and every
+protocol cite this table rather than restating it. The pipeline fails fast on a
+**DAG fail-fast keyed on each component's `criticality`**. When a component returns a
+failing verdict:
 
 | Failed component's `criticality` | Effect on the pipeline |
 |---|---|
-| `critical` (`mechanical`, `security`, `migration`) | **abort** the remaining pipeline — no later wave runs (the old mechanical short-circuit, generalized) |
-| `blocking` (`unit`, `integration`, `e2e`, `regression`, `prd-consistency`, `api`, `a11y`, `mobile`) | fail the verdict, mark the component's **downstream dependents `blocked`** (they write a `skipped` result with `skip_reason: "blocked:<dep>"`), and let **independent** in-flight branches finish so the verdict aggregates the full picture |
+| `critical` — the critical class is exactly `{mechanical, security, migration}` | **abort** the remaining pipeline — no later wave runs. No other component short-circuits a run |
+| `blocking` (`unit`, `integration`, `e2e`, `regression`, `api`, `a11y`, `mobile`) | fail the verdict, mark the component's **downstream dependents `blocked`** (they write a `skipped` result with `skip_reason: "blocked:<dep>"`), and let **independent** in-flight branches finish so the verdict aggregates the full picture |
 | `advisory` / `config-driven` (until the project sets budgets) | never aborts — findings recorded, pipeline continues |
 
 A platform profile may override a component's `criticality` (Q1) — the fail-fast class
@@ -111,9 +114,9 @@ by the rules above independently.
 After all adjustments:
 
 ```
-if any finding.severity in ["blocker", "high"]  → verdict: "fail"
-elif any finding.severity in ["medium", "low"]  → verdict: "pass_with_warnings"
-else                                             → verdict: "pass"
+if any finding.severity in ["blocker", "high"] → verdict: "fail"
+elif any finding.severity in ["medium", "low"] → verdict: "pass_with_warnings"
+else → verdict: "pass"
 ```
 
 ## What "evidence" means in this rubric

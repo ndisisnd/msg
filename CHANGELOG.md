@@ -2,6 +2,16 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P12 — pre-merge protocols: registry subtraction, enrichment cut, single-home, prd-consistency advisory (i65–i67/i69–i71/i74)
+
+- Removed — the dangling D29 flow registry: a11y/perf/smoke/preview each state their real fallback as the behaviour; protocol-e2e.md promises only what it defines; catalog's four enrichment sentences reconciled
+- Removed — the enrichment layer's mechanism prose (perf/api ratchets → degrade lines with named skip reasons; consumer-naming → Pact-or-declared-else-endpoint; traffic_mix → runner default; hot_tables/size-aware lock severity → flat default); coverage's ratchet KEPT (it works)
+- Single-homed — fail-fast table (severity-rubric, contradiction fixed: critical class = {mechanical, security, migration} everywhere incl. protocol-unit), selection rule (executor §3c), minified boilerplate, refusal + staleness + untagged-test rules; 244 AC-id archaeology citations → 0; pre-v3 "Gate Step" dialect → 0
+- `_common.md`: Changed — hollow-green closed: an erroring component whose surface the diff touches grades a medium `component-errored` finding; repeats surface via --prior-issues (i69)
+- `--init`: Changed — nine upfront interview blocks → two (env provisioner → ENV.md, CI gap); the rest seeded-not-asked with ask-on-first-activation via --update (i70)
+- Grading: a11y minor/best-practice → low; commit-cap audit scoped to commits since the last gated sha (i71)
+- prd-consistency + manual-test-plan: blocking → **advisory** (LLM grade = evidence of attempt, incl. out-of-scope), `active_when: prd` auto-discovers features/prd-<N>-*/ from the branch with --prd as override; grades → manual-test-plan wiring intact, render site = post-merge's staging walk-through (i74)
+
 ### v5-P11 — pre-merge structure: lighter manifest, pipeline resolver, schema split, ENV.md (i62/i63/i64/i68/i72/i82)
 
 - `components[]` manifest: Changed — entries shrink ~15 fields → 6 (+ user overrides only); catalog constants resolve at run time from component-catalog.md; `test_selector` + `source` dropped; the AC-UP2 drift hole closes by construction (catalog edits are live next run, no migration)
