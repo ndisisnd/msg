@@ -112,8 +112,9 @@ Follow `protocol-init.md`'s Steps 3–5 (env-var contract, `devkit/policy.json` 
 
 `protocol-init.md`'s Step 5 asks the CI question fresh; here the repo usually
 already has an answer, so **show it and ask whether to change it** rather than
-re-asking cold. Same `HAS_GH_REMOTE` gate — no GitHub remote or no `gh` → skip
-silently, write nothing.
+re-asking cold. Same `HAS_GH_REMOTE` gate, from the same resolver
+(`.claude/scripts/script-branch-topology.sh "<cwd>"`) — `false` → skip silently,
+write nothing.
 
 > header **GitHub Actions**, question "GitHub Actions CI is currently **`<enabled|disabled>`**`<, reason: "<reason>"` when disabled`>`. Change it?"
 > - **Keep it as is** — write nothing; `policy.json` is untouched.
@@ -123,12 +124,20 @@ silently, write nothing.
 When the current state is *absent*, phrase it as "not set (defaults to enabled)"
 and offer the same three options.
 
-On a change, write `policies.github_actions` per `protocol-init.md` Step 5's
-surgical-merge rule — only that key, every other byte of `policy.json` untouched
-— capturing the user's `reason` when turning it off. Report the transition in the
-Step 4 summary as `github_actions: <old> → <new>`; "Keep it as is" reports
-nothing. `/msg --update` writes **no other `policy.json` key** (AC-OW1 keeps the
-rest with the gates' own `--init`).
+On a change, write `policies.github_actions` with the shared policy writer —
+surgical by construction, every other byte of `policy.json` untouched — capturing
+the user's `reason` when turning it off:
+
+```bash
+.claude/scripts/script-policy-set.py --file "<cwd>/devkit/policy.json" \
+  --set policies.github_actions='{"enabled": false, "reason": "<why>"}'
+```
+
+No `--create` (the file must already exist — Step 1 refused otherwise) and no
+`--stamp-by` (a policy revision is not a re-generation). Report the transition in
+the Step 4 summary as `github_actions: <old> → <new>`; "Keep it as is" reports
+nothing and calls nothing. `/msg --update` writes **no other `policy.json` key**
+(AC-OW1 keeps the rest with the gates' own `--init`).
 
 **Step 3-TS — Revisit the minified test selection decision** (named to avoid
 collision with `protocol-init.md`'s own Step 3b row top-up, alongside Step 3-CI)
@@ -166,9 +175,17 @@ disabled)" and offer the same three options — note that this key's absent
 default is `false` (opt-**in**), the inverse of `github_actions`' absent
 default.
 
-On a change, write `policies.test_selection` per `protocol-init.md` Step 5's
-surgical-merge rule — only that key, every other byte of `policy.json`
-untouched. Report the transition in the Step 4 summary as
+On a change, write `policies.test_selection.enabled` with the shared policy
+writer — a **leaf** set, so `full_run_backstop`, `tiers`, `force_full_paths` and
+every other key under `test_selection` survive untouched and inert:
+
+```bash
+.claude/scripts/script-policy-set.py --file "<cwd>/devkit/policy.json" \
+  --set policies.test_selection.enabled=false \
+  --set policies.test_selection.reason='"<why, when offered>"'
+```
+
+Report the transition in the Step 4 summary as
 `test_selection: <old> → <new>`; "Keep it as is" and "Turn it on" (hand-off)
 report nothing written. `/msg --update` never writes `enabled:true` itself
 (AC-TS2) — only `/pre-merge --init`/`--update`'s enabling interview does.
@@ -225,6 +242,8 @@ Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — plain `
 - `refs/init/init-setup.sh` — Step 1 scan; the `FLAT_PRDS` line this protocol reads was added for `--update`
 - `refs/init/init.sh` — Step 3 invocation; the `INTERACTIVE_LANES` env var and `UNRESOLVED` output line this protocol depends on were added for `--update`
 - `refs/protocol-cto.md` / `refs/protocol-eng.md` — Step 2 interview modes, reached via `protocol-init.md`
+- `.claude/scripts/script-policy-set.py` — the only writer of `devkit/policy.json`; both this protocol's keys (Step 3-CI `policies.github_actions`, Step 3-TS `policies.test_selection.enabled`) go through it, siblings preserved and the result re-parsed
+- `.claude/scripts/script-branch-topology.sh` — the `HAS_GH_REMOTE` gate Step 3-CI reads; same resolver `protocol-init.md` uses
 - `../../shared/refs/policy-schema.md` — §2b `policies.github_actions`, the one key this protocol writes (Step 3-CI); the read-contract that turns it into post-merge's inactive CI stage lives there too
 - `../../shared/refs/policy-schema.md` — §2c `policies.test_selection`, the second key this protocol writes (Step 3-TS, disable only); the read-contract for the 5-step selection rule lives there too
 - `../../pre-merge/refs/protocol-init.md` — owns the `policies.test_selection` **enabling** interview (backstop verification + the initial criticality-tagging pass) that Step 3-TS's "Turn it on" hands off to, rather than duplicating it here

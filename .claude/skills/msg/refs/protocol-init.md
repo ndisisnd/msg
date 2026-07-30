@@ -69,7 +69,7 @@ type: reference
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
-| devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten (AC-LC7). **Plus `policies.github_actions`, merged in surgically at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
+| devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, **and `features/`** — the ledger files and the PRD lanes are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
@@ -214,44 +214,38 @@ variable outside this block reaches `init.sh`.
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, the three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`, each with a `.gitkeep`), a one-time migration of any pre-lane flat `features/prd-*/` dirs into a lane by the completion ladder (plain `mv`, or `git mv` for a legacy tracked dir; reported as `migrated`), and idempotency. Capture its stdout — it includes the manifest for Step 5.
 
 **Seed `devkit/policy.json`.** After `init.sh` returns (so `devkit/` exists), seed the committed
-release-flow policy file. The **skill writes this one directly** (via `Write`) — not `init.sh` —
-because the seed carries a `generated` date and scripts can't stamp the date. Schema authority:
-[`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) ("Seed skeleton").
+release-flow policy file — with `script-policy-set.py`, msg's only policy writer. One call does the
+whole seed, including the `generated` date stamp:
 
-1. **Idempotent — never overwrite.** If `<cwd>/devkit/policy.json` already exists, skip it
-   entirely (do not read, do not rewrite) and note it as `skipped (exists)` alongside the manifest
-   (AC-LC7). Consistent with `init.sh`'s "writes only files absent from the target" rule.
-2. Otherwise write **exactly** the keys below — `version`, `init:false`, `generated`,
-   `generated_by`, and `policies.release_flow` from Call 4, and **nothing else** (no `repo`, no
-   `branch_protection`, no `steps` — those are the gate skills' `--init`'s to fill, which is why
-   `init` is `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`.
-   `policies.github_actions` is the one exception to "nothing else", and it is written
-   later — at **Step 5**, once the GitHub-remote-gated CI question has an answer; on a
-   no-remote repo it is never written at all:
-
-```json
-{
-  "version": 1,
-  "init": false,
-  "generated": "<today, YYYY-MM-DD>",
-  "generated_by": "msg --init",
-  "policies": {
-    "release_flow": {
-      "mode": "<staged|direct>",
-      "prod_branch": "<PROD_BRANCH>",
-      "staging_branch": "<STAGING_BRANCH, or null in direct mode>"
-    }
-  }
-}
+```bash
+.claude/scripts/script-policy-set.py --file "<cwd>/devkit/policy.json" \
+  --create --skip-if-exists --stamp-by "msg --init" \
+  --set policies.release_flow.mode='"<staged|direct>"' \
+  --set policies.release_flow.prod_branch='"<PROD_BRANCH>"' \
+  --set policies.release_flow.staging_branch='<"staging"|null>'
 ```
 
+- `--create` writes the seed skeleton — `version:1`, `init:false`, `generated`, `generated_by`,
+  `policies` — and nothing else (no `repo`, no `branch_protection`, no `steps`; those are the gate
+  skills' `--init`'s to fill, which is why `init` is `false`) (AC-LC1). `policies.github_actions`
+  is the one later addition, merged at **Step 5** once the GitHub-remote-gated CI question has an
+  answer; on a no-remote repo it is never written at all.
+- `--skip-if-exists` is AC-LC7: an existing `policy.json` is left byte-for-byte alone and the
+  script reports `STATUS=skipped-exists`. Same rule as `init.sh`'s "writes only files absent from
+  the target".
+- The script stamps `generated` itself. (The protocol used to hand-`Write` this file on the
+  grounds that "scripts can't stamp the date" — they can, `date +%F`; the whole hand-write path
+  rested on a premise that never held.)
+
 Map the Step 2 release-flow variables: `RELEASE_FLOW` Staged → `"staged"`, Direct → `"direct"`;
-`prod_branch` = `PROD_BRANCH` (detected from branch topology, never asked — this is what makes a
+`prod_branch` = `PROD_BRANCH` (from `script-branch-topology.sh`, never asked — this is what makes a
 `master` repo seed a `prod_branch` that exists); `staging_branch` = `STAGING_BRANCH` (already
 resolved to `null` for direct, `"staging"` for staged). Both keys are a **downstream contract** —
 `pre-merge` and `post-merge` read them off `policy.json` and `policy-schema.md` declares them — so
-they are seeded whether or not anything was asked. Add `devkit/policy.json` to the Step 5 manifest
-as `created` (or `skipped (exists)`).
+they are seeded whether or not anything was asked. Schema authority:
+[`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) ("Seed skeleton"). Read the
+script's `STATUS=` line and add `devkit/policy.json` to the Step 5 manifest as `created` or
+`skipped (exists)` accordingly; a non-zero exit is a hard stop, surfaced verbatim.
 
 **Step 3b — Row top-up (top-up mode only; skip when `ROW_GAPS=none`)**
 
@@ -289,18 +283,19 @@ lets the never-overwrite guarantee stay absolute.
 
 Print the manifest from `init.sh` stdout verbatim.
 
-**GitHub offers (C3 — asked only when a GitHub remote exists).** Check for a
-GitHub remote:
+**GitHub offers (C3 — asked only when a GitHub remote exists).** Read `HAS_GH_REMOTE`
+from the shared topology resolver — the same call Step 2 already made, re-run here if
+its output is no longer in context:
 
 ```bash
-git remote -v 2>/dev/null | grep -qi github.com && command -v gh >/dev/null 2>&1 && echo HAS_GH_REMOTE
+.claude/scripts/script-branch-topology.sh "<cwd>"
 ```
 
-No GitHub remote (or no `gh`) → skip **both** questions below silently and write
-neither key; `staging`/`main`, protection, and CI are settled when the user first
-pushes and runs the script (or `/msg --update`). Never a hard failure.
+`HAS_GH_REMOTE=false` (no GitHub remote, or no `gh`) → skip **both** questions below
+silently and write neither key; `staging`/`main`, protection, and CI are settled when
+the user first pushes and runs the script (or `/msg --update`). Never a hard failure.
 
-If `HAS_GH_REMOTE` prints, ask **both** questions in a single `AskUserQuestion`
+If `HAS_GH_REMOTE=true`, ask **both** questions in a single `AskUserQuestion`
 call:
 
 > header **GitHub Actions**, question "Run your CI on GitHub Actions? Actions minutes are metered on private repos on the Free plan."
@@ -318,20 +313,23 @@ conditional on the Actions answer.
 
 **Record the Actions answer** in `devkit/policy.json` under
 `policies.github_actions` (`../../shared/refs/policy-schema.md` §2b) — this is
-the one key `/msg --init` writes *after* the Step 3 seed:
+the one key `/msg --init` writes *after* the Step 3 seed, and it goes through the
+same writer:
 
-```json
-"github_actions": { "enabled": false, "reason": "<the user's words, e.g. 'private repo on GitHub Free — no Actions minutes'>" }
+```bash
+.claude/scripts/script-policy-set.py --file "<cwd>/devkit/policy.json" \
+  --set policies.github_actions='{"enabled": false, "reason": "<the user's words, e.g. private repo on GitHub Free — no Actions minutes>"}'
 ```
 
-- Yes → `{"enabled": true}` (no `reason` needed).
+- Yes → `--set policies.github_actions='{"enabled": true}'` (no `reason` needed).
 - No → `{"enabled": false, "reason": "<why>"}` — ask for the reason only if the user's answer didn't already give one; otherwise record the option's own wording. A missing `reason` is honored but earns an `unjustified-policy` warn (AC-S3).
-- **Surgical merge, not a rewrite.** If Step 3 skipped the seed because
-  `policy.json` already existed, insert **only** this key with `Edit`, leaving every
-  other key byte-identical — the same discipline as Step 3b's row top-up. An
-  existing `policies.github_actions` is **overwritten with the new answer** (the
-  user was just asked; their fresh answer wins) and the change is noted in the
-  manifest. Do not touch `generated_by` when the file was not otherwise written.
+- **Surgical by construction.** The script merges only the named path and preserves
+  every sibling, so this is safe whether Step 3 created the file or skipped it because
+  one already existed. An existing `policies.github_actions` is **overwritten with the
+  new answer** (the user was just asked; their fresh answer wins) — the whole object is
+  replaced, which is why the value is passed complete. Report the script's `SET=` line
+  in the manifest. No `--stamp-by` here: `generated_by` must not change when the file
+  was not otherwise written.
 
 Then emit a one-line next-step suggestion:
 
@@ -358,5 +356,7 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform tolerance profiles + staging/production deploy commands; assembled from the P1 interview answer)
 - `refs/init/templates/TEMPLATE-roadmap.md` — template for `roadmap/TEMPLATE-roadmap.md` (the format guide for the hand-authored `roadmap/roadmap.md`; scaffolded from its `## Template body` block, idempotently)
 - `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
+- `.claude/scripts/script-policy-set.py` — **the only writer of `devkit/policy.json`**: the Step 3 seed (`--create --skip-if-exists --stamp-by`) and the Step 5 `policies.github_actions` merge. Sets a dotted key path, creates missing parents, preserves every sibling, re-parses the result, rolls back a bad write
+- `.claude/scripts/script-branch-topology.sh` — the one branch-detection block: `CURRENT_BRANCH`, `HAS_MAIN`/`HAS_MASTER`/`HAS_STAGING`, the resolved `PROD_BRANCH`, and the `HAS_GH_REMOTE` gate Step 5 reads. Called from Step 2 (via `protocol-cto.md`/`protocol-eng.md`) and Step 5
 - `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)
 - `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`), and Step 5 adds `policies.github_actions` (§2b) when a GitHub remote made the CI question askable

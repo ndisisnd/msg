@@ -87,18 +87,16 @@ cto mode derives it instead (`refs/protocol-cto.md`, architecture objective).
 
 ## Call 3 — Shipping platforms + release flow (P1, RF1)
 
-First detect the current branch topology (the skill runs this inline — `init.sh`
-never dates or branches):
+First resolve the current branch topology with the shared resolver (`init.sh` never
+dates or branches):
 
 ```bash
-git rev-parse --abbrev-ref HEAD 2>/dev/null                              # current branch
-git show-ref --verify --quiet refs/heads/staging && echo HAS_STAGING     # staging present?
-git show-ref --verify --quiet refs/heads/main    && echo HAS_MAIN
-git show-ref --verify --quiet refs/heads/master  && echo HAS_MASTER
+.claude/scripts/script-branch-topology.sh "<cwd>"
 ```
 
-A `staging` branch already present → pre-select RF1 = **Staged**; otherwise
-pre-select **Direct**.
+`HAS_STAGING=true` → pre-select RF1 = **Staged**; otherwise pre-select **Direct**.
+Hold `PROD_BRANCH` and `HAS_GH_REMOTE` too — Step 3 and Step 5 of
+[`protocol-init.md`](protocol-init.md) read them.
 
 | Q | Question | Format | Holds as |
 |---|----------|--------|----------|
@@ -113,10 +111,10 @@ user to prune.
 
 **Branches are detected, not asked.** Resolve after the call:
 
-- `PROD_BRANCH` = `main` if present, else `master` if present, else the current
-  branch. Never asked — topology is a better answer than the user's recollection,
-  and it is what makes a `master` repo bootstrap a `prod_branch` that actually
-  exists.
+- `PROD_BRANCH` — read straight off the resolver's `PROD_BRANCH=` line (the
+  main → master → current-branch rule lives in the script, not here). Never asked —
+  topology is a better answer than the user's recollection, and it is what makes a
+  `master` repo bootstrap a `prod_branch` that actually exists.
 - `STAGING_BRANCH` = `"staging"` when `RELEASE_FLOW` = `Staged`; **`null`** when
   `Direct`. The rule is now a constant, but it must still emit `null` for direct —
   the policy seed distinguishes the two.

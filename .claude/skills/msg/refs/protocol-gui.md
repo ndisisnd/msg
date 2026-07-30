@@ -84,13 +84,13 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
 - **View project docs** — `GET /api/files` lists root `*.md` (README, CLAUDE.md, CHANGELOG…)
   and `devkit/*.md`, grouped; `GET /api/file?path=…` returns one file, rendered as markdown
   in the Files view.
-- **View the roadmap** — `GET /api/roadmap` parses `roadmap/roadmap.md` (written by
-  `plan-pm --roadmap`) into ordered phases, each cross-referenced against the live PRD set so
-  a card shows the same completion pill the Board uses. The same payload is also folded into
-  `/api/data` under `roadmap`, so both live and static modes render the tab. The Roadmap view
-  is **read-only for v1** (no write endpoints — the roadmap is authored by `plan-pm`). The
-  server accepts `--view <board|roadmap>` to choose the initial tab; `plan-pm --roadmap`
-  launches with `--view roadmap`. The **Roadmap** nav tab appears only when a roadmap exists
+- **View the roadmap** — `GET /api/roadmap` parses `roadmap/roadmap.md` (**hand-authored by the
+  human** against `roadmap/TEMPLATE-roadmap.md`; no skill generates it) into ordered phases, each
+  cross-referenced against the live PRD set so a card shows the same completion pill the Board
+  uses. The same payload is also folded into `/api/data` under `roadmap`, so both live and static
+  modes render the tab. The Roadmap view is **read-only** (no write endpoints — the roadmap is the
+  human's file). The server accepts `--view <board|roadmap>` to choose the initial tab. The
+  **Roadmap** nav tab appears only when a roadmap exists
   (or in interactive mode); each phase renders as a lane (reusing the Kanban column, header,
   and card/pill components) with `Phase 0 — Shipped` first and the tune log in a footer accordion.
 
@@ -106,8 +106,9 @@ a Prompts run) appear on refresh. Nothing generated is ever written into the rep
   (`features/{planned,wip,done}/prd-*/`, or the legacy flat `features/prd-*/`) plus
   the single root `INTAKE.md` status-cell carve-out (H5)** — the server cannot write anywhere else,
   writes no other INTAKE.md cell, and never writes the issues file
-  `report-prd-<N>-<K>.json` (the finding→ticket projection stays read-time;
-  `followUp.status` is written solely by `eng --build`).
+  `report-prd-<N>-<K>.json` (the finding→ticket projection stays read-time —
+  `server.py` imports `.claude/scripts/script-project-findings.py` as a module and
+  projects per request; `followUp.status` is written solely by `eng --build`).
 
 ## Step 2 — Data model (what the server parses)
 
@@ -131,7 +132,9 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `features/[<lane>/]prd-*/prd-*/reports/report-prd-*-*.json` (`<lane>` ∈ the three
    lanes or absent for the flat path), plus `features/reports/report-*.json`
    (the no-PRD fallback), via the shared **finding → issue-ticket projection** in
-   `eng/refs/build/fix-build.md` (read-time view, never re-serialized). No issues file →
+   `.claude/scripts/script-project-findings.py` — `server.py` loads it as a module, so the
+   GUI and `eng --plan`/`--build` project findings through the same code, not through two
+   readings of the same prose (read-time view, never re-serialized). No issues file →
    `gateIssues: []`.
 5. **Run reports** from `features/[<lane>/]prd-*/reports/report-prd-*-*.md` (one level of
    nested `prd-*` sub-dirs included, resolved across the three lanes and the flat path)
@@ -224,7 +227,7 @@ is unchanged from the previous protocol revision, with these notes:
   "gateIssues": [ { "file": "features/prd-100-…/reports/report-prd-100-1.json", "runId": "100-1", "verdict": "fail",
     "context": { "prd": "…", "branch": "…", "base": "staging" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per fix-build.md" } ] } ],
+    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected by script-project-findings.py" } ] } ],
   "reports": [ { "file": "features/prd-101-task-crud/reports/report-prd-101-1.md", "reportId": "101-1",
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",

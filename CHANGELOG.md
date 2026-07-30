@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P8 — msg: policy writer, branch topology, router collapse (i36/i37/i39/i40)
+
+- `.claude/scripts/script-policy-set.py`: Added — the one surgical devkit/policy.json writer (dotted-path set, parent creation, sibling preservation verified in-script, seed-on-absent, --skip-if-exists, --stamp-by dating the file — the "scripts can't date" premise retired); all four msg write sites rewired, ~400 words of be-careful prose gone
+- `.claude/scripts/script-branch-topology.sh`: Added — read-only topology resolver (prod branch main→master→current, staging, remotes, gh); four inline git-detection blocks replaced; zero inline show-ref/rev-parse remain in msg
+- `msg/SKILL.md`: Changed — pure router (one Dispatch table; inline --init-staging protocol → new `refs/protocol-init-staging.md`); 2,631 → 1,464 words (−44%)
+- `--help` table: Removed — 3 unreachable rows (intake --update/--delete rows, the dead roadmap row) + fixed the shadowed rough-idea rows the audit pass surfaced
+- `protocol-gui.md`: Changed — projection pointers → script-project-findings.py; Roadmap view no longer claims plan-pm --roadmap authorship
+
 ### v5-P7 — eng --review born, per-ticket pair review deleted (i2/i11)
 
 - `eng/refs/review/protocol.md`: Added — whole-change adversarial review by a spawned reviewer subagent: seven priority classes, verify-before-report, diff-only context with the public-contract trigger, silence-is-an-outcome; findings per shared finding-schema with `source: eng:review`; only blocker/high gate the commit confirm; the merge floor stays pre-merge's green run

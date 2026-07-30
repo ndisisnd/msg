@@ -139,19 +139,19 @@ Nothing here is asked.
   set all three to "Not applicable — no UI layer." — that is a *derivation*, not a
   skip, and it is also how a backend project that does ship an admin panel gets a
   design system anyway (the objective sees the surface even when `PLATFORM` doesn't).
-- **`PROD_BRANCH`** — detected, never asked or hardcoded:
+- **`PROD_BRANCH`** — detected, never asked or hardcoded. Run the shared resolver
+  and read its `PROD_BRANCH=` line (the main → master → current-branch rule lives
+  in the script, not here):
 
   ```bash
-  git rev-parse --abbrev-ref HEAD 2>/dev/null                              # current branch
-  git show-ref --verify --quiet refs/heads/staging && echo HAS_STAGING     # staging present?
-  git show-ref --verify --quiet refs/heads/main    && echo HAS_MAIN
-  git show-ref --verify --quiet refs/heads/master  && echo HAS_MASTER
+  .claude/scripts/script-branch-topology.sh "<cwd>"
   ```
 
-  `main` if present, else `master` if present, else the current branch.
+  The same call answers `HAS_STAGING` for `RELEASE_FLOW` below and `HAS_GH_REMOTE`
+  for [`protocol-init.md`](protocol-init.md) Step 5 — hold both.
 - **`RELEASE_FLOW`** — objective 4. Default recommendation is **Staged** when the
   project ships to users on a schedule, **Direct** for a solo project shipping
-  continuously; a `staging` branch already present is strong evidence for Staged.
+  continuously; `HAS_STAGING=true` is strong evidence for Staged.
 - **`STAGING_BRANCH`** — `"staging"` when Staged, **`null`** when Direct. Must emit
   `null` for direct; the policy seed distinguishes them.
 
