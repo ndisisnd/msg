@@ -113,6 +113,8 @@ selected file end-to-end.
 
 **Closing message (every mode, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the row write / update log.
 
+**Harness incidents (every mode):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
+
 ## Grading
 
 Every captured idea is graded in a **single-turn LLM judgment at capture time —

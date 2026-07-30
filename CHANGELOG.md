@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P9 — DOCTOR: the harness-incident ledger + /msg --doctor (i50/i51)
+
+- `msg/refs/init/templates/template-DOCTOR.md`: Added — devkit/DOCTOR.md scaffold (AHA=learned · OPEN-QUESTIONS=undecided · DOCTOR=harness misbehaved); class enum write-miss/retry/tool-error/validator-fail/gate-infra; Incidents table last-in-file so appends are true appends; gitignored, scaffolded by /msg --init + top-up
+- `.claude/scripts/script-doctor-log.sh`: Added — validated-enum appender (exit 3 = absent = skip silently; pipes/newlines folded, never dropped)
+- `.claude/scripts/script-doctor-tally.sh`: Added — groups by skill+signature, threshold 3-ever, re-flags recurrence after graduation
+- `shared/refs/doctor-logging.md`: Added — both channels once (mechanical: undocumented non-zero exits; model: tool error/retry/missed write); designed exit-3 skips carved out; one binding sentence in 7 SKILL.md files (plan-em deferred to P10 per i81)
+- `msg/refs/protocol-doctor.md`: Added — /msg --doctor tallies, diagnoses, graduates on the ledger, triage-reports; hard boundary: NEVER fixes, never edits harness files; registry row added
+
 ### v5-P8 — msg: policy writer, branch topology, router collapse (i36/i37/i39/i40)
 
 - `.claude/scripts/script-policy-set.py`: Added — the one surgical devkit/policy.json writer (dotted-path set, parent creation, sibling preservation verified in-script, seed-on-absent, --skip-if-exists, --stamp-by dating the file — the "scripts can't date" premise retired); all four msg write sites rewired, ~400 words of be-careful prose gone

@@ -45,6 +45,7 @@ out/
 INTAKE.md
 INTAKE-UPDATE.md
 features/
+devkit/DOCTOR.md
 ```
 
 ## Stack sections

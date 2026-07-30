@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # doctor-detect-repo.sh — repo topology + branch-protection-availability probe.
-# Consumed by /pre-merge --init and /post-merge --init (--doctor is a deprecated
-# one-release alias for --init) to seed devkit/policy.json's `repo` block and
-# `policies.release_flow` (see shared/refs/policy-schema.md and
-# update/improve-doctor.md's "post-merge --doctor" section, items 1 + 2).
+# Consumed by /pre-merge --init and /post-merge --init to seed devkit/policy.json's
+# `repo` block and `policies.release_flow` (see shared/refs/policy-schema.md).
+# Unrelated to `/msg --doctor`, which reads devkit/DOCTOR.md and touches no policy.
 #
 # What the script DOES:
 #   - Detects git remote host (github / other / none) from `git remote get-url origin`

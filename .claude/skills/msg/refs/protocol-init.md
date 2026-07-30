@@ -4,7 +4,7 @@ description: >
   Protocol for /msg --init — one-time project bootstrap. Scans the working
   directory, resolves the interview mode (cto = advisory / eng = direct) and
   delegates Step 2 to refs/protocol-cto.md or refs/protocol-eng.md, then
-  creates a `devkit/` directory containing AHA.md,
+  creates a `devkit/` directory containing AHA.md, DOCTOR.md,
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
   README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the three `features/`
@@ -36,6 +36,7 @@ type: reference
 | File | Purpose |
 |------|---------|
 | `AHA.md` | Institutional knowledge log — past learnings that future agents must not repeat |
+| `DOCTOR.md` | Harness-incident ledger — where the harness itself misbehaved (script failures, tool errors, retries, missed writes). Write-mostly: no skill reads it during a run; `/msg --doctor` reads it on demand. **Gitignored** (see `.gitignore` row). Contract: [`shared/refs/doctor-logging.md`](../../shared/refs/doctor-logging.md) |
 | `GLOSSARY.md` | Canonical domain terms — ensures consistent naming across all agents |
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
@@ -64,6 +65,7 @@ type: reference
 |------|--------|-------------|
 | devkit/ | Directory — agent context files | `<cwd>/devkit/` |
 | devkit/AHA.md | Markdown from `refs/init/templates/template-AHA.md` | `<cwd>/devkit/AHA.md` |
+| devkit/DOCTOR.md | Markdown from `refs/init/templates/template-DOCTOR.md` — the harness-incident ledger, appended to by `.claude/scripts/script-doctor-log.sh` and read only by `/msg --doctor`. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/devkit/DOCTOR.md` |
 | devkit/GLOSSARY.md | Markdown from `refs/init/templates/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
 | devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with the platform and architecture answers (eng) or recommendations (cto) | `<cwd>/devkit/ARCHITECTURE.md` |
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
@@ -72,7 +74,7 @@ type: reference
 | devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
-| .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, **and `features/`** — the ledger files and the PRD lanes are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
+| .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, `features/`, **and `devkit/DOCTOR.md`** — the ledger files, the PRD lanes and the harness telemetry are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `post-merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
@@ -105,7 +107,7 @@ Parse the nine `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK
 | `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
 | otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
 
-**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/PLATFORMS.md`,
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/PLATFORMS.md`,
 `devkit/policy.json` or `.claude/msg/pref.json` existed can never receive them by
 waiting: `init.sh` writes any absent file, but the protocol used to stop at "nothing to
 initialise" before reaching it. Top-up is that repair — and it is **strictly additive**:
@@ -166,7 +168,7 @@ already carries its value.
 
 | Missing artifact | Variables it needs |
 |---|---|
-| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/DOCTOR.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
 | `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
 | `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
 | `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
@@ -345,6 +347,7 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`, `FLAT_PRDS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
 - `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars. Accepts an optional `INTERACTIVE_LANES` env var (set by `/msg --update` only) that turns silent rung-3 PRD-lane defaulting into an `UNRESOLVED` report instead
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
+- `refs/init/templates/template-DOCTOR.md` — template for devkit/DOCTOR.md (the harness-incident ledger; gitignored, written by `script-doctor-log.sh`, read by `/msg --doctor`)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)
 - `refs/init/templates/template-gitignore.md` — .gitignore content keyed by platform/stack

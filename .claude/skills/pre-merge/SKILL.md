@@ -173,6 +173,8 @@ authored separately. Full detail in `refs/executor.md`; in outline:
 8. Print the JSON per `refs/output-schema.md` as the **final emission** — shape **unchanged** (AC-PF16); the optional additive `pipeline` field carries the resolved ordered pipeline for observability, and — only when selection ran — the additive `test_selection` block (AC-TS6).
 9. **Closing message** — end the run (every verdict, including `refused`/`skipped`) with the closing message per `../shared/refs/closing-message.md` as the last **chat** output; the step-8 JSON stays the final **machine** emission, byte-identical.
 
+**Harness incidents (every run):** log unexpected script failures, tool errors, retries, missed writes, and broken gate infrastructure (CI, preview, checkout) to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md`. A **check that legitimately fails is not an incident** — only the harness breaking is. Logging never changes the verdict or what the run does next.
+
 ## Issues-file loop (non-clean verdict)
 
 On `fail`, write the **issues file** — the run report's paired `.json` (same stem,

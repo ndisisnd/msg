@@ -301,6 +301,8 @@ through `/pre-merge` and this gate; the gate does not dead-end on the issues fil
 
 End every run — both modes, every outcome including refusals and failed ships — with the closing message per `../shared/refs/closing-message.md`, as the last chat output after the mode's own emissions (human test script, refusal pattern, findings JSON, report writes).
 
+**Harness incidents (both modes):** log unexpected script failures, tool errors, retries, missed writes, and broken gate infrastructure (CI, deploy, protection) to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
+
 ## References
 
 - `refs/staging.md` — `--staging` steps 2/3/7 (PR locate, green-CI check, merge, sign-off stamp)

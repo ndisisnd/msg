@@ -151,6 +151,8 @@ Follow the work steps and output contract in the active mode file, where the mod
 
 **Closing message (every mode, every verdict):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the mode's own output contract, report writes, and fix-loop offers.
 
+**Harness incidents (every mode):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
+
 ---
 
 ## Step 6 — Scope enforcement (continuous)
