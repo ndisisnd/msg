@@ -62,6 +62,14 @@ Exit codes:
   3  catalog unparseable, or the manifest names an id with no catalog row
   4  dependency cycle — refuse rather than loop (AC-PF3)
   5  --check-complete found a missing report
+  6  a MANDATORY component is absent from the manifest (A20) — one
+     `MANDATORY_ABSENT=<id>` line per component on stdout, then refuse. A
+     mandatory component that was never written into `components[]` used to
+     resolve as a `pruned[]` row and the run proceeded without it; the safety
+     floor is not a prunable step, so this is a refusal — run /pre-merge --init.
+  7  --platforms-file exists but could not be read (A19). An ABSENT file keeps
+     its old behaviour (no targets, no coverage-gap findings); an unreadable
+     one is a tooling failure, not "this repo ships nothing".
 
 Deterministic: same policy + catalog + flags + diff ⇒ byte-identical plan.
 """
@@ -231,21 +239,63 @@ def surfaces_in_diff(files):
     return hit
 
 
+KNOWN_PLATFORMS = {"web", "ios", "macos", "android", "backend", "server"}
+
+
 def read_platforms_file(path):
-    """Target platforms = the first column of PLATFORMS.md's pipe table."""
+    """Target platforms = the first column of PLATFORMS.md's pipe table.
+
+    A19 — two silences closed:
+
+    * An **unreadable but existing** file used to return `[]`, which reads as
+      "this repo targets nothing" and skips the whole C12 coverage-gap check.
+      That is a tooling failure, so it is now a hard refusal (exit 7). A file
+      that is simply ABSENT still returns `[]` — that is the documented
+      "no PLATFORMS.md yet" case, not a failure.
+    * The known-platform set is hardcoded while template-PLATFORMS.md invites
+      custom rows ("add your own row for anything else"). An unrecognised name
+      is still not scheduled — the APPLICABILITY map has no entry for it — but
+      it is now named on stderr instead of being dropped in silence.
+
+    The unknown-platform warn fires only for rows of a table whose header's
+    first cell is `platform`, so divider rows, the header itself, `[USER: …]`
+    placeholders, `—`/blank cells and the *other* tables a doc may carry (the
+    template's Column-contract and tolerance-profile tables) never warn.
+    """
+    if not os.path.exists(path):
+        return []
     try:
         with open(path, "r", encoding="utf-8") as fh:
             lines = fh.read().splitlines()
-    except OSError:
-        return []
-    known = {"web", "ios", "macos", "android", "backend", "server"}
+    except OSError as exc:
+        fail(7, "platforms-unreadable",
+             "%s exists but cannot be read (%s) — refusing to resolve a plan "
+             "whose platform coverage-gap check silently saw no targets" %
+             (path, exc))
     found = []
-    for line in lines:
+    in_platform_table = False
+    for n, line in enumerate(lines, start=1):
         if not line.startswith("|"):
+            in_platform_table = False          # a markdown table ends here
             continue
-        first = deaccent(split_row(line)[0]).lower()
-        if first in known and first not in found:
-            found.append("backend" if first == "server" else first)
+        first = deaccent(split_row(line)[0]).lower().strip("`").strip()
+        if first == "platform":                # the header row of THE table
+            in_platform_table = True
+            continue
+        if first in KNOWN_PLATFORMS:
+            if first not in found:
+                found.append("backend" if first == "server" else first)
+            continue
+        if not in_platform_table:
+            continue
+        if not first or first.startswith("[user") or \
+                re.fullmatch(r":?-{1,}:?", first):
+            continue                           # divider / placeholder / `—`
+        warn("unknown-platform",
+             "%s line %d: `%s` is not one of %s — no component's applicability "
+             "covers it, so none of its checks are scheduled and it raises no "
+             "coverage gap" %
+             (path, n, first, ",".join(sorted(KNOWN_PLATFORMS))))
     return found
 
 
@@ -320,6 +370,7 @@ def resolve(args):
 
     # ── prune ─────────────────────────────────────────────────────────────
     run, pruned = [], []
+    mandatory_absent = []
 
     def drop(cid, reason):
         pruned.append({"id": cid, "reason": reason})
@@ -328,9 +379,13 @@ def resolve(args):
         entry = manifest.get(cid)
         # 1 · presence
         if entry is None:
+            # A20: a MANDATORY component missing from the manifest used to be
+            # just a `pruned[]` row — the plan still resolved and the run went
+            # green without a safety-floor step that is not prunable by
+            # contract. Collect them all (so one refusal names every gap) and
+            # refuse below.
             if meta["mandatory"]:
-                drop(cid, "mandatory but absent from the manifest — "
-                          "run /pre-merge --init")
+                mandatory_absent.append(cid)
             continue
         if not entry.get("present") and not meta["mandatory"]:
             continue                              # absent ⇒ no step, no note
@@ -359,6 +414,15 @@ def resolve(args):
                 drop(cid, "--changed-only: %s untouched" % gate)
                 continue
         run.append(cid)
+
+    if mandatory_absent:
+        for cid in sorted(mandatory_absent):
+            print("MANDATORY_ABSENT=%s" % cid)
+        fail(6, "mandatory-absent",
+             "%s mandatory in the catalog but absent from %s's components[] — "
+             "the safety floor is not a prunable step; run /pre-merge --init "
+             "(or --update) to write the missing row(s)" %
+             (",".join(sorted(mandatory_absent)), args.policy))
 
     # ── C12 coverage-gap correlation ──────────────────────────────────────
     targets = ([p.strip().lower() for p in args.platforms.split(",") if p.strip()]

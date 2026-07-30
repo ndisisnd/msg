@@ -23,10 +23,21 @@ Output (stdout, one record per line, machine-readable):
   SKIP    check=<n> facet=<slug> reason=<slug>
   SUMMARY checks=<list> findings=<n> critical=<n> major=<n>
 
+SKIP reasons for check 4's collision facet: `no-collision-script` (neither the
+repo copy nor the global install of script-em-exec-collision.py exists) and
+`no-files-column` (the exec table has no Files column, so "zero collisions"
+would be vacuous — the sub-script exits 3 and this is what the caller renders).
+
+On stderr only, never stdout: `RESOLVED_VIA=global <path>` when the collision
+sub-script is taken from `~/.claude/scripts/` because the repo has no copy. The
+repo-copy case — the normal one — stays silent.
+
 Finding codes:
   check 4  uncovered-fid (critical) · file-collision (critical) · empty-files (major)
            features-id-column-unresolved (critical — features table has rows but
            no id column, so F-ID coverage is unverifiable)
+           files-column-unresolved (major — the exec table has no Files column at
+           all, so the collision facet is skipped, not passed)
   check 5  unknown-ticket-id (critical) · ticket-cycle (critical) · missing-done-when (major)
   check 6  frontmatter-cycle (critical) · missing-edge-target (major) · missing-bucket-coverage (major)
 
@@ -218,8 +229,15 @@ def check4(lines, body_start, prd_path):
 
     collide = Path(__file__).resolve().parent / "script-em-exec-collision.py"
     if not collide.is_file():
+        # A23: falling back to the GLOBAL install is now stated. The repo copy
+        # is the one under review; a stale ~/.claude copy silently grading a
+        # repo's PRD is exactly the seam this names.
         alt = Path(os.path.expanduser("~/.claude/scripts/script-em-exec-collision.py"))
-        collide = alt if alt.is_file() else None
+        if alt.is_file():
+            collide = alt
+            print(f"{SELF}: RESOLVED_VIA=global {alt}", file=sys.stderr)
+        else:
+            collide = None
     if collide is None:
         print(f"{SELF}: script-em-exec-collision.py not found — collision facet skipped",
               file=sys.stderr)
@@ -228,6 +246,22 @@ def check4(lines, body_start, prd_path):
 
     proc = subprocess.run([sys.executable, str(collide), "-"],
                           input="\n".join(exec_block), capture_output=True, text=True)
+    # A21: rc 3 = the exec table carries no Files column, so the collision
+    # question was never answered. Render the skip rather than dropping the
+    # sub-script's stderr warning on the floor.
+    if proc.returncode == 3:
+        print(f"{SELF}: {proc.stderr.strip()}", file=sys.stderr)
+        print("SKIP check=4 facet=collisions reason=no-files-column")
+        # The SKIP says the facet did not run; the finding says why that is the
+        # PRD's problem to fix. Without it a Files-less table would grade
+        # QUIETER than before (it used to raise one `empty-files` major per
+        # row), which would be a new silence inside the fix for an old one.
+        headers, _rows = md_table(exec_block)
+        emit(4, "major", "files-column-unresolved", "execution-table",
+             "the execution table has no 'Files' column — headers seen: "
+             f"{', '.join(headers or []) or '(none)'}; parallel-safety cannot "
+             "be checked and eng --build has no file scope per row")
+        return
     if proc.returncode not in (0, 1):
         die(f"script-em-exec-collision.py failed on {prd_path} (rc={proc.returncode}): "
             f"{proc.stderr.strip()}")

@@ -63,6 +63,13 @@ Output (stdout, KEY=VALUE lines):
   WARN=<text>                          zero or more
   ERROR=<text>                         only on a malformed table (exit 3)
 
+On stderr only, so a single-table file's stdout is byte-identical to before:
+  WARN=multiple-platform-tables lines=<used>,<ignored…>
+                                       more than one header row names a
+                                       `platform` column. The LAST still wins
+                                       (see the note in main()); the rows under
+                                       the earlier header(s) are invisible.
+
 `smoke_mode` is derived, not authored: no `smoke_cmd` ⇒ `none` (verification is
 skipped with a note); `cmd` alone ⇒ `one_shot`; `+poll` ⇒ `poll`;
 `+watch_window` ⇒ `watch`; both ⇒ `poll+watch`. It is the exact value
@@ -200,18 +207,42 @@ def main():
         die("cannot read %s: %s" % (path, exc))
 
     # Find the LAST header row naming a `platform` column and take the rows
-    # under it. A template file carries per-platform example blocks after the
-    # active table; each of those rows is a data row of the same table.
+    # under it, then read every pipe row below it — the per-platform `### <p>`
+    # example blocks a template carries after the active table are data rows of
+    # that same table, separated by headings.
+    #
+    # Last-header-wins is what lets `template-PLATFORMS.md` itself be parsed:
+    # its § Column contract table has a DATA row (`| `platform` | shipping
+    # target… |`) that matches the header test, and it sits ABOVE the real
+    # header. First-header-wins would take that two-cell row as the header and
+    # bail on every row below it. The file `/msg --init` writes carries exactly
+    # one header row, so the rule never chooses between two real tables there.
+    #
+    # A24: when it DOES — a second `platform`-headed table appended to a real
+    # PLATFORMS.md — every row of the table above becomes invisible and the run
+    # deploys a subset of the declared platforms with no sign anything was
+    # dropped. Parsing is unchanged (last still wins), but the collision is now
+    # named on stderr.
     header = None
     header_at = -1
+    header_lines = []
     for n, line in enumerate(lines):
         if "|" not in line:
             continue
         cells = [norm_header(c) for c in split_row(line)]
         if "platform" in cells and any(c in COLUMNS for c in cells if c):
             header, header_at = cells, n
+            header_lines.append(n + 1)
     if header is None:
         bail("%s has no pipe table with a `platform` column" % path)
+    if len(header_lines) > 1:
+        sys.stderr.write(
+            "%s: WARN=multiple-platform-tables lines=%d,%s — %d rows in %s name "
+            "a `platform` column; the LAST (line %d) is used and every row under "
+            "the earlier one(s) is invisible to this parse\n"
+            % (SELF, header_at + 1,
+               ",".join(str(x) for x in header_lines[:-1]),
+               len(header_lines), path, header_at + 1))
 
     unknown_cols = [c for c in header if c and c not in COLUMNS]
     for c in unknown_cols:

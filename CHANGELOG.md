@@ -2,6 +2,16 @@
 
 ## 2026-07-30
 
+### [89] — v5.0.1-P3: pipeline + structural fail-silent assertions — components can no longer vanish quietly (A19–A25)
+
+- `script-pipeline-resolve.py`: Changed — an unrecognised PLATFORMS row is named (`WARN=unknown-platform`, stderr) instead of silently unscheduled; an existing-but-unreadable PLATFORMS.md is exit 7 (was: read as "ships nothing", skipping the coverage-gap check); a **mandatory** component absent from the manifest now refuses (exit 6, `MANDATORY_ABSENT=<id>`) instead of resolving a plan without a safety-floor step (A19/A20); the no-diff fail-open stays untouched
+- `script-em-exec-collision.py` + `script-cert-mech.py`: Changed — a Files-less exec table is a distinct exit 3 `ERROR=no-files-column` (both modes) instead of a discarded stderr warning + "no collisions"; cert-mech renders it as `SKIP … reason=no-files-column` plus a major finding so the gate stays at least as loud as before (A21)
+- `script-eng-plan-shape.py`: Changed — exec-column drift and short rows are named root causes (`exec-columns-unresolved` listing headers seen, `short-exec-row`) instead of cascading into misleading unpointed-ticket noise (A22)
+- `script-cert-mech.py` + `script-ci-status.py`: Changed — falling back to the global `~/.claude` copy prints `RESOLVED_VIA=global <path>` (stderr; repo-copy runs stay silent); ci-status resolves its repo-local candidate against `--repo`, not the process cwd — proven: a stale global reader flipped a verdict in the fixture (A23)
+- `script-platforms-parse.py`: Changed — >1 platform-header tables ⇒ `WARN=multiple-platform-tables lines=…` (rows above the last header were silently invisible); Q3 verified: last-header-wins is a real accommodation (the template's Column-contract pseudo-header), comment rewritten to say what it actually protects (A24)
+- `script-em-branch-resolve.sh`: Changed — `MAIN_BEHIND_REMOTE=true` emitted when origin's prod branch is strictly ahead of local, flagging the stale-local double-merge verdict before it bites (A25)
+- Caller docs: executor.md exits 6/7; plan-em collision/decomposition exits 3
+
 ### [88] — v5.0.1-P2: parser fail-silent assertions — digests, scans, tallies name their misses (A14–A18)
 
 - `script-prd-digest.py`: Changed — a §3 row digesting with an empty id ⇒ exit 2 `FEATURE_ID_EMPTY=<row>` in every mode (stdout/slice/cache — no poisoned cache left behind); a `--feature` filter that empties a non-empty set ⇒ exit 2 `FEATURE_NOT_RESOLVED=<fid>` naming the ids actually seen (A14/A15); all four real PRDs digest byte-identically

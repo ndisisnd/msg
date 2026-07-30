@@ -60,7 +60,8 @@ Failure codes:
   check 3  uncovered-feature · unmapped-feature
   check 4  unknown-dependency · dependency-cycle
   check 5  missing-sentinel · sentinel-with-tickets
-  check 6  missing-exec-table · empty-pointer · unresolved-pointer · unpointed-ticket
+  check 6  missing-exec-table · exec-columns-unresolved · short-exec-row ·
+           empty-pointer · unresolved-pointer · unpointed-ticket
   check 7  missing-path · existing-add-path
 
 Exit codes:
@@ -407,7 +408,12 @@ def main():
     blocks = h2_blocks(lines)
 
     # Exec table — the one home, new numbered heading or the legacy title.
-    exec_rows, saw_table = [], False
+    # A22: a column-header drift used to `continue` here with `saw_table=True`,
+    # so check 6 read zero exec rows and blamed the tickets — every feature came
+    # back `unmapped-feature` / every ticket `unpointed-ticket`, which sends the
+    # author to the wrong file. A dropped short row was invisible altogether.
+    # Both are recorded and reported as check-6 failures naming the real cause.
+    exec_rows, saw_table, exec_shape = [], False, []
     for title, lineno, body in blocks:
         low = re.sub(r"^\d+\.\s*", "", title).strip().lower()
         if not low.startswith(("execution table", "feature execution table")):
@@ -418,9 +424,22 @@ def main():
         si = col_index(headers, "execution steps", "execution")
         ai = col_index(headers, "agent")
         if fi is None or si is None or ai is None:
+            unresolved = [n for n, i in (("Feature", fi),
+                                         ("Execution steps", si),
+                                         ("Agent", ai)) if i is None]
+            exec_shape.append((
+                "exec-columns-unresolved", f"line {lineno}:{title.strip()}",
+                f"the execution table's {', '.join(unresolved)} column(s) do not "
+                f"resolve — headers seen: {', '.join(headers or []) or '(none)'}; "
+                f"no row can be read, so ticket coverage is unverifiable"))
             continue
         for cells, off in rows:
             if len(cells) <= max(fi, si, ai):
+                exec_shape.append((
+                    "short-exec-row", f"row {lineno + off + 1}",
+                    f"the row has {len(cells)} cell(s) but the header has "
+                    f"{len(headers)} — it is dropped, so any ticket it points "
+                    f"at looks unpointed (row: {' | '.join(cells)[:80]})"))
                 continue
             feat = cells[fi]
             m = re.match(r"^\**\s*(F\d+(?:\.\d+)?)\b", feat.strip())
@@ -434,6 +453,12 @@ def main():
         m = re.match(r"^Todos\s+—\s+(.+?)\s*$", title)
         if m:
             per_agent[m.group(1)] = parse_todos_block(body, lineno)
+
+    # The exec-table shape failures belong to check 6 and are reported once for
+    # the file, not once per agent.
+    if "6" in wanted:
+        for code, ref, detail in exec_shape:
+            fail(6, code, ref, detail)
 
     agents = [args.agent] if args.agent else sorted(per_agent)
     if not agents:
