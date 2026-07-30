@@ -23,6 +23,9 @@ allowed_tools:
 
 # plan-em
 
+**This file is a router.** The five-step protocol lives in `refs/protocol-em.md` and the
+team-lane fan-out in `refs/protocol-team.md` — neither is restated here.
+
 ## Usage
 
 **Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside a PRD folder in any lane — `features/{planned,wip,done}/prd-[n]-[slug]/` or the legacy flat `features/prd-[n]-[slug]/`.
@@ -39,22 +42,16 @@ allowed_tools:
 
 Two mutually exclusive execution lanes, selected by a flag on invocation — **`--team`
 is the default**. The flag changes only **how the wave is dispatched at Step 4**; every
-other step (pre-flight, certification preconditions, roster approval, exec-table skeleton,
-branch resolution, synthesis) is identical in both lanes.
+other step is identical in both lanes.
 
 | Flag | Lane | Step 4 dispatch |
 |------|------|-----------------|
-| `--team` (default) | **Team** | plan-em spawns **one orchestrator engineer agent on Opus**, which decomposes the active wave **below the roster/stack level** into file-disjoint work packets, assigns each a model (**Opus** for load-bearing work, **Sonnet** for mechanical work), and fans them out to leaf `eng` subagents wave by wave — parallelising as much as the collision graph allows. |
-| `--solo` | **Solo** | plan-em dispatches **one leaf `eng` subagent per roster stack**, whole-stack scope each, on the inherited model — the classic flow, no orchestrator, no sub-stack splitting. |
+| `--team` (default) | **Team** | one **orchestrator engineer agent on Opus** decomposes the wave below the roster/stack level into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents. |
+| `--solo` | **Solo** | **one leaf `eng` subagent per roster stack**, whole-stack scope each, on the inherited model. |
 
-The mode is a **persisted preference**, not just a per-run flag: `/msg --init` seeds it to
-the default (`team`) at project bootstrap (`/msg --update` tops it up on older repos), and
-an inline `--team` / `--solo` here re-persists the choice — so later invocations (e.g. the
-build wave after the plan wave) carry it without re-passing a flag. Resolution precedence
-(**inline flag › persisted pref › default team**)
-and the flag-parse rule live in `refs/protocol-em.md` Step 0; the pref file's path/schema
-live in `.claude/skills/shared/refs/exec-mode-pref.md`; the team orchestrator's full
-protocol lives in `refs/protocol-team.md`.
+The mode is a **persisted preference**, not just a per-run flag. Resolution precedence and
+the flag-parse rule live in `refs/protocol-em.md` Step 0; the pref file itself lives in
+`.claude/skills/shared/refs/exec-mode-pref.md`.
 
 ## Inputs
 
@@ -72,20 +69,10 @@ protocol lives in `refs/protocol-team.md`.
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 
+**No separate engineering plan files — all output lives in the PRD.** The pre-flight report
+is the one exception, and it sits inside the PRD's own folder.
+
 `[n]` is the first numeric segment of the parent directory name of the input PRD; `[slug]` is the remainder (e.g., `features/prd-3-habit-tracking/prd-3-habit-tracking.md` → `n=3`, `slug=habit-tracking`). Resolve the actual matched directory once at Step 1 and write every artifact relative to it — do not reconstruct a bare `features/prd-[n]/` path.
-
-## Persona
-
-Read `refs/principles.md` before any other ref. Apply all five categories throughout.
-
-1. **Role identity**: Engineering manager, 8+ years, mobile and web teams, shipped production apps across iOS, Android, and web.
-2. **Values**: Right-sized teams. No scope creep. Transparent cost and scope before any agent spins up. One document: the PRD. Synthesis over summary.
-3. **Knowledge & expertise**: Cross-platform scope estimation, git branching strategies, CI/CD pipeline design, mobile app release cycles, parallel work coordination.
-4. **Anti-patterns**: Never activates agents without human approval. Never skips pre-flight. Never leaves raw agent output unsynthesised. No separate engineering plan files — all output lives in the PRD.
-5. **Decision-making**: Pre-flight → certify product (auto, no ask) → language-targeted roster (the single human gate) → agents write (certify eng before the build wave) → synthesise.
-6. **Pushback style**: Quotes the PRD section that is ambiguous, names the cost of proceeding, asks one question at a time.
-7. **Communication texture**: Structured and table-heavy. Numbered findings. Each finding carries a severity and required action.
-8. **Question format**: All clarification questions use `AskUserQuestion` — one at a time, with 3–4 options plus "Other".
 
 ## Progress emission
 
@@ -93,21 +80,24 @@ Emit `Step X/5 — <title>` at the start of each step, unconditionally.
 
 ## Step-by-step protocol
 
-Follow `refs/protocol-em.md` end-to-end. It defines the full flow — Step 0 Resolve execution mode (`--team` default / `--solo` — flag parse), Step 1 Validate and pre-flight (devkit + PRD scan, multi-PRD cross-reference via the certified graph — ask only on conflict, `preflight.md`), Step 2 Certification precondition (auto-run `plan-tune --product` before the plan wave — no ask), Step 3 Identify agents and get approval (`/cook` roster — the single human gate — + execution table skeleton), Step 4 Agents write (`plan` / `build` mode detection — the `plan` wave writes the engineering section **and** its todo tickets in one pass; the build wave auto-runs `plan-tune --eng` as its precondition; **team** mode routes the wave through the Opus orchestrator engineer, **solo** dispatches one leaf per stack), Step 5 Synthesise and next steps.
+Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and
+their outputs. In `--team` mode Step 4 hands the wave to the orchestrator whose protocol is
+`refs/protocol-team.md`.
+
+**Closing message (both lanes, every outcome):** end the run with the closing message per
+`../shared/refs/closing-message.md` — the last chat output, after Step 5's synthesis. Take the
+next step from the registry's `plan-em` row; never compose it. There is **no next-steps menu**:
+plan-em recommends the next command, it never invokes the next stage itself.
+
+**Harness incidents (both lanes):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
 
 ## References
 
 - `refs/protocol-em.md` — end-to-end execution protocol (Step 0 mode resolve + five steps); followed from § Step-by-step protocol
-- `refs/protocol-team.md` — the Opus orchestrator engineer's protocol, spawned at Step 4 in `--team` mode: wave decomposition into file-disjoint, model-tiered packets fanned out to leaf eng subagents
-- `.claude/skills/shared/refs/exec-mode-pref.md` — the persisted team/solo pref (`.claude/msg/pref.json`): path resolution, schema, `/msg --init`/`--update` seed, plan-em read + flag-override precedence. Shared source of truth.
-- `refs/principles.md` — core operating principles; read before any other ref (shared)
-- `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md (shared)
-- `DESIGN-SYSTEM.md` — component registry; read at Step 1 to identify impacted or reusable components and data-ingestion requirements (shared)
-- `refs/template-exec-table.md` — execution table format; use in Step 3 to build the skeleton table (Todos column always present) before activating agents (shared)
+- `refs/protocol-team.md` — the Opus orchestrator engineer's protocol, spawned at Step 4 in `--team` mode
+- `refs/template-exec-table.md` — execution-table shape and the concern checklist; used at Step 3
+- `.claude/skills/shared/refs/exec-mode-pref.md` — the persisted team/solo pref (`.claude/msg/pref.json`). Shared source of truth.
+- `../shared/refs/closing-message.md` — the closing message every run ends with; protocol + next-steps registry (shared)
+- `../shared/refs/doctor-logging.md` — the harness-incident ledger contract (shared)
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
-- `../shared/refs/closing-message.md` — **every run ends with the closing message** (last chat output, after Step 5's synthesis); protocol + next-steps registry (shared)
-- `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` (same pass as the engineering section) and consumed by build agents
-- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); consumed in Step 1c (`--exclude` the input PRD) for the multi-PRD cross-reference
-- `.claude/scripts/plan-em-exec-collision.py` — mechanical exec-table collision / parallel-safety check; emits `COLLISION`/`MISSING_FILES` lines and exits 1 on any collision; consumed by the Step 4 build lane and by `refs/protocol-team.md`
-- `.claude/scripts/plan-em-exec-skeleton.py` — deterministic exec-table skeleton renderer; reads §3 + a `[{"fid","concern","agent"}]` spec on stdin and, with `--write`, fills the PRD's reserved `## 6. Feature execution table` section (Feature/Todos anchors filled, Execution steps + Files blank); consumed in Step 3 so anchor typos / row-text drift are impossible
-- `.claude/scripts/plan-em-branch-resolve.sh` — READ-ONLY parent-aware branch resolver; emits `BRANCH=`/`ACTION=`(create|checkout|fresh-cut)/`LANE_MOVE=` for a PRD; consumed in Step 4 (build wave) to pick the feature branch and the `planned/ → wip/` lane move
+- `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` and consumed by build agents

@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P10 — plan-em: resume rules, strips, closing message, roster intent (i76–i79/i81/i83/i92)
+
+- `refs/protocol-em.md`: Changed — Step 3 resume rules (exec table present → verify-never-reappend, duplicate/orphan rows = hard stop; roster matching engineering_agents → one-line confirm, per-PRD not per-wave; 3a /cook payloads still run — build wave needs them); roster gate opens with a 2–3 line PRD-intent summary (suppressed on resume)
+- Removed — `refs/principles.md` (665 words); the two house rules ("one innovation token per plan, max" · "extract on the third occurrence") relocated into Step 4 + the team input contract so they bind subagents
+- `SKILL.md`: Changed — router (synopsis, Step-0 restatement, References re-documentation gone); Persona → the one non-inferable rule under Outputs; 1,332 → 850 words
+- Step 5's next-steps AskUserQuestion menu → the shared closing message (registry row verbatim)
+- DOCTOR bindings: the standard sentence + five signature-explicit call sites + protocol-team's respawn logs retry/tool-error rows
+
 ### v5-P9 — DOCTOR: the harness-incident ledger + /msg --doctor (i50/i51)
 
 - `msg/refs/init/templates/template-DOCTOR.md`: Added — devkit/DOCTOR.md scaffold (AHA=learned · OPEN-QUESTIONS=undecided · DOCTOR=harness misbehaved); class enum write-miss/retry/tool-error/validator-fail/gate-infra; Incidents table last-in-file so appends are true appends; gitignored, scaffolded by /msg --init + top-up

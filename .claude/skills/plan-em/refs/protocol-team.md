@@ -36,6 +36,7 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 | `$BRANCH` | resolved feature branch (**build wave only** — the orchestrator never resolves or creates it) |
 | `standards payloads` | the compiled `/cook` output **per stack** (**build wave only**), retained from plan-em Step 3a |
 | `devkit digest` | canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows (from plan-em's Step 1 pre-flight) |
+| `house rules` | **plan wave only** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
 
 **Escape hatch (pass through to every leaf):** *"The full PRD is at `<prd-path>`; read it
 (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve
@@ -196,7 +197,7 @@ Then the leaf's fields, by wave:
 
 | Wave | Invocation | Injected |
 |------|-----------|----------|
-| Plan | `eng --plan prd-path=<p> rows=<packet rows> agent=<eng-stack>` | scoped context (rows + mapped PRD feature sections + devkit digest) + escape hatch. No standards payload (`--plan` pulls no standards). |
+| Plan | `eng --plan prd-path=<p> rows=<packet rows> agent=<eng-stack>` | scoped context (rows + mapped PRD feature sections + devkit digest) + escape hatch + the **house rules** verbatim. No standards payload (`--plan` pulls no standards). |
 | Build | `eng --build prd-path=<p> rows=<packet rows> branch=$BRANCH agent=<eng-stack> commit_mode=direct` | scoped context + escape hatch **+ the stack's compiled `standards payload`** (the leaf uses it and does **not** call `/cook`). |
 
 `rows` is the exact semicolon-separated `<ID>: <name> — <concern>` Feature-cell text of
@@ -207,7 +208,10 @@ files and commits only to `$BRANCH`.
 **Return contract.** Each leaf returns its structured summary (plan: section-written
 confirmation; build: build summary) — never free-form prose. A leaf that dies or returns
 unparseable output is a failed packet: re-spawn it once; a second failure escalates to
-the user via the orchestrator's summary (do not silently drop a packet).
+the user via the orchestrator's summary (do not silently drop a packet). **Log both arms
+to `devkit/DOCTOR.md`** per `../../shared/refs/doctor-logging.md` — a `retry:packet-<p>` row
+when the re-spawn fires and a `tool-error:packet-<p>` row when the second attempt also
+fails; logging never changes the escalation above.
 
 ## Guardrails
 

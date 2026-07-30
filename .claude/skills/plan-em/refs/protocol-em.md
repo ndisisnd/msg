@@ -6,7 +6,9 @@ type: reference
 
 # EM Protocol
 
-The five-step protocol plan-em runs end-to-end. Emit progress per § Progress emission in SKILL.md (`Step X/5 — <title>`). Ref paths (`refs/principles.md`, `refs/template-exec-table.md`) resolve relative to the skill root.
+The five-step protocol plan-em runs end-to-end. Emit progress per § Progress emission in SKILL.md (`Step X/5 — <title>`). Ref paths (`refs/template-exec-table.md`) resolve relative to the skill root.
+
+**Harness incidents.** Any script this protocol runs that exits non-zero on an outcome the step's own text does not document appends a `devkit/DOCTOR.md` row via the shared appender, per `../../shared/refs/doctor-logging.md`. Logging never changes control flow — the step's own rule (continue, stop, repair-once) still decides. The individual call sites below name their signature.
 
 ## Step-by-step protocol
 
@@ -81,6 +83,8 @@ So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change 
    S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S" --exclude prd-[n]-[slug]
    ```
 
+   A non-zero exit from the scanner is not an expected outcome — log one DOCTOR row (`tool-error:plan-pm-roadmap-scan`) per § Harness incidents, then continue with an empty prior-PRD inventory rather than blocking the run.
+
    Read each prior PRD's `module`, `affects`, `depends_on` from the JSONL (no file open). Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
 2. **Ask only on a genuine conflict** — one `AskUserQuestion` fires **only** when the certified graph contradicts what the codebase/feature scan implies, e.g.:
    - the certified `depends_on` names a PRD whose surface this PRD's features plainly do **not** touch (a spurious edge), or
@@ -120,13 +124,19 @@ S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scri
 - `CERTIFIED` (exit 0) → certified; proceed straight to agent identification.
 - `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --product` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, **re-run the checker**:
   - `CERTIFIED` → proceed to agent identification.
-  - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD.
+  - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD — and log one DOCTOR row (`validator-fail:plan-tune-cert-status-product`) per § Harness incidents. The *first* `UNCERTIFIED` is expected (it is what triggers the inline certify) and is never logged; only the repair-once loop's still-failing arm is.
 
 No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its own product-decision pause is the only stop.
 
 ---
 
 **Step 3/5 — Identify agents and get approval**
+
+**Resume rules — Steps 1–3 re-run on every invocation.** The build wave arrives as a *second* `/plan-em` on the same PRD, so this step must be idempotent. Check the PRD's current state before doing 3b's work and take the resume path wherever it applies:
+
+- **Exec table already present** — the reserved `## 6. Feature execution table` section holds real rows rather than its `_To be populated by plan-em …_` placeholder. **Verify, do not render:** confirm (i) that section is the table's only home — no second `## Execution Table` heading was appended alongside it — and (ii) every row's Feature cell keys on an F-ID that still exists in the PRD's §3 Features & acceptance criteria table. Verified → skip the skeleton render entirely; **never append a second table.** A verification failure (a duplicate table, or a row keying on an F-ID §3 no longer carries) is a hard stop — surface it and let the user reconcile; do not re-render over it.
+- **Roster already approved** — the digest's `engineering_agents` field (the same field Step 4 mode-detection reads) already lists every agent the roster in 3b would propose. This is the build-wave case: the gate is a **per-PRD approval, not a per-wave one**, and it already happened. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan wave: backend-eng, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-fire the approval `AskUserQuestion`.
+- **3a still runs either way.** The compiled `/cook` standards payloads are per-run, not persisted, and the build wave's dispatch (Step 4) needs them — only 3b's approval interview and the skeleton render are resumable.
 
 **3a — Compile coding standards (flags) to confirm agent types.** Before proposing any roster, derive platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — using the stack→flag derivation in `.claude/skills/eng/refs/build/protocol.md` (§ Coding-standards flags): `--global` (mandatory, unscoped — guarantees the P0 floor) plus, for each platform, **diff-scoped domain sub-ref flags** rather than the bare domain flag.
 - **Scope each domain, don't over-load.** A bare domain flag (`--macos`, `--react`) compiles the domain's `SKILL.md` **plus every** `refs/*.md` — the full shelf. Instead, mirror the eng derivation so the orchestrator-compiled payload is scoped too (both paths must agree — standalone `eng` and orchestrated runs): enumerate the domain's refs (`<cook>/standards/<domain>/refs/` or its `_INDEX.md` — never a hardcoded list), keep every ref by default, and **drop a ref only when the PRD/devkit provably excludes its subject** (e.g. `distribution.md` when `CLAUDE.md` defers distribution; `localization.md` with no i18n in scope; `sandbox-and-tcc.md` with no entitlements/sandbox). Signals: the exec-table **Files** column, the row **concerns**, and the devkit's provable exclusions. **Never under-load — missing a relevant standard is worse than loading an extra one:** on any uncertainty keep the ref, and if a whole domain can't be confidently scoped fall back to the **bare** domain flag (full shelf). Always keep the domain `SKILL.md` floor (emit the bare `--<domain>` flag to anchor it), then emit `--<domain>:<ref>` for each kept ref (e.g. `--global --macos --macos:architecture-and-state --macos:windows-and-scenes --macos:performance-accessibility --macos:hig-conventions`). This scoping applies to **domain** flags only; `--global` stays whole.
@@ -135,6 +145,8 @@ No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its
 - If `/cook` has no flag for an implied platform (rejects the flag with the valid-flag list): surface as a blocking gap — emit a warning, list the uncovered platform, and ask via `AskUserQuestion` before continuing.
 
 **3b — Propose language-targeted roster and get approval.** Map every PRD feature to the covered platforms from 3a. One agent per language/platform stack in scope. Do **not** collapse platforms to reduce count: `eng-ios` and `eng-android` own different codebases, toolchains, and integration concerns — never merge. An under-staffed roster produces a worse plan.
+
+**Open the gate with the PRD's intent.** This is the run's single human gate, and an approver cannot judge staffing for a feature the message never restates. So **before** the roster table, emit **2–3 lines of what the PRD is trying to do** — the product intent, not the engineering shape. Source it from the Step 1b digest's `summary` field (already in hand — no new read, no new script); if `summary` is thin, distil the objective plus the feature count from the digest's `features`. Then the table, then the question.
 
 Present as a table:
 
@@ -158,6 +170,8 @@ echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}, …]' | pyth
 ```
 
 A spec `fid` absent from §3 is a hard error (exit 1, named on stderr) — fix the spec, never edit the PRD to match. `--write` puts the rendered table in the PRD's **reserved `## 6. Feature execution table` section** — the exec table's one home — replacing its `_To be populated by plan-em …_` placeholder. Never append a second `## Execution Table` heading; that legacy name is read-tolerated by the parsers for pre-v5 PRDs and is written by nothing. A missing reserved section is a hard error (exit 1) — restore it from `template-prd.md`, do not invent a heading.
+
+Either exit-1 path is an undocumented-failure exit: log one DOCTOR row (`write-miss:plan-em-exec-skeleton`) per § Harness incidents, then handle it exactly as stated above.
 
 **AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, append one entry under `## Entries` (most recent first) of `devkit/AHA.md`:
 
@@ -207,13 +221,17 @@ Each mode dispatches its agents to the `eng` skill with the matching flag (`--pl
 
 Scope-enforcement and the branch contract in the numbered fields are unchanged — each agent acts only on its assigned rows and commits only to the resolved branch.
 
+**House rules for the engineering plan (both lanes).** Two msg house rules constrain what the plan wave may propose — state them verbatim in the scoped context of every `--plan` dispatch (solo fan-out below, and the orchestrator's input contract in `refs/protocol-team.md`), and apply them yourself when reviewing the returned sections at Step 5:
+- **One innovation token per plan, max.** If the plan introduces more than one unfamiliar technology, split it or pick one.
+- **Extract on the third occurrence, not the second.** Duplication is cheaper than premature abstraction.
+
 **Plan mode (`$MODE = plan`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — the anchor namespace the exec-table Todos column points into (`#todos-f<n>`). Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
 4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
 5. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
-6. **Scoped context** (per § Subagent context injection): rows, the mapped PRD feature sections, devkit digest, PRD-path escape hatch. (`--plan` pulls no standards → no payload.)
+6. **Scoped context** (per § Subagent context injection): rows, the mapped PRD feature sections, devkit digest, PRD-path escape hatch, and the two **house rules** verbatim. (`--plan` pulls no standards → no payload.)
 
 Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete — stamp the PRD's lifecycle field (the § PRD status lifecycle trigger "eng sections written to PRD"):
 
@@ -232,7 +250,7 @@ S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scri
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed to branch resolution.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan. No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:plan-tune-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
 
 Then, resolve and create the feature branch **once**.
 
@@ -261,7 +279,7 @@ S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scr
 awk 'tolower($0) ~ /^## ([0-9]+\. )?(feature execution table|execution table)[[:space:]]*$/{f=1;next} f&&/^## /{exit} f' "$PRD_DIR/prd-[n]-[slug].md" | python3 "$S"
 ```
 
-Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
+Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run, and log one DOCTOR row (`validator-fail:plan-em-exec-collision`) per § Harness incidents. A collision-only exit 1 is a documented outcome and is **not** an incident — serialise and carry on without logging. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
 
 Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
@@ -326,15 +344,8 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
 
    Example: `feat/prd-3-habit-tracking`. Engineers cut this from `main` before starting work.
 
-**Next steps.** After synthesis, ask via `AskUserQuestion` (single-select) "What would you like to do next?" — options depend on the phase just completed (`$MODE` from Step 4).
+**Next steps.** There is **no next-steps menu.** plan-em recommends the next command; it never invokes the next stage itself. The run ends with the closing message per `../../shared/refs/closing-message.md` — the last chat output, after the synthesis above — taking its next step verbatim from the registry's `plan-em` row (🟢 `Run /eng --build now`). Never compose the step.
 
-**After the `plan` phase:**
-
-| Option | Action |
-|--------|--------|
-| **Run eng --build** — begin the build phase using this PRD | invoke `Skill("plan-em", "<prd-path>")`. plan-em re-runs mode detection: engineering sections present for all agents → `$MODE = build`. The eng certification precondition (Step 4) auto-runs `plan-tune --eng` before dispatch — it is **no longer a menu item** (I2). |
-| **Skip** — terminate plan-em with no further action | terminate immediately. |
-
-The v1 "Run plan-tune (eng mode)" menu option is **deleted** — the eng tune is now the build-wave precondition (Step 4), auto-run inline, not a thing the user selects. Running eng --build certifies the eng plan on the way in.
+The synthesis's batched-Critical `AskUserQuestion` above is untouched: that is a genuine decision point, not a do-next bounce.
 
 Final state: the PRD contains all engineering sections plus a `## Todos` section with a `## Todos — <Agent>` block per agent (written in the same plan pass), the synthesis is visible, no Critical findings are unresolved, and the suggested branch is emitted.
