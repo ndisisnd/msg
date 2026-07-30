@@ -77,7 +77,7 @@ Skip this if you deliberately ship direct-to-prod — every human gate is preser
 
 ### 5. `/pre-merge --init`
 
-Detects your pipeline (tests, lint, coverage, security, preview, and whether `.github/workflows/` runs the gate on PRs), offers to install or scaffold the missing free/OSS pieces, and writes the `components[]` manifest into `devkit/policy.json`.
+Detects your pipeline (tests, lint, coverage, security, smoke, and whether `.github/workflows/` runs the gate on PRs), offers to install or scaffold the missing free/OSS pieces, and writes the `components[]` manifest into `devkit/policy.json`.
 
 **Verify:** `policy.json` has a non-empty `components[]`.
 
@@ -120,7 +120,7 @@ Conventional-commit formatter and changelog manager. Installed separately from m
 | 10 | `/plan-em` | Certifies the PRD, proposes a specialist roster, writes the engineering sections | **Approve the roster** — the single gate here |
 | 11 | `/eng --plan` | Proposes file changes and writes the per-feature todo tickets | Approve the file changes |
 | 12 | `/eng --build` | Writes the code on a `feat/prd-<n>-*` branch | — |
-| 13 | `/pre-merge` | Runs the pipeline, stands up a pokeable preview, opens the PR to staging | **Approve or reject the preview** |
+| 13 | `/pre-merge` | Runs the pipeline in an ephemeral test sandbox, opens the PR to staging | — (the human test happens at `/post-merge --staging`) |
 | 14 | `/post-merge --staging` | Merges on green CI, deploys, hands you a human test script | Run the script, then sign off |
 | 15 | `/post-merge --production` | Opens the staging→main release PR, merges on green CI + review, deploys, tags `v<x.y.z>+<build>` | **Double-confirm** |
 

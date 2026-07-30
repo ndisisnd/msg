@@ -91,7 +91,7 @@ above:
 - The **flat shape stays valid** as the single-stack case — `stacks[]` is never required,
   and readers MUST treat a flat object as `stacks: [<that object>]`.
 - The stacks are **one logical sandbox** (AC-SBX2/SBX5): the executor provisions all stacks
-  together, runs the env wave against the composite, promotes the composite to preview, and
+  together, runs the env wave against the composite, and
   tears **all** stacks down together — never partially.
 - A verb null on one stack (a simulator has no `seed`) is valid; the loud seed-script rule
   applies per-stack only where a DB exists.

@@ -111,7 +111,7 @@ empty-set case whenever `ga` is `true` or absent (AC-GA6).
 
 ## 4 · `release_model` (per platform)
 
-`release_model` is authored the same way `tolerance` and `preview_kind` are: a
+`release_model` is authored the same way `tolerance` is: a
 **per-platform column in `devkit/PLATFORMS.md`**, not a `policy.json` field
 (D7). One human-authored source, one resolved consumer — no drift. Post-merge
 reads it per shipping platform and branches every deploy/verify/rollback/lifecycle

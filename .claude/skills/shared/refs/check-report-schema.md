@@ -64,12 +64,12 @@ silent (AC-PF2).
 | `id` | string | the stable, zero-padded **`nn`** catalog id (`"01"`…`"17"`, minus retired `15`) — never reused, group-orthogonal |
 | `group` | enum `universal`\|`platform`\|`prd` | the component's gating source (its `refs/` folder, C3) |
 | `present` | bool | `true` only when the check's tooling **or** surface is detected (AC-PF2/CK3) |
-| `active_when` | string | the presence gate: `always` \| `prd` \| `ui-surface` \| `api-surface` \| `perf-config` \| `migrations` \| `mobile-surface` \| `ui-or-deploy-surface` \| `preview-fired` |
+| `active_when` | string | the presence gate: `always` \| `prd` \| `ui-surface` \| `api-surface` \| `perf-config` \| `migrations` \| `mobile-surface` \| `ui-or-deploy-surface` |
 | `tooling` | `{chosen, version}` \| `null` | the resolved runner (`chosen` may be a comma-list for multi-runner checks; `version` best-effort, often `null`); `null` for subagent/surface-only checks |
 | `run` | string \| `null` | **script/hybrid**: the resolved command · **subagent/gate**: the `<group>/protocol-<slug>.md` ref (AC-CK3, per catalog `kind`); `null` when nothing resolved |
 | `criticality` | enum `critical`\|`blocking`\|`advisory`\|`config-driven` | catalog default (a profile may override at assembly; `config-driven` = advisory until the project sets budgets) |
 | `cost` | enum `cheap`\|`moderate`\|`expensive` | relative runtime — informs wave scheduling |
-| `depends_on` | string[] | hard effect edges only (AC-CAT3): `coverage→[unit,integration]`, `smoke→[preview]`, `regression`→all other universal/prd |
+| `depends_on` | string[] | hard effect edges only (AC-CAT3): `coverage→[unit,integration]`, `manual-test-plan→[prd-consistency]`, `regression`→all other universal/prd |
 | `status` | enum `ready`\|`no_tooling`\|`n/a` | **detection fact** (not a user decision): `ready` = present+tooling · `no_tooling` = active but no runner (a gap) · `n/a` = surface absent / gate not met |
 | `notes` | string | freeform evidence — what was detected, degrade reasons, mandatory notes |
 | `run_minified` | string \| `null` | **additive (v4, `policies.test_selection`)** — the resolved **selection-capable** invocation of the same runner (affected ∪ critical). Non-null only on the three selection-capable components (`unit`, `integration`, `regression` — catalog legend `ˢᵉˡ`); **`null` on every other check**, which is what the shared `mk_report` helper emits when a script passes nothing. `null` ⇒ that component always runs full, silently (not a gap) |

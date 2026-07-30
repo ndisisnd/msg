@@ -69,7 +69,6 @@ one entry per catalog row; the slot names are the catalog's `run` column):
 | `api_runner[]` | `api` |
 | `mobile_runner` | `mobile` |
 | `coverage_runner` | `coverage` |
-| `preview_deploy_cmd` (+ visual capture) | `preview` |
 | `smoke_runner` | `smoke` |
 | `security_scanners[]`, `secret_scanner` | `security` |
 | _(static SQL scan — no runner slot)_ | `migration` |
@@ -114,7 +113,7 @@ gaps, never `n/a`.
 > (catalog `env` column — integration, migration, e2e, a11y, perf, load, smoke, mobile,
 > api-live), `--init` **detects** the project's sandbox provisioner candidates —
 > `docker-compose*.yml` / a testcontainers dep / an ephemeral-DB-branch CLI (e.g.
-> Neon/`pg_tmp`) / a `preview_deploy_cmd` / a mobile simulator — and asks **one**
+> Neon/`pg_tmp`) / a deploy command / a mobile simulator — and asks **one**
 > `AskUserQuestion` to confirm the pick (or declare one, or skip). When **two**
 > candidates apply at once (full-stack mobile: a simulator **and** a compose backend),
 > record a composite **`stacks[]`** — one logical sandbox, both stacks. The answer is

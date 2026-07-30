@@ -65,7 +65,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Planning | plan-tune | PRD contract certifier — seven consumer-bound checks, product/eng |
 | Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
-| Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, preview, opens PR feature→staging |
+| Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, opens PR feature→staging |
 | Build & Ship | post-merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 

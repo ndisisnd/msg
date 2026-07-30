@@ -210,12 +210,12 @@ def normalise_active_when(cell):
     text = deaccent(cell).lower()
     if not text or text == "always":
         return "always"
-    for token in ("preview-fired", "ui-surface", "api-surface",
+    for token in ("ui-surface", "api-surface",
                   "mobile-surface", "perf-config", "migrations"):
         if token in text:
             return token
     if "or" in text and "surface" in text:
-        return "union"          # preview: UI or api/migration/deploy surface
+        return "union"          # smoke: UI or api/migration/deploy surface
     if text == "prd":
         return "prd"
     return text
@@ -343,10 +343,7 @@ def resolve(args):
         if aw == "prd" and not args.prd:
             drop(cid, "active_when: prd (no --prd)")
             continue
-        if aw == "preview-fired":
-            # resolved at run time by the executor, never here
-            pass
-        elif aw in SURFACE_PATTERNS and diff_ok and aw not in surfaces:
+        if aw in SURFACE_PATTERNS and diff_ok and aw not in surfaces:
             drop(cid, "active_when: %s not in the diff" % aw)
             continue
         elif aw == "union" and diff_ok and not (

@@ -13,8 +13,7 @@ parallel `Agent` subagent and uses the `run` command resolved for it in
 `devkit/policy.json` `components[]` (detected at `--init`/`--update` by the
 `preflight-check-*.sh` family); it does not re-detect.
 
-Components: `e2e`, `qa` (visual — folded into `platform/protocol-preview.md`, C20),
-`mobile`, `perf`, `a11y`, `coverage`, `api`, `load`. `load` and `perf` run **isolated** (not overlapping other components or each other) so CPU/network contention can't skew
+Components: `e2e`, `mobile`, `perf`, `a11y`, `coverage`, `api`, `load`, `smoke`. `load` and `perf` run **isolated** (not overlapping other components or each other) so CPU/network contention can't skew
 their timing numbers.
 
 ## Runner guard (each component's first act)

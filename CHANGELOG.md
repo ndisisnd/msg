@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P13 — the preview-gate cut (i93) — v5's one safety-floor amendment, isolated commit
+
+- Removed — the preview component end-to-end: `protocol-preview.md` (212 ln incl. R1–R4, park/resume, the commit-bound approval token — machinery that existed only there), `preflight-check-16-preview.sh`, catalog row 16 (tombstoned, never reused), executor wave/prune/promote wiring, output-schema preview object, PLATFORMS `preview_kind`/`preview_deploy_cmd` columns (19→17; three readers fixed)
+- `shared/refs/safety-floor.md`: Changed — "Preview-deploy approval" leaves **Human gates — never removed**; replaced by relocation notes: staging sign-off is THE human look in staged flow, the direct-flow pre-merge attestation ([i73]) is its equivalent; C3's three cleanups landed in the same edit (C9 cites, post-merge row → pointer, doubled secret-scan line)
+- smoke: survives re-anchored — depends_on preview→sync, env wave scheduled FIRST (cost `cheap` makes the tie-break mechanical), short-circuit now protects the expensive env-wave checks; api/migration live checks run in the env wave they were always bound for
+- manual-test-plan generation survives; sole render site = post-merge --staging's human-test script; pre-merge now explicitly holds no human gate
+- Proofs: zero preview references in pre-merge+scripts; resolver parses the 16-row catalog, smoke lands first in the env wave; verdict script unaffected
+
 ### v5-P12 — pre-merge protocols: registry subtraction, enrichment cut, single-home, prd-consistency advisory (i65–i67/i69–i71/i74)
 
 - Removed — the dangling D29 flow registry: a11y/perf/smoke/preview each state their real fallback as the behaviour; protocol-e2e.md promises only what it defines; catalog's four enrichment sentences reconciled

@@ -1,17 +1,17 @@
 ---
 name: smoke
-description: Component 17 (platform group, blocking, depends_on preview) — the preview's health precondition (C21). Runs BEFORE the expensive preview checks and short-circuits on failure ("preview unhealthy"); a fired preview always gets at least a DEFAULT liveness check (never a silent skip), then runs the project's configured smoke command (1–3 golden paths incl. the core action). Feeds C20/R2 evidence and gates the R1 approval prompt. Genuinely un-smokeable surface degrades LOUDLY. Also the shared surface post-merge --staging smoke-verifies a deploy through.
+description: Component 17 (platform group, blocking, env wave) — the build's liveness + golden-path check (C21). Runs FIRST inside the C23 sandbox and short-circuits the expensive env-wave checks on failure; an app that fired always gets at least a DEFAULT liveness check (never a silent skip), then runs the project's configured smoke command (1–3 golden paths incl. the core action). Genuinely un-smokeable surface degrades LOUDLY. Also the shared surface post-merge --staging smoke-verifies a deploy through.
 ---
 
-# Component 17 — SMOKE (the preview's health precondition)
+# Component 17 — SMOKE (the build's liveness + golden-path check)
 
-`smoke` is the fast, cheap check that answers **"is this preview actually alive and
-does its core action work?"** before anyone — human or the expensive machine checks —
-spends time on it. It `depends_on: preview` (the catalog's 2nd hard edge) and runs
-**first among the preview-tail checks and short-circuits** the rest on failure, so a
-dead or broken preview never reaches the human approval prompt (C20/R1) and never has
-the api-drift / migration up→down→up / capture suite run against it. It is `blocking`,
-`platforms: all‡` (forks per platform — url / artifact / sim).
+`smoke` is the fast, cheap check that answers **"is this build actually alive and
+does its core action work?"** before the expensive machine checks spend time on it.
+It has **no hard edge** — it is an ordinary env-wave component (`needs_env: true`) that
+runs against the C23 sandbox the executor stood up, scheduled **first within that wave**
+so a dead app short-circuits the rest. It is `blocking`, `platforms: all‡` (forks per
+platform — url / artifact / sim), `active_when` the diff touches a UI **or**
+api/migration/deploy surface.
 
 Guard, error rule, envelope: `../_common.md`. Runner (`smoke_runner`) from the component's
 resolved tooling. The same check is the shared surface post-merge `--staging` runs to
@@ -20,24 +20,23 @@ contract, two callers.
 
 ## 1 · The no-vacuous-skip default-liveness floor
 
-**A fired preview always gets at least a default liveness check — never a silent skip.**
-`verify-deploy` used to degrade an unconfigured smoke to *skipped-with-note*; after C20
-that would let `preview`'s R1 health precondition pass **vacuously** — no `smoke_cmd` ⇒
-skip ⇒ green ⇒ a human approves a possibly-dead preview. So:
+**A smoke that runs always produces real signal — never a silent skip.** `verify-deploy`
+used to degrade an unconfigured smoke to *skipped-with-note*, which let a `blocking`
+component pass **vacuously** — no `smoke_cmd` ⇒ skip ⇒ green ⇒ a possibly-dead build
+sails through. So:
 
-- **`preview` fired + no `smoke_cmd` configured** → run a **default liveness check** so R1
-  always has real signal:
-  - `preview_kind: url` → HTTP **200** (not 3xx-to-error, not 5xx) on the preview URL,
-    with a bounded retry/backoff for cold-start.
-  - `preview_kind: artifact` (iOS / Android / macOS) → the build **launches without
-    crashing** to first interactive screen (simulator/emulator boot + no immediate crash).
-  - `preview_kind: screenshots` → the capture run itself completed without a crash/blank.
-- This is the **same safety-floor pattern as C9** (security's guaranteed secret-scan
-  floor) and the D28 present-but-hollow family: the check that *runs* must actually check
-  something — the precondition **can never pass vacuously** (`safety-floor.md`).
+- **No `smoke_cmd` configured** → run a **default liveness check**, shaped by the
+  platform row in `devkit/PLATFORMS.md`:
+  - **web / backend** → HTTP **200** (not 3xx-to-error, not 5xx) on the sandbox app's
+    URL or health endpoint, with a bounded retry/backoff for cold-start.
+  - **iOS / Android / macOS** → the build **launches without crashing** to first
+    interactive screen (simulator/emulator boot + no immediate crash).
+- This is the **same safety-floor pattern as** security's guaranteed secret-scan
+  floor and the D28 present-but-hollow family: the check that *runs* must actually check
+  something — it **can never pass vacuously** (`safety-floor.md`).
 
 The default liveness floor is not a substitute for the critical-path smoke (§2) — it is
-the **minimum** signal a fired preview must produce; a configured `smoke_runner` runs the
+the **minimum** signal the component must produce; a configured `smoke_runner` runs the
 richer critical-path subset on top.
 
 ## 2 · Critical-path smoke — the configured golden paths
@@ -50,70 +49,51 @@ not reach into another component's suite for one.
 
 - **`smoke_runner` configured** → run it. Each failing golden path is one finding.
 - **No `smoke_runner`** (backend-only, or simply unconfigured) → the **default-liveness
-  floor** (§1) is the whole check: an HTTP 200 / a clean launch / a completed capture
-  run. A graceful degrade, never a skip — and never a fabricated flow.
+  floor** (§1) is the whole check: an HTTP 200 or a clean launch. A graceful degrade,
+  never a skip — and never a fabricated flow.
 
-## 3 · Runs first + short-circuits the expensive preview checks
+## 3 · Runs first + short-circuits the expensive env-wave checks
 
-Because smoke is cheap and **gates** the expensive human gate, the executor runs it
-**before** the pre-approval preview suite and **short-circuits** on failure:
+Because smoke is cheap and every other env-wave component is expensive, the executor
+runs it **first inside the sandbox** and **short-circuits** on failure:
 
-- **smoke green** → the executor proceeds to `preview`'s §2 captures + §3 live-env checks (api spec-drift, migration up→down→up) and the R2 assembly.
-- **smoke fail / preview unhealthy** → **stop**: do **not** stand up captures, do **not**
-  run api-drift / migration up→down→up against a dead preview, do **not** prompt. Report
-  `preview-unhealthy` immediately. This mirrors the executor's fail-fast — a `blocking`
-  smoke failure blocks its downstream dependent (`preview`).
+- **smoke green** → the env wave proceeds normally (`e2e`, `a11y`, `perf`, `load`,
+  `mobile`, `api`'s live-conformance half, `migration`'s up→down→up round-trip).
+- **smoke fail** → **stop the wave**: do **not** run api-drift or migration
+  up→down→up against a dead app. This is the executor's ordinary fail-fast — a
+  `blocking` failure fails the verdict and blocks the wave (`refs/executor.md` §2/§3).
 
-The smoke result — pass or the short-circuit failure — becomes **R2 evidence** in the
-unified approval artifact (`protocol-preview.md` §4): the human sees the health pass and
-the critical-path golden-path outcomes before approving.
-
-## 4 · A smoke failure blocks the R1 approval prompt
-
-The human approval prompt in `preview` **does not fire until smoke passes green** (C20/R1).
-Since `smoke depends_on preview` and runs before the expensive checks (§3), the executor
-already holds smoke's result when the gate reaches R1:
-
-- **smoke green** → R1 precondition met → proceed to serve the gate.
-- **smoke fail** → R1 precondition **unmet** → the gate terminates `preview-unhealthy`;
-  **no approval is requested on an unhealthy preview.** The §1 default-liveness floor
-  guarantees this precondition can never be satisfied vacuously.
-
-## 5 · Genuinely un-smokeable surface degrades LOUDLY
+## 4 · Genuinely un-smokeable surface degrades LOUDLY
 
 A surface with **no smokeable target at all** (no URL, no launchable artifact, no health
 endpoint — nothing the floor can even probe) does **not** silently go green. It degrades
 **loudly**:
 
 - Emit a `high` finding (`rule: smoke-unsmokeable` / `safety-floor.md` present-but-hollow)
-  naming *why* nothing could be probed, and **surface it in the R2 approval evidence** so
-  the human sees the health gap before approving — the opposite of a silent pass.
-- Frame the finding user-first (`../../../shared/refs/name-the-user-impact.md`): what the
-  human is being asked to approve **without** health signal, in which surface — never a
-  bare "no smoke target."
+  naming *why* nothing could be probed — the opposite of a silent pass.
+- Frame the finding user-first (`../../../shared/refs/name-the-user-impact.md`): what is
+  shipping **without** health signal, in which surface — never a bare "no smoke target."
 
-The only path to a green R1 is a **real** liveness/critical-path result; "un-smokeable"
-is a visible degrade, not an absence of a gate.
+The only path to a green smoke is a **real** liveness/critical-path result;
+"un-smokeable" is a visible degrade, not an absence of a check.
 
 ## Parse + result report
 
 - **Liveness/critical-path pass** → `pass`.
-- **Liveness or a critical golden path fails** → `fail` (`preview-unhealthy`); short-circuit
-  §3; feed the finding to R2. Each failing golden path is one finding, `severity: high` (matches the e2e severity floor), `rule` = the flow's title/critical tag, `repro` = the
-  single-flow re-run.
-- **Un-smokeable surface** → `high` `smoke-unsmokeable`, surfaced in R2 (never silent green).
-- **preview did not fire** → the component is not present (`active_when: preview-fired`);
-  no smoke, no skip note.
+- **Liveness or a critical golden path fails** → `fail`; short-circuit the env wave (§3).
+  Each failing golden path is one finding, `severity: high` (matches the e2e severity
+  floor), `rule` = the flow's title/critical tag, `repro` = the single-flow re-run.
+- **Un-smokeable surface** → `high` `smoke-unsmokeable` (never silent green).
+- **No UI/api/migration/deploy surface in the diff** → the component is not present
+  (`active_when` union unmet); no smoke, no skip note.
 
-Component fields: `runner`, `command`, `preview_kind`, `liveness` (`floor` | `configured`),
+Component fields: `runner`, `command`, `liveness` (`floor` | `configured`),
 `critical_flows_run[]`, `errors[]`, `totals` `{ passed, failed }`.
 
 ## References
 
-- `platform/protocol-preview.md` — C20/R1 precondition (this check gates its prompt) + R2
-  evidence (this check feeds it); the executor short-circuits preview's §3 on smoke fail
-- `refs/executor.md` — sequences smoke **before** the expensive preview checks and applies
-  the `blocking` short-circuit onto its `preview` dependent
+- `refs/executor.md` — schedules smoke first inside the env wave (§2/§3b) and applies the
+  ordinary `blocking` fail-fast to the rest of the wave
 - `../../../shared/refs/safety-floor.md` — the present-but-hollow floor pattern (C9/C21/D28)
 - `../../../shared/refs/name-the-user-impact.md` — the finding-framing for a health gap
 - `post-merge/refs/verify-deploy.md` — the shared smoke surface post-merge `--staging` runs

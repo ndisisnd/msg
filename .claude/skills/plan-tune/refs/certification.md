@@ -6,7 +6,7 @@ type: reference
 
 # Certification Checklist
 
-plan-tune is a **contract certifier, not an adversarial reviewer**. The PRD is a **machine contract**: named fields are executed blindly by named consumers — regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads. plan-tune's job is protecting those contracts. "Wrong product, correctly built" is caught by the human touchpoints that remain (the intake interview, the preview gate, staging test) — **not** here.
+plan-tune is a **contract certifier, not an adversarial reviewer**. The PRD is a **machine contract**: named fields are executed blindly by named consumers — regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads. plan-tune's job is protecting those contracts. "Wrong product, correctly built" is caught by the human touchpoints that remain (the intake interview, the staging test) — **not** here.
 
 ## The governing rule — no check without a consumer
 

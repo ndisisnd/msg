@@ -15,7 +15,7 @@ only happens after the human returns.
 
 Prefer the **structured, significance-rated manual-test-plan** generated **once** at
 pre-merge — do **not** re-derive the list from prose when it exists. This is the same
-generate-once checklist the pre-merge preview gate renders (C20/R2); post-merge renders
+generate-once checklist pre-merge emits; post-merge renders
 it as the staging human-test script (C22/AC-MTP6 — the second render site).
 
 1. **The structured manual-test-plan (preferred).** Consume the significance-rated

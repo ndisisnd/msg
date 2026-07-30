@@ -7,7 +7,7 @@ description: Canonical finding object emitted by pre-merge's gate stages and eng
 
 The single canonical finding shape emitted across the harness — every pre-merge
 gate stage (mechanical, unit-int, regression, platform buckets, security,
-migration, PRD-consistency, preview), eng's whole-change review, and the
+migration, PRD-consistency, smoke), eng's whole-change review, and the
 `report-prd-<N>-<K>.json` issues file (in the PRD's `reports/` folder, written on
 a failed run) that `eng --build report=` consumes. Every producer conforms to
 this object so downstream consumers (the `/msg --gui` board, `eng --build`'s
@@ -51,7 +51,7 @@ in some and absent in others).
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | string | yes | `<prefix>-<zero-padded 3-digit index>`, e.g. `sec-001`, `quality-003`, `unit-002`. Prefix names the producing bucket/mode. |
-| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:preview`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). `eng --review` emits `eng:review`. `post-merge` emits `post-merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. **Retired values are mapped on read, never rejected** — see "Legacy wire values" below. |
+| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:smoke`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). `eng --review` emits `eng:review`. `post-merge` emits `post-merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. **Retired values are mapped on read, never rejected** — see "Legacy wire values" below. |
 | `severity` | enum | yes | `blocker` / `high` / `medium` / `low`. See "Severity enum" below. |
 | `category` | enum | yes | See "Category enum" below. Never omit — dedup and regression keys depend on it. |
 | `rule` | string | yes | **The dedup/regression key.** Tool rule-id (`stripe-access-token`, semgrep check id), failing test name, or the verbatim assertion text. Never null — synthesize a stable slug from the finding if the tool gives no id. |

@@ -144,7 +144,7 @@ install; installed → persist as `ready`.
 
 ### 5 · PLATFORMS.md declaration gaps → delegate, never write
 
-Empty or `[USER: …]` placeholder deploy / preview / smoke cells mean `/msg --init` never
+Empty or `[USER: …]` placeholder deploy / smoke cells mean `/msg --init` never
 filled them in. `--init` **reports** these gaps and **delegates to `/msg --init`** — it
 **does not write `devkit/PLATFORMS.md`** (AC-DR1, AC-OW2). PLATFORMS.md command
 declarations stay owned by `/msg --init`; post-merge `--init` is read-only to that file.

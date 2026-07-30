@@ -38,7 +38,7 @@ consumer, ever.** Record `consumers_source` = `pact` | `hint` | `none` so the gr
 auditable.
 
 > **Live-server conformance** (spec-vs-implementation drift) needs a running server and
-> is run against the preview env, not here.
+> is run in the env wave, against the C23 sandbox — not here.
 
 ## Discover + run (spec linters + contract tests)
 

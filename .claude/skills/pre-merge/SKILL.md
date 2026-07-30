@@ -2,10 +2,10 @@
 name: pre-merge
 description: >
   The CI gate. Takes a feature branch from "eng says done" to "PR open against
-  staging with green checks and a human-approved preview". Runs the project's
+  staging with green checks". Runs the project's
   preflight-resolved pipeline from devkit/policy.json components[]: sync →
   parallel correctness + security waves → coverage → regression tail →
-  security/migration → PRD-consistency → preview deploy (human gate) → open PR.
+  security/migration → PRD-consistency → open PR.
   Emits a severity-graded verdict JSON. Absorbs the old /review and /test.
   Activates on /pre-merge after eng --build.
 argument-hint: "[--init | --update | --update-criticality] [--prd <path>] [--flaky <n>] [--minified | --full]"
@@ -20,8 +20,11 @@ allowed_tools:
 # pre-merge
 
 **The** CI gate. Runs after `eng --build` says a feature branch is done, and takes
-it to a PR open against `staging` with green checks and a human-approved preview.
-Absorbs the retired `/review` and `/test`. Each run is independent.
+it to a PR open against `staging` with green checks. Pre-merge holds **no human
+gate** — the human look at the running feature belongs to post-merge (the staging
+sign-off, or the direct-flow attestation when there is no staging branch);
+`../shared/refs/safety-floor.md` § *Human gates*. Absorbs the retired `/review`
+and `/test`. Each run is independent.
 
 ```
 eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  →  PR feature→staging  →  post-merge --staging
@@ -120,11 +123,12 @@ this file stays the spine. In outline:
    broken by `criticality` then `cost`. Independent components in a wave
    run as **parallel subagents**; dependents never run concurrently.
    For universal+prd this is `{mechanical·security·unit·prd-consistency}` ‖ →
-   the **env wave** `{integration·e2e·a11y·perf·load·mobile}` inside the **C23
+   the **env wave** `{smoke·integration·e2e·a11y·perf·load·mobile}` inside the **C23
    test-sandbox** (one ephemeral isolated env, provisioned only-on-green after the
-   static waves, promoted to serve as the preview, torn down after — `refs/executor.md`
+   static waves, torn down after — `refs/executor.md`
    §3b) → `{coverage}` → `{regression}` (C5). Static (`needs_env:false`)
-   components never enter the sandbox; `preview`/`smoke` are the only-on-green tail.
+   components never enter the sandbox; `smoke` runs first inside it so a dead app
+   short-circuits the expensive checks; `regression` is the only-on-green tail.
    Each protocol loads its ref on demand (`refs/universal/*`, `refs/platform/*`,
    `refs/prd/*`).
 5. **Fail-fast by `criticality`** (`refs/severity-rubric.md`): `critical` aborts the
@@ -164,7 +168,7 @@ authored separately. Full detail in `refs/executor.md`; in outline:
 8. Print the JSON per `refs/output-schema.md` as the **final emission** — shape **unchanged**; the optional additive `pipeline` field carries the resolved ordered pipeline for observability, and — only when selection ran — the additive `test_selection` block.
 9. **Closing message** — end the run (every verdict, including `refused`/`skipped`) with the closing message per `../shared/refs/closing-message.md` as the last **chat** output; the step-8 JSON stays the final **machine** emission, byte-identical.
 
-**Harness incidents (every run):** log unexpected script failures, tool errors, retries, missed writes, and broken gate infrastructure (CI, preview, checkout) to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md`. A **check that legitimately fails is not an incident** — only the harness breaking is. Logging never changes the verdict or what the run does next.
+**Harness incidents (every run):** log unexpected script failures, tool errors, retries, missed writes, and broken gate infrastructure (CI, sandbox, checkout) to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md`. A **check that legitimately fails is not an incident** — only the harness breaking is. Logging never changes the verdict or what the run does next.
 
 ## Issues-file loop (non-clean verdict)
 
@@ -189,7 +193,7 @@ the issues file — the loop walks the user from "issues found" to "fixes planne
 
 ## OPEN-PR — the terminal (clean verdict only)
 
-On `pass` / `pass_with_warnings` **and** an approved preview (when the gate fired):
+On `pass` / `pass_with_warnings`:
 `gh pr create --base <target> --head <feature-branch>` (where `<target>` is the
 SYNC target — `staging`, else `main`) with the verdict JSON + report
 path linked in the body. Record `pr_url`. **Never** `gh pr merge` — post-merge
@@ -208,8 +212,8 @@ so the gate never dead-ends.
 - `refs/universal/protocol-coverage.md` — `coverage` (`depends_on unit,integration`; Wave 2)
 - `refs/_common.md` + `refs/platform/*.md` — platform components + `--flaky`/`--changed-only`
 - `refs/universal/protocol-security.md`, `refs/platform/protocol-migration.md` — the mandatory safety-floor components
-- `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1; **advisory** — its LLM grades route to the human test checklist, they never block)
-- `refs/platform/protocol-preview.md` — `preview` deploy + human gate (D6/D10; only-on-green tail)
+- `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1; **advisory** — its LLM grades route to the human test checklist walked at post-merge `--staging`, they never block)
+- `refs/platform/protocol-smoke.md` — `smoke` liveness + golden-path check (env wave, runs first inside the sandbox)
 - `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; the test-selection enabling interview (asked on request, not at `--init`) + its single-run disable
 - `refs/protocol-update-criticality.md` — `--update-criticality` mode: inventory → evidence-cited proposals → human gate → tag commit + `criticality_review` restamp; also the gate's read-only staleness nudge
 - `../shared/refs/policy-schema.md` — the shared core of the `devkit/policy.json` schema + read-contract (`init` lifecycle §0, `release_flow` §1, `github_actions` §2b, validation rules)

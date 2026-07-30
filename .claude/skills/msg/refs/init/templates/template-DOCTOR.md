@@ -40,7 +40,7 @@ free-text context is for humans and is never tallied.
 | `retry` | The same call was made again after a failure, or made more than once |
 | `tool-error` | A tool or command failed unexpectedly (not a checked, expected failure) |
 | `validator-fail` | A validator or checker script exited non-zero with a named failure |
-| `gate-infra` | The gate's own infrastructure broke — CI, deploy, preview, branch protection |
+| `gate-infra` | The gate's own infrastructure broke — CI, deploy, test sandbox, branch protection |
 
 ## How rows get here
 

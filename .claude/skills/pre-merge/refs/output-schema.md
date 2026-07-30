@@ -27,7 +27,6 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "prd_paths": [],
   "prior_issues_loaded": false,
   "profile": "strict" | "standard" | "lenient",
-  "preview": { "fired": false, "approved": null, "kind": null, "artifact": null },
   "issues_file": "features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json" | "features/reports/report-<K>.json" | null,
   "pr_url": "<feature→staging PR url>" | null,
   "pipeline": { "waves": [["mechanical","security","unit","integration"],["coverage"],["regression"]], "pruned": [ {"id": "e2e", "by": "--changed-only"} ] },
@@ -44,7 +43,6 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 ```
 
 - `profile` — the platform-tolerance profile resolved for this run.
-- `preview` — preview-component outcome (`fired: false` when the D6 trigger didn't match).
 - `issues_file` — path to the issues file (the **universal report**, C7) written on a non-clean verdict (`fail`), consumed by `eng --build report=`; `null` on a clean pass. NO-PRD runs fall back to `features/reports/report-<K>.json`.
 - `pr_url` — the feature→staging PR opened by OPEN-PR on `pass`/`pass_with_warnings`; `null` otherwise. Pre-merge never merges it.
 - `pipeline` — **additive, optional** (v3): the resolved, ordered wave list the executor ran + which components each flag pruned. Observability only — its absence does not change any other field. Under test selection its per-component entries carry the selection suffix — `"unit: minified (42/731, tier S)"`.
@@ -90,7 +88,7 @@ shape in `refs/executor.md` §5 and `../../shared/refs/check-report-schema.md`.
 | `"pass_with_warnings"` | Only medium / low findings | 0 |
 | `"fail"` | Any blocker or high finding | 1 |
 | `"refused"` | Early termination — clean tree, schema mismatch, or out-of-scope instruction | 1 |
-| `"skipped"` | User declined at the human gate | 0 |
+| `"skipped"` | User declined at the SYNC conflict pause | 0 |
 
 ## issues[] entry shape
 
@@ -119,7 +117,7 @@ Array of stages/components omitted from this run. Each entry:
 
 - `no_tooling` — no detected tool supports the component.
 - `not_in_profile` — the component is not in the platform profile's `required_buckets`.
-- `not_triggered` — a component whose `active_when` gate wasn't met (`migration` with no migration files, `preview` with no matching surface, the `prd` group with no PRD).
+- `not_triggered` — a component whose `active_when` gate wasn't met (`migration` with no migration files, `smoke` with no matching surface, the `prd` group with no PRD).
 
 ## Refusal shape
 
@@ -145,7 +143,7 @@ When `verdict` is `"skipped"`:
 ```json
 {
   "verdict": "skipped",
-  "reason": "sync_conflict_declined" | "preview_rejected",
+  "reason": "sync_conflict_declined",
   "base": "<base ref>",
   "branch": "<branch>",
   "timestamp": "<ISO 8601>",
@@ -154,7 +152,6 @@ When `verdict` is `"skipped"`:
 ```
 
 - `sync_conflict_declined` — the human aborted the SYNC merge at a semantic conflict.
-- `preview_rejected` — the human rejected the preview; the PR is not opened.
 
 ## Field reference
 
