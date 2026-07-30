@@ -42,7 +42,7 @@ type: reference
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
-| `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
+| `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
 | `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`, and `policies.github_actions` — whether you want GitHub Actions CI at all, revisable via `/msg --update`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
@@ -79,7 +79,7 @@ type: reference
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, `features/`, **and `devkit/DOCTOR.md`** — the ledger files, the PRD lanes and the harness telemetry are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
-| INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `post-merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
+| INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
 | features/ lanes | Three lifecycle lanes — `planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the empty lane on disk. **Gitignored** (see `.gitignore` row) — created, then ignored. A PRD lives in exactly one lane, matching its pipeline stage (drafted → `planned`, branch cut → `wip`, shipped → `done`) | `<cwd>/features/{planned,wip,done}/` |
 | roadmap/TEMPLATE-roadmap.md | Markdown from `refs/init/templates/TEMPLATE-roadmap.md` — the format guide for `roadmap/roadmap.md`, which is **hand-authored by the human**; no skill generates it. Shipped so there is something to author against and the `/msg --gui` Roadmap tab can parse the result. Copied by the user to `roadmap/roadmap.md` when the project has enough PRDs to sequence | `<cwd>/roadmap/TEMPLATE-roadmap.md` |
 | Migrated PRDs | Any pre-lane flat `features/prd-*/` dir is moved into a lane by the completion ladder (plain `mv`; `git mv` only for the legacy case where the dir is already tracked) (shipped → `done/`, live branch → `wip/`, else → `planned/`); reported as `migrated` in the manifest. Empty `features/` → no migration | `<cwd>/features/<lane>/prd-*/` |
@@ -174,6 +174,7 @@ already carries its value.
 | `devkit/PLATFORMS.md` | `PLATFORMS` — no placeholders, but it **selects the default rows** |
 | `devkit/policy.json` | `RELEASE_FLOW`, `PROD_BRANCH`, `STAGING_BRANCH` |
 | row gap `CLAUDE.md:language` | `LANGUAGE` |
+| row gap `.gitignore:doctor` | **none** — fixed line, never asked |
 
 Two variables are free — take them without asking whenever they're needed:
 `PROD_BRANCH` from branch topology, and `LANGUAGE` from `LANG_DEFAULT` when
@@ -240,7 +241,7 @@ Map the Step 2 release-flow variables: `RELEASE_FLOW` Staged → `"staged"`, Dir
 `prod_branch` = `PROD_BRANCH` (from `script-branch-topology.sh`, never asked — this is what makes a
 `master` repo seed a `prod_branch` that exists); `staging_branch` = `STAGING_BRANCH` (already
 resolved to `null` for direct, `"staging"` for staged). Both keys are a **downstream contract** —
-`pre-merge` and `post-merge` read them off `policy.json` and `policy-schema.md` declares them — so
+`pre-merge` and `merge` read them off `policy.json` and `policy-schema.md` declares them — so
 they are seeded whether or not anything was asked. Schema authority:
 [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) ("Seed skeleton"). Read the
 script's `STATUS=` line and add `devkit/policy.json` to the Step 5 manifest as `created` or
@@ -259,6 +260,7 @@ lets the never-overwrite guarantee stay absolute.
 | Token | Row to add | Where | Value |
 |---|---|---|---|
 | `CLAUDE.md:language` | `- **Language**: <LANGUAGE>` | `## Project`, directly under the `- **Platform**:` row (append to the list if that row is absent) | `LANG_DEFAULT` when detection resolved it; otherwise ask once (Q2b) |
+| `.gitignore:doctor` | `devkit/DOCTOR.md` | at the end of the `devkit/` block if there is one, otherwise appended as its own line | fixed — no variable, no question. The ledger is a local incident log; a repo bootstrapped before it existed would start committing one |
 
 1. **Preview.** Show each proposed insertion as a diff — the file, the row, and the
    line it lands under. Never show a change to an existing line: if a gap can only
@@ -299,11 +301,11 @@ call:
 
 > header **GitHub Actions**, question "Run your CI on GitHub Actions? Actions minutes are metered on private repos on the Free plan."
 > - **Yes, use GitHub Actions** — `/pre-merge --init` will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
-> - **No — CI elsewhere or none** — no workflow is scaffolded and `/post-merge` accepts a PR with **zero** checks instead of flagging it. Every other gate is unchanged: red or pending checks (from any CI) still block the merge, and every human gate stands.
+> - **No — CI elsewhere or none** — no workflow is scaffolded and `/merge` accepts a PR with **zero** checks instead of flagging it. Every other gate is unchanged: red or pending checks (from any CI) still block the merge, and every human gate stands.
 
-> header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (recommended for `/post-merge`)"
-> - **Yes, bootstrap it** — run `bash .claude/scripts/post-merge-protection.sh --bootstrap` (resolve locally-first, else `$HOME/.claude/scripts/…`); it's idempotent. Print each `BOOTSTRAPPED`/`BOOTSTRAP_FAILED` line.
-> - **Skip** — note that `/post-merge` will refuse until protection is set; the user can re-run the script later.
+> header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (recommended for `/merge`)"
+> - **Yes, bootstrap it** — run `bash .claude/scripts/script-branch-protection.sh --bootstrap` (resolve locally-first, else `$HOME/.claude/scripts/…`); it's idempotent. Print each `BOOTSTRAPPED`/`BOOTSTRAP_FAILED` line.
+> - **Skip** — note that `/merge` will refuse until protection is set; the user can re-run the script later.
 
 The two are **independent** — bootstrap sets `required_status_checks
 {strict:true, contexts:[]}`, so protection is worth having with no CI at all
@@ -359,5 +361,5 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
 - `.claude/scripts/script-policy-set.py` — **the only writer of `devkit/policy.json`**: the Step 3 seed (`--create --skip-if-exists --stamp-by`) and the Step 5 `policies.github_actions` merge. Sets a dotted key path, creates missing parents, preserves every sibling, re-parses the result, rolls back a bad write
 - `.claude/scripts/script-branch-topology.sh` — the one branch-detection block: `CURRENT_BRANCH`, `HAS_MAIN`/`HAS_MASTER`/`HAS_STAGING`, the resolved `PROD_BRANCH`, and the `HAS_GH_REMOTE` gate Step 5 reads. Called from Step 2 (via `protocol-cto.md`/`protocol-eng.md`) and Step 5
-- `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)
+- `.claude/scripts/script-branch-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/merge`)
 - `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`), and Step 5 adds `policies.github_actions` (§2b) when a GitHub remote made the CI question askable

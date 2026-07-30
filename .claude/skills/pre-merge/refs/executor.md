@@ -27,7 +27,7 @@ both bracket the resolved pipeline.
 ## 0 · Load the manifest (Fork C — the no-manifest refusal)
 
 Load + validate `devkit/policy.json` once per run (`policy-schema.md` read-contract
-§0/§1 + `policy-schema-pre-merge.md` §2c — post-merge's sections are never loaded).
+§0/§1 + `policy-schema-pre-merge.md` §2c — merge's sections are never loaded).
 Then gate on `components[]` per the manifest-state table in
 `../refs/refusal-patterns.md` §`no_manifest` — the one home for that gate.
 
@@ -324,7 +324,7 @@ authored** regression tests (below).
 **Size is measured from the diff's blast radius, never from the PRD's prose.** A
 "medium-looking" PRD touching two leaf components is small; a one-line PRD editing
 a shared util is large. All three signals are computed **in the prelude**, from
-`../scripts/resolve-diff.sh` + the code graph — no agent judgment, no per-run LLM call
+`../scripts/script-resolve-diff.sh` + the code graph — no agent judgment, no per-run LLM call
 :
 
 | Signal | Definition | Source | Unavailable ⇒ |
@@ -337,7 +337,7 @@ Thresholds come from `policies.test_selection.tiers` + `max_affected_ratio` (def
 short-circuiting signal (rule step 1) that lands directly in **L**.
 
 **The tier is resolved by script, not by judgment.** Run
-`../scripts/pre-merge-tier-resolve.sh <base> [--affected-ratio <r>] [--fan-in-pct <p>]`
+`../scripts/script-tier-resolve.sh <base> [--affected-ratio <r>] [--fan-in-pct <p>]`
 — it reads the thresholds + `force_full_paths` from `devkit/policy.json`, derives
 `modules` from the diff itself, and prints `{tier, signals, trigger}`. Record that
 `tier` and those `signals` verbatim (§3c.3); `trigger` is the human-readable
@@ -469,7 +469,7 @@ aggregate. `EXTRA=<id>` (a report with no planned component) is one `low` note.
 The mechanical half runs as one script:
 
 ```bash
-.claude/scripts/pre-merge-aggregate-verdict.sh --run-dir .pre-merge/<ts>/ \
+.claude/scripts/script-aggregate-verdict.sh --run-dir .pre-merge/<ts>/ \
   --plan .pre-merge/<ts>/plan.json --diff <resolve-diff output> [--prd <path>]
 ```
 
@@ -529,8 +529,8 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
 - **On a minified run the universal report also carries the `test_selection` block**
   — the same object emitted in the verdict JSON (§3c.3), copied verbatim at the top
   level beside `checks[]`, and omitted entirely on a full or selection-off run. The verdict JSON is stdout and doesn't survive the run, so this
-  committed copy is the **durable** record post-merge reads to attribute a backstop
-  failure to a selected-away test (`../../post-merge/refs/staging.md` § *Test-selection-miss detection*; shape contract in `../../shared/refs/report-schema.md`).
+  committed copy is the **durable** record merge reads to attribute a backstop
+  failure to a selected-away test (`../../merge/refs/staging.md` § *Test-selection-miss detection*; shape contract in `../../shared/refs/report-schema.md`).
 
 ## 6 · Terminal + run report
 

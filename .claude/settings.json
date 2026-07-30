@@ -3,7 +3,7 @@
     "allow": [
       "WebSearch",
       "Bash(bash /Users/andychan/.claude/skills/agent-audit/scripts/run-evals.sh *)",
-      "Bash(bash /Users/andychan/.claude/scripts/plan-tune-preflight.sh *)",
+      "Bash(bash /Users/andychan/.claude/scripts/script-cert-preflight.sh *)",
       "Bash(rtk find *)",
       "Bash(rtk ls *)",
       "Bash(rtk git diff *)",
@@ -15,7 +15,7 @@
       "Edit(/.claude/skills/msg/**)",
       "Edit(/.claude/skills/plan-em/**)",
       "Edit(/.claude/skills/eng/**)",
-      "Edit(/.claude/skills/plan-tune/**)",
+      "Edit(/.claude/skills/plan-review/**)",
       "Bash(mkdir -p components src)",
       "Bash(touch pages/index.tsx components/Button.tsx schema.prisma src/foo.ts)",
       "Skill(update-config)",

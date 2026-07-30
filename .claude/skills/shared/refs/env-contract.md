@@ -35,7 +35,7 @@ needs lives beside the half a machine needs.
 | `pre-merge --init` | **scaffolds** it — detects the provisioner and fills what it can; writes `[USER: …]` placeholders where detection failed |
 | `pre-merge --update` | **re-detects and proposes deltas** (a compose file appeared, a seed script moved) under the normal approved-delta write |
 | `pre-merge` gate run | **reads only** (executor §3b). Never writes — the Fork E pattern |
-| `post-merge` | **reads only** — the same fenced block, same shape (schema shared, machinery not) |
+| `merge` | **reads only** — the same fenced block, same shape (schema shared, machinery not) |
 | a human / `eng` debug session | reads the prose half, edits either half freely |
 
 The file is **hand-editable and hand-edits win**: `--update` proposes, it never silently

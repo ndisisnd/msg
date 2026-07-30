@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # script-signoff-coverage.sh — READ-ONLY staging sign-off coverage check.
 #
-# post-merge --production's Step 1 safety gate: does the newest staging
+# merge --production's Step 1 safety gate: does the newest staging
 # sign-off actually cover what is about to ship, or has staging advanced past
 # every stamped commit? The whole check used to be prose plus inline bash (an
 # ancestry loop, a coverage compare and a pairwise topologically-newest loop)
@@ -12,7 +12,7 @@
 # The model keeps the one judgment half it must own: the unpinned-legacy
 # human re-ask (this script only reports UNPINNED, it never resolves it).
 #
-# Contract: .claude/skills/post-merge/refs/production.md § Sign-off coverage
+# Contract: .claude/skills/merge/refs/production.md § Sign-off coverage
 #
 # Usage:
 #   script-signoff-coverage.sh --stamp <prd-id>=<sha> [--stamp ...] \

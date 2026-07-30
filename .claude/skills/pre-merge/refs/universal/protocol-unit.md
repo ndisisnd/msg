@@ -11,7 +11,7 @@ SYNC's merge). Findings conform to `../finding-schema.md`; `source: unit`.
 ## Runner
 
 Use the `run` command resolved for the `unit` component in `devkit/policy.json`
-`components[]` (detected at `--init`/`--update` by `preflight-check-02-unit.sh`) — do
+`components[]` (detected at `--init`/`--update` by `script-preflight-02-unit.sh`) — do
 not re-detect. Restrict the invocation to the unit-suite subset when the runner's config
 distinguishes one (e.g. a `unit/` test directory, a `--testPathPattern`/`-m unit`
 marker, a pytest `unit` marker); else run the component's default suite.

@@ -115,7 +115,7 @@ write nothing.
 > header **GitHub Actions**, question "GitHub Actions CI is currently **`<enabled|disabled>`**`<, reason: "<reason>"` when disabled`>`. Change it?"
 > - **Keep it as is** — write nothing; `policy.json` is untouched.
 > - **Turn it on** — CI runs on Actions; `/pre-merge --init` will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
-> - **Turn it off** — no workflow is scaffolded and `/post-merge` accepts a PR with **zero** checks instead of flagging it. For repos with no Actions minutes (private repo on GitHub Free), or CI hosted elsewhere. Red or pending checks from any CI still block the merge; every human gate stands.
+> - **Turn it off** — no workflow is scaffolded and `/merge` accepts a PR with **zero** checks instead of flagging it. For repos with no Actions minutes (private repo on GitHub Free), or CI hosted elsewhere. Red or pending checks from any CI still block the merge; every human gate stands.
 
 When the current state is *absent*, phrase it as "not set (defaults to enabled)"
 and offer the same three options.
@@ -240,6 +240,6 @@ Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — plain `
 - `refs/protocol-cto.md` / `refs/protocol-eng.md` — Step 2 interview modes, reached via `protocol-init.md`
 - `.claude/scripts/script-policy-set.py` — the only writer of `devkit/policy.json`; both this protocol's keys (Step 3-CI `policies.github_actions`, Step 3-TS `policies.test_selection.enabled`) go through it, siblings preserved and the result re-parsed
 - `.claude/scripts/script-branch-topology.sh` — the `HAS_GH_REMOTE` gate Step 3-CI reads; same resolver `protocol-init.md` uses
-- `../../shared/refs/policy-schema.md` — §2b `policies.github_actions`, the one key this protocol writes (Step 3-CI); the read-contract that turns it into post-merge's inactive CI stage lives there too
+- `../../shared/refs/policy-schema.md` — §2b `policies.github_actions`, the one key this protocol writes (Step 3-CI); the read-contract that turns it into merge's inactive CI stage lives there too
 - `../../shared/refs/policy-schema-pre-merge.md` — §2c `policies.test_selection`, the second key this protocol writes (Step 3-TS, disable only); the read-contract for the 5-step selection rule lives there too
 - `../../pre-merge/refs/protocol-init.md` — owns the `policies.test_selection` **enabling** interview (backstop verification + the initial criticality-tagging pass) that Step 3-TS's "Turn it on" hands off to, rather than duplicating it here

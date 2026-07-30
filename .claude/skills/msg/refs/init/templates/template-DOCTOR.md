@@ -31,7 +31,7 @@ creates it, and it stays on disk.
 
 A row is only useful if the same failure logs the same way twice, so every row
 carries a stable signature: `<class>:<artifact-or-step>` — e.g.
-`validator-fail:preflight-check-06`. The class comes from this fixed enum; the
+`validator-fail:script-preflight-06`. The class comes from this fixed enum; the
 free-text context is for humans and is never tallied.
 
 | Class | Means |

@@ -2,7 +2,7 @@
 name: plan-em
 description: >
   Engineering Manager skill. Reads an approved PRD, runs pre-flight checks against
-  AHA.md, GLOSSARY.md and ARCHITECTURE.md, auto-runs plan-tune certification inline
+  AHA.md, GLOSSARY.md and ARCHITECTURE.md, auto-runs plan-review certification inline
   before each wave (product before the plan wave, eng before the build wave — no
   ask), identifies specialist agents to activate (roster approval — the single human
   gate), spins them up to write engineering sections directly into the PRD, then
@@ -32,7 +32,7 @@ team-lane fan-out in `refs/protocol-team.md` — neither is restated here.
 
 - Slash command: `/plan-em`
 - Natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents"
-- Context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-tune`
+- Context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-review`
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.
@@ -57,7 +57,7 @@ the flag-parse rule live in `refs/protocol-em.md` Step 0; the pref file itself l
 
 | Name | Format | Source |
 |------|--------|--------|
-| PRD file path | `.md` file path matching `features/{planned,wip,done}/prd-*/prd-*.md` (or legacy flat `features/prd-*/prd-*.md`) | User message at invocation, or handoff from `plan-pm` / `plan-tune` |
+| PRD file path | `.md` file path matching `features/{planned,wip,done}/prd-*/prd-*.md` (or legacy flat `features/prd-*/prd-*.md`) | User message at invocation, or handoff from `plan-pm` / `plan-review` |
 | Execution-mode flag | `--team` (default) / `--solo` | User message at invocation |
 | Clarification answers | `AskUserQuestion` selections | Human during ambiguity resolution and agent approval |
 

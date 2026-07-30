@@ -25,7 +25,7 @@ Uncommitted work if there is any (`git diff HEAD`), otherwise the branch against
 |---|---|---|
 | **The diff** | Step 1 — the only required input | No diff, no review: stop |
 | **The tickets' `done-when`** | The `## Todos — <Agent>` blocks the build worked (parent-injected on the spawned path) | Judge scope against the diff's own stated intent |
-| **PRD acceptance criteria** | The digest, never the whole PRD: `scan-prd-digest.py "<prd-path>" --slice build --feature <F-ID>` — the F-ID row carries the criterion verbatim | Standalone runs usually have no PRD; review the diff on its own terms |
+| **PRD acceptance criteria** | The digest, never the whole PRD: `script-prd-digest.py "<prd-path>" --slice build --feature <F-ID>` — the F-ID row carries the criterion verbatim | Standalone runs usually have no PRD; review the diff on its own terms |
 
 No `/cook` call — coding standards are not this mode's job.
 
@@ -41,7 +41,7 @@ Hunt these, in priority order: (1) logic errors in the new path — inverted con
 
 **Not yours.** Style, naming, formatting, idiom — `cook` owns those. Anything a linter or type-checker catches. Test coverage or quality, CVE scanning, perf, a11y, e2e — `pre-merge` owns those. Defects that pre-date the diff — flag only what this change introduces. "Could also be written this way" with no bug attached.
 
-**One exception — plain-English comments (A4).** Every new or modified function, module, class and exported symbol carries a comment on the line above saying in plain English **what** it does, not **how**. `eng-comment-scan.sh` catches a *missing* comment at the commit gate; it cannot read one, so judging what-versus-how is yours and yours alone. `// increments i by one` is a how-comment and fails; `// counts orders still unpaid` is a what-comment and passes. **This is the only convention you check** — it is here because nothing else can check it, not because conventions are in scope.
+**One exception — plain-English comments (A4).** Every new or modified function, module, class and exported symbol carries a comment on the line above saying in plain English **what** it does, not **how**. `script-eng-comment-scan.sh` catches a *missing* comment at the commit gate; it cannot read one, so judging what-versus-how is yours and yours alone. `// increments i by one` is a how-comment and fails; `// counts orders still unpaid` is a what-comment and passes. **This is the only convention you check** — it is here because nothing else can check it, not because conventions are in scope.
 
 **Context.** The diff is enough. One exception: when a hunk changes a **public contract** — signature, exported type, schema, config key, externally-observable behaviour — read its call sites before judging it, because the diff cannot prove they still hold.
 

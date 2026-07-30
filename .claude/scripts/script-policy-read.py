@@ -3,7 +3,7 @@
 script-policy-read.py — the one READER for `devkit/policy.json`.
 
 Read-side twin of `script-policy-set.py`. Every `?? default` resolution the
-post-merge protocol used to spell in prose — `release_flow`, `branch_protection`
+merge protocol used to spell in prose — `release_flow`, `branch_protection`
 (+ per-branch overrides), `github_actions`, `staging_readiness`, `steps.<key>`,
 `staging_ready`, `test_selection` — is resolved here, once, in one call. Five
 separate prose resolutions per run meant five chances to drop a `??` default;
@@ -11,10 +11,10 @@ this script is the single implementation of the read contract.
 
 It reads the SPLIT schema world: the shared core
 (`shared/refs/policy-schema.md` §0 `init`, §1 `release_flow`, §2b
-`github_actions`) plus post-merge's half
-(`shared/refs/policy-schema-post-merge.md` §2 `branch_protection`,
+`github_actions`) plus merge's half
+(`shared/refs/policy-schema-merge.md` §2 `branch_protection`,
 §3 `steps.<key>`, §5 `staging_ready`, `staging_readiness`) and the one
-pre-merge key post-merge's test-selection backstop needs
+pre-merge key merge's test-selection backstop needs
 (`shared/refs/policy-schema-pre-merge.md` §`policies.test_selection`).
 
 Schema authority stays those three files; this script implements the read
@@ -56,7 +56,7 @@ Output (stdout, KEY=VALUE lines, always the full key set):
   STEPS_CI_CHOSEN=<path|paths>
   STEPS_DEPLOY_STAGING=…  STEPS_DEPLOY_PRODUCTION=…  STEPS_SMOKE=…   §3
   TEST_SELECTION=true|false           §2c — absent ⇒ FALSE (disabled)
-  TEST_SELECTION_BACKSTOP=ci|post-merge|both|<empty>
+  TEST_SELECTION_BACKSTOP=ci|merge|both|<empty>
   TEST_SELECTION_FORCE_FULL=<glob,…>
   WARN=<text>                         zero or more, one per validation finding
 
@@ -85,7 +85,7 @@ SELF = "script-policy-read"
 PROT_MODES = ("enforced", "optional", "skip")
 STEP_STATES = ("ready", "opted_out", "n/a", "missing", "deferred")
 STEP_KEYS = ("ci", "deploy_staging", "deploy_production", "smoke")
-BACKSTOPS = ("ci", "post-merge", "both")
+BACKSTOPS = ("ci", "merge", "both")
 
 WARNS = []
 
@@ -241,7 +241,7 @@ def main():
                  "honored" % (k, st))
         resolved_steps[k] = (st, flat(entry.get("chosen", "")))
 
-    # ── §2c test_selection (pre-merge's key; post-merge reads it for the
+    # ── §2c test_selection (pre-merge's key; merge reads it for the
     #     backstop-attribution guard only) ─────────────────────────────────
     ts = as_obj(pol, "test_selection")
     ts_on = ts.get("enabled", False)

@@ -2,7 +2,7 @@
 """
 script-platforms-parse.py — the ONE parser for `devkit/PLATFORMS.md`.
 
-Three post-merge refs described the identical table parse in prose —
+Three merge refs described the identical table parse in prose —
 `refs/deploy.md` (deploy commands + `release_model` inference),
 `refs/verify-deploy.md` (the v2 smoke declaration) and the two protocols'
 rollback/provenance reads. A model parsing a 17-column pipe table three times
@@ -15,7 +15,7 @@ reordering a column cannot mis-map a cell.
 Cell markers (template-PLATFORMS.md § Column contract) — a cell that is blank,
 `—`, or a `[USER: …]` placeholder all mean **not configured**. They are
 normalised to the empty string here, and the caller's "ask or skip with a note"
-rule is the same for all three. Post-merge never invents a command.
+rule is the same for all three. Merge never invents a command.
 
 `release_model` — declared wins, inference is the fallback and is ALWAYS warned
 (AC-RM1). **macOS is never inferred from identity**: a directly-downloaded,
@@ -26,9 +26,9 @@ run proceeds) and raises the macOS-specific warn naming the declaration as the
 fix.
 
 Contract:
-  .claude/skills/post-merge/refs/deploy.md         § Resolve
-  .claude/skills/post-merge/refs/verify-deploy.md  § Resolve
-  .claude/skills/shared/refs/policy-schema-post-merge.md §4 release_model
+  .claude/skills/merge/refs/deploy.md         § Resolve
+  .claude/skills/merge/refs/verify-deploy.md  § Resolve
+  .claude/skills/shared/refs/policy-schema-merge.md §4 release_model
   .claude/skills/msg/refs/init/templates/template-PLATFORMS.md § Column contract
 
 Usage:

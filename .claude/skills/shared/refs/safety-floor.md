@@ -18,10 +18,10 @@ lanes:
 |---|---|---|
 | `eng` | commits to `feat/prd-<n>-*` **feature branches only** | push to / merge into / open a PR against `staging` or `main` |
 | `pre-merge` | opens **exactly one** PR `feature → staging`, plus the D7 sync-merge commit | merge any PR; touch `main`; modify source |
-| `post-merge` | the **only** skill that merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `post-merge/SKILL.md` (Hard refusals) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
+| `merge` | the **only** skill that merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `merge/SKILL.md` (Hard refusals) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
 | all others | their own artifacts (PRDs, reports, tickets, devkit appends) | push, merge, or open PRs |
 
-**Nothing reaches `main` except from `staging`, and only via `post-merge
+**Nothing reaches `main` except from `staging`, and only via `merge
 --production`.** That is the single production path; no flag or orchestrator
 opens another.
 
@@ -31,8 +31,8 @@ Branch protection enforces green CI on `staging` and `main` (and ≥1 human revi
 on `main`) — machine-enforced, not convention. On top of that, these human gates
 always fire:
 
-- **Staging sign-off** — a human tests staging before `post-merge --production` will run (`staging-signoff:` stamp). In `staged` flow this is **the** human look at the running feature; the old pre-merge preview approval was removed because it tested the same content twice, and its judgment moved here — not away.
-- **Direct-flow human test** — with no staging branch, `post-merge --production` asks the human to attest they have tested the build **before** the merge. This is the `direct` flow's equivalent of the staging sign-off, and it is the only remaining pre-merge-time human look.
+- **Staging sign-off** — a human tests staging before `merge --production` will run (`staging-signoff:` stamp). In `staged` flow this is **the** human look at the running feature; the old pre-merge preview approval was removed because it tested the same content twice, and its judgment moved here — not away.
+- **Direct-flow human test** — with no staging branch, `merge --production` asks the human to attest they have tested the build **before** the merge. This is the `direct` flow's equivalent of the staging sign-off, and it is the only remaining pre-merge-time human look.
 - **Production double-confirmation** — two separate approvals before anything ships to `main`.
 
 ## Secret-scan floor — never hollow
@@ -50,6 +50,6 @@ best-effort — their absence is a note, never a blocker (`pre-merge/refs/univer
 
 ## Always on, every skill
 
-DB/data/prod-config pauses (`eng-db-touch.sh`) · breaking-change pauses · branch
+DB/data/prod-config pauses (`script-eng-db-touch.sh`) · breaking-change pauses · branch
 isolation (`feat/prd-<n>-*`) · the secret-scan floor above · frontmatter stamps ·
 F-ID stability · PRD §7 ledger · gate-fail ticket · pre-merge refusals.

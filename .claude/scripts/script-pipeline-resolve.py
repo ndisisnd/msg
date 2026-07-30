@@ -34,7 +34,7 @@ Usage:
   --catalog         shared/refs/component-catalog.md (required in resolve mode)
   --platforms-file  devkit/PLATFORMS.md — target platforms for the C12 check
   --platforms       comma list, overrides --platforms-file
-  --diff            resolve-diff.sh output; absent ⇒ surface gates fail OPEN
+  --diff            script-resolve-diff.sh output; absent ⇒ surface gates fail OPEN
   --prd             enables the prd-group components
   --changed-only    prune platform components whose surface the diff misses
   --flaky           retry count; recorded, never changes membership

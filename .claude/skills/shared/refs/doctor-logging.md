@@ -33,7 +33,7 @@ a row into the table, and never let a log failure change the run's own outcome.
 **Signature classes (fixed enum — the appender rejects anything else):**
 `write-miss` · `retry` · `tool-error` · `validator-fail` · `gate-infra`.
 Add the artifact or step after a colon so the same failure keys the same way twice
-(`validator-fail:preflight-check-06`, `write-miss:TODOs.json`). Recurrence is what
+(`validator-fail:script-preflight-06`, `write-miss:TODOs.json`). Recurrence is what
 graduates an incident into a real issue; an unstable signature never graduates.
 
 ## Channel 1 — mechanical (the reliable floor)

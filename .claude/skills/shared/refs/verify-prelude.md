@@ -28,10 +28,10 @@ retired). In v3 the executor reads each component's resolved `run` from the
 }
 ```
 
-- `diff` — from `pre-merge/scripts/resolve-diff.sh <base>`.
+- `diff` — from `pre-merge/scripts/script-resolve-diff.sh <base>`.
 - `tooling` — **superseded in v3**: tooling is resolved at `--init`/`--update` into each
   component's `run` command in `devkit/policy.json` `components[]` (via the
-  `preflight-check-*.sh` family), which the executor reads directly. The prelude no
+  `script-preflight-*.sh` family), which the executor reads directly. The prelude no
   longer caches a tooling fingerprint (the field stays `null` for back-compat); it caches
   only the resolved `diff`.
 
@@ -43,7 +43,7 @@ unparseable JSON → **stale**.
 
 ## Generate-if-stale rule
 
-Pre-merge regenerates on stale/missing/corrupt (running `resolve-diff.sh` at the
+Pre-merge regenerates on stale/missing/corrupt (running `script-resolve-diff.sh` at the
 top of the run), then best-effort writes the prelude. The write never fails the run.
 
 ## Consume rule

@@ -1,6 +1,6 @@
 ---
 name: smoke
-description: Component 17 (platform group, blocking, env wave) — the build's liveness + golden-path check (C21). Runs FIRST inside the C23 sandbox and short-circuits the expensive env-wave checks on failure; an app that fired always gets at least a DEFAULT liveness check (never a silent skip), then runs the project's configured smoke command (1–3 golden paths incl. the core action). Genuinely un-smokeable surface degrades LOUDLY. Also the shared surface post-merge --staging smoke-verifies a deploy through.
+description: Component 17 (platform group, blocking, env wave) — the build's liveness + golden-path check (C21). Runs FIRST inside the C23 sandbox and short-circuits the expensive env-wave checks on failure; an app that fired always gets at least a DEFAULT liveness check (never a silent skip), then runs the project's configured smoke command (1–3 golden paths incl. the core action). Genuinely un-smokeable surface degrades LOUDLY. Also the shared surface merge --staging smoke-verifies a deploy through.
 ---
 
 # Component 17 — SMOKE (the build's liveness + golden-path check)
@@ -14,8 +14,8 @@ platform — url / artifact / sim), `active_when` the diff touches a UI **or**
 api/migration/deploy surface.
 
 Guard, error rule, envelope: `../_common.md`. Runner (`smoke_runner`) from the component's
-resolved tooling. The same check is the shared surface post-merge `--staging` runs to
-smoke-verify a deploy (`post-merge/refs/verify-deploy.md`) — one liveness+critical-path
+resolved tooling. The same check is the shared surface merge `--staging` runs to
+smoke-verify a deploy (`merge/refs/verify-deploy.md`) — one liveness+critical-path
 contract, two callers.
 
 ## 1 · The no-vacuous-skip default-liveness floor
@@ -96,6 +96,6 @@ Component fields: `runner`, `command`, `liveness` (`floor` | `configured`),
   ordinary `blocking` fail-fast to the rest of the wave
 - `../../../shared/refs/safety-floor.md` — the present-but-hollow floor pattern (C9/C21/D28)
 - `../../../shared/refs/name-the-user-impact.md` — the finding-framing for a health gap
-- `post-merge/refs/verify-deploy.md` — the shared smoke surface post-merge `--staging` runs
+- `merge/refs/verify-deploy.md` — the shared smoke surface merge `--staging` runs
   to smoke-verify a deploy (same liveness + critical-path contract)
 - `../_common.md` — guard / error rule / output envelope

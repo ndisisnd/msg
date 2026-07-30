@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-script-ledger.py — the writer for a PRD's §7 "Plan tune findings" ledger.
+script-ledger.py — the writer for a PRD's §7 "Plan review findings" ledger.
 
 Owns everything about the ledger that is decidable: locating (or creating) the
 section, deduping this run's findings against prior rows, assigning the monotonic
@@ -65,7 +65,10 @@ SELF = "script-ledger"
 COLUMNS = ["#", "Date", "Auditor", "Severity", "What is wrong",
            "Suggested fix", "Why it matters", "Status"]
 SEV_ORDER = {"critical": 0, "major": 1, "minor": 2}
-SECTION_TITLE = "Plan tune findings"
+SECTION_TITLE = "Plan review findings"
+# Pre-v5 PRDs carry the certifier's former section heading, kept here verbatim.
+# Appends find it and leave the heading exactly as written — nothing is rewritten.
+LEGACY_SECTION_TITLES = ["plan tune findings"]
 
 
 def die(msg):
@@ -116,7 +119,7 @@ def is_separator(line):
 
 
 def heading_title(line):
-    """'## 7. Plan tune findings' -> 'plan tune findings'; None if not an H2."""
+    """'## 7. Plan review findings' -> 'plan review findings'; None if not an H2."""
     m = re.match(r"^##\s+(.*?)\s*$", line)
     if not m:
         return None
@@ -184,6 +187,10 @@ def main():
 
     # ── Locate the section and read any existing table ────────────────────────
     hidx, hend = find_section(lines, SECTION_TITLE.lower())
+    for legacy in LEGACY_SECTION_TITLES:
+        if hidx is not None:
+            break
+        hidx, hend = find_section(lines, legacy)
     header_cells, existing_rows, tbl_start, tbl_end = None, [], None, None
     if hidx is not None:
         for j in range(hidx + 1, hend):

@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # script-release-identity.sh — READ-ONLY release identity resolver for
-# post-merge --production: current tag, next version, build, monotonicity,
+# merge --production: current tag, next version, build, monotonicity,
 # version regression, provenance.
 #
 # The version source of truth is the newest `v*` tag reachable on prod —
 # never a VERSION file, never a bump commit. This script only READS: it never
 # tags, never pushes, never fetches. `--production` Step 5's own fetch is what
-# makes a post-merge run's numbers tag-time truth; run this after it for the
+# makes a merge run's numbers tag-time truth; run this after it for the
 # authoritative pass, before it for the Step-3 confirm preview.
 #
-# Contract: .claude/skills/post-merge/refs/release-identity.md
+# Contract: .claude/skills/merge/refs/release-identity.md
 #
 # Usage:
 #   script-release-identity.sh [--prod <branch>] [--remote <name>]
@@ -19,7 +19,7 @@
 #   --prod       production branch (default: main)
 #   --remote     remote whose tracking ref is read (default: origin; falls back
 #                to the local branch when no remote-tracking ref exists)
-#   --bump       semver level (default: minor — post-merge ships features)
+#   --bump       semver level (default: minor — merge ships features)
 #   --version    exact next version; must be STRICTLY GREATER than the current
 #                tag's version, else VERSION_REGRESSION=true
 #   --probe-sha  a platform `version_probe`'s reported commit, for provenance

@@ -91,7 +91,7 @@ with warnings must present them before the confirm, never after.
 | # | Condition | Warning |
 |---|---|---|
 | **W1** | Row's `prd` cell is set **and** the folder exists under `features/` | ⚠️ **Orphans a live PRD.** `#4` maps to `features/prd-7-search/`, which will still exist with nothing pointing at it. Deleting the row does **not** delete the PRD — that is a separate, manual decision. |
-| **W2** | `status` is `completed` | ⚠️ **Destroys ship record.** `#2` was stamped `completed` by `post-merge --production` — it records that something shipped. Deleting it removes that history. |
+| **W2** | `status` is `completed` | ⚠️ **Destroys ship record.** `#2` was stamped `completed` by `merge --production` — it records that something shipped. Deleting it removes that history. |
 | **W3** | Any **other** row's grade cell contains `S:blocked-by-#<target>` | ⚠️ **Dangling reference.** `#6` and `#9` are graded `S:blocked-by-#4`. Deleting `#4` leaves them blocked by a row that no longer exists. Offer to re-grade those rows' `S:` in a follow-up `/intake --update` — never silently rewrite them here. |
 | **W4** | `INTAKE-UPDATE.md` contains entries for the target row | ℹ️ **History is kept — in a separate file.** `#4` has 3 log entries in `INTAKE-UPDATE.md`. They are **preserved** — the log is append-only and survives the row's deletion in `INTAKE.md`, since it lives elsewhere. |
 
@@ -137,7 +137,7 @@ On **Cancel**: write nothing, say so, terminate.
   hand-edit:
 
 ```bash
-S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"
+S=.claude/scripts/script-intake-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-intake-stamp.sh"
 bash "$S" INTAKE.md <row-#> --remove-row
 ```
 

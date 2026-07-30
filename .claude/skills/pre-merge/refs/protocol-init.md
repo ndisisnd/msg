@@ -27,11 +27,11 @@ Both gate skills run the same seven-step contract (canonical text: the plan's "S
 contract"). Pre-merge's flavor:
 
 1. **Prerequisites** — `jq` (the detector needs it) and a `git` remote. Offer `brew install jq` if
-   missing; without a remote, note that PR-shaped steps are inert. (`gh` auth is post-merge's
+   missing; without a remote, note that PR-shaped steps are inert. (`gh` auth is merge's
    concern.)
 2. **Load or seed** the policy file — read `devkit/policy.json` if present (re-run = update in
    place, never overwrite from scratch); else start empty.
-3. **Detect** — run the `preflight-check-*.sh` family (the preflight ingestion below) and resolve the platform profile.
+3. **Detect** — run the `script-preflight-*.sh` family (the preflight ingestion below) and resolve the platform profile.
 4. **Interview** — one `AskUserQuestion` per real **tooling gap** only. Component tuning
    questions are seeded with their documented default instead of being asked
    (§ *Component questions are seeded, not asked*), and `policies.test_selection` is not
@@ -49,9 +49,9 @@ contract"). Pre-merge's flavor:
 
 ## Detection source
 
-The `preflight-check-*.sh` family emits one normalized detect report per component, together
+The `script-preflight-*.sh` family emits one normalized detect report per component, together
 covering the full fingerprint of detected tooling — one slot per runner (the probe primitives
-live in `preflight-common.sh`).
+live in `script-check-common.sh`).
 **Every `null`/`no_tooling` slot is a candidate gap.** `--init` does not re-detect by hand; it
 reads the reports and the Step-0 profile, then classifies.
 
@@ -150,7 +150,7 @@ gaps, never `n/a`.
 > suite's composition changes.
 
 > `ci` has no runner slot either — it's the **CI workflow** that runs the gate on the PR and
-> produces the status checks that post-merge's "green CI" and branch protection depend on. Detect
+> produces the status checks that merge's "green CI" and branch protection depend on. Detect
 > it directly (not from the fingerprint): a repo has a gap when **no** `.github/workflows/*.yml`
 > triggers on `pull_request`.
 >
@@ -176,11 +176,11 @@ gaps, never `n/a`.
 > Otherwise `ci` is a repo-wide floor (like `security`/`migration`), so its gap is always real —
 > never `n/a`. `--init` never writes `policies.github_actions`; that decision belongs to
 > `/msg --init` / `/msg --update` and is only read here. `steps.ci` stays this protocol's own key
-> (post-merge reads it, never writes it).
+> (merge reads it, never writes it).
 
 **Covered:** every catalog component (`component-catalog.md`), plus the cross-cutting `ci`
 workflow. The `deploy_staging` / `deploy_production` / `smoke` **step-keys** are
-**post-merge's** — pre-merge `--init` leaves them untouched. (post-merge `--init` *reads*
+**merge's** — pre-merge `--init` leaves them untouched. (merge `--init` *reads*
 the `ci` record at item 2 but never writes it — see its `protocol-init.md`.)
 
 ---
@@ -315,7 +315,7 @@ vocabulary — **the schema, statuses, and required-field rules are defined in
 - **not in `required_buckets`** → `n/a` (+ `reason`), `present:false`.
 - **known unresolved gap left as-is** → `no_tooling` (+ `reason`), `present:false`.
 
-The one **`steps`** key `--init` writes is `ci` (`../../shared/refs/policy-schema-post-merge.md` § `steps.<key>`) — post-merge's green-CI
+The one **`steps`** key `--init` writes is `ci` (`../../shared/refs/policy-schema-merge.md` § `steps.<key>`) — merge's green-CI
 check reads it. Pre-merge itself never consults `steps`.
 
 On completion `--init` **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote)
@@ -330,9 +330,9 @@ warnings. Never write `installed`, and never write a `steps` key other than `ci`
 
 ## Preflight ingestion → `components[]`
 
-`--init` runs a preflight-driven assembly step: it runs the `preflight-check-*.sh`
+`--init` runs a preflight-driven assembly step: it runs the `script-preflight-*.sh`
 family, ingests their normalized reports, and writes the `components[]` manifest into
-`devkit/policy.json`. The per-check `preflight-check-*.sh` family is the only detector;
+`devkit/policy.json`. The per-check `script-preflight-*.sh` family is the only detector;
 the executor reads each component's resolved `run` from the manifest and every
 **constant** from [`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md).
 The check-report shape is
@@ -341,7 +341,7 @@ The check-report shape is
 The assembly runs **after** the interview + gated install (so a just-installed tool is
 detected) and **before** the write:
 
-1. **Run all checks.** Execute every `.claude/scripts/preflight-check-*.sh` (ids 01–17,
+1. **Run all checks.** Execute every `.claude/scripts/script-preflight-*.sh` (ids 01–17,
    `15` retired). Each detects its own tooling/surface and writes a normalized `detect`
    report to `.pre-merge/preflight/<slug>.json` + stdout. A missing runner
    is never fatal — the check emits `present:false` + `status:no_tooling`/`n/a`.
@@ -405,7 +405,7 @@ needs the resolved `run_minified` slots and the detected platforms), as **one**
    | `full_run_backstop` | Verified by |
    |---|---|
    | `ci` | a `.github/workflows/*.yml` triggering on `pull_request` (the same detection the `ci` step-key uses, above) **and** `policies.github_actions.enabled` ≠ `false` |
-   | `post-merge` | `policies.release_flow.mode == "staged"` — there is a staging stage to run the full suite at |
+   | `merge` | `policies.release_flow.mode == "staged"` — there is a staging stage to run the full suite at |
    | `both` | **both** of the above verify |
 
 3. **No verified backstop ⇒ warn loudly + explicit override.** Name what
@@ -466,7 +466,7 @@ Escalation ladder, for clarity: `--full` (this run only, nothing written) →
 `/pre-merge --update` refreshes an existing manifest without a full re-setup. It
 reconciles **facts about the code**, never settled policy choices.
 
-1. **Re-run the preflight checks** — same `preflight-check-*.sh` family, fresh
+1. **Re-run the preflight checks** — same `script-preflight-*.sh` family, fresh
    `.pre-merge/preflight/<slug>.json` reports.
 2. **Diff** the fresh detect reports against the recorded `components[]`: which `present`
    flipped (tool added/removed), which `active_when` surface appeared/vanished (first
@@ -496,7 +496,7 @@ reconciles **facts about the code**, never settled policy choices.
 6. **Restamp `source_signature`** and stamp `generated_by: "pre-merge --update"`
    — both via `.claude/scripts/script-policy-set.py`. Re-validate the DAG
    before writing. `--update` writes no pre-merge `steps` entry; it only touches the
-   post-merge-owned `ci`/`deploy_*`/`smoke` step-keys, same as `--init`.
+   merge-owned `ci`/`deploy_*`/`smoke` step-keys, same as `--init`.
 
 `--update` never runs the gate, opens a PR, merges, or deploys — same boundaries as
 `--init`. A `policy.json` with no `components[]` is an `--init` case, not

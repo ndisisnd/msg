@@ -56,13 +56,18 @@ CANONICAL = [
     (4, "Error cases"),
     (5, "Open questions"),
     (6, "Feature execution table"),
-    (7, "Plan tune findings"),
+    (7, "Plan review findings"),
     (8, "Todos"),
 ]
 
+# Section titles that older PRDs still carry, mapped to their canonical title.
+# §7 carried the certifier's former name until v5; the read tolerates that old
+# heading so pre-v5 PRDs keep validating (nothing on disk is ever rewritten).
+LEGACY_TITLES = {"plan tune findings": "plan review findings"}
+
 RESERVED = {
     6: "_To be populated by plan-em — engineering breakdown of the §3 features._",
-    7: "_Populated by plan-tune (/plan-tune) — audit findings table._",
+    7: "_Populated by plan-review (/plan-review) — audit findings table._",
     8: "_Populated by eng --plan — implementation tickets, grouped by feature._",
 }
 
@@ -152,13 +157,19 @@ def norm(title):
     return (m.group(2) if m else title).strip().lower()
 
 
+def canon(title):
+    """norm() plus legacy-title folding, so an old heading reads as its new self."""
+    k = norm(title)
+    return LEGACY_TITLES.get(k, k)
+
+
 # ── check 1 — sections present, numbered, ordered ─────────────────────────────
 
 def check1(secs):
     want = {t.lower(): n for n, t in CANONICAL}
     seen = {}
     for title, lineno, _ in secs:
-        key = norm(title)
+        key = canon(title)
         if key not in want:
             m = NUMBERED.match(title)
             if m:
@@ -279,7 +290,7 @@ def check4(secs):
 
 
 def owner(n):
-    return {6: "plan-em", 7: "plan-tune", 8: "eng --plan"}[n]
+    return {6: "plan-em", 7: "plan-review", 8: "eng --plan"}[n]
 
 
 # ── check 5 — frontmatter ─────────────────────────────────────────────────────
@@ -303,7 +314,7 @@ def check5(fm):
 
 def section_body(secs, want_lower):
     for title, _, block in secs:
-        if norm(title) == want_lower:
+        if canon(title) == want_lower:
             return block
     return None
 

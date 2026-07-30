@@ -10,12 +10,12 @@
 # A tag ref is never fast-forwarded, so pushing a name the remote already holds
 # is REJECTED — that rejection is the compare-and-swap-to-absent. Storage is
 # the remote, so the lock survives across machines. A tag is metadata on a
-# commit: no tracked file changes, so post-merge's safety floor holds.
+# commit: no tracked file changes, so merge's safety floor holds.
 #
 # Silent when uncontended: an uncontended acquire + release asks nothing and
 # gates nothing. Friction appears only on a real collision.
 #
-# Contract: .claude/skills/post-merge/refs/production.md § Release lock
+# Contract: .claude/skills/merge/refs/production.md § Release lock
 #
 # Usage:
 #   script-release-lock.sh acquire [--prod <branch>] [--remote <name>]

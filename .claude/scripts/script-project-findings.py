@@ -110,12 +110,13 @@ REQUIRED = ("id", "source", "severity", "category", "rule", "message")
 # an old report unreadable: retired values are mapped on read, never rejected.
 # This is the single implementation for every reader on this path — the
 # `/msg --gui` board imports this module rather than re-deriving the mapping.
-# Adding a rename is one line here (e.g. "post-merge": "merge"); see
-# `shared/refs/finding-schema.md` § Legacy wire values, which lists the same
-# table in prose. Dedup/regression keys never match on `source`, so mapping a
-# value cannot change how findings group.
+# Adding a rename is one line here; see `shared/refs/finding-schema.md`
+# § Legacy wire values, which lists the same table in prose. Dedup/regression
+# keys never match on `source`, so mapping a value cannot change how findings
+# group.
 LEGACY_SOURCE = {
     "pair-review": "eng:review",   # v5: per-ticket pair review → one eng --review
+    "post-merge": "merge",         # v5: the ship gate was renamed post-merge → merge
 }
 
 

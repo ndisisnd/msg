@@ -64,28 +64,28 @@ Follow `refs/protocol-pm.md` end-to-end — it owns the steps, their order, and 
 
 ## PRD status lifecycle
 
-Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field immediately after completing the relevant work via the shared scalar writer `.claude/scripts/stamp-prd.sh <prd> <field> <value>` (two-path resolution) — one deterministic edit of the single frontmatter line, never improvised Bash.
+Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field immediately after completing the relevant work via the shared scalar writer `.claude/scripts/script-prd-stamp.sh <prd> <field> <value>` (two-path resolution) — one deterministic edit of the single frontmatter line, never improvised Bash.
 
 | Field | Initial | Updated by | Updated to | Trigger |
 |-------|---------|-----------|-----------|---------|
 | `status` | `product` | `plan-em` | `eng` | eng sections written to PRD |
-| `status` | `eng` | `post-merge --production` | `done` | shipped to production |
-| `product-tuned` | `no` | `plan-tune --product` | `yes` | certification passes |
-| `eng-tuned` | `no` | `plan-tune --eng` | `yes` | eng-side certification passes |
-| `reviewed` | `no` | `pre-merge` / `post-merge` | `yes` | gate/ship complete |
+| `status` | `eng` | `merge --production` | `done` | shipped to production |
+| `product-tuned` | `no` | `plan-review --product` | `yes` | certification passes |
+| `eng-tuned` | `no` | `plan-review --eng` | `yes` | eng-side certification passes |
+| `reviewed` | `no` | `pre-merge` / `merge` | `yes` | gate/ship complete |
 
 `status: done` is the terminal stamp — a production ship also relocates the PRD folder into the `done/` lane. It is **orthogonal** to `reviewed:`: `reviewed: yes` records that a gate ran; `status: done` records that the feature shipped. The two are set independently and never substitute for each other.
 
-**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5), via the shared ledger writer `.claude/scripts/stamp-intake.sh` (two-path resolution) — a single row rewrite that leaves every other row byte-identical. intake wrote the row `backlog`; `post-merge --production` later stamps it `completed` through the same writer.
+**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5), via the shared ledger writer `.claude/scripts/script-intake-stamp.sh` (two-path resolution) — a single row rewrite that leaves every other row byte-identical. intake wrote the row `backlog`; `merge --production` later stamps it `completed` through the same writer.
 
 ## References
 
 - `refs/protocol-pm.md` — end-to-end five-step autonomous protocol; followed from § Step-by-step protocol
 - `refs/protocol-sub.md` — the `--sub` deltas layered over that protocol; read from § Sub-PRD mode when `--sub` is set
-- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
+- `.claude/scripts/script-prd-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
 - `refs/template-prd.md` — structured PRD format (eight sections) and its drafting rules, including the §3 F-ID contract and the §4 error-case format; used to initialize the file in Step 3
 - `.claude/scripts/script-prd-shape.py` — deterministic PRD shape validator; call at the end of Step 3 Part 4
-- `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 3
-- `.claude/scripts/scan-n.prd sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)
+- `.claude/scripts/script-prd-number prd` — deterministic next-PRD-number resolver; call in Step 3
+- `.claude/scripts/script-prd-number sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)
 - `INTAKE.md` — the root backlog ledger written by `/intake`; the **only** source of a PRD's idea — read in Step 1 to resolve the row (calling `/intake` to capture one first when the user came in with raw prose), stamped in Step 5
 - `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md

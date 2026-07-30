@@ -18,7 +18,7 @@ This session runs as **Opus** and does not write code itself. It coordinates per
 
 Resolve the issue set and each issue's `complexity` (`simple` | `complex` — § Complexity rubric), in priority order:
 
-1. **Fix plan present** — `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` exists (same `<N>`/`<K>` as the issues file; written by `eng --plan report=…` per `../plan/fix-plan.md`). Read its tickets and take each ticket's `complexity` tag as authoritative. This is the normal path — `pre-merge`/`post-merge` reach here through the § fix-loop offer sequence (`../../../shared/refs/fix-loop.md`), which plans before it builds.
+1. **Fix plan present** — `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` exists (same `<N>`/`<K>` as the issues file; written by `eng --plan report=…` per `../plan/fix-plan.md`). Read its tickets and take each ticket's `complexity` tag as authoritative. This is the normal path — `pre-merge`/`merge` reach here through the § fix-loop offer sequence (`../../../shared/refs/fix-loop.md`), which plans before it builds.
 2. **No fix plan** — project the tickets directly from the issues file's `issues[]` by running `script-project-findings.py` (**`fix-build.md` § Finding → issue-ticket projection** — read-time view, never a rewrite; call it, do not re-derive), then grade each projected issue's `complexity` via the rubric below.
 
 ## Complexity rubric
@@ -79,7 +79,7 @@ C=.claude/scripts/script-eng-close-loop.py; [ -f "$C" ] || C="$HOME/.claude/scri
 - every issue verified green → `resolved`
 - one or more issues escalated (3-cycle bound hit) or left unreproduced (flaky) → `partially_resolved`
 
-This is the **only** write to the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`, and the script proves it — `issues[]` and every other field stay byte-identical by construction (the projection was read-time only). Emit an `Issue`-keyed roll-up summary (per-ticket status + assigned model) so the human/`--gui` board sees which model fixed each issue and which escalated. After loop-close the user re-runs the gate (`/pre-merge` or `/post-merge`) — the fixed branch comes back through the same gate (`fix-loop.md` § Re-entry).
+This is the **only** write to the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`, and the script proves it — `issues[]` and every other field stay byte-identical by construction (the projection was read-time only). Emit an `Issue`-keyed roll-up summary (per-ticket status + assigned model) so the human/`--gui` board sees which model fixed each issue and which escalated. After loop-close the user re-runs the gate (`/pre-merge` or `/merge`) — the fixed branch comes back through the same gate (`fix-loop.md` § Re-entry).
 
 ## References (cited, not duplicated)
 

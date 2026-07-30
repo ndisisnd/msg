@@ -1,10 +1,10 @@
 # Minimal PR gate workflow — scaffolded by `/pre-merge --init` for the `ci` step.
 #
-# Purpose: give the PR a real status check so "green CI" (post-merge Step 2 and
+# Purpose: give the PR a real status check so "green CI" (merge Step 2 and
 # branch protection) means something instead of passing vacuously on zero checks.
 #
 # This is a STARTING POINT. `--init` substitutes the commands it actually
-# detected (the resolved `run` commands from the preflight-check-*.sh family)
+# detected (the resolved `run` commands from the script-preflight-*.sh family)
 # into the run steps below, replacing the `[init: …]` placeholders. Steps whose
 # component the repo doesn't have are dropped. Tune the runner/setup afterward.
 name: pre-merge

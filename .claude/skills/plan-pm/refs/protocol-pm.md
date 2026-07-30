@@ -22,7 +22,7 @@ Nothing else.
 ## Step 1/5 — Resolve the intake row
 
 **Every PRD is planned from an `INTAKE.md` row. There is no other entry path** — no
-PRD is ever drafted against a row that does not exist, which is what lets `plan-tune`
+PRD is ever drafted against a row that does not exist, which is what lets `plan-review`
 check 3 compare every PRD against its source intent. Two ways in:
 
 1. **No args** → read `INTAKE.md` (repo root). List every **non-`completed`** row
@@ -55,7 +55,7 @@ Step 3 Part 1) rather than a lane-blind glob — it emits one JSONL object per P
 lanes (`planned/`, `wip/`, `done/`) and the legacy flat path, nested sub-PRDs included:
 
 ```bash
-S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S"
+S=.claude/scripts/script-prd-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-scan.sh"; bash "$S"
 ```
 
 If it emits nothing, emit `No prior PRDs.` and proceed. Otherwise, for each prior PRD line:
@@ -76,7 +76,7 @@ The intake `grade` cell's `S:blocked-by-#n`/`prd-<n>` is a second dependency sig
 **Part 1 — Pre-flight.** Resolve the next PRD number (ships in the global scripts dir; resolve there when the project has no vendored copy):
 
 ```bash
-S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd"; bash "$S" prd
+S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" prd
 ```
 
 Store as `n`. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
@@ -121,7 +121,7 @@ Canonical order per `refs/template-prd.md`:
 | 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. Genuinely unresolvable ones → Step 4 open questions |
 | 5. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
 | 6. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
-| 7. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder — plan-tune owns it |
+| 7. Plan review findings | Leave the `_Populated by plan-review …_` placeholder — plan-review owns it |
 | 8. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |
 
 New domain terms go straight into `devkit/GLOSSARY.md`, where the whole pipeline sees
@@ -134,14 +134,14 @@ are engineering detail → §6 (plan-em), never the product sections.
 **Part 4 — Dependency mirroring (mechanical, never skipped).** §3 is the source of truth
 for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §3 Dependencies cell must also appear
 in frontmatter `depends_on`. Do not author the two independently — after §3 is finalized,
-reconcile the frontmatter *from* §3 so the two cannot drift (`plan-tune` check 6 is a backstop,
+reconcile the frontmatter *from* §3 so the two cannot drift (`plan-review` check 6 is a backstop,
 not the primary catch). Run the deterministic mirror — it extracts every `prd-<n>-<slug>` token
 from the §3 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
 mirrored), unions it with the seeded array, and rewrites `depends_on` in place (`[]` when empty):
 
 ```bash
 PRD=features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md
-S=.claude/scripts/plan-pm-deps-mirror.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-deps-mirror.sh"; bash "$S" "$PRD"
+S=.claude/scripts/script-prd-deps-mirror.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-deps-mirror.sh"; bash "$S" "$PRD"
 ```
 
 It prints `ADDED <id>` for each newly-mirrored id and is idempotent. Sub-PRD ids
@@ -196,7 +196,7 @@ and its `prd` cell to `prd-[n]-[feature_slug]`. `<row-#>` is the resolved row's 
 Step 1. The writer edits only that row's two cells, preserving every other row verbatim:
 
 ```bash
-S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"; bash "$S" INTAKE.md <row-#> --status in-progress --prd prd-[n]-[feature_slug]
+S=.claude/scripts/script-intake-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-intake-stamp.sh"; bash "$S" INTAKE.md <row-#> --status in-progress --prd prd-[n]-[feature_slug]
 ```
 
 Missing `INTAKE.md` → the writer exits 2; skip with a one-line note. Row not found → exit 1.

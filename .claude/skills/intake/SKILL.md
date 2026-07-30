@@ -33,7 +33,7 @@ exist." `plan-pm` reads those rows and drafts the PRD autonomously.
 ```
 intake (capture + interview + grade → INTAKE.md rows)
   → plan-pm (picks a row, drafts the PRD solo, stamps in-progress + prd mapping)
-  → … → post-merge --production (stamps the row completed)
+  → … → merge --production (stamps the row completed)
 ```
 
 ## Usage
@@ -85,7 +85,7 @@ say so and ask which. Then read exactly one protocol and follow it end-to-end.
 - Never drafts a PRD, never reads the codebase, never runs an analysis pass — **in either mode**. intake captures and grades; `plan-pm` plans. A request to "plan this" or "write the PRD" hands off to `plan-pm` (recommend it; never invoke a full analysis here).
 - Never invents a fake-precise estimate (`~1,240 LOC`, `3.5 days`). Grades are **banded only** (§ Grading).
 - Never writes `status` or `prd`, in either mode (§ Status lifecycle).
-- `--update` refuses an **`in-progress`** row (the PRD is the source of truth — use `/plan-tune` or `/plan-pm`) and a **`completed`** row (historical record — capture a new idea instead). Neither refusal ends the run; both re-offer selection.
+- `--update` refuses an **`in-progress`** row (the PRD is the source of truth — use `/plan-review` or `/plan-pm`) and a **`completed`** row (historical record — capture a new idea instead). Neither refusal ends the run; both re-offer selection.
 - `--update` and `--delete` never scaffold a missing `INTAKE.md` — there is nothing to act on. Only capture mode scaffolds. A missing `INTAKE-UPDATE.md` is different — it is never an error, in either mode: absence means empty history, and the file is lazy-created on the first log write.
 - `--update` is **never destructive** — it edits and re-grades; removing a row is `--delete`'s job and requires that mode's warning pass and confirm.
 - `--delete` **never renumbers** surviving rows, and **never deletes anything but ledger rows** — not a PRD folder, not a file, not a branch. It reports what it orphans; it does not clean up after itself.
@@ -146,7 +146,7 @@ still never writes it.
 |--------|--------|------|
 | `backlog` | **intake** | on capture |
 | `in-progress` | `plan-pm` | when it creates the PRD and fills the `prd` cell |
-| `completed` | `post-merge --production` | when the mapped PRD ships to `main` |
+| `completed` | `merge --production` | when the mapped PRD ships to `main` |
 
 The `/msg --gui` Intake tab may hand-edit statuses (same trust level as its PRD-board edits).
 
@@ -192,9 +192,9 @@ place: `refs/protocol-update.md` § *The update log*.
 - `refs/protocol-intake.md` — end-to-end capture protocol: scaffold check, interview, hybrid/`≥8` split, grading pass, row write
 - `refs/protocol-update.md` — end-to-end update protocol: ledger scan, full review table, target resolution, lock gates, change interview, re-grade + re-split, targeted write + update log (canonical `INTAKE-UPDATE.md` header + migration rule)
 - `refs/protocol-delete.md` — end-to-end delete protocol: full ledger table, target resolution, the four-check warning pass, the confirm, no-renumber removal + `remove` log entry
-- `.claude/scripts/stamp-intake.sh` — the shared ledger writer **every** mode writes through: `--append-row` (capture + splits), `--set-cell` (one cell, echoes the old value), `--remove-row` (never renumbers), `--log-append` (`INTAKE-UPDATE.md`, lazy-created with the canonical header). Its `--status`/`--prd` stamp verb belongs to `plan-pm` and `post-merge`, not to intake
+- `.claude/scripts/script-intake-stamp.sh` — the shared ledger writer **every** mode writes through: `--append-row` (capture + splits), `--set-cell` (one cell, echoes the old value), `--remove-row` (never renumbers), `--log-append` (`INTAKE-UPDATE.md`, lazy-created with the canonical header). Its `--status`/`--prd` stamp verb belongs to `plan-pm` and `merge`, not to intake
 - `refs/rubric.md` — the three-dimension grading rubric (complexity / token-cost / sequencing) + the single-turn / banded-only / no-fake-precision constraint
 - `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds (row table only, no log section); **capture mode** offers to scaffold from it when the ledger is missing (update mode never does)
-- `devkit/AHA.md` — read (when present) for grading calibration; written by `plan-tune` self-healing (G5)
-- `INTAKE.md` — the root ledger this skill writes; read by `plan-pm`, `plan-pm --roadmap`, and the `/msg --gui` Intake tab
+- `devkit/AHA.md` — read (when present) for grading calibration; written by `plan-review` self-healing (G5)
+- `INTAKE.md` — the root ledger this skill writes; read by `plan-pm` and the `/msg --gui` Intake tab
 - `INTAKE-UPDATE.md` — the root update log this skill writes (`--update`/`--delete` only); lazy-created, gitignored alongside `INTAKE.md`, read by nobody downstream today (not `plan-pm`, not the GUI)

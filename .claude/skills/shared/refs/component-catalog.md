@@ -10,7 +10,7 @@ type: reference
 The per-project `devkit/policy.json` `components[]` array is the *resolved
 instance*: catalog defaults + live detection + user overrides (`--init`/`--update`
 seed it; see `pre-merge/refs/protocol-init.md`). The executor, the `refs/`
-folder split, the `preflight-check-*` scripts, wave sequencing, and result
+folder split, the `script-preflight-*` scripts, wave sequencing, and result
 reporting all key off this file — nothing downstream re-derives component
 metadata by hand.
 
@@ -44,13 +44,13 @@ no migration.
 | `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
 | `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema-pre-merge.md`; `pre-merge/refs/executor.md` § *Test selection*) |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
-| `check` | `preflight-check-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
+| `check` | `script-preflight-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
 
 ## The components (16)
 
 **Ids `15` and `16` are retired and never reused** — `qa` merged into `preview`
 (`16`), and `preview` itself was **cut** (the feature-branch preview duplicated the
-staging human test; the human judgment moved to post-merge's staging sign-off and
+staging human test; the human judgment moved to merge's staging sign-off and
 the direct-flow attestation — `shared/refs/safety-floor.md`). `nn` is a stable
 global id, so the sequence skips both rather than renumbering. Row 18
 (`manual-test-plan`, C22) is the newest component.
@@ -82,22 +82,22 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 
 | nn | id | run (detection field / mechanism) | ref | check |
 |----|----|------------------------------------|-----|-------|
-| 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `preflight-check-01-mechanical.sh` |
-| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-unit.md` | `preflight-check-02-unit.sh` |
-| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-integration.md` | `preflight-check-03-integration.sh` |
-| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾ | `universal/protocol-regression.md` | `preflight-check-04-regression.sh` |
-| 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `preflight-check-05-security.sh` |
-| 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `preflight-check-06-coverage.sh` |
-| 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `preflight-check-07-prd-consistency.sh` |
-| 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `preflight-check-08-e2e.sh` |
-| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (`--init`, AC-A11Y4) | `platform/protocol-a11y.md` | `preflight-check-09-a11y.sh` |
-| 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `preflight-check-10-perf.sh` |
-| 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `preflight-check-11-api.sh` |
-| 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `preflight-check-12-load.sh` |
-| 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `preflight-check-13-migration.sh` |
-| 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
-| 17 | smoke | `smoke_runner` — **default-liveness floor** when unconfigured + the configured golden-path command (C21) | `platform/protocol-smoke.md` (C21) | `preflight-check-17-smoke.sh` |
-| 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `preflight-check-18-manual-test-plan.sh` |
+| 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `script-preflight-01-mechanical.sh` |
+| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-unit.md` | `script-preflight-02-unit.sh` |
+| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-integration.md` | `script-preflight-03-integration.sh` |
+| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾ | `universal/protocol-regression.md` | `script-preflight-04-regression.sh` |
+| 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `script-preflight-05-security.sh` |
+| 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `script-preflight-06-coverage.sh` |
+| 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `script-preflight-07-prd-consistency.sh` |
+| 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `script-preflight-08-e2e.sh` |
+| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (`--init`, AC-A11Y4) | `platform/protocol-a11y.md` | `script-preflight-09-a11y.sh` |
+| 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `script-preflight-10-perf.sh` |
+| 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `script-preflight-11-api.sh` |
+| 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `script-preflight-12-load.sh` |
+| 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `script-preflight-13-migration.sh` |
+| 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `script-preflight-14-mobile.sh` |
+| 17 | smoke | `smoke_runner` — **default-liveness floor** when unconfigured + the configured golden-path command (C21) | `platform/protocol-smoke.md` (C21) | `script-preflight-17-smoke.sh` |
+| 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `script-preflight-18-manual-test-plan.sh` |
 
 ## Legend
 
@@ -125,7 +125,7 @@ web-only *runner* against a broader applicability is an **enforced
   LLM. It can judge *"is there evidence someone attempted this criterion, and does a
   test exist?"*; it cannot certify correctness. So its findings are **recorded, never
   blocking** — they are routed to the human who can judge, via `manual-test-plan`'s
-  significance-rated checklist, walked at post-merge `--staging`. This includes the `out-of-scope` scope-creep finding:
+  significance-rated checklist, walked at merge `--staging`. This includes the `out-of-scope` scope-creep finding:
   the same limit applies, so it is evidence for the human walk-through, not a hard
   block.
 - **ᵃ** — **`active_when: prd` resolves from PRD auto-discovery**: a `features/prd-<N>-*/`

@@ -47,6 +47,19 @@ success "Cloned msg"
 info "Installing skills to ${SKILLS_DIR}..."
 mkdir -p "${SKILLS_DIR}"
 
+# Skills that were renamed or retired upstream. This installer copies, it never
+# deletes, so without this sweep an old directory keeps shadowing its replacement
+# on every existing install and Claude Code loads both.
+# Only ever list names msg itself shipped — never a name a user could have
+# installed from somewhere else.
+RETIRED_SKILLS=(plan-tune post-merge)
+for retired in "${RETIRED_SKILLS[@]}"; do
+  if [[ -d "${SKILLS_DIR}/${retired}" ]]; then
+    rm -rf "${SKILLS_DIR:?}/${retired}"
+    warn "Removed retired skill: ${retired}"
+  fi
+done
+
 SRC="${TMP_DIR}/msg/.claude/skills"
 installed=0
 
@@ -67,6 +80,30 @@ SRC_SCRIPTS="${TMP_DIR}/msg/.claude/scripts"
 if [[ -d "${SRC_SCRIPTS}" ]]; then
   SCRIPTS_DIR="${CLAUDE_DIR}/scripts"
   mkdir -p "${SCRIPTS_DIR}"
+  # v5 renamed every script to the `script-*` convention. Same copy-never-delete
+  # problem as the skills above: the pre-v5 filenames would linger forever and a
+  # protocol's fallback path could still resolve a stale copy.
+  RETIRED_SCRIPTS=(
+    doctor-detect-repo.sh eng-comment-scan.sh eng-commit-cap.sh eng-db-touch.sh
+    plan-em-branch-resolve.sh plan-em-exec-collision.py plan-em-exec-skeleton.py
+    plan-pm-deps-mirror.sh plan-pm-roadmap-scan.sh plan-pm-roadmap-sequence.py
+    plan-tune-cert-status.sh plan-tune-preflight.sh post-merge-protection.sh
+    pre-merge-aggregate-verdict.sh pre-merge-tier-resolve.sh pre-merge-tooling-detect.sh
+    preflight-common.sh scan-n.prd scan-prd-digest.py stamp-intake.sh stamp-prd.sh
+  )
+  for n in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18; do
+    RETIRED_SCRIPTS+=("preflight-check-${n}"'*.sh')   # glob expanded below, not here
+  done
+  removed=0
+  for retired in "${RETIRED_SCRIPTS[@]}"; do
+    for stale in "${SCRIPTS_DIR}/"${retired}; do
+      [[ -e "${stale}" ]] || continue
+      rm -f "${stale}"
+      ((removed++)) || true
+    done
+  done
+  [[ "${removed}" -gt 0 ]] && warn "Removed ${removed} pre-v5 script(s) with retired names"
+
   info "Installing scripts to ${SCRIPTS_DIR}..."
   script_count=0
   for f in "${SRC_SCRIPTS}"/*; do
@@ -75,9 +112,9 @@ if [[ -d "${SRC_SCRIPTS}" ]]; then
     ((script_count++)) || true
   done
   # Several skills invoke these scripts directly (e.g. /pre-merge runs the
-  # preflight-check-*.sh family and pre-merge-aggregate-verdict.sh as "$S",
+  # script-preflight-*.sh family and script-aggregate-verdict.sh as "$S",
   # not "bash $S"), so the execute bit must survive fresh and repeat installs.
-  chmod +x "${SCRIPTS_DIR}"/*.sh "${SCRIPTS_DIR}/scan-n.prd" 2>/dev/null || true
+  chmod +x "${SCRIPTS_DIR}"/*.sh "${SCRIPTS_DIR}/script-prd-number" 2>/dev/null || true
   [[ "${script_count}" -gt 0 ]] && success "Installed ${script_count} script(s)"
 fi
 

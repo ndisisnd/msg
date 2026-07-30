@@ -13,7 +13,7 @@ Refusals are emitted as the sole JSON output. No other text follows.
 
 ## no_diff
 
-**When it fires**: in the prelude, after running `scripts/resolve-diff.sh`. `files_changed` is empty — working tree matches the base ref.
+**When it fires**: in the prelude, after running `scripts/script-resolve-diff.sh`. `files_changed` is empty — working tree matches the base ref.
 
 **Exit code**: 1 (non-zero)
 

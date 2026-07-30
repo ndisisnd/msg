@@ -2,6 +2,15 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P17 — the rename commit (i1/i12/i101/Q5)
+
+- Renamed — `plan-tune` → **`plan-review`** (rename only, both modes stay; 91 citations, 38 files) and `post-merge` → **`merge`** (468 citations, 58 files; the old name is retired and reserved); `policy-schema-post-merge.md` → `policy-schema-merge.md`
+- Renamed — **37 scripts** to `script-<slug>` (slug carries no skill prefix so future renames never cascade); one sanctioned exception: `changelog-gate.py` (hook-config-pinned, session snapshot cannot reload — documented in ARCHITECTURE); latent glob collision dodged (`preflight-common` → `script-check-common`, outside the `script-preflight-*` ingestion glob)
+- Wire tolerance — `"post-merge": "merge"` joins the P7 legacy map; the report envelope's `skill` field now normalizes too (`normalize_skill()`, same imported map); PRD §7 heading → "Plan review findings" with legacy tolerance in all four readers (nothing on disk rewritten); GUI proven rendering a legacy report end-to-end
+- Registry — row keys renamed; dead `--roadmap` label gone; plan-em row split plan-wave/build-wave (i83: the old 🟢 step was wrong for both)
+- Docs — README/ARCHITECTURE/QUICKSTART fully scrubbed: roadmap-orchestrator remnants dead, 4 wrong §-refs fixed, scripts table → six grouped tables (~58 scripts), eng --review + DOCTOR + ENV.md + lighter manifest documented; pre-existing working-tree doc changes reviewed and absorbed
+- `install.sh` — removes retired skill dirs + 21 stale script names on install (the shadow trap); DOCTOR gitignore top-up gap closed (ROW_GAPS + Step 3b row)
+
 ### v5-P16 — the calm pass: no unconditional step counters (i80)
 
 - Removed — every unconditional `Step X/N` progress-emission mandate across 10 files/12 sites (plan-pm, plan-em, plan-tune, msg ×3 protocols, intake ×3 protocols + lead-ins); generalises i26/i41 repo-wide

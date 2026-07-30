@@ -190,8 +190,8 @@ is unchanged from the previous protocol revision, with these notes:
   `## Execution Table` (legacy) / `## 6. Feature execution table`, and
   `## Features` / `## 3. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
   omitted (todos render in their own section). The findings section — new
-  `## N. Plan tune findings` (legacy `## Audit — <date>` still supported) — plus any
-  nested `### 12. Findings` eng list is parsed into a dedicated **Plan-tune findings**
+  `## N. Plan review findings` (legacy `## Plan tune findings` and `## Audit — <date>` still supported) — plus any
+  nested `### 12. Findings` eng list is parsed into a dedicated **Plan-review findings**
   table. In the new template that section is itself a **markdown table** with columns
   `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`
   (Auditor is `P` or `E`; Status is Open / Fixed / Still open / Clean; `Clean`/empty-
@@ -336,9 +336,9 @@ across every project (light + dark, responsive); it is **not** sourced from
   the same injection-safe formatter as PRDs, with a `↗` cross-link to the mapped PRD when
   `prdId` matches an enumerated PRD.
 - **Producers, not the GUI, write reports.** `eng --build`, `/pre-merge`, and
-  `/post-merge` own `report-prd-<N>-<K>.md` (`.claude/skills/shared/refs/report-schema.md`); the
-  board renders them and never writes, renumbers, or toggles them. Post-merge reports join
-  the per-PRD grouping by their `skill: post-merge` frontmatter — staging reports carry the
+  `/merge` own `report-prd-<N>-<K>.md` (`.claude/skills/shared/refs/report-schema.md`); the
+  board renders them and never writes, renumbers, or toggles them. Merge reports join
+  the per-PRD grouping by their `skill: merge` frontmatter — staging reports carry the
   human test script in `## How to verify`; production reports render release-style, and when
   the body contains the literal token `IRREVERSIBLE` (a no-rollback platform like iOS) the
   Reports tab surfaces a prominent badge on the card and a callout banner on the detail page.

@@ -27,7 +27,7 @@ Write the ticket ids that deliver this row, in ticket-id order, prefixed with `�
 
 ## Files — the collision key
 
-A comma/space-separated list of every repo-relative path this row creates or modifies — **derived from the union of the `files` fields of the tickets the row points at**, so the two cells cannot disagree. This is what makes collision detection mechanical (`plan-em-exec-collision.py`), so it must be complete.
+A comma/space-separated list of every repo-relative path this row creates or modifies — **derived from the union of the `files` fields of the tickets the row points at**, so the two cells cannot disagree. This is what makes collision detection mechanical (`script-em-exec-collision.py`), so it must be complete.
 
 ## Worked example
 

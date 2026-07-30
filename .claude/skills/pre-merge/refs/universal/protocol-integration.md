@@ -12,7 +12,7 @@ SYNC's merge), alongside `protocol-unit.md`'s pass. Findings conform to
 ## Runner
 
 Use the `run` command resolved for the `integration` component in `devkit/policy.json`
-`components[]` (detected at `--init`/`--update` by `preflight-check-03-integration.sh`) —
+`components[]` (detected at `--init`/`--update` by `script-preflight-03-integration.sh`) —
 do not re-detect. Restrict the invocation to the integration-suite subset when the
 runner's config distinguishes one (an `integration/` or `test/integration` directory, a
 `--testPathPattern`/`-m integration` marker, a pytest `integration` marker, Flutter's

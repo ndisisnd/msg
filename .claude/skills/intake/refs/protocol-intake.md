@@ -110,7 +110,7 @@ Append each confirmed, graded idea to `INTAKE.md`'s row table, in capture order 
 call per row**, through the shared ledger writer. Never hand-edit the file:
 
 ```bash
-S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"
+S=.claude/scripts/script-intake-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-intake-stamp.sh"
 bash "$S" INTAKE.md <row-#> --append-row \
   --type <feature|bug> --idea "<idea>" --goal "<goal>" --grade "<grade cell>"
 ```

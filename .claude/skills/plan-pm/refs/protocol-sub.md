@@ -21,7 +21,7 @@ Store the resolved parent as `parent_id` = `prd-<parent-n>-<parent-slug>` and `p
 Skill("intake", "Sub-PRD of prd-<parent-n>-<parent-slug>: <follow-up scope>")
 ```
 
-Every PRD in the repo has an intake ancestor, sub-PRDs included — that is what keeps `plan-tune` check 3 (intent fidelity) from ever being silently skipped. Two points on the row:
+Every PRD in the repo has an intake ancestor, sub-PRDs included — that is what keeps `plan-review` check 3 (intent fidelity) from ever being silently skipped. Two points on the row:
 
 - **It is not optional and it is marked.** The `idea` cell leads with `Sub-PRD of prd-<n>-<slug>:` so a human reading the ledger sees the relationship; the `prd` cell stamped at Step 5 carries the dotted id `prd-<n>.<m>-<slug>`, which is already the machine-readable sub-PRD signal (D1 step 3 keys off the same dot).
 - **The grade is re-derived, never inherited.** `intake` grades the row against its own rubric like any other. A follow-up's complexity is its own — inheriting a large parent's `C:`/`T:` bands would misrepresent a small fix. `type` stays `feature`/`bug` per the nature of the work; it is not overloaded with the structural relationship.
@@ -31,7 +31,7 @@ Hold the new row's `#` for the Step 5 stamp, then drop into Step 2.
 **D3 — Number and place the sub-PRD (Step 3 Part 1 + 2).** Replace the top-level number resolver with the sub resolver:
 
 ```bash
-S=.claude/scripts/scan-n.prd; [ -f "$S" ] || S="$HOME/.claude/scripts/scan-n.prd"; bash "$S" sub <parent-n>
+S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" sub <parent-n>
 ```
 
 Store the output as `m` (the minor). Derive `sub_slug` (kebab-case, ≤6 words) from the follow-up scope. Create the sub-PRD **nested inside the parent's existing folder — whatever lane (`planned/`, `wip/`, `done/`, or the legacy flat path) that folder currently occupies**. A sub-PRD gets **no lane slot of its own**: it rides the parent's lane and only ever relocates when the parent folder is moved. Use the full `refs/template-prd.md` structure (not a delta doc), writing `<parent_dir>` for the parent directory resolved in D1:
@@ -47,6 +47,6 @@ Store the output as `m` (the minor). Derive `sub_slug` (kebab-case, ≤6 words) 
 - `summary`: authored fresh for the sub-PRD's own follow-up scope (2–3 single-line sentences), exactly as a top-level PRD — do not inherit the parent's.
 - All other fields (`status: product`, `product-tuned: no`, `eng-tuned: no`, `reviewed: no`, `created`, `affects`, `depends_on`) exactly as a top-level PRD.
 
-**Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–5) → `plan-tune --product` → `plan-em` → `plan-tune --eng` → `eng --build`. Step 5 stamps the D2 row (`status: in-progress`, `prd: prd-<parent-n>.<m>-<sub_slug>`) and terminates exactly as for a top-level PRD, using the nested sub-PRD path.
+**Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–5) → `plan-review --product` → `plan-em` → `plan-review --eng` → `eng --build`. Step 5 stamps the D2 row (`status: in-progress`, `prd: prd-<parent-n>.<m>-<sub_slug>`) and terminates exactly as for a top-level PRD, using the nested sub-PRD path.
 
 Everywhere the steps in `refs/protocol-pm.md` write the drafted PRD's own path `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`, substitute the nested sub-PRD path from D3 when in `--sub` mode — it lands inside the parent's existing folder in whatever lane the parent occupies, not in `planned/`.

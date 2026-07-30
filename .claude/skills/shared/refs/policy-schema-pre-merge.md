@@ -1,6 +1,6 @@
 ---
 name: policy-schema-pre-merge
-description: The pre-merge half of the devkit/policy.json schema — the components[] delta manifest, policies.test_selection (+ read-contract §2c), source_signature, and criticality_review. Post-merge never loads this file.
+description: The pre-merge half of the devkit/policy.json schema — the components[] delta manifest, policies.test_selection (+ read-contract §2c), source_signature, and criticality_review. Merge never loads this file.
 type: reference
 ---
 
@@ -8,8 +8,8 @@ type: reference
 
 The sections **only pre-merge reads**. The shared core (lifecycle, writers,
 `release_flow`, `github_actions`, validation rules, read-contract §0/§1/§2b) is
-[`policy-schema.md`](policy-schema.md); post-merge's sections are
-[`policy-schema-post-merge.md`](policy-schema-post-merge.md). Section numbers are
+[`policy-schema.md`](policy-schema.md); merge's sections are
+[`policy-schema-merge.md`](policy-schema-merge.md). Section numbers are
 shared across the three files — §2c is §2c wherever it lives.
 
 ## `components[]` — the preflight manifest (deltas only)
@@ -25,7 +25,7 @@ facts, so a catalog change (a new `depends_on` edge, a shifted criticality defau
 never reach an existing manifest. Not copying it is the fix — a catalog edit is live for
 every repo on the next gate run, with no migration (AC-UP2).
 
-`--init`/`--update` assemble the manifest by running the `preflight-check-*.sh` family and
+`--init`/`--update` assemble the manifest by running the `script-preflight-*.sh` family and
 recording what detection found plus what the user decided. **Additive** — it lives beside
 `release_flow`/`github_actions`/`init`, which are untouched (AC-PF5). The pre-merge
 **executor** reads it as the pipeline source (`pre-merge/refs/executor.md`); a `/pre-merge`
@@ -96,9 +96,9 @@ catalog cannot know. Absent ⇒ the catalog default applies.
 - **`order`** — ordering is a runtime topo-sort on the catalog's `depends_on` (Fork B,
   AC-PF4); the manifest never freezes a sequence.
 - **`test_selector`** — the freeform note naming the detected selection mechanism. Audit
-  only, nothing ever branched on it. The `preflight-check-*.sh` reports still carry it
+  only, nothing ever branched on it. The `script-preflight-*.sh` reports still carry it
   (`check-report-schema.md` § `detect`) — it is simply not persisted.
-- **`source`** — the producing `preflight-check-<nn>-<slug>.sh`. Fully derivable from `id`
+- **`source`** — the producing `script-preflight-<nn>-<slug>.sh`. Fully derivable from `id`
   + the catalog's `check` column.
 - **`env_provision`** — moved out of `policy.json` entirely, to `devkit/ENV.md`
   ([`env-contract.md`](env-contract.md)). One source of truth for env setup, shared with
@@ -128,7 +128,7 @@ components by diff surface; this key extends pruning **inside** the `unit`,
 `integration`, and `regression` components — *selected = affected(diff) ∪
 critical-floor*, else fall back to the full suite. Small PRDs stop paying for a
 700-test suite at every gate run, while the full suite still runs at a declared
-backstop (CI and/or post-merge). Like `github_actions`, this is a **decision the
+backstop (CI and/or merge). Like `github_actions`, this is a **decision the
 team makes once**, in a committed file — never something a gate run rediscovers.
 
 ```json
@@ -147,7 +147,7 @@ team makes once**, in a committed file — never something a gate run rediscover
 |---|---|---|---|---|
 | `enabled` | bool | ✔ | `false` | `false`/absent → `unit`/`integration`/`regression` run their **full** suites exactly as before the key existed (AC-TS1) |
 | `reason` | string | recommended when `enabled:true` | — | governance note; missing → honored + `unjustified-policy` warn (AC-S3) |
-| `full_run_backstop` | enum `ci` \| `post-merge` \| `both` | required when `enabled:true` | — | **where the full suite still runs.** Minified shifts *when* the full cost is paid, never *whether*. The enabling interview verifies the named backstop exists (`ci` → a `.github/workflows/` gate workflow **and** `github_actions.enabled` ≠ `false`; `post-merge` → `release_flow.mode == "staged"`); unverifiable → warn loudly + require an explicit override plus `reason`, still honored (AC-TS8) |
+| `full_run_backstop` | enum `ci` \| `merge` \| `both` | required when `enabled:true` | — | **where the full suite still runs.** Minified shifts *when* the full cost is paid, never *whether*. The enabling interview verifies the named backstop exists (`ci` → a `.github/workflows/` gate workflow **and** `github_actions.enabled` ≠ `false`; `merge` → `release_flow.mode == "staged"`); unverifiable → warn loudly + require an explicit override plus `reason`, still honored (AC-TS8) |
 | `force_full_paths` | string[] | ✖ | catalog defaults | glob paths whose cross-cutting blast radius defeats selection — a diff touching **any** of them runs the full suite (rule step 1 ⇒ tier **L**, `pre-merge/refs/executor.md` §3c). Defaults per detected platform in [`component-catalog.md`](component-catalog.md) |
 | `tiers` | object | ✖ | below | the S/M boundary knobs for the size-tier rubric (`pre-merge/refs/executor.md` §3c.1) |
 | `tiers.small_max_modules` | int | ✖ | `2` | **S** requires `modules ≤` this |

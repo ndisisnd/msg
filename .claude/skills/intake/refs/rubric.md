@@ -35,7 +35,7 @@ twice `C:3`+`C:1`".
 |---|---|---|---|
 | **Complexity** | `C:` | `1 / 2 / 3 / 5 / 8 / 13` | counts **moving parts** — see the anchors below. `13` = max |
 | **Token cost** | `T:` | `1 / 2 / 3 / 5 / 8 / 13` | derived from complexity + platform count: more platforms → more eng agents; more tickets → a bigger change for `eng --review`; migrations → a stricter gate. A **band**, not a total. `13` = max |
-| **Sequencing** | `S:` | `now / next / later / blocked-by-#n` | position vs the other `INTAKE.md` rows + existing PRD `depends_on`/`affects` edges. `blocked-by-#n` cites an intake row `#` (or a `prd-<n>`). Feeds `plan-pm --roadmap`, which sequences from this graded backlog |
+| **Sequencing** | `S:` | `now / next / later / blocked-by-#n` | position vs the other `INTAKE.md` rows + existing PRD `depends_on`/`affects` edges. `blocked-by-#n` cites an intake row `#` (or a `prd-<n>`). Feeds the hand-authored `roadmap/roadmap.md`, sequenced from this graded backlog |
 
 `S:` is **not** on the Fibonacci scale and never will be — it's a position in a
 queue, not a size. Nothing about it changes when `C:`/`T:` change.

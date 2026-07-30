@@ -302,7 +302,7 @@ def infer_completion(fm, num, slug, lane=None):
     if override in BUCKETS:
         return override, "frontmatter completion override"
 
-    # Lane signal (improvement #24): post-merge --production moves a PRD into the
+    # Lane signal (improvement #24): merge --production moves a PRD into the
     # done/ lane atomically with stamping status: done, so a PRD physically in
     # done/ has shipped. This outranks the gh/git rungs (which may lag on a repo
     # without gh/remote) but yields to an explicit frontmatter override above.
@@ -448,6 +448,15 @@ def load_projector():
     return _PROJECTOR
 
 
+def normalize_skill(value):
+    """Map a retired producer name onto its current one, via the same
+    LEGACY_SOURCE table the findings path uses. Unknown values pass through."""
+    projector = load_projector()
+    if isinstance(projector, str) or not isinstance(value, str):
+        return value
+    return projector.LEGACY_SOURCE.get(value.strip(), value)
+
+
 def report_glob_pats(leaf):
     """The colocated report/issue globs for one leaf pattern (e.g. report-*.md),
     covering the legacy flat path, the flat sub-PRD nest, each lifecycle lane's
@@ -528,7 +537,10 @@ def parse_report_file(path, skipped):
     return {
         "file": rel,
         "reportId": int(pm.group(2)) if pm else (int(nm.group(1)) if nm else 0),
-        "skill": fm.get("skill"),
+        # A report committed before a producer was renamed carries the old name.
+        # Same tolerance as `source` on findings, same single map (shared/refs/
+        # finding-schema.md § Legacy wire values) — the file on disk is untouched.
+        "skill": normalize_skill(fm.get("skill")),
         "prd": None if (not prd or prd == "none") else prd,
         "prdId": prd_id,
         "branch": fm.get("branch"),

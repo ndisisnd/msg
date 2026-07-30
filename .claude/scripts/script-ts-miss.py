@@ -4,7 +4,7 @@ script-ts-miss.py — test-selection-miss attribution, the CI-BACKSTOP HALF ONLY
 
 When `policies.test_selection` is on, pre-merge traded full-suite coverage for
 speed on the promise that the full suite still runs at a declared backstop.
-post-merge is where that promise is checked. The check has two halves, and the
+merge is where that promise is checked. The check has two halves, and the
 v5 ruling ("mechanise only what always produces fixed results") splits them:
 
   * The **CI-backstop half is fixed** and lives here — read the committed
@@ -19,7 +19,7 @@ v5 ruling ("mechanise only what always produces fixed results") splits them:
     call site says so.
 
 Contract:
-  .claude/skills/post-merge/refs/staging.md § Test-selection-miss detection
+  .claude/skills/merge/refs/staging.md § Test-selection-miss detection
   .claude/skills/pre-merge/refs/output-schema.md § test_selection
   .claude/skills/shared/refs/policy-schema-pre-merge.md §policies.test_selection
 

@@ -34,7 +34,7 @@ Exit codes:
   2  usage error, unreadable PRD, or no YAML frontmatter
 
 Deterministic: identical inputs produce byte-identical output. Collisions are
-delegated to plan-em-exec-collision.py so there is one collision implementation.
+delegated to script-em-exec-collision.py so there is one collision implementation.
 """
 import argparse
 import os
@@ -205,12 +205,12 @@ def check4(lines, body_start, prd_path):
              "also accepted) — eng --build has no rows to read")
         return
 
-    collide = Path(__file__).resolve().parent / "plan-em-exec-collision.py"
+    collide = Path(__file__).resolve().parent / "script-em-exec-collision.py"
     if not collide.is_file():
-        alt = Path(os.path.expanduser("~/.claude/scripts/plan-em-exec-collision.py"))
+        alt = Path(os.path.expanduser("~/.claude/scripts/script-em-exec-collision.py"))
         collide = alt if alt.is_file() else None
     if collide is None:
-        print(f"{SELF}: plan-em-exec-collision.py not found — collision facet skipped",
+        print(f"{SELF}: script-em-exec-collision.py not found — collision facet skipped",
               file=sys.stderr)
         print("SKIP check=4 facet=collisions reason=no-collision-script")
         return
@@ -218,7 +218,7 @@ def check4(lines, body_start, prd_path):
     proc = subprocess.run([sys.executable, str(collide), "-"],
                           input="\n".join(exec_block), capture_output=True, text=True)
     if proc.returncode not in (0, 1):
-        die(f"plan-em-exec-collision.py failed on {prd_path} (rc={proc.returncode}): "
+        die(f"script-em-exec-collision.py failed on {prd_path} (rc={proc.returncode}): "
             f"{proc.stderr.strip()}")
     for ln in proc.stdout.splitlines():
         if ln.startswith("COLLISION "):

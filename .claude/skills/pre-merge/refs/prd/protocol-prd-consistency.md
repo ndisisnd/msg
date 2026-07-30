@@ -30,7 +30,7 @@ is the failure mode this component is de-gated to avoid. So:
   never a `fail`.
 - The findings' real destination is the **human**: the per-item grades below feed
   `manual-test-plan`, which rates every untested/unmet item 🔴 HIGH, and that checklist
-  is walked at post-merge's **staging human-test script**. The person who *can* judge
+  is walked at merge's **staging human-test script**. The person who *can* judge
   correctness walks exactly what automation could not verify.
 - Staging is fix-forward by design — an unmet item found at the walk-through becomes a
   fix commit, not a blocked merge — so the judgment lands where it can be acted on
@@ -47,7 +47,7 @@ Do not read the whole PRD. Run the `eval` digest slice for the acceptance criter
 error cases:
 
 ```bash
-G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"
+G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"
 python3 "$G" "<prd-path>" --slice eval
 ```
 

@@ -1,12 +1,12 @@
 ---
 name: fix-loop
-description: The shared post-failure offer sequence pre-merge and post-merge run after a FAILED gate — offer to plan the fixes (eng --plan), then offer to build them (orchestrated eng --build) off the same report's issues file. Autonomy-aware; the issues file's followUp.suggested_command is the decline fallback.
+description: The shared post-failure offer sequence pre-merge and merge run after a FAILED gate — offer to plan the fixes (eng --plan), then offer to build them (orchestrated eng --build) off the same report's issues file. Autonomy-aware; the issues file's followUp.suggested_command is the decline fallback.
 type: reference
 ---
 
 # Fix loop — post-failure offer sequence
 
-Shared by `pre-merge` and `post-merge`. After a **FAILED** run, once the report
+Shared by `pre-merge` and `merge`. After a **FAILED** run, once the report
 and its issues file are written (report-schema producer
 obligations already met), the caller runs this two-offer sequence to walk the
 user from *"the run found issues"* to *"the fixes are planned and built"*
@@ -20,12 +20,12 @@ human `.md` under the same `reports/` folder and stem (canonical-finding
 `report-schema.md`). The same `N`/`K` threads the fix plan and the fix build
 below.
 
-## Ordering — a caller's pre-loop rollback offer runs first (post-merge)
+## Ordering — a caller's pre-loop rollback offer runs first (merge)
 
 This loop is entered **after** any caller-owned recovery offer, never instead of
-one. On a failed **ship**, `post-merge` presents its **rollback / rollout-halt
+one. On a failed **ship**, `merge` presents its **rollback / rollout-halt
 offer first** (restore last-good for a `deploy` platform, halt the staged rollout
-for a `submission` platform — always-ask, never auto, D12; `post-merge/SKILL.md`
+for a `submission` platform — always-ask, never auto, D12; `merge/SKILL.md`
 § *Failed-ship loop* step 1), and only then hands off here. The two are
 complementary, not alternatives: rolling back mitigates the live blast radius;
 this loop still fixes the broken commit forward. A rolled-back release therefore
@@ -62,7 +62,7 @@ rubric.
 
 ## Autonomy contract
 
-Under an autonomy contract (a roadmap orchestrator running hands-off), **both
+Under an autonomy contract (a caller running hands-off, e.g. plan-em --team), **both
 offers are pre-approved** — proceed through Offer #1 → `eng --plan` → Offer #2 →
 orchestrated `eng --build` without asking.
 
@@ -73,7 +73,7 @@ orchestrated `eng --build` without asking.
   the user can resume the loop later straight from the issues file.
 - **Re-entry.** After the fix build closes the loop (writes `followUp.status`
   `resolved` / `partially_resolved`), the user **re-runs the gate**
-  (`/pre-merge` or `/post-merge`) from where they exited — the fixed branch comes
+  (`/pre-merge` or `/merge`) from where they exited — the fixed branch comes
   back through the same gate.
 
 ## References

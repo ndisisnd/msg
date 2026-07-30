@@ -21,13 +21,13 @@ allowed_tools:
 
 **The** CI gate. Runs after `eng --build` says a feature branch is done, and takes
 it to a PR open against `staging` with green checks. Pre-merge holds **no human
-gate** — the human look at the running feature belongs to post-merge (the staging
+gate** — the human look at the running feature belongs to merge (the staging
 sign-off, or the direct-flow attestation when there is no staging branch);
 `../shared/refs/safety-floor.md` § *Human gates*. Absorbs the retired `/review`
 and `/test`. Each run is independent.
 
 ```
-eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  →  PR feature→staging  →  post-merge --staging
+eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  →  PR feature→staging  →  merge --staging
 ```
 
 ## Usage
@@ -56,7 +56,7 @@ Natural language: "run pre-merge", "gate this before merge", "open the PR agains
 
 | | Name | Source / Destination |
 |--|------|----------------------|
-| In | base | resolved via `release_flow` per `../shared/refs/policy-schema.md` §1 — `staged` → `staging_branch` (falls back to `main` when the branch is absent), `direct` → `prod_branch`; no policy → default `staging`, else `main`; diff resolved by `scripts/resolve-diff.sh` / a fresh verify-prelude |
+| In | base | resolved via `release_flow` per `../shared/refs/policy-schema.md` §1 — `staged` → `staging_branch` (falls back to `main` when the branch is absent), `direct` → `prod_branch`; no policy → default `staging`, else `main`; diff resolved by `scripts/script-resolve-diff.sh` / a fresh verify-prelude |
 | In | prd_paths | auto-discovered from `features/prd-<N>-*/` (branch match), or `--prd` (repeatable) — feeds `regression` + the `prd` group |
 | In | prior_issues | `--prior-issues` JSON, optional |
 | Out | verdict_json | single JSON per `refs/output-schema.md` — final stdout emission |
@@ -81,7 +81,7 @@ prose, severity counts before the issue list, JSON-first.
 The gate is a **preflight-driven executor** (`refs/executor.md`) — it runs the resolved
 `components[]` pipeline from `devkit/policy.json`, not a fixed step list. Load + validate
 the policy once per run (`../shared/refs/policy-schema.md` read-contract §0/§1 plus
-`../shared/refs/policy-schema-pre-merge.md` §2c — post-merge's half is never loaded),
+`../shared/refs/policy-schema-pre-merge.md` §2c — merge's half is never loaded),
 then gate on the **manifest** per the state table in `refs/refusal-patterns.md`
 §`no_manifest` (its one home): no `components[]` ⇒ **REFUSE `no_manifest`**, run zero
 components, name `/pre-merge --init`. There is no built-in-defaults path and no inline
@@ -108,9 +108,9 @@ this file stays the spine. In outline:
 
 1. **Prelude — diff + base.** Resolve base (`staging`, else `main`) and the diff:
    consume a fresh `../shared/refs/verify-prelude.md` if present, else run
-   `scripts/resolve-diff.sh <base>`; empty diff → refuse `no_diff` (`refs/refusal-patterns.md`). Best-effort write the prelude. **Tooling is
+   `scripts/script-resolve-diff.sh <base>`; empty diff → refuse `no_diff` (`refs/refusal-patterns.md`). Best-effort write the prelude. **Tooling is
    already resolved** into each component's `run` command in the manifest (by
-   `--init`/`--update` via the `preflight-check-*.sh` family) — the gate does not
+   `--init`/`--update` via the `script-preflight-*.sh` family) — the gate does not
    re-detect tooling.
 2. **SYNC (D7) — the un-prunable DAG root.** Fetch + merge the sync target (`staging`, else `main`); trivial conflicts auto-resolve, semantic same-hunk
    pause; the sync-merge commit is the sole direct write; no `staging` → fall back
@@ -196,7 +196,7 @@ the issues file — the loop walks the user from "issues found" to "fixes planne
 On `pass` / `pass_with_warnings`:
 `gh pr create --base <target> --head <feature-branch>` (where `<target>` is the
 SYNC target — `staging`, else `main`) with the verdict JSON + report
-path linked in the body. Record `pr_url`. **Never** `gh pr merge` — post-merge
+path linked in the body. Record `pr_url`. **Never** `gh pr merge` — merge
 `--staging` merges it on green CI (Part C). On a non-clean verdict, skip OPEN-PR —
 no PR opens; the **Issues-file loop** above runs instead (issues file → fix-loop),
 so the gate never dead-ends.
@@ -212,12 +212,12 @@ so the gate never dead-ends.
 - `refs/universal/protocol-coverage.md` — `coverage` (`depends_on unit,integration`; Wave 2)
 - `refs/_common.md` + `refs/platform/*.md` — platform components + `--flaky`/`--changed-only`
 - `refs/universal/protocol-security.md`, `refs/platform/protocol-migration.md` — the mandatory safety-floor components
-- `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1; **advisory** — its LLM grades route to the human test checklist walked at post-merge `--staging`, they never block)
+- `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1; **advisory** — its LLM grades route to the human test checklist walked at merge `--staging`, they never block)
 - `refs/platform/protocol-smoke.md` — `smoke` liveness + golden-path check (env wave, runs first inside the sandbox)
 - `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; the test-selection enabling interview (asked on request, not at `--init`) + its single-run disable
 - `refs/protocol-update-criticality.md` — `--update-criticality` mode: inventory → evidence-cited proposals → human gate → tag commit + `criticality_review` restamp; also the gate's read-only staleness nudge
 - `../shared/refs/policy-schema.md` — the shared core of the `devkit/policy.json` schema + read-contract (`init` lifecycle §0, `release_flow` §1, `github_actions` §2b, validation rules)
-- `../shared/refs/policy-schema-pre-merge.md` — pre-merge's half: the `components[]` delta manifest, `source_signature`, `policies.test_selection` §2c, the `criticality_review` stamp. Post-merge's half (`branch_protection`, `steps`, `release_model`, `staging_ready`, the release lock) is never loaded on a gate run
+- `../shared/refs/policy-schema-pre-merge.md` — pre-merge's half: the `components[]` delta manifest, `source_signature`, `policies.test_selection` §2c, the `criticality_review` stamp. Merge's half (`branch_protection`, `steps`, `release_model`, `staging_ready`, the release lock) is never loaded on a gate run
 - `../shared/refs/env-contract.md` — the `devkit/ENV.md` env-setup contract: the fenced `provision`/`seed`/`reset`/`teardown` block the executor reads at §3b (`--init` scaffolds it; gate runs never write it)
 - `../shared/refs/component-catalog.md` — component metadata (schema, defaults, `depends_on` edges, grouping) the manifest + executor key off
 - `refs/output-schema.md` — final emission schema (shape unchanged) · `refs/finding-schema.md` — per-finding shape
@@ -225,7 +225,7 @@ so the gate never dead-ends.
 - `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/verify-prelude.md`
 - `../shared/refs/fix-loop.md` — post-failure Offer #1 → Offer #2 sequence the issues-file loop hands off to
 - `../shared/refs/check-report-schema.md` — the normalized check-report schema (`detect` + `result` sections); the executor writes the `result` section per check and aggregates them
-- `.claude/scripts/preflight-check-*.sh` — the per-check detect+normalize family (C4); `--init`/`--update` run + ingest them into `components[]` (`refs/protocol-init.md`). **These + the manifest are the detector now — the monolithic pre-merge tooling detector is retired (v3 P3)**
+- `.claude/scripts/script-preflight-*.sh` — the per-check detect+normalize family (C4); `--init`/`--update` run + ingest them into `components[]` (`refs/protocol-init.md`). **These + the manifest are the detector now — the monolithic pre-merge tooling detector is retired (v3 P3)**
 - `.claude/scripts/script-pipeline-resolve.py` — **the pipeline resolver**: joins the delta manifest to the catalog, prunes, runs the C12 coverage-gap correlation, topo-sorts into waves, and prints the run's plan JSON. `--check-complete` verifies every planned component wrote a result report
-- `.claude/scripts/pre-merge-aggregate-verdict.sh` — the aggregation half of §5: collect → dedup → path-pattern downgrades → verdict + summary + `checks[]` + the critical-abort signal
-- `scripts/resolve-diff.sh` — diff-vs-base structured summary
+- `.claude/scripts/script-aggregate-verdict.sh` — the aggregation half of §5: collect → dedup → path-pattern downgrades → verdict + summary + `checks[]` + the critical-abort signal
+- `scripts/script-resolve-diff.sh` — diff-vs-base structured summary

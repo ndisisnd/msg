@@ -61,7 +61,7 @@ reasoning-heavy — a bad split poisons the whole wave). Leaf model assignment:
 | Wave / packet | Model | Why |
 |---------------|-------|-----|
 | Plan-wave planners (all) | **Opus** | Writing the design doc + todo tickets + Files column is the highest-leverage reasoning in the flow; a weak plan costs far more downstream than the Opus premium. |
-| Build packet — **load-bearing** | **Opus** | Touches core state/data model, public API contracts, auth/security, a schema **migration** or any `eng-db-touch` category, cross-cutting refactors, non-trivial algorithms, or a todo carrying open questions / high ambiguity. |
+| Build packet — **load-bearing** | **Opus** | Touches core state/data model, public API contracts, auth/security, a schema **migration** or any `script-eng-db-touch` category, cross-cutting refactors, non-trivial algorithms, or a todo carrying open questions / high ambiguity. |
 | Build packet — **mechanical** | **Sonnet** | Well-scoped and fully specified: boilerplate, straightforward CRUD/UI wiring, config/lint fixes, tests whose acceptance criteria are explicit, low blast radius, no open questions. |
 | Any packet — **uncertain** | **Opus** | Default up on genuine uncertainty. Under-powering a risky packet is worse than the cost of an extra Opus run. |
 
@@ -82,7 +82,7 @@ governs both scheduling and committing.
 resolution) and consume its output as the **authoritative baseline decomposition**:
 
 ```bash
-S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"; python3 "$S" --waves <exec-table source>
+S=.claude/scripts/script-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-collision.py"; python3 "$S" --waves <exec-table source>
 ```
 
 After the `COLLISION` / `MISSING_FILES` lines the script emits the decomposition:
@@ -151,7 +151,7 @@ real. Decompose per § Parallelism model into file-disjoint, model-tiered packet
 waves, then:
 
 0. **Run the collision checker first (before emitting the decomposition).** Run
-   `plan-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
+   `script-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
    model) on the in-scope exec-table rows. Two consequences gate the decomposition:
    - A `MISSING_FILES row<N> <feature>` line (equivalently an `UNPACKETED` id) on any
      **in-scope** row is a **hard failure**, equivalent to the empty-`Files`-column hard
@@ -173,7 +173,7 @@ waves, then:
    proceed to the next.
 3. **DB / data guard after every wave.** Run the touch check on the accumulated diff:
    ```bash
-   S=.claude/scripts/eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/eng-db-touch.sh"; bash "$S" main
+   S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" main
    ```
    Non-zero exit (it prints `category<TAB>path`) → **pause** and `AskUserQuestion`
    (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM

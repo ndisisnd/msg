@@ -6,7 +6,7 @@ type: reference
 
 # eng --plan — issues-file source
 
-Loaded only when `--plan` is invoked with `report=<path>` (see `../../SKILL.md` § Input contract). Plans the fixes for a `/pre-merge` (or `/post-merge`) failed run instead of decomposing PRD exec-table rows. The spec is a **bug list** — canonical findings already recorded in the issues file `report-prd-<N>-<K>.json` — so this pass produces no `## Engineering —` section and no PRD write: it projects the findings into fix tickets and emits a standalone **fix plan** the orchestrated fix-build (`../build/fix-build-orchestrated.md`) then executes.
+Loaded only when `--plan` is invoked with `report=<path>` (see `../../SKILL.md` § Input contract). Plans the fixes for a `/pre-merge` (or `/merge`) failed run instead of decomposing PRD exec-table rows. The spec is a **bug list** — canonical findings already recorded in the issues file `report-prd-<N>-<K>.json` — so this pass produces no `## Engineering —` section and no PRD write: it projects the findings into fix tickets and emits a standalone **fix plan** the orchestrated fix-build (`../build/fix-build-orchestrated.md`) then executes.
 
 This is the target of the fix loop's Offer #1 (`../../../shared/refs/fix-loop.md`), invoked as `eng --plan report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`.
 

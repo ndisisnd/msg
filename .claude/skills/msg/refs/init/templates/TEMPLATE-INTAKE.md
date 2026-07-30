@@ -1,6 +1,6 @@
 ---
 name: INTAKE Template
-description: Template for the root INTAKE.md backlog ledger — the chronological, graded table of feature ideas and bugs. Scaffolded by /msg --init and by /intake; rows written by /intake, status/prd cells stamped by plan-pm and post-merge. Lives at the REPO ROOT (D13), never in devkit/ — it is a living ledger, not a read-only devkit doc.
+description: Template for the root INTAKE.md backlog ledger — the chronological, graded table of feature ideas and bugs. Scaffolded by /msg --init and by /intake; rows written by /intake, status/prd cells stamped by plan-pm and merge. Lives at the REPO ROOT (D13), never in devkit/ — it is a living ledger, not a read-only devkit doc.
 type: reference
 ---
 
@@ -22,7 +22,7 @@ the identical content when the ledger is missing at capture time.
 | content cells `idea` / `goal` / `type` (+ re-derived `grade`) | `intake --update` | on user request; **`backlog` rows only** — `in-progress` and `completed` are refused |
 | `INTAKE-UPDATE.md` log entries (separate file, not a section here) | `intake --update` | one per changed cell, append-only, same write as the row edit |
 | `status: in-progress` + `prd: prd-<n>-<slug>` | `plan-pm` | when it creates the PRD from the row |
-| `status: completed` | `post-merge --production` | when the mapped PRD ships to `main` |
+| `status: completed` | `merge --production` | when the mapped PRD ships to `main` |
 | `status` cell only (manual) | `/msg --gui` Intake tab | drag between lanes; the **only** surface that moves a row *backwards* through the lifecycle. It owns `status`; `intake --update` owns content; `intake --delete` owns removal |
 | row removed (+ a `remove` entry in `INTAKE-UPDATE.md`) | `intake --delete` | on user confirm, after the warning pass. Never renumbers — the `#` gap stays |
 
@@ -73,13 +73,13 @@ nothing separates them because nothing needs to.
 The graded backlog of feature ideas and bugs. `/intake` appends rows;
 `/intake --update` edits a `backlog` row's `idea`/`goal`/`type` and logs the
 change to `INTAKE-UPDATE.md`; `plan-pm` stamps `in-progress` + the `prd`
-mapping when it plans a row; `post-merge --production` stamps `completed`
+mapping when it plans a row; `merge --production` stamps `completed`
 when the mapped PRD ships. The `/msg --gui` Intake tab renders this as a
 board and may hand-edit `status`. Edit history lives in `INTAKE-UPDATE.md`
 (lazy-created, gitignored alongside this file) — not in this ledger.
 
 **Status lifecycle:** `backlog` → `in-progress` (plan-pm creates + maps the PRD)
-→ `completed` (post-merge --production ships the mapped PRD).
+→ `completed` (merge --production ships the mapped PRD).
 
 **Grade cell** `C:… T:… S:…` — a single-turn, banded judgment made at capture:
 - `C:` complexity — `1` / `2` / `3` / `5` / `8` / `13`

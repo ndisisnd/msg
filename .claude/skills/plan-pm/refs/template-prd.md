@@ -15,9 +15,9 @@ The eight sections fall into four categories:
 | **A · Intent** — why this exists and where it stops | §1 Product objective, §2 Out-of-scope | `plan-pm` |
 | **B · Contract** — what ships and what "done" means | §3 Features & acceptance criteria, §4 Error cases | `plan-pm` (the pipeline's load-bearing part) |
 | **C · Unresolved** | §5 Open questions | `plan-pm` authors; others amend |
-| **D · Reserved** — written downstream, never by `plan-pm` | §6 Feature execution table, §7 Plan tune findings, §8 Todos | `plan-em`, `plan-tune`, `eng --plan` |
+| **D · Reserved** — written downstream, never by `plan-pm` | §6 Feature execution table, §7 Plan review findings, §8 Todos | `plan-em`, `plan-review`, `eng --plan` |
 
-**Undetermined facts use a `[USER: …]` placeholder.** When a value the PRD needs is genuinely not decidable from the intake row, the devkit context, or the codebase, write it inline as `[USER: what you need decided]` and raise the same question as a §5 Open questions row. Never invent the value, and never leave the slot silently blank — the placeholder is what makes the gap visible to the reader and to `plan-tune`.
+**Undetermined facts use a `[USER: …]` placeholder.** When a value the PRD needs is genuinely not decidable from the intake row, the devkit context, or the codebase, write it inline as `[USER: what you need decided]` and raise the same question as a §5 Open questions row. Never invent the value, and never leave the slot silently blank — the placeholder is what makes the gap visible to the reader and to `plan-review`.
 
 ## File header
 
@@ -66,11 +66,11 @@ Every drafted feature gets one row. Every row must have a concrete, verifiable a
 
 **F-IDs are sequential and permanent.** `F1`, `F2`, … in order, assigned once and never renumbered — `plan-em` keys its §6 execution table on them, so a renumber silently breaks the pipeline downstream.
 
-**Exactly one acceptance criterion per feature**, and it must be *observable by the user*. "The list loads" is not one; "the habit row appears on the Home screen within 200ms of saving" is. This is the single contract every downstream stage reads — regression authoring, `plan-tune --product`, and `pre-merge`'s PRD-consistency gate all key off it.
+**Exactly one acceptance criterion per feature**, and it must be *observable by the user*. "The list loads" is not one; "the habit row appears on the Home screen within 200ms of saving" is. This is the single contract every downstream stage reads — regression authoring, `plan-review --product`, and `pre-merge`'s PRD-consistency gate all key off it.
 
 **Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §6 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built. The product/engineering boundary is a msg convention: §1–§5 stay user-facing.
 
-This table is the canonical feature list for the pipeline: `plan-em` keys its execution table (§6) on these F-IDs, and `plan-tune --product` audits the acceptance-criterion column.
+This table is the canonical feature list for the pipeline: `plan-em` keys its execution table (§6) on these F-IDs, and `plan-review --product` audits the acceptance-criterion column.
 
 | ID | Feature | Acceptance criterion | Dependencies |
 |----|---------|----------------------|--------------|
@@ -106,7 +106,7 @@ Table form, drafted **per feature** from the §3 feature set. One row per error 
 
 ## 5. Open questions
 
-Table of unresolved questions that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity the autonomous draft could not resolve (batched back in the Step 4 open-questions pause). `Status` is derived from the `Answer` cell: `Addressed` when an answer is present, `Open` when the `Answer` cell is empty. An empty table (no open questions) is acceptable. `plan-tune` recomputes `Status` and keeps this table normalized.
+Table of unresolved questions that must be answered before implementation starts. Sources: overlap with prior PRDs (Step 2), unresolved `devkit/AHA.md` entries, any ambiguity the autonomous draft could not resolve (batched back in the Step 4 open-questions pause). `Status` is derived from the `Answer` cell: `Addressed` when an answer is present, `Open` when the `Answer` cell is empty. An empty table (no open questions) is acceptable. `plan-review` recomputes `Status` and keeps this table normalized.
 
 | # | Question | Answer | Status |
 |---|----------|--------|--------|
@@ -133,14 +133,14 @@ Skeleton the eng stage will fill:
 | Feature | Execution steps | Files | Todos | Agent |
 |---------|----------------|-------|-------|-------|
 
-## 7. Plan tune findings
+## 7. Plan review findings
 
-**Reserved for `plan-tune`.** Each tune run (`--product` or `--eng`) writes its audit findings here as one growing table — created on the first run, appended to thereafter (never a second section). Columns: `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`.
+**Reserved for `plan-review`.** Each tune run (`--product` or `--eng`) writes its audit findings here as one growing table — created on the first run, appended to thereafter (never a second section). Columns: `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`.
 
 Until the first tune run, leave exactly:
 
 ```
-_Populated by plan-tune (/plan-tune) — audit findings table._
+_Populated by plan-review (/plan-review) — audit findings table._
 ```
 
 ## 8. Todos

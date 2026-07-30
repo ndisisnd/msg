@@ -26,7 +26,7 @@ for runner in detected.mechanical_runners:
 Run the plain-English-comment scan on the branch diff:
 
 ```
-S=.claude/scripts/eng-comment-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/eng-comment-scan.sh"
+S=.claude/scripts/script-eng-comment-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-comment-scan.sh"
 bash "$S" origin/staging...HEAD
 ```
 
@@ -35,7 +35,7 @@ bash "$S" origin/staging...HEAD
 
 ## Commit-cap audit (A5) — new commits only
 
-Re-apply the `eng-commit-cap.sh` logic **per commit**, over the commits that are
+Re-apply the `script-eng-commit-cap.sh` logic **per commit**, over the commits that are
 **new since the last gate run on this branch**. For each such commit, compute changed
 LOC = additions + deletions from `git show --numstat <sha>`, excluding the script's
 lockfile/generated allowlist:
@@ -55,7 +55,7 @@ cannot clear. The audit range is therefore `<last-gated-sha>..HEAD`, where
 (`.pre-merge/<prev-ts>/plan.json`). **No prior run recorded** (first gate run on this
 branch) → audit the full `origin/<base>..HEAD` range once; every later run only sees
 what the author has added since. The real control is eng-side prevention
-(`eng-commit-cap.sh` at commit time), not repeated gate flagging.
+(`script-eng-commit-cap.sh` at commit time), not repeated gate flagging.
 
 Cap = **500** LOC, or **300** when the commit contains a breaking change. A commit
 over its cap **without** an `Oversize-reason:` trailer in its body grades as a

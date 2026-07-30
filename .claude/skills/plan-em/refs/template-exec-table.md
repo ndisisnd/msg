@@ -40,11 +40,11 @@ Add rows for any additional concern surfaced by the codebase scan or integration
 
 ## How plan-em builds the skeleton
 
-After the agent roster is approved, plan-em **decides** the rows but **renders** them with `.claude/scripts/plan-em-exec-skeleton.py` (two-path resolution) — so the anchors and row text are generated deterministically, never hand-typed:
+After the agent roster is approved, plan-em **decides** the rows but **renders** them with `.claude/scripts/script-em-exec-skeleton.py` (two-path resolution) — so the anchors and row text are generated deterministically, never hand-typed:
 
 1. For each feature in the PRD, enumerate its applicable execution concerns (using the table above as a checklist) — this judgment stays with the LLM.
 2. Assign each concern to the agent that owns it (from the scope mapping).
-3. Emit one `{"fid","concern","agent"}` object per `(feature, concern)` row, in row order, as a JSON array and pipe it to `plan-em-exec-skeleton.py --write <prd.md>`. The script reads §3 to resolve each `fid → <name>`, writes one row per spec entry with Feature = `<F-ID>: <name> — <concern>` and Agent pre-populated, Execution steps + Files blank, and each row's **Todos** cell filled with `[F<n>](#todos-f<n>)` for that row's F-ID. A spec `fid` absent from §3 is a hard error (exit 1) — fix the spec, not the PRD.
+3. Emit one `{"fid","concern","agent"}` object per `(feature, concern)` row, in row order, as a JSON array and pipe it to `script-em-exec-skeleton.py --write <prd.md>`. The script reads §3 to resolve each `fid → <name>`, writes one row per spec entry with Feature = `<F-ID>: <name> — <concern>` and Agent pre-populated, Execution steps + Files blank, and each row's **Todos** cell filled with `[F<n>](#todos-f<n>)` for that row's F-ID. A spec `fid` absent from §3 is a hard error (exit 1) — fix the spec, not the PRD.
 
 **One home.** The rendered skeleton goes into the PRD's **reserved `## 6. Feature execution table` section** — `--write` replaces that section's `_To be populated by plan-em …_` placeholder in place. Never append a second `## Execution Table` heading; that legacy name is read-tolerated by the parsers for PRDs written before v5, and is never written by anything now. The result reads:
 

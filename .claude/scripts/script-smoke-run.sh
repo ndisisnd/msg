@@ -16,9 +16,9 @@
 # rolls back, never merges, and never writes a tracked file.
 #
 # Contract:
-#   .claude/skills/post-merge/refs/verify-deploy.md § Smoke contract v2
-#   .claude/skills/post-merge/refs/verify-deploy.md § macOS release checks
-#   .claude/skills/post-merge/refs/output-schema.md § platforms[] · smoke
+#   .claude/skills/merge/refs/verify-deploy.md § Smoke contract v2
+#   .claude/skills/merge/refs/verify-deploy.md § macOS release checks
+#   .claude/skills/merge/refs/output-schema.md § platforms[] · smoke
 #
 # Usage:
 #   script-smoke-run.sh --platform <p> [--cmd <cmd>]
@@ -185,7 +185,7 @@ run_cmd() {   # run the smoke cmd once; sets EXIT_CODE, appends to the log
 json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g' | tr '\n' ' '; }
 
 make_finding() {   # rule, severity, message, suggestion
-  FINDING="{\"id\":null,\"source\":\"post-merge\",\"severity\":\"$2\",\"category\":\"deploy\",\"rule\":\"$1\",\"message\":\"$(json_escape "$3")\",\"file\":null,\"line\":null,\"evidence\":{\"tool\":\"post-merge\",\"snippet\":\"<last lines of $LOG — redact secrets>\"},\"suggestion\":\"$(json_escape "$4")\",\"repro\":\"$(json_escape "$CMD")\",\"regression_of\":null}"
+  FINDING="{\"id\":null,\"source\":\"merge\",\"severity\":\"$2\",\"category\":\"deploy\",\"rule\":\"$1\",\"message\":\"$(json_escape "$3")\",\"file\":null,\"line\":null,\"evidence\":{\"tool\":\"merge\",\"snippet\":\"<last lines of $LOG — redact secrets>\"},\"suggestion\":\"$(json_escape "$4")\",\"repro\":\"$(json_escape "$CMD")\",\"regression_of\":null}"
 }
 
 if [[ "$MODEL" == "submission" ]]; then LABEL="backend-build-health"; else LABEL="live-target"; fi

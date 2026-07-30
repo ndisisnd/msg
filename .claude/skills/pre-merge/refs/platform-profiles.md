@@ -11,7 +11,7 @@ Component selection and thresholds vary by profile; the **safety floor never doe
 
 ## Read + fallback
 
-1. Read `devkit/PLATFORMS.md`. Parse the pipe table (`platform | rollback_possible | tolerance | staging_deploy_cmd | production_deploy_cmd | required_buckets`) — the last column's on-disk name (`required_buckets`) predates this refactor's terminology rename and is unchanged by it; everywhere below it is called the **required-components** column/set. Pre-merge only consumes the `platform` / `tolerance` / `required_buckets` columns; the deploy commands are `/post-merge`'s (ignore them here).
+1. Read `devkit/PLATFORMS.md`. Parse the pipe table (`platform | rollback_possible | tolerance | staging_deploy_cmd | production_deploy_cmd | required_buckets`) — the last column's on-disk name (`required_buckets`) predates this refactor's terminology rename and is unchanged by it; everywhere below it is called the **required-components** column/set. Pre-merge only consumes the `platform` / `tolerance` / `required_buckets` columns; the deploy commands are `/merge`'s (ignore them here).
 2. **Missing file** → fall back to the `standard` profile and emit a warning: `"No devkit/PLATFORMS.md — using the standard profile. Run /msg --init to scaffold per-platform tolerance."` Continue; do not refuse.
 3. **Multiple rows** (multi-platform repo): resolve the **union** of every row's required-components set, and take the **strictest** `tolerance` present (`strict` > `standard` > `lenient`) for threshold purposes.
 
@@ -33,7 +33,7 @@ Independent of tolerance, these always run and always gate:
 
 - **`security`** — secret scan + SAST.
 - **`migration`** — static SQL-safety scan when the diff touches migrations.
-- **The branch-protection green-CI requirement** the PR opens against. Pre-merge holds no human gate of its own — the human look lives at post-merge (`../../shared/refs/safety-floor.md` § *Human gates*).
+- **The branch-protection green-CI requirement** the PR opens against. Pre-merge holds no human gate of its own — the human look lives at merge (`../../shared/refs/safety-floor.md` § *Human gates*).
 - The `../../shared/refs/safety-floor.md` safety floor (DB/data pauses, breaking-change pauses, branch isolation, secret scan, no unsanctioned writes).
 
 Tolerance moves **component selection + severity thresholds only** — it can never

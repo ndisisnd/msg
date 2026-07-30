@@ -1,11 +1,11 @@
 ---
 name: manual-test-plan
-description: Gate component 18 (prd group, advisory, EMIT-ONLY) — generate a significance-rated human-test checklist mapping every in-scope acceptance criterion, error_case, and edge_case to a plain-language do-X → see-Y step. Reuses prd-consistency's (C11) per-item evidence grades for the automation-gap term; never blocks the PR. Generated once at pre-merge; its checklist is walked by the human at post-merge --staging, its sole render site.
+description: Gate component 18 (prd group, advisory, EMIT-ONLY) — generate a significance-rated human-test checklist mapping every in-scope acceptance criterion, error_case, and edge_case to a plain-language do-X → see-Y step. Reuses prd-consistency's (C11) per-item evidence grades for the automation-gap term; never blocks the PR. Generated once at pre-merge; its checklist is walked by the human at merge --staging, its sole render site.
 ---
 
 # Component 18 — MANUAL-TEST-PLAN (prd group, emit-only)
 
-Gives pre-merge post-merge's **walk-the-list** affordance: a human-testable checklist
+Gives pre-merge the same **walk-the-list** affordance `/merge` uses: a human-testable checklist
 mapping the PRD's product intent to plain-language `do X → see Y` steps, each carrying
 a **significance rating**, generated **once** at pre-merge and rendered by both human
 gates. It is `advisory` and **EMIT-ONLY — it never blocks the PR and never changes the
@@ -18,7 +18,7 @@ evidence grades rather than re-walking the diff.
 Do not read the whole PRD. Run the `eval` slice — it carries all three item sources:
 
 ```bash
-G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"
+G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"
 python3 "$G" "<prd-path>" --slice eval
 ```
 
@@ -73,7 +73,7 @@ first**; within a tier, order by user_impact (core flows first).
 
 ## Each item — a plain-language step
 
-Reuse `post-merge/refs/human-test-script.md`'s **plain-language style**: each row is an
+Reuse `merge/refs/human-test-script.md`'s **plain-language style**: each row is an
 **action + the expected observation** in everyday language a non-technical person can
 follow ("add a task with an empty title and press save — you see the inline error
 'Title is required' and the task is not added"), not jargon ("exercise the F1 validation
@@ -94,7 +94,7 @@ Write the checklist to **both** sinks; neither touches the verdict:
    rating (🔴 HIGH → 🟡 MEDIUM → 🟢 LOW), each row showing the item id, the plain-language
    step, and its rating. Best-effort write (a failed report write never fails the run).
 2. **Machine artifact** — `.pre-merge/<ts>/manual-test-plan.json`, the structured list
-   the downstream human gate consumes. **Its one render site is post-merge
+   the downstream human gate consumes. **Its one render site is merge
    `--staging`'s human-test script** — the walk-through where a person checks what
    automation could not verify, HIGH items first:
 

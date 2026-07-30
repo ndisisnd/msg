@@ -60,7 +60,7 @@ same way, so the persisted pref carries the choice across waves without re-passi
 **Item 7 — PRD digest slice.** Run the PRD-digest generator for plan-em's `plan` slice; consume the JSON it prints:
 
 ```bash
-G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
+G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
 ```
 
 The `plan` slice returns `frontmatter` (incl. `platform`, `module`, `affects`, `depends_on`), `summary`, `features` (F-IDs + acceptance criteria verbatim), and `exec_table` — the inputs the roster and exec-table build consume (Steps 3–4). The generator re-parses the current PRD on every call → the slice is never stale and PRD prose stays canonical (see `.claude/skills/shared/refs/session-cache.md`). **Escape hatch:** if a pre-flight check needs prose the slice omits — User-flow narrative for a terminology/architecture-conflict finding, or a heading under the digest's `unparsed_sections` — read only that section's `prose_lines` range. Do **not** default to the whole PRD.
@@ -73,17 +73,17 @@ The `plan` slice returns `frontmatter` (incl. `platform`, `module`, `affects`, `
 
 By the time plan-em runs, the PRD's cross-PRD graph is **already established** by two upstream mechanisms plan-em consumes silently — it does **not** re-ask what they already answered:
 - **intake** graded sequencing into the `S:` cell (`S:now/next/later/blocked-by-#n`), positioning this PRD against the rest of the backlog.
-- **plan-tune** verified the frontmatter graph in certification check 6 (`depends_on`/`affects` correctness + acyclicity) — a precondition already enforced by Step 2 for the product wave (and Step 4 for the build wave).
+- **plan-review** verified the frontmatter graph in certification check 6 (`depends_on`/`affects` correctness + acyclicity) — a precondition already enforced by Step 2 for the product wave (and Step 4 for the build wave).
 
 So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change / Overlap, three questions) is **deleted**. Instead:
 
 1. **Fast scan via the lane-aware scanner** — run the deterministic PRD inventory with `--exclude` set to the input PRD's own id (two-path resolution), which emits one JSONL object per prior PRD across all lanes (`planned/`, `wip/`, `done/`) and the legacy flat path, omitting the input PRD's own line:
 
    ```bash
-   S=.claude/scripts/plan-pm-roadmap-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-pm-roadmap-scan.sh"; bash "$S" --exclude prd-[n]-[slug]
+   S=.claude/scripts/script-prd-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-scan.sh"; bash "$S" --exclude prd-[n]-[slug]
    ```
 
-   A non-zero exit from the scanner is not an expected outcome — log one DOCTOR row (`tool-error:plan-pm-roadmap-scan`) per § Harness incidents, then continue with an empty prior-PRD inventory rather than blocking the run.
+   A non-zero exit from the scanner is not an expected outcome — log one DOCTOR row (`tool-error:script-prd-scan`) per § Harness incidents, then continue with an empty prior-PRD inventory rather than blocking the run.
 
    Read each prior PRD's `module`, `affects`, `depends_on` from the JSONL (no file open). Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
 2. **Ask only on a genuine conflict** — one `AskUserQuestion` fires **only** when the certified graph contradicts what the codebase/feature scan implies, e.g.:
@@ -118,13 +118,13 @@ plan-em Step 4 (build mode): certify eng  →  build wave
 Run the certification gate checker on the input PRD (`product-tuned:` stamp + §7 Critical-open scan, two-path resolution):
 
 ```bash
-S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --product
+S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --product
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed straight to agent identification.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --product` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, **re-run the checker**:
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --product` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, **re-run the checker**:
   - `CERTIFIED` → proceed to agent identification.
-  - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD — and log one DOCTOR row (`validator-fail:plan-tune-cert-status-product`) per § Harness incidents. The *first* `UNCERTIFIED` is expected (it is what triggers the inline certify) and is never logged; only the repair-once loop's still-failing arm is.
+  - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD — and log one DOCTOR row (`validator-fail:script-cert-status-product`) per § Harness incidents. The *first* `UNCERTIFIED` is expected (it is what triggers the inline certify) and is never logged; only the repair-once loop's still-failing arm is.
 
 No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its own product-decision pause is the only stop.
 
@@ -165,13 +165,13 @@ Do not activate any agent without explicit approval.
 - Emit those tuples as a JSON spec — one `{"fid","concern","agent"}` object per row, in row order — and pipe it through the renderer (two-path resolution). It reads §3 to resolve each `fid → <name>`, builds each Feature cell as `<F-ID>: <name> — <concern>`, fills the **Todos** anchor (`[F<n>](#todos-f<n>)`; all rows sharing an F-ID point to the same `### F<n>` subsection under `## Todos`, written later by the plan wave — a forward pointer), and leaves Execution steps + Files blank:
 
 ```bash
-S=.claude/scripts/plan-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-skeleton.py"
+S=.claude/scripts/script-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-skeleton.py"
 echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}, …]' | python3 "$S" --write "$PRD_DIR/prd-[n]-[slug].md"
 ```
 
 A spec `fid` absent from §3 is a hard error (exit 1, named on stderr) — fix the spec, never edit the PRD to match. `--write` puts the rendered table in the PRD's **reserved `## 6. Feature execution table` section** — the exec table's one home — replacing its `_To be populated by plan-em …_` placeholder. Never append a second `## Execution Table` heading; that legacy name is read-tolerated by the parsers for pre-v5 PRDs and is written by nothing. A missing reserved section is a hard error (exit 1) — restore it from `template-prd.md`, do not invent a heading.
 
-Either exit-1 path is an undocumented-failure exit: log one DOCTOR row (`write-miss:plan-em-exec-skeleton`) per § Harness incidents, then handle it exactly as stated above.
+Either exit-1 path is an undocumented-failure exit: log one DOCTOR row (`write-miss:script-em-exec-skeleton`) per § Harness incidents, then handle it exactly as stated above.
 
 **AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, append one entry under `## Entries` (most recent first) of `devkit/AHA.md`:
 
@@ -203,7 +203,7 @@ then take the fan-out for `$TEAM_MODE`.
 **Mode detection.** Run the digest for the `plan` slice (the Step 1b invocation pattern) and read its `engineering_agents` field — the ordered list of `<Agent>` names the generator parsed from the PRD's `## Engineering — <Agent>` headings:
 
 ```bash
-G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
+G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
 ```
 
 Compare `engineering_agents` against the **approved roster** (Step 3b). Two modes:
@@ -236,7 +236,7 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete — stamp the PRD's lifecycle field (the § PRD status lifecycle trigger "eng sections written to PRD"):
 
 ```bash
-S=.claude/scripts/stamp-prd.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-prd.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status eng
+S=.claude/scripts/script-prd-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-stamp.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status eng
 ```
 
 The next `plan-em` invocation then detects `$MODE = build`.
@@ -246,18 +246,18 @@ The next `plan-em` invocation then detects `$MODE = build`.
 **Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (`eng-tuned:` stamp + §7 Critical-open scan, two-path resolution):
 
 ```bash
-S=.claude/scripts/plan-tune-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-tune-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --eng
+S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --eng
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed to branch resolution.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-tune --eng` inline**: `Skill("plan-tune", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:plan-tune-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --eng` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:script-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
 
 Then, resolve and create the feature branch **once**.
 
 **Branch resolution + lane move (run the resolver).** The parent-aware branch choice, the idempotent create-or-checkout ladder, and the `planned/ → wip/` lane move are one deterministic computation — run the resolver (two-path resolution; it is **READ-ONLY** — never mutates git, never moves files), then execute exactly what it emits:
 
 ```bash
-S=.claude/scripts/plan-em-branch-resolve.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-branch-resolve.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md"
+S=.claude/scripts/script-em-branch-resolve.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-branch-resolve.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md"
 ```
 
 It emits three `key=value` lines. Set `$BRANCH` from `BRANCH=`, then act on `ACTION=`:
@@ -275,11 +275,11 @@ Rationale the resolver bakes in (the decision ladder itself now lives in the scr
 **Collision pre-check (solo fan-out).** Before fanning out the build agents, pipe the PRD's exec-table section into the collision checker (two-path resolution) — the checker parses the first markdown table it sees, so isolate §6 rather than passing the whole PRD (§3's feature table precedes it). The awk matches **both** heading forms — the reserved `## N. Feature execution table` and the legacy `## Execution Table` of a pre-v5 PRD:
 
 ```bash
-S=.claude/scripts/plan-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/plan-em-exec-collision.py"
+S=.claude/scripts/script-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-collision.py"
 awk 'tolower($0) ~ /^## ([0-9]+\. )?(feature execution table|execution table)[[:space:]]*$/{f=1;next} f&&/^## /{exit} f' "$PRD_DIR/prd-[n]-[slug].md" | python3 "$S"
 ```
 
-Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run, and log one DOCTOR row (`validator-fail:plan-em-exec-collision`) per § Harness incidents. A collision-only exit 1 is a documented outcome and is **not** an incident — serialise and carry on without logging. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
+Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run, and log one DOCTOR row (`validator-fail:script-em-exec-collision`) per § Harness incidents. A collision-only exit 1 is a documented outcome and is **not** an incident — serialise and carry on without logging. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
 
 Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
@@ -292,7 +292,7 @@ Build agents run in parallel and must not each try to create it (concurrent crea
 
 Emit a short progress note per completion.
 
-**Plan-mode branch suggestion.** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`plan-em-branch-resolve.sh`) will pick:
+**Plan-mode branch suggestion.** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`script-em-branch-resolve.sh`) will pick:
 
 ```
 feat/<prd-id>
@@ -328,7 +328,7 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
 
 **Step 5/5 — Synthesise and next steps**
 
-**Synthesise.** Read the engineering sections + feature coverage via the digest **synth** slice — `python3 .claude/scripts/scan-prd-digest.py <prd-path> --slice synth` (frontmatter + `features` + `exec_table` + every agent's `engineering` block + `open_questions` — everything this synthesis summarizes). **Escape hatch:** for a cross-section conflict that needs product prose (a user-flow or design-system detail), read only that section's `prose_lines` range; do **not** default to reading the whole PRD. Produce a synthesis report inline:
+**Synthesise.** Read the engineering sections + feature coverage via the digest **synth** slice — `python3 .claude/scripts/script-prd-digest.py <prd-path> --slice synth` (frontmatter + `features` + `exec_table` + every agent's `engineering` block + `open_questions` — everything this synthesis summarizes). **Escape hatch:** for a cross-section conflict that needs product prose (a user-flow or design-system detail), read only that section's `prose_lines` range; do **not** default to reading the whole PRD. Produce a synthesis report inline:
 1. **Per-agent summary** — per engineering section: one paragraph on what was written, decided, and left open.
 2. **Numbered findings list** — every gap/conflict/open question across all sections, each with:
    - Severity: **Critical** (blocks engineering kickoff) / **Major** (requires mid-flight PRD revision) / **Minor** (note for future cycles)
@@ -344,7 +344,7 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
 
    Example: `feat/prd-3-habit-tracking`. Engineers cut this from `main` before starting work.
 
-**Next steps.** There is **no next-steps menu.** plan-em recommends the next command; it never invokes the next stage itself. The run ends with the closing message per `../../shared/refs/closing-message.md` — the last chat output, after the synthesis above — taking its next step verbatim from the registry's `plan-em` row (🟢 `Run /eng --build now`). Never compose the step.
+**Next steps.** There is **no next-steps menu.** plan-em recommends the next command; it never invokes the next stage itself. The run ends with the closing message per `../../shared/refs/closing-message.md` — the last chat output, after the synthesis above — taking its next step verbatim from the registry's `plan-em` row **for the wave that just finished** — `plan-em — plan wave` when `$MODE = plan` (🟢 `Run /plan-em <prd> again to start the build wave`), `plan-em — build wave` when `$MODE = build` (🟢 `Run /pre-merge now`). Never compose the step.
 
 The synthesis's batched-Critical `AskUserQuestion` above is untouched: that is a genuine decision point, not a do-next bounce.
 

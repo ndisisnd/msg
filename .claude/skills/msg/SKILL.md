@@ -62,11 +62,11 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Planning | msg --init | One-time project bootstrap |
 | Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
-| Planning | plan-tune | PRD contract certifier — seven consumer-bound checks, product/eng |
+| Planning | plan-review | PRD contract certifier — seven consumer-bound checks, product/eng |
 | Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, opens PR feature→staging |
-| Build & Ship | post-merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
+| Build & Ship | merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 
 > **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the `--help` routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
@@ -74,15 +74,15 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 ## End-to-end happy path
 
 ```
-/msg --init  →  /intake  →  /plan-pm  →  /plan-tune --product  →  /plan-em  →  /plan-tune --eng
+/msg --init  →  /intake  →  /plan-pm  →  /plan-review --product  →  /plan-em  →  /plan-review --eng
                                                                          ↓
                                                              /eng --build
                                                                          ↓
                                              /pre-merge  (CI gate: opens PR feature→staging)
                                                                          ↓
-                              /post-merge --staging  (merge on green CI, deploy, human test)
+                              /merge --staging  (merge on green CI, deploy, human test)
                                                                          ↓
-                                             (human)  /post-merge --production  (release to main)
+                                             (human)  /merge --production  (release to main)
 ```
 
 ---
@@ -110,7 +110,7 @@ Call `AskUserQuestion` with one question:
 - **multiSelect**: `false`
 - **Options**: the rows in the selected category, in table order (`label` = Skill, `description` = Description).
 
-**Paging (Planning has 5 rows).** When a category has more than 4 rows (Planning: msg --init · intake · plan-pm · plan-tune · plan-em), present the first 4 in table order plus a final `More…` option; if the user picks `More…`, re-ask with the remaining rows. Every other category has ≤4 rows and is asked in one call.
+**Paging (Planning has 5 rows).** When a category has more than 4 rows (Planning: msg --init · intake · plan-pm · plan-review · plan-em), present the first 4 in table order plus a final `More…` option; if the user picks `More…`, re-ask with the remaining rows. Every other category has ≤4 rows and is asked in one call.
 
 **Step 3 — Emit**
 
@@ -176,16 +176,16 @@ and a roadmap route survived unnoticed in this table. Check reachability wheneve
 | Planning | A rough idea or notes | any | intake |
 | Planning | Nothing yet | A project spec (PRD) | plan-pm |
 | Planning | Nothing yet | An engineering plan | plan-pm |
-| Planning | A PRD or spec | A project spec (PRD) | plan-tune |
+| Planning | A PRD or spec | A project spec (PRD) | plan-review |
 | Planning | A PRD or spec | An engineering plan | plan-em |
 | Building | Nothing yet / A rough idea or notes | Working code or test results | plan-pm |
 | Building | A PRD or spec | Working code or test results | eng |
 | Building | Code or a diff | Working code or test results | pre-merge |
 | Building | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | Code or a diff | A review or audit report | pre-merge |
-| Reviewing | A PRD or spec | A project spec (PRD) | plan-tune |
+| Reviewing | A PRD or spec | A project spec (PRD) | plan-review |
 | Reviewing | Code or a diff | An engineering plan | eng |
-| Wrapping up | Code or a diff | Working code or test results | post-merge --staging |
+| Wrapping up | Code or a diff | Working code or test results | merge --staging |
 | Wrapping up | Code or a diff | A commit or task list | kermit |
 
 **Step 3 — Emit**

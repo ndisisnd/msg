@@ -94,7 +94,7 @@ restart. Neither writes to `INTAKE.md`.
 - **Target is `in-progress`:**
 
   > `#4` is `in-progress` (PRD: `prd-7-search`). The PRD is the source of truth
-  > once planning starts — run `/plan-tune <path>` to certify it, or `/plan-pm`
+  > once planning starts — run `/plan-review <path>` to certify it, or `/plan-pm`
   > to revise it. `--update` edits `backlog` rows only.
 
   Then re-offer the selectable rows.
@@ -191,7 +191,7 @@ A **targeted cell rewrite, never a file rewrite** — one call per changed cell,
 through the shared ledger writer. Never hand-edit `INTAKE.md`:
 
 ```bash
-S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"
+S=.claude/scripts/script-intake-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-intake-stamp.sh"
 bash "$S" INTAKE.md <row-#> --set-cell <idea|goal|type|grade> "<new value>"
 ```
 
@@ -275,7 +275,7 @@ reused, so the ledger keeps a visible gap).
 
 No `TEMPLATE-INTAKE-UPDATE.md` exists — this header is the one canonical
 source for the file's shape, emitted verbatim by
-`.claude/scripts/stamp-intake.sh --log-append`; `/msg --init` does not
+`.claude/scripts/script-intake-stamp.sh --log-append`; `/msg --init` does not
 pre-create it.
 
 **Migration (first touch — meaning first *writing* touch).** A ledger that
