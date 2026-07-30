@@ -2,6 +2,11 @@
 
 ## 2026-07-30
 
+### [90] — v5.0.1-P4: eng review protocol slim (S1)
+
+- `eng/refs/review/protocol.md`: Changed — 1,258 → 699 words (−44%); the seven priority classes go table→numbered list, meta-commentary/worked-examples/double-homed rules cut (no-threshold spawn rule, /cook exclusion and comment-scan mechanics now cited at their homes instead of restated); every operational item preserved and grep-proven (7 classes, verify-before-report, silence-is-an-outcome, blocker/high gate, `source: eng:review` + schema pointer, diff-only + public-contract trigger, digest-exit awareness); all 6 caller citations resolve, fences balanced
+- [i2]'s 150–250-word body band formally re-set: the mode's mandated contract content floors at ~420 words — body landed at 515; the honest target is the ≤700 file total, now met
+
 ### [89] — v5.0.1-P3: pipeline + structural fail-silent assertions — components can no longer vanish quietly (A19–A25)
 
 - `script-pipeline-resolve.py`: Changed — an unrecognised PLATFORMS row is named (`WARN=unknown-platform`, stderr) instead of silently unscheduled; an existing-but-unreadable PLATFORMS.md is exit 7 (was: read as "ships nothing", skipping the coverage-gap check); a **mandatory** component absent from the manifest now refuses (exit 6, `MANDATORY_ABSENT=<id>`) instead of resolving a plan without a safety-floor step (A19/A20); the no-diff fail-open stays untouched
