@@ -7,7 +7,7 @@ description: >
   features/planned/prd-[n]-[feature-slug]/. The requirements interview lives in /intake now,
   not here. Pauses ONLY for batched open questions the draft couldn't resolve and for
   breaking/critical touches. Refuses requests that would skip the PRD stage entirely.
-argument-hint: "[#<n> | --sub <prd-path> | --roadmap]"
+argument-hint: "[#<n> | --sub <prd-path>]"
 allowed_tools:
   - AskUserQuestion
   - Bash
@@ -25,24 +25,15 @@ allowed_tools:
 
 **Invoke**: `/plan-pm`. With no args it lists the `INTAKE.md` backlog and asks which row to plan.
 
-- Slash commands: `/plan-pm`, `/plan-pm #<n>` (plan a specific intake row), `/plan-pm --sub [parent PRD path | number]`, `/plan-pm --roadmap`
+- Slash commands: `/plan-pm`, `/plan-pm #<n>` (plan a specific intake row), `/plan-pm --sub [parent PRD path | number]`
 - Natural language: "plan this idea", "draft a PRD", "write the PRD for the streaks feature", "turn backlog item 3 into a PRD"
 - Natural language (**sub-PRD**): "create a sub-PRD", "more changes to PRD 2", "follow-up fixes for this PRD", "spin off a sub-PRD" — route to the `--sub` mode in the § Sub-PRD mode section below.
-- Natural language (**roadmap**): "build a roadmap", "arrange my PRDs into phases", "sequence the PRDs", "plan the roadmap", "organise the PRDs into a roadmap" — route to the `--roadmap` mode in the § Roadmap mode section below.
 
-**Modes:** default (autonomous top-level PRD from an intake row), `--sub` (a numbered follow-up nested under an existing parent PRD), and `--roadmap` (analyse the existing PRDs and arrange them into sequenced phases). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first: it changes idea resolution (Step 1), numbering (Step 3 Part 1), the folder/frontmatter written (Step 3 Part 2), and nothing else. All other steps run identically. When `--roadmap` is present, read § Roadmap mode (`--roadmap`): it is a **separate protocol** (`refs/protocol-roadmap.md`), not the five-step PRD flow — it writes no new PRD, operating instead on the PRDs already in `features/` and reading the intake sequencing grades as an input.
+**Modes:** default (autonomous top-level PRD from an intake row) and `--sub` (a numbered follow-up nested under an existing parent PRD). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first; all other steps run identically.
 
-**Hard refusals:**
-- Request asks to skip the PRD and jump straight to engineering: refuse. State that `plan-em` requires a PRD and offer to draft one now (from a backlog row) or accept an existing PRD path for `plan-em`.
-- Direct prose with no matching `INTAKE.md` row: offer one bounce to `/intake` so the idea is graded in the backlog first (Step 1.3); on decline, draft directly but note the ledger gap.
+**Every PRD comes from an `INTAKE.md` row — there is no other entry path.** Prose handed straight to plan-pm is captured into the ledger first (Step 1 calls `/intake` in capture mode), then planned from the row that comes back. Nothing is drafted against a row that does not exist.
 
-## Persona
-
-1. **Autonomous drafter.** The interview happened at intake — you consume its graded row and write the full PRD solo. Do not re-interview; do not gate section by section.
-2. Every spec item has an acceptance criterion. Open questions the draft couldn't resolve go in the Open questions section and are batched back in one ask — never buried in prose.
-3. Never write a requirement an engineer could interpret two ways. When a fact is genuinely undetermined, draft a `[USER: …]` placeholder and raise it as an open question — never invent it.
-4. Output is numbered, dense, and engineer-readable. Tables for feature specs. No hedging or weasel words.
-5. Pause for exactly two things: batched open questions, and breaking/critical touches (the safety pause). Nothing else.
+**Hard refusal:** a request to skip the PRD and jump straight to engineering. State that `plan-em` requires a PRD and offer to draft one now (from a backlog row) or accept an existing PRD path for `plan-em`.
 
 ## Progress emission
 
@@ -65,19 +56,13 @@ Before emitting any step, stat-check and read the following in parallel via `Bas
 
 ## Sub-PRD mode (`--sub`)
 
-A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) capturing extra changes/fixes to an existing parent PRD, nested inside the parent's folder, sharing the parent's branch. It runs the **identical** five-step autonomous protocol in `refs/protocol-pm.md` with exactly four deltas (parent resolution, idea pre-seed, numbering/placement, frontmatter). When `--sub` is present — flag or natural-language trigger — read `refs/protocol-sub.md` first and apply its deltas before Step 1 emits; all other steps run unchanged.
-
-## Roadmap mode (`--roadmap`)
-
-`--roadmap` is a **separate protocol** (`refs/protocol-roadmap.md`), not the five-step PRD flow: it writes no new PRD, instead analysing the existing PRDs in `features/`, reading the `INTAKE.md` sequencing grades (`S:`) as an ordering input, and arranging the PRDs into sequenced roadmap phases, then writing `roadmap/roadmap.md` and offering the GUI/execution handoff. When `--roadmap` is set, follow `refs/protocol-roadmap.md` end-to-end and **do not** run the § Step-by-step protocol below; the Pre-run devkit reads and Persona still apply. (A roadmap phase orders whole PRDs; a PRD §7 / eng-plan phase orders work inside one PRD — the protocol always qualifies "roadmap phase".)
+A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) capturing extra changes/fixes to an existing parent PRD, nested inside the parent's folder, sharing the parent's branch. When `--sub` is present — flag or natural-language trigger — read `refs/protocol-sub.md` first and apply its deltas before Step 1 emits; every other step runs unchanged.
 
 ## Step-by-step protocol
 
-_Default and `--sub` modes only. In `--roadmap` mode, follow `refs/protocol-roadmap.md` instead (see § Roadmap mode above)._
+Follow `refs/protocol-pm.md` end-to-end — it owns the steps, their order, and their outputs.
 
-Follow `refs/protocol-pm.md` end-to-end. It defines the full five-step autonomous flow — Step 1 Resolve the idea (intake entry paths), Step 2 Scan prior PRDs for overlap + breaking surface, Step 3 Autonomous draft (pre-flight + populate every section solo), Step 4 Pauses (batched open questions + breaking/critical safety pause — the only pauses), Step 5 Stamp the intake lifecycle and terminate recommending `plan-tune --product`.
-
-**Closing message (all modes, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output.
+**Closing message (all modes, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output. Two `What happened` rows are **mandatory** on every completed run: the PRD path, written verbatim so it can be copy-pasted, and `Open questions left: <n>` counted from the drafted §8. That count drives the protocol deterministically — `0` ⇒ 🟢, `>0` ⇒ 🟡. The one-line "what this run did" slot may run to 2–3 lines here, summarising the feature drafted. Take the next step from the registry's plan-pm row; never compose it.
 
 ## PRD status lifecycle
 
@@ -97,16 +82,13 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 
 ## References
 
-- `refs/protocol-pm.md` — end-to-end five-step autonomous protocol (resolve intake row → scan → draft solo → paused-only-for-two → stamp + terminate); followed from § Step-by-step protocol
-- `refs/protocol-sub.md` — the four `--sub` deltas (parent resolution, idea pre-seed, numbering/placement, frontmatter) layered over the five-step protocol; read from § Sub-PRD mode when `--sub` is set
-- `refs/protocol-roadmap.md` — end-to-end `--roadmap` protocol: inventory → analyse for bloat/overlap → gated reshaping → stable phase sequencing (reads intake `S:` grades) → `roadmap/roadmap.md` → GUI/execution handoff; followed from § Roadmap mode
-- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Roadmap Step 1 and in the five-step Step 2 prior-PRD scan
-- `roadmap/roadmap.md` — the roadmap artifact written by `--roadmap`; read by `/msg --gui` (Roadmap tab) and `/eng --build roadmap=…`
-- `refs/principles.md` — core operating principles; read this first before drafting in Step 3
-- `refs/template-prd.md` — structured PRD format; used to initialize the file in Step 3
+- `refs/protocol-pm.md` — end-to-end five-step autonomous protocol; followed from § Step-by-step protocol
+- `refs/protocol-sub.md` — the `--sub` deltas layered over that protocol; read from § Sub-PRD mode when `--sub` is set
+- `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
+- `refs/template-prd.md` — structured PRD format and its drafting rules; used to initialize the file in Step 3
 - `refs/template-feature-table.md` — F-ID feature table format; §6 output contract
 - `refs/template-error.md` — error case format, rules, and examples; used when drafting §5 in Step 3
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 3
 - `.claude/scripts/scan-n.prd sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)
-- `INTAKE.md` — the root backlog ledger written by `/intake`; read in Step 1 to resolve the idea, stamped in Step 5
+- `INTAKE.md` — the root backlog ledger written by `/intake`; the **only** source of a PRD's idea — read in Step 1 to resolve the row (calling `/intake` to capture one first when the user came in with raw prose), stamped in Step 5
 - `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md

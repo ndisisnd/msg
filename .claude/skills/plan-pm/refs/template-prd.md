@@ -8,6 +8,8 @@ type: reference
 
 Populate every section. Do not delete a section — if a section does not apply, write `N/A` with a one-sentence reason. Emit each section as an **H2** heading in the exact numbered order below (`## 1. …` through `## 11. …`). Do not emit the scaffolding headings on this page (`## File header`) into the PRD — only the eleven numbered sections.
 
+**Undetermined facts use a `[USER: …]` placeholder.** When a value the PRD needs is genuinely not decidable from the intake row, the devkit context, or the codebase, write it inline as `[USER: what you need decided]` and raise the same question as a §8 Open questions row. Never invent the value, and never leave the slot silently blank — the placeholder is what makes the gap visible to the reader and to `plan-tune`.
+
 ## File header
 
 ```markdown
@@ -107,9 +109,13 @@ Format, rules, and examples: see `refs/template-error.md`.
 
 ## 6. Features & acceptance criteria
 
-Every drafted feature gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs (see `refs/principles.md`). Derive each acceptance criterion from the feature's §4 key interaction and its §5 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from the Step 2 prior-PRD scan + intake grade); use `—` if none.
+Every drafted feature gets one row, carrying the F-ID assigned in `refs/template-feature-table.md` forward unchanged. Every row must have a concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs. Derive each acceptance criterion from the feature's §4 key interaction and its §5 error cases. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from the Step 2 prior-PRD scan + intake grade); use `—` if none.
 
-**Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §7 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built.
+**F-IDs are sequential and permanent.** `F1`, `F2`, … in order, assigned once and never renumbered — `plan-em` keys its §7 execution table on them, so a renumber silently breaks the pipeline downstream.
+
+**Exactly one acceptance criterion per feature**, and it must be *observable by the user*. "The list loads" is not one; "the habit row appears on the Home screen within 200ms of saving" is. This is the single contract every downstream stage reads — regression authoring, `plan-tune --product`, and `pre-merge`'s PRD-consistency gate all key off it.
+
+**Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §7 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built. The product/engineering boundary is a msg convention: everything above §7 stays user-facing.
 
 This table is the canonical feature list for the pipeline: `plan-em` keys its execution table (§7) on these F-IDs, and `plan-tune --product` audits the acceptance-criterion column.
 

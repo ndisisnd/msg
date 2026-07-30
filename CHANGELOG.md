@@ -2,6 +2,13 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P3 — plan-pm content: --roadmap removed, principles/persona folded, intake-only entry (i16/i17/i19/i20/i27/i28)
+
+- Removed — `plan-pm --roadmap` (refs/protocol-roadmap.md + plan-pm-roadmap-sequence.py, zero live callers); `roadmap/roadmap.md` is hand-authored now, its format skeleton rescued into new `TEMPLATE-roadmap.md` scaffolded by /msg --init; `plan-pm-roadmap-scan.sh` survives (Step 2 + plan-em consumers)
+- Removed — `plan-pm/refs/principles.md`; 5 stable rules relocated (F-ID stability + §6 purity + acceptance-criterion → template-prd.md; one-problem-one-PRD + only-what-was-asked → protocol-pm Step 3)
+- `plan-pm/SKILL.md`: Changed — router collapse (step synopsis + --sub delta → pointers), Persona → relocated autonomy rule + [USER:…] convention, closing-message rows per the shared contract; 1,584 → 1,171 words; plan-pm total −32%
+- `plan-pm/refs/protocol-pm.md`: Changed — Step 1 "Resolve the intake row": prose invocations auto-capture via Skill("intake"), no bounce question; Step 5 recommends /plan-em (registry drift fixed); protocol-sub.md D2 rewritten to the mandatory marked-row rule
+
 ### v5-P2 — intake: deterministic row writer + single-homed rules (i102/i103)
 
 - `.claude/scripts/stamp-intake.sh`: Changed — four new verbs beside the untouched stamp path: `--append-row` (dup-# refused), `--set-cell` (old value on stdout for the diff echo; `#`/`date`/`status`/`prd` refused), `--remove-row` (never renumbers), `--log-append` (lazy-creates `INTAKE-UPDATE.md` with the canonical header, `modify|add|remove` only); exit codes extended 0/1/2 → +3 refused / +4 dup / +5 write-fail; shared awk parser, env-passed values, escaped-pipe safe

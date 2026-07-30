@@ -283,6 +283,21 @@ for lane in planned wip done; do
   fi
 done
 
+# ── roadmap/ scaffold ─────────────────────────────────────────────────────────
+# roadmap/roadmap.md is hand-authored by the human — no skill generates it. What
+# ships here is the format guide it must follow, so the human has something to
+# author against and the /msg --gui Roadmap tab can parse the result.
+# Idempotent: an existing TEMPLATE-roadmap.md is skipped, never overwritten.
+
+if [[ -e "$TARGET/roadmap/TEMPLATE-roadmap.md" ]]; then
+  SKIPPED+=("roadmap/TEMPLATE-roadmap.md")
+elif mkdir -p "$TARGET/roadmap"; then
+  content=$(extract_body "$REFS/TEMPLATE-roadmap.md")
+  write_file "TEMPLATE-roadmap.md" "$content" "roadmap"
+else
+  FAILED+=("roadmap/TEMPLATE-roadmap.md")
+fi
+
 # ── .claude/msg/ execution-mode preference ────────────────────────────────────
 # The persisted team/solo planning execution mode consumed by plan-em (Step 0).
 # Seeded here so /msg --init owns first-run creation and /msg --update tops it up

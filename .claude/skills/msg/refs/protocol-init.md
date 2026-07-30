@@ -77,6 +77,7 @@ type: reference
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `post-merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
 | features/ lanes | Three lifecycle lanes — `planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the empty lane on disk. **Gitignored** (see `.gitignore` row) — created, then ignored. A PRD lives in exactly one lane, matching its pipeline stage (drafted → `planned`, branch cut → `wip`, shipped → `done`) | `<cwd>/features/{planned,wip,done}/` |
+| roadmap/TEMPLATE-roadmap.md | Markdown from `refs/init/templates/TEMPLATE-roadmap.md` — the format guide for `roadmap/roadmap.md`, which is **hand-authored by the human**; no skill generates it. Shipped so there is something to author against and the `/msg --gui` Roadmap tab can parse the result. Copied by the user to `roadmap/roadmap.md` when the project has enough PRDs to sequence | `<cwd>/roadmap/TEMPLATE-roadmap.md` |
 | Migrated PRDs | Any pre-lane flat `features/prd-*/` dir is moved into a lane by the completion ladder (plain `mv`; `git mv` only for the legacy case where the dir is already tracked) (shipped → `done/`, live branch → `wip/`, else → `planned/`); reported as `migrated` in the manifest. Empty `features/` → no migration | `<cwd>/features/<lane>/prd-*/` |
 | Manifest | Inline table — file, status (created / skipped / migrated / FAILED), line count | Shown inline at Step 5 |
 
@@ -165,7 +166,7 @@ already carries its value.
 
 | Missing artifact | Variables it needs |
 |---|---|
-| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` | **none** — no placeholders; pure template |
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
 | `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
 | `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
 | `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
@@ -355,6 +356,7 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)
 - `refs/init/templates/template-OPEN-QUESTIONS.md` — template for OPEN-QUESTIONS.md (ambiguity log, written by build subagents)
 - `refs/init/templates/template-PLATFORMS.md` — template for devkit/PLATFORMS.md (per-platform tolerance profiles + staging/production deploy commands; assembled from the P1 interview answer)
+- `refs/init/templates/TEMPLATE-roadmap.md` — template for `roadmap/TEMPLATE-roadmap.md` (the format guide for the hand-authored `roadmap/roadmap.md`; scaffolded from its `## Template body` block, idempotently)
 - `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
 - `.claude/scripts/post-merge-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/post-merge`)
 - `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`), and Step 5 adds `policies.github_actions` (§2b) when a GitHub remote made the CI question askable
