@@ -1,6 +1,11 @@
 # Changelog
 
-## 2026-07-30
+## 2026-07-31
+
+### [94] — Publish the v5.0.1 user-facing release notes
+
+- `RELEASES.md`: Added — the v5.0.1 section, covering the 8-phase hardening build ([86]–[93]): 25 fail-silent assertions + 4 slims (release bookkeeping for the `v5.0.1` GitHub release)
+- `CHANGELOG.md`: Changed — entries [88]–[93] moved under their actual date (`## 2026-07-31`)
 
 ### [93] — v5.0.1-P7: merge verdict→action prose tighten (S4)
 
@@ -38,6 +43,8 @@
 - `script-prd-scan.sh`: Changed — fullness anchors on section titles, not hardcoded §-numbers; decorated ids (`**F1**`) count; "written but unparsed" now distinct from "never written" (`acceptance-criteria-unparsed`/`exec-table-unparsed`); branch names resolve via script-policy-read.py with a loud grep fallback (A16/A17). Bonus fix: the old grep block could abort the whole scan under `set -e` on an ungreppable policy.json — every PRD line silently vanished, exit 1
 - `script-doctor-tally.sh`: Changed — Incidents columns resolved from the header by name (a shifted column no longer tallies zero rows / misreads status); body rows present but none parsed ⇒ exit 2 `LEDGER_ROWS_UNPARSED=<n>`; empty and header-less ledgers keep today's behaviour (A18)
 - Caller docs: eng build/review protocols + protocol-doctor now say what the new non-zero exits mean (stop and surface — never guess)
+
+## 2026-07-30
 
 ### [87] — v5.0.1-P1: Tier 2 fail-silent assertions — writers and ledgers refuse to corrupt (A8–A13)
 

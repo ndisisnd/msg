@@ -2,6 +2,21 @@
 
 What's new for you, release by release.
 
+## v5.0.1 — 2026-07-31
+
+> v5.0.1 is the hardening patch behind v5: twenty-five places where the framework could go wrong *silently* — report a pass it hadn't earned, drop a value, hand out a duplicate number, quietly skip a safety check — now stop and tell you exactly what's wrong instead. Nothing about a correct project behaves differently; only the failure modes got louder. Four remaining wordy corners also received v5's slim treatment.
+
+### 📈 Improved
+- Every new refusal names its cause with a stable, greppable key (which column is missing, which id collided, which section didn't parse), so the fix is stated in the error instead of needing a debugging session.
+- When a check can't run, the run now says so explicitly instead of skipping in silence — "this wasn't checked" is always distinguishable from "this passed".
+- Four texts got the slim pass the rest of the framework received in v5: the code-review instructions (−44%), the CI gate's front door (−32%), the build instructions (−20%), and the ship-gate prose — with every table, step, and gate proven unchanged. Less to load and read, nothing removed but repetition.
+
+### 🐛 Fixed
+- The certification gate could report a plan as certified **past an open critical finding** if the findings table's header ever drifted — it now refuses loudly. The same silent-pass class was closed across the framework: branch protection no longer reports "protected" when zero checks are actually required (and it now finds your production branch even when it isn't named `main`), a release can no longer be numbered from zero over an already-live version, and test selection no longer picks the *smallest* test tier when the change couldn't be measured at all — it now picks the largest, as its own rules always said.
+- Writers stopped being able to corrupt state quietly: a generated table can no longer overwrite real engineering work without an explicit override, duplicate PRD numbers and duplicate ledger rows are refused before they're written, a value you explicitly supplied can never again be silently dropped because a column was missing, and file writes are now crash-safe.
+- Parsers stopped returning confident empty answers: a feature filter that matches nothing, a backlog tally that parses zero rows, or a section that exists but can't be read now say so instead of reporting "nothing found".
+- Two bugs found during the work itself: a policy file the scanner couldn't parse could abort the entire project scan (planning tools then saw an empty project), and a stale globally-installed helper script could silently answer in place of the project's own copy — both fixed, the latter now announces itself whenever the fallback is taken.
+
 ## v5.0.0 — 2026-07-30
 
 > v5 is the subtraction release: the pipeline does everything it did before with far less machinery, and far more of it is deterministic. Two skills have new names — `/plan-tune` is now `/plan-review` and `/post-merge` is now `/merge` — every build now ends with an independent adversarial code review by default, and roughly twenty-five pieces of judgment-by-prose became small scripts that give the same answer every run.
