@@ -131,7 +131,7 @@ Same read model as before — now implemented in `server.py`, re-run per request
    `features/[<lane>/]prd-*/prd-*/reports/report-prd-*-*.json` (`<lane>` ∈ the three
    lanes or absent for the flat path), plus `features/reports/report-*.json`
    (the no-PRD fallback), via the shared **finding → issue-ticket projection** in
-   `eng/refs/build/report-fix.md` (read-time view, never re-serialized). No issues file →
+   `eng/refs/build/fix-build.md` (read-time view, never re-serialized). No issues file →
    `gateIssues: []`.
 5. **Run reports** from `features/[<lane>/]prd-*/reports/report-prd-*-*.md` (one level of
    nested `prd-*` sub-dirs included, resolved across the three lanes and the flat path)
@@ -224,7 +224,7 @@ is unchanged from the previous protocol revision, with these notes:
   "gateIssues": [ { "file": "features/prd-100-…/reports/report-prd-100-1.json", "runId": "100-1", "verdict": "fail",
     "context": { "prd": "…", "branch": "…", "base": "staging" },
     "summary": { "failed": 2, "flaky": 1, "warnings": 0 }, "followUp": { "status": "open" },
-    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per report-fix.md" } ] } ],
+    "tickets": [ { "kind": "issue", "id": "unit-002", "source": "pre-merge:unit-int", "…": "projected per fix-build.md" } ] } ],
   "reports": [ { "file": "features/prd-101-task-crud/reports/report-prd-101-1.md", "reportId": "101-1",
     "skill": "eng", "prd": "features/prd-101-task-crud/prd-101-task-crud.md",
     "prdId": "prd-101-task-crud", "branch": "feat/prd-101-task-crud", "verdict": "pass",

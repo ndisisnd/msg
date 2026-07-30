@@ -10,9 +10,8 @@ Loaded when `plan-em` runs in **`--team`** mode (the default — see `refs/proto
 Step 0). plan-em spawns **one orchestrator engineer agent on Opus** at Step 4 and
 hands it the active wave; this file is that agent's protocol. The orchestrator does
 **not** write engineering sections or code itself — it decomposes the wave and
-coordinates leaf `eng` subagents (`--plan` planners or `--build` implementers), the
-same way the roadmap orchestrator (`eng/refs/build/protocol-roadmap.md`) coordinates a
-whole roadmap. The single difference from solo mode: solo dispatches **one leaf
+coordinates leaf `eng` subagents (`--plan` planners or `--build` implementers) per the
+§ Subagent contract below. The single difference from solo mode: solo dispatches **one leaf
 subagent per roster stack, whole-stack scope, on the inherited model**; team decomposes
 **below the stack level** into many file-disjoint packets and runs each on a
 model-appropriate tier (Opus or Sonnet), to parallelise as much as the collision graph

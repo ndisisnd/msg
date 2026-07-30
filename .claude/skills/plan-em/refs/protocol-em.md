@@ -318,7 +318,7 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
    - Required action: what must happen before engineering work begins
 
    Critical synth findings are **batched, not a blocking terminal gate** (I5) — collect them into one `AskUserQuestion` (≤4 per call, same pause shape as the certifier's product-decision pause and plan-pm's open-questions pause), apply the resolutions, then continue. A Critical that the certifier should have caught (an uncertified-field contract break) is a signal the eng precondition (Step 4) was skipped — re-run it rather than hand-patching here.
-3. **Suggested branch** — emit `feat/<prd-id>`, the PRD folder basename (matching the sub-PRD branch inference and the roadmap completion ladder `feat/prd-<n>-*`, and the branch the build wave's resolver picks). Emit per the convention in `.claude/skills/eng/refs/plan/template-eng-plan.md` §10:
+3. **Suggested branch** — emit `feat/<prd-id>`, the PRD folder basename (matching the sub-PRD branch inference and the roadmap completion ladder `feat/prd-<n>-*`, and the branch the build wave's resolver picks). Emit per the branch convention in `.claude/skills/eng/refs/build/protocol.md` § Branch contract:
 
    ```
    feat/<prd-id>

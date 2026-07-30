@@ -41,6 +41,8 @@ update-plan-gui-done.md
 .claude/skills/**/*-plan.md
 # …but component protocol files are source, not scratch plans (e.g. manual-test-plan, C22)
 !.claude/skills/**/protocol-*-plan.md
+# …and eng's fix-plan ref is source too (renamed from report-fix.md in v5)
+!.claude/skills/eng/refs/plan/fix-plan.md
 .claude/kermit/state.json
 .tokensave
 __pycache__/

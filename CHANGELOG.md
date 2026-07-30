@@ -2,6 +2,15 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P5 — eng content: roadmap orchestrator removed, tickets-final, fix-* renames (i29/i30/i31/i33/i34/i47/i48/i49)
+
+- Renamed — report-fix.md ×3 → `fix-plan.md` / `fix-build.md` / `fix-build-orchestrated.md`; 39 citations across 9 files; `.gitignore` gains a scoped negation so fix-plan.md isn't eaten by the scratch-plan rule
+- Removed — `eng/refs/build/protocol-roadmap.md` (166 ln): roadmap orchestration no longer exists anywhere; its Subagent contract moved into fix-build-orchestrated.md (its one real citer); protocol-team.md now cites its own contract; msg --help's orchestrator row deleted (hand-authored roadmap + GUI tab stay)
+- `eng --build`: Changed — todo tickets are the only and final spec (exec-table steps → `→ F2-T1, F2-T2` pointers; fallback path → hard failure); brevity mandate at work-step 4c; AHA/OPEN-QUESTIONS prose → script-aha.sh/script-openq.sh calls; fix-complexity rubric single-homed in fix-build-orchestrated (fast/deep tier naming)
+- `eng --plan`: Changed — template gates relaxed ("as many as are real"); §10 Branching-and-CI deleted (§11–13 → §10–12); short-form template deliberately skipped
+- `scan-prd-digest.py`: Added — `--verify-rows/--agent` ownership check (ROWS_OK / per-row hard failures); todos join the build slice
+- eng total 19,291 → 16,366 words (−15%)
+
 ### v5-P4 — the PRD template sweep (i15/i18/i21/i22/i23/i75)
 
 - `plan-pm/refs/template-prd.md`: Changed — 11 sections → 8 in four categories (Intent/Contract/Unresolved/Reserved): User flow, Key user interactions, Glossary deleted; Features §3, Error cases §4 (absorbs template-error.md), Open questions §5, exec table §6, tune ledger §7, Todos §8; template-feature-table.md + template-error.md deleted (folded)

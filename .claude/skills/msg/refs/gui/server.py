@@ -409,7 +409,7 @@ CATEGORY_TEST = {"unit", "e2e", "functional", "qa", "a11y", "api", "mobile",
 
 
 def project_finding(f):
-    """Canonical finding → issue-ticket (eng/refs/build/report-fix.md 'Finding → issue-ticket projection')."""
+    """Canonical finding → issue-ticket (eng/refs/build/fix-build.md 'Finding → issue-ticket projection')."""
     msg = f.get("message") or f.get("title") or f.get("id") or "finding"
     suggestion = f.get("suggestion")
     repro = f.get("repro")

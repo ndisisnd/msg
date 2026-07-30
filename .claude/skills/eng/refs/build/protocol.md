@@ -1,6 +1,6 @@
 # eng — Mode: --build
 
-Reads the assigned exec-table rows and the PRD's engineering section (produced in `--plan` mode), then writes implementation code to the working branch.
+Reads the todo tickets for the assigned exec-table rows (written in the same `--plan` pass) and writes implementation code to the working branch. The tickets are the spec.
 
 This file defines the build-mode specifics only. The shared protocol — input validation, PRD + devkit read, summary + approval gate mechanics, codebase scan, platform + coding standards, scope enforcement, user interview — lives in `SKILL.md`. Read SKILL.md's numbered steps as the spine; the sections below slot into the points it marks as mode-specific.
 
@@ -11,20 +11,20 @@ This file defines the build-mode specifics only. The shared protocol — input v
 Build mode has two input sources (resolved at `SKILL.md` Step 1):
 
 - **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
-- **`report`** (alternate, `--build`-only): if a `report=<path to features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json>` arg is present, **load `report-fix.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `report` is a hard failure — ambiguous source; see that ref.)
+- **`report`** (alternate, `--build`-only): if a `report=<path to features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json>` arg is present, **load `fix-build.md` and follow it** — it defines that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, and loop-closing. A plain PRD/exec-table build never loads it. (Supplying both `prd-path` and `report` is a hard failure — ambiguous source; see that ref.)
 
 Either way, build mode requires one additional field, plus one optional commit-mode field:
 
 | Field | Value |
 |-------|-------|
-| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `report` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `report-fix.md`). |
+| `branch` | The **feature branch** that already exists (created by the orchestrator/`plan-em`/`ship`). This is the branch your work must land on. On the `report` source, if `branch` is not passed it defaults to the file's own `context.branch` (see `fix-build.md`). |
 | `commit_mode` | *(optional)* `direct` or `sub-branch`. Default `direct`. See **Branch contract** below. |
 
 ### Branch contract (what `branch` means)
 
 `branch` is the **feature branch the orchestrator created and will review** — it is the destination for this build's commits, **not** merely a PR target.
 
-**Sub-PRD parent-aware derivation.** Before hard-refusing on a missing `branch`, read the PRD's frontmatter for a `parent:` field (present only on sub-PRDs — see `plan-pm`'s § Sub-PRD mode). If `parent: prd-<parent-n>-<parent-slug>` is present and `branch` was not explicitly passed, default `branch` to `feat/prd-<parent-n>-<parent-slug>` — the parent's feature branch, which already exists. A sub-PRD never gets its own branch. (Under `plan-em` orchestration `branch` is always passed explicitly and already resolves this way; this fallback covers a human running `eng --build` directly against a sub-PRD.) The `branch`-already-exists rule in Work-step 1 then applies unchanged: the parent branch is checked out, not created.
+**Sub-PRD parent-aware derivation.** A sub-PRD (frontmatter `parent: prd-<parent-n>-<parent-slug>`) never gets its own branch — it rides the parent's `feat/prd-<parent-n>-<parent-slug>`. The resolver below applies that rule, so `branch` is derived the same way whether `plan-em` passes it explicitly or a human runs `eng --build` directly against a sub-PRD. The `branch`-already-exists rule in Work-step 1 applies unchanged: the parent branch is checked out, not created.
 
 There are two commit modes:
 
@@ -38,7 +38,17 @@ If `commit_mode` is absent, default to `direct`.
 /eng --build prd-path=features/prd-4-habit-tracking/prd-4-habit-tracking.md rows="F2: Track streak — Schema migration; F2: Track streak — API contract" branch=feat/prd-4-habit-tracking
 ```
 
-**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: sub-PRD `parent:` frontmatter above; `report`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no `parent:` frontmatter, and no `context.branch` in the `report` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
+**Resolve and check the branch mechanically (PRD source).** Do not hand-derive the name or eyeball `git branch`. Run the shared resolver — it reads the PRD frontmatter (`parent:` included) and the local branch state and prints `BRANCH=`/`ACTION=`:
+
+```bash
+B=.claude/scripts/plan-em-branch-resolve.sh; [ -f "$B" ] || B="$HOME/.claude/scripts/plan-em-branch-resolve.sh"; bash "$B" "<prd-path>"
+```
+
+- `ACTION=checkout` — the branch exists. Use `BRANCH` when `branch` was not passed; if `branch` **was** passed and differs from `BRANCH`, the caller wins (an orchestrator may target a shared branch) — note the difference in the build summary.
+- `ACTION=create` or `ACTION=fresh-cut` — the target branch does not exist. Build agents never create branches: emit `Hard failure: target branch '<BRANCH>' does not exist — the orchestrator must create it before build agents run` and stop.
+- Exit 2 (no PRD / not a git repo) — fall back to the passed `branch`; if there is none, hard-refuse as below.
+
+**Hard-refuse if `branch` is missing and cannot be derived.** If `branch` is not passed, first apply the derivation for the active source (PRD: the resolver above; `report`: the file's `context.branch`). Only if `branch` is still unresolved — no explicit value, no resolver result, and no `context.branch` in the `report` file — emit `Hard failure: missing required field 'branch' for --build mode` and stop. Do not proceed to pre-flight without a resolved `branch`.
 
 ---
 
@@ -50,13 +60,15 @@ This refines the **standalone path** of `SKILL.md` Step 2 for build mode. On a s
 G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<prd-path>" --slice build --feature <F-ID>
 ```
 
-The `build --feature <F-ID>` slice returns that feature's row (F-ID + acceptance criterion verbatim), its execution-table rows, and the `engineering` block (integration contracts, migration/breaking-change, scope mapping, findings, open questions) — the spec the Work steps below consume (Item 0 cross-check + exec-table fallback). Run it per assigned F-ID (or omit `--feature` to get all features and filter to your `rows` locally). The generator re-parses the current PRD on every call, so the slice is never stale and the PRD prose stays canonical — see `.claude/skills/shared/refs/session-cache.md`.
+The `build --feature <F-ID>` slice returns that feature's row (F-ID + acceptance criterion verbatim), its execution-table rows (whose Execution steps cell is the ticket-id pointer), the `todos` block (each agent's ticket ids + the `prose_lines` range to read the tickets from), and the `engineering` block (integration contracts, migration/breaking-change, scope mapping, findings, open questions) — the context the Work steps below consume around the tickets. Run it per assigned F-ID (or omit `--feature` to get all features and filter to your `rows` locally). The generator re-parses the current PRD on every call, so the slice is never stale and the PRD prose stays canonical — see `.claude/skills/shared/refs/session-cache.md`.
 
 **Escape hatch:** if a row needs a detail the slice omits — Design-decisions / Phases prose or exact identifiers buried in narrative beyond the captured contracts/migration/scope blocks, or a heading under the digest's `unparsed_sections` — read only that engineering section's `prose_lines` range. Do **not** default to reading the whole PRD. (The `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers, per Work steps below.)
 
 The **orchestrated** build path is unchanged (work from the injected scoped excerpts, PRD path as escape hatch only), and the **`report`** source reads no exec-table at all — neither invokes this slice read.
 
-The `### F<n>` **todo** blocks are not part of the slice; they are written by `--plan` in the same pass as the engineering section (always present), so read them from the PRD's `## Todos — <Agent Name>` section as the Work steps specify.
+The slice points at the `### F<n>` **todo** blocks (ids + `prose_lines`) rather than inlining them; read the ticket bodies from that line range in the PRD's `## Todos — <Agent Name>` section — they are the spec the Work steps execute.
+
+**Row ownership is verified mechanically** (`SKILL.md` Step 2): the digest script grades the `rows`/`agent` pair rather than the model reading the table.
 
 ## Summary content (Step 3 — Pre-run 1 of 2)
 
@@ -112,28 +124,30 @@ If rows span multiple stacks, add each stack's scoped flags to the **same** call
 
 ## Work steps (Step 5)
 
-**Spec source — todos drive the build; exec-table is the degraded fallback.** Todos are written by `eng --plan` in the same pass as the engineering section, so under normal input every owned F-ID has a `### F<n>` block under this agent's `## Todos — <Agent Name>` section. For each assigned F-ID:
+**Spec source — the todo tickets, and nothing else.** Tickets are written by `eng --plan` in the same pass as the engineering section, so every owned F-ID has a `### F<n>` block under this agent's `## Todos — <Agent Name>` section. There is no second spec: the exec-table row's Execution steps cell is a **pointer** to the ticket ids that deliver it (`→ F2-T1, F2-T2`), not a work description.
 
-- **Todos present** for the F-ID (the normal case) → work the `### F<n>` block's **tickets** directly (JIRA/Linear-style; see the schema in `refs/plan/template-todo.md`). Each ticket carries `id`, `title`, `objective`, `type`, `files` (each path + its `add|edit|remove` action), `depends-on`, and `done-when`. To execute a ticket: make the `files` changes to deliver the `objective`, then satisfy the `done-when` check. This is a mechanical checklist — no re-derivation of tasks from engineering-plan prose needed. (An explicitly empty `### F<n>` block — `_No discrete work for this feature._` — means nothing to build for that feature.)
-  - **Ordering (`depends-on`, then ticket-id order).** Build tickets in dependency order: a ticket runs only after every id in its `depends-on` is complete (this replaces the old TDD `blocked by:` row annotation as the ordering signal when todos drive the build). Among tickets with no outstanding dependency, take **ticket-id order** first (`F1-T1` → `F1-T2` → `F2-T1`) — ids are already stable, feature-scoped and 1-based, so the order they were authored in doubles as the build order. A ticket whose `depends-on` names an id that doesn't exist in this PRD's `## Todos`, or a dependency cycle, is a blocking gap → surface via `AskUserQuestion`, do not guess an order.
-  - **Objective keeps scope honest.** Use each ticket's `objective` as the intent check — implement exactly what serves it; anything beyond is out of scope (Step 6).
-- **No todos for the F-ID** (degraded input — todos are normally always written, so a missing `### F<n>` block means the plan pass was incomplete) → fall back to deriving tasks from the PRD's `## Engineering — <Agent Name>` section and the F-ID's execution-table rows. The fallback path stays fully supported.
-- **Neither todos nor a resolvable execution-table row** for an assigned F-ID → hard stop (no scope to build), consistent with the existing missing-input hard-refusals: emit `Hard failure: no todos and no execution-table row for '<F-ID>' — nothing to build` and stop.
+- Work the `### F<n>` block's **tickets** directly (JIRA/Linear-style; see the schema in `refs/plan/template-todo.md`). Each ticket carries `id`, `title`, `objective`, `type`, `files` (each path + its `add|edit|remove` action), `depends-on`, and `done-when`. To execute a ticket: make the `files` changes to deliver the `objective`, then satisfy the `done-when` check. This is a mechanical checklist — no re-derivation of tasks from engineering-plan prose. (An explicitly empty `### F<n>` block — `_No discrete work for this feature._` — means nothing to build for that feature.)
+- **Ordering (`depends-on`, then ticket-id order).** A ticket runs only after every id in its `depends-on` is complete. Among tickets with no outstanding dependency, take **ticket-id order** (`F1-T1` → `F1-T2` → `F2-T1`) — ids are stable, feature-scoped and 1-based, so authoring order doubles as build order. A `depends-on` naming an id that doesn't exist in this PRD's `## Todos`, or a dependency cycle, is a blocking gap → surface via `AskUserQuestion`, do not guess an order.
+- **Objective keeps scope honest.** Use each ticket's `objective` as the intent check — implement exactly what serves it; anything beyond is out of scope (Step 6).
+- **Missing tickets are a plan failure, not a fallback.** No `### F<n>` block for an assigned F-ID, or a pointer id that resolves to no ticket, means the plan pass was incomplete. Emit `Hard failure: no todos for '<F-ID>' — plan pass incomplete, re-run eng --plan` and stop. Never reconstruct a spec from exec-table prose or engineering-section narrative.
 
-In all cases the PRD's `## Engineering — <Agent Name>` section remains the authority on design decisions and exact identifiers; the todos are the executable breakdown of that section. Do not re-interpret the PRD features section directly.
+The PRD's `## Engineering — <Agent Name>` section remains the authority on the surrounding design decisions and cross-agent contracts; the tickets are the work. Do not re-interpret the PRD features section directly.
 
-**`report` source.** When build is driven by `report=` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `report-fix.md`**.
+**`report` source.** When build is driven by `report=` instead of an exec-table, the numbered work steps below still run but with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, flaky handling, `Issue`-keyed summary, loop-closing) — **see `fix-build.md`**.
 
-0. **Cross-check plan section vs exec-table.** Before reading any file, confirm the §Engineering section is consistent with the current exec-table:
-   - Every assigned row must appear in the exec-table with a non-blank Execution steps cell.
-   - The `## Engineering — <Agent Name>` section must reference each assigned row (by row label or feature ID).
-   If any row is missing from the exec-table, has a blank Execution steps cell, or is absent from the §Engineering section, surface it as a blocking gap via `AskUserQuestion` — do not proceed until resolved. Do not guess or infer intent; `plan-tune --eng` may have edited the table after the section was written.
+0. **Cross-check the pointers resolve.** Before reading any file, confirm the row → ticket chain is intact:
+   - Every assigned row's Execution steps cell names at least one ticket id, and **every named id resolves** to a real ticket under `## Todos — <Agent Name>`.
+   - The `## Engineering — <Agent Name>` section references each assigned row (by row label or feature ID).
+   A missing row, an empty or unresolvable pointer cell, or a row absent from the §Engineering section is a blocking gap — surface it via `AskUserQuestion` and do not proceed until resolved. Do not guess or infer intent; `plan-tune --eng` may have edited the table after the section was written.
 
 1. **Check out the work branch (per `commit_mode`).** `branch` already exists — it is created once by the orchestrator (`plan-em`/`ship`) before any build agent starts; do **not** create it yourself (parallel build agents racing to create the same branch from `main` corrupts the tree). If `branch` does not exist, this is a hard failure: emit `Hard failure: target branch '<branch>' does not exist — the orchestrator must create it before build agents run` and stop. Then:
    - **`commit_mode: direct` (default):** check out `branch` itself and do all work on it. Your commits land directly on the feature branch the orchestrator reviews. Touch only the files your assigned rows specify (Step 6) so parallel agents on the same branch stay file-disjoint.
-   - **`commit_mode: sub-branch`:** derive a sub-branch name `{branch}/{row-slug}` (where `row-slug` is a lowercase hyphenated slug of the first assigned row, e.g. `feat/prd-4-habit-tracking/streaks-schema`), cut it from `branch`, check it out, and do all work there.
+   - **`commit_mode: sub-branch`:** derive the sub-branch name `{branch}/{row-slug}` mechanically from the first assigned row, then cut it from `branch`, check it out, and do all work there:
+     ```bash
+     ROW_SLUG=$(printf '%s' "<first assigned row>" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')
+     ```
    Do not push until the commit step.
-2. **Read the tasks.** For each assigned F-ID, read its `### F<n>` todo block if present (preferred), else the assigned exec-table rows' Execution steps column (fallback), per **Spec source** above. If falling back and an Execution steps cell is blank, surface it as a blocking gap via `AskUserQuestion` — do not proceed on that row until resolved.
+2. **Read the tickets.** For each assigned F-ID, read its `### F<n>` todo block — the whole spec for the build, per **Spec source** above. Follow each assigned row's Execution steps pointer to the ticket ids it owns; an unresolvable pointer or a missing block is the hard failure named there, not a prompt to improvise.
 3. **Discover testing tools.** Before writing any test file, scan existing test files in the relevant feature area for:
    - Test runner and framework (e.g., `pytest`, `jest`, `go test`, `flutter_test`)
    - Assertion libraries and matchers in use
@@ -143,21 +157,23 @@ In all cases the PRD's `## Engineering — <Agent Name>` section remains the aut
 
    Record findings and apply them to every test file written in step 4. If no existing test files exist, check `CLAUDE.md` and `devkit/ARCHITECTURE.md` for the declared test stack.
 
-4. **Execute rows in TDD order.** Rows with `blocked by:` annotations must wait for the named dependency. Within unblocked rows, process by feature group. For each group, complete all four phases before moving to the next group.
+4. **Execute tickets in TDD order.** Take tickets in the order set by **Spec source** (`depends-on` first, then ticket-id order), grouped by F-ID. For each F-ID group, complete all four phases (a–d) before moving to the next group. Which phases a ticket touches follows its `type` (`code | test | config | migration | doc`): a `test` ticket is the group's phase (a); `code`, `migration`, `config` and `doc` tickets are phase (c); and every ticket ends at its own `done-when` in phase (d).
 
    **Test surface — unit + integration only.** The TDD loop writes and runs **unit and integration tests only**. Do **not** run e2e, visual, perf, a11y, or coverage buckets inside the build loop — everything heavier is pre-merge's job (the CI gate), run once there instead of per-fix-iteration. This keeps the inner loop fast and cheap.
 
-   **a. Write tests.** For each Tests concern row in this group, create the test file using the conventions and tooling discovered in step 3. Write syntactically valid, runnable assertions derived from the Execution steps. No `TODO` placeholders. Tests must compile or parse without errors. Do not write tests for rows without a Tests entry in the exec-table — a missing Tests row is a planner gap, not eng's to fill. **If a feature group owns implementation rows but no Tests row, do not silently ship it untested:** emit a visible warning (`⚠ No Tests row for group '<feature>' — shipping implementation without coverage`), record it in the build summary's Blocked/Notes and in `devkit/AHA.md`, then proceed.
+   **a. Write tests.** For each `test` ticket in this group, create the test file using the conventions and tooling discovered in step 3. Write syntactically valid, runnable assertions derived from the ticket's `objective` and `done-when`. No `TODO` placeholders. Tests must compile or parse without errors. Do not invent tests for a group with no `test` ticket — a missing test ticket is a planner gap, not eng's to fill. **If a group owns implementation tickets but no `test` ticket, do not silently ship it untested:** emit a visible warning (`⚠ No test ticket for group '<F-ID>' — shipping implementation without coverage`), record it in the build summary's Blocked/Notes and in `devkit/AHA.md`, then proceed.
 
    **b. Verify red.** Run only the test files just written. Confirm they fail with assertion failures — not compile errors or import errors. If a test errors instead of fails, fix the setup until it fails cleanly on a real assertion. A test that errors is not a red test; do not proceed to implementation until this is resolved.
 
-   **c. Write implementation.** For each implementation row in this group, in order: Schema migration → API contract → Authentication → Webhook → Client implementation. Create or modify the files named in the Execution steps. Apply the Step 4 coding standards (the injected `standards payload`, or `/cook` on a standalone run). Reuse existing components from `DESIGN-SYSTEM.md` before creating new ones.
+   **c. Write implementation.** For each implementation ticket in this group, in the order set above, create or modify exactly the files named in the ticket's `files`. Apply the Step 4 coding standards (the injected `standards payload`, or `/cook` on a standalone run). Reuse existing components from `DESIGN-SYSTEM.md` before creating new ones.
+
+   **Write the minimum (brevity mandate).** Write the least code that satisfies the ticket's `done-when` — no speculative abstraction, no indirection with a single caller, no unrequested generality, no options nobody asked for. Prefer a stdlib or framework call over hand-rolled code. Anything beyond the `done-when` is out of scope (Step 6), the same posture the ticket's `objective` already sets for scope.
 
    **Plain-English comments (A4).** Every new or modified function, module, class, and exported symbol gets a comment on the line above stating in plain English **what** it does (not how). Enforced twice: the pair reviewer checks it per ticket (4e), and `eng-comment-scan.sh` greps the staged diff mechanically at the commit gate (Step 7).
 
-   **d. Verify green.** Re-run the test files for this group. If all pass, continue to the next feature group. If any fail, enter Debug mode (`protocol-build-debug.md`). Do not move to the next feature group until this group's tests are green.
+   **d. Verify green.** Re-run the test files for this group and check each ticket's `done-when`. If all pass, continue to the next feature group. If any fail, enter Debug mode (`protocol-build-debug.md`). Do not move to the next feature group until this group's tests are green.
 
-   **e. Pair review (per ticket, before its commit gate).** After a ticket's implementation passes green, spawn one **pair-review subagent** — the platform-parameterised principal-engineer persona, the unnecessary-code-only mandate, the injected contract (diff + `done-when` + the parent's standards payload; no `/cook` call), and the blocking **one-revision-round** rule all live in `pair-review.md`; its input cost is bounded by the ticket's diff size — typically ≤500 changed LOC, the same figure `eng-commit-cap.sh` measures at the ticket's commit gate (an observed number, not a guaranteed one). Resolve or justify each finding; after the single round any unresolved finding is logged to the §12 Findings ledger with the justification, then the ticket is eligible to commit.
+   **e. Pair review (per ticket, before its commit gate).** After a ticket's implementation passes green, spawn one **pair-review subagent** — the platform-parameterised principal-engineer persona, the unnecessary-code-only mandate, the injected contract (diff + `done-when` + the parent's standards payload; no `/cook` call), and the blocking **one-revision-round** rule all live in `pair-review.md`; its input cost is bounded by the ticket's diff size — typically ≤500 changed LOC, the same figure `eng-commit-cap.sh` measures at the ticket's commit gate (an observed number, not a guaranteed one). Resolve or justify each finding; after the single round any unresolved finding is logged to the §11 Findings ledger with the justification, then the ticket is eligible to commit.
 
 5. **Full-suite gate (unit + integration).** After all feature groups are green, run the project's **unit + integration** test suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). This gate scopes to unit + integration only — e2e / visual / perf / a11y / coverage are **not** run here; they belong to pre-merge (the CI gate). The per-group runs only covered the files this agent wrote; this catches breakage in sibling code. Any new failure introduced by this agent's changes goes to Debug mode (`protocol-build-debug.md`, max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed (out of scope). If the project has no test or lint command, state that in the build summary and continue.
    *Caller override: orchestrators (e.g. `ship`) may suppress this gate and run a dedicated test stage instead. When suppressed, skip to step 6.*
@@ -169,7 +185,7 @@ In all cases the PRD's `## Engineering — <Agent Name>` section remains the aut
    P=.claude/scripts/eng-commit-cap.sh;   [ -f "$P" ] || P="$HOME/.claude/scripts/eng-commit-cap.sh";   "$P"   # add --breaking on a breaking-change commit
    ```
    - **Comment scan (A4):** any `UNCOMMENTED <file>:<line>` flag → add the plain-English comment and re-stage before committing. A genuine false positive is left as-is and noted in the build summary.
-   - **Commit cap (A5):** pass `--breaking` when the commit contains a breaking change (removed/renamed public API, changed contract/schema) — the cap drops from 500 to 300 changed LOC. The script always exits 0 and always prints `CAP_OK`/`CAP_EXCEEDED <loc>/<cap>` — it measures, it does not block. On `CAP_EXCEEDED`, judge split-or-commit: prefer **splitting the commit** into smaller ticket-sized commits. If committing over-cap anyway, pass `--oversize-reason "<text>"` (prints `OVERSIZE <loc> reason: <text>`) and carry the same justification as an `Oversize-reason: <text>` trailer in the commit body — the trailer is **mandatory** on any over-cap commit, and that justification is logged to the §12 Findings ledger. A **recurring** oversize pattern is a ticket-sizing signal — note it in the build summary and `devkit/AHA.md` (plan-time LOC sizing no longer exists to feed back to; the loop closes at `AHA.md` only).
+   - **Commit cap (A5):** pass `--breaking` when the commit contains a breaking change (removed/renamed public API, changed contract/schema) — the cap drops from 500 to 300 changed LOC. The script always exits 0 and always prints `CAP_OK`/`CAP_EXCEEDED <loc>/<cap>` — it measures, it does not block. On `CAP_EXCEEDED`, judge split-or-commit: prefer **splitting the commit** into smaller ticket-sized commits. If committing over-cap anyway, pass `--oversize-reason "<text>"` (prints `OVERSIZE <loc> reason: <text>`) and carry the same justification as an `Oversize-reason: <text>` trailer in the commit body — the trailer is **mandatory** on any over-cap commit, and that justification is logged to the §11 Findings ledger. A **recurring** oversize pattern is a ticket-sizing signal — note it in the build summary and `devkit/AHA.md` (plan-time LOC sizing no longer exists to feed back to; the loop closes at `AHA.md` only).
 
    Use a conventional commit message referencing the feature and ticket ids (e.g. `feat(streaks): add streaks table [F1-T1]`). In `direct` mode commits land on `branch`; in `sub-branch` mode on the sub-branch. Either way, the feature branch ends with your commits on it (directly, or via the PR you open in `sub-branch` mode).
 8. **Open PR (`sub-branch` mode only).** In `sub-branch` mode, when all assigned rows are complete and tests pass, open a PR from the working sub-branch to `{branch}`; link the PRD path in the PR description; never open a PR against `main`. **In `direct` mode, skip this step** — there is no sub-branch and no PR; the orchestrator reviews `branch` directly.
@@ -184,25 +200,27 @@ Activates on a test failure at verify-green (step 4d) or a compile/runtime error
 
 ## AHA.md
 
-Throughout the build, append to `devkit/AHA.md` (the same file pre-flight reads, so learnings resurface in future plan runs) when any of the following occur:
+Throughout the build, record a learning in `devkit/AHA.md` (the same file pre-flight reads, so learnings resurface in future plan runs) when any of the following occur:
 
 - Codebase scan reveals a pattern not in the pulled coding standards.
-- An execution step cannot be implemented as written.
-- A cross-agent dependency is discovered mid-build not marked in the exec-table.
+- A ticket cannot be implemented as written.
+- A cross-agent dependency is discovered mid-build that no ticket's `depends-on` marks.
 - A non-obvious implementation decision is made.
 - A debug cycle runs (regardless of outcome).
 
-**Format:**
+**Eng judges *when* to log and *what* it says; the writer is shared.** Do not hand-format or hand-append the entry — call the file's one writer, which owns the entry shape, the most-recent-first ordering and the recurrence count:
 
-```
-### [YYYY-MM-DD] <Feature — Concern>: <Summary title>
-
-**Issue/Learning**: <what happened>
-**Resolution**: <what was done, or "unresolved — see debug escalation">
-**Severity**: <omit unless this entry was written at debug escalation — then set to `escalated`>
+```bash
+A=.claude/scripts/script-aha.sh; [ -f "$A" ] || A="$HOME/.claude/scripts/script-aha.sh"
+bash "$A" devkit/AHA.md --tag "eng:<class>" --summary "<what happened>" \
+  --why "<why it matters to a future run>" --note "<what was done, or 'unresolved — see debug escalation'>"
 ```
 
-`devkit/AHA.md` is append-only. Never overwrite existing entries. Reference any AHA entries written during the run in the build summary.
+- `--tag` names the class of learning (e.g. `eng:standards-gap`, `eng:ticket-unbuildable`, `eng:debug-escalation`) — same tag for the same class every time, so recurrences count.
+- **Exit 3** = no `devkit/AHA.md` in this project → skip the write silently and continue; it is not a build failure.
+- Exit 2 = usage error or a malformed target file → note it in the build summary's **Warnings** and continue.
+
+Reference any AHA entries written during the run in the build summary.
 
 ---
 
@@ -215,9 +233,20 @@ Append when any of the following occur:
 - A product or design decision surfaces mid-build that the PRD didn't anticipate and that would affect scope beyond the current row.
 - A debug escalation (3 failed cycles, see `protocol-build-debug.md`) leaves a row unresolved — log here in addition to AHA, since it blocks a decision rather than just recording a learning.
 
-**Format:** use the entry template in `.claude/skills/msg/refs/init/templates/template-OPEN-QUESTIONS.md`, with these eng-specific values — `Status: open` (build agents never write `in-progress`/`resolved`) and `Raised by: eng-<agent name>`.
+**Eng judges *when* to log and *what* it says; the writer is shared.** Do not hand-format or hand-append — call the file's one writer, which owns the entry shape and enforces structurally that the append lands in `## Open Questions` and never touches `## Resolved`:
 
-Append under the `## Open Questions` heading only — never write to `## Resolved` (that section is curated by humans or `plan-em`/`plan-tune`, not by build agents). `devkit/OPEN-QUESTIONS.md` is append-only, same as AHA.md. Reference any entries written during the run in the build summary.
+```bash
+Q=.claude/scripts/script-openq.sh; [ -f "$Q" ] || Q="$HOME/.claude/scripts/script-openq.sh"
+bash "$Q" devkit/OPEN-QUESTIONS.md --title "<one-line question title>" \
+  --question "<the decision that could not be made>" --raised-by "eng-<agent name>" \
+  --severity <critical|high|medium|low> --context "<the assumption the build proceeded on>"
+```
+
+- `--status` defaults to `open` and build agents never pass anything else (`in-progress`/`resolved` are a human's or a planner's call).
+- **Exit 3** = no `devkit/OPEN-QUESTIONS.md` in this project → skip the log silently and continue.
+- Exit 2 = usage error or a malformed target file → note it in the build summary's **Warnings** and continue.
+
+Reference any entries written during the run in the build summary.
 
 ---
 
@@ -236,14 +265,14 @@ Emit a build summary after all rows are complete:
 **Branch:** <branch the commits landed on — the feature branch in `direct` mode, or the sub-branch name in `sub-branch` mode>
 **Target:** <feature branch (branch field value)>
 **Full-suite gate:** <pass / fail summary, or "no test/lint command">
-**Warnings:** <e.g. groups shipped without a Tests row, uncovered stacks from /cook, or "None">
+**Warnings:** <e.g. groups shipped without a test ticket, uncovered stacks from /cook, or "None">
 **Blocked rows:** <list any rows not completed and why>
 **AHA entries:** <list any entries written to devkit/AHA.md, or "None">
 **Open questions:** <list any entries written to devkit/OPEN-QUESTIONS.md, or "None">
 **Report:** <path to the report-prd-<N>-<K>.md if the file was written, else "inline — the build summary above is the report of record">
 ```
 
-**`report` source.** When the build was driven by `report=`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `report-fix.md`.
+**`report` source.** When the build was driven by `report=`, the summary table is keyed by `Issue` (not `Row`) and the loop is closed in the source file's `followUp.status` — see `fix-build.md`.
 
 ### Run report — `report-prd-<N>-<K>.md`
 

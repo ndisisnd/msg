@@ -1,109 +1,42 @@
 ---
 name: Execution Steps Guide
-description: How eng agents write the Execution steps column in the PRD's Execution Table — format, granularity, dependency notation, and worked examples per concern type
+description: How eng agents fill the Execution steps and Files columns in the PRD's execution table — a ticket-id pointer plus the row's file set; the tickets themselves are the build spec
 type: reference
 ---
 
-# Execution Steps Guide
+# Execution steps + Files — the row's two cells
 
-You are filling in the **Execution steps** column for every row in the Execution Table where the **Agent** column matches your agent name. Read this guide before writing a single step.
+The **tickets are the build spec** (`refs/plan/template-todo.md`; `refs/build/protocol.md` § Spec source). The execution table is the index over them: each row points at the tickets that deliver it and lists the files it touches. Nothing in the row restates a ticket's contents.
 
-Alongside Execution steps, populate the **Files** column on the same row: a comma/space-separated list of every repo-relative path the row creates or modifies — exactly the paths named in your Execution steps. This is what makes collision detection mechanical, so it must be complete.
+You fill two cells on every row where the **Agent** column matches your agent name.
 
-## Step format
+## Execution steps — a pointer to ticket ids
 
-Each execution step is one imperative sentence. Write steps as a numbered list inside the table cell.
+Write the ticket ids that deliver this row, in ticket-id order, prefixed with `→`:
 
 ```
-1. Verb the thing — optional file/table/component reference
-2. Verb the next thing
-3. ...
+→ F2-T1, F2-T2
 ```
 
 **Rules:**
-- Start with an imperative verb: *Define*, *Add*, *Create*, *Extend*, *Migrate*, *Implement*, *Wire*, *Write*, *Remove*, *Update*.
-- Name the specific file, table, endpoint, component, or class where the work lands — do not write vague steps like "update the backend" or "add tests."
-- One step = one discrete deliverable a reviewer can verify in isolation. Too coarse: "implement the feature." Too granular: "add a closing brace." Right: "Add `user_id` (FK) column to `streaks` table in migration `0042_add_streaks`."
-- Keep each step to one line. If a step needs a qualifier, append it with an em dash: `1. Define POST /goals — request body: { userId, date, targetCount }`.
 
-## Concern-specific patterns
+- Every id must resolve to a real `F<n>-T<k>` ticket under this PRD's `## Todos — <Agent Name>` block. An id that does not resolve is a **hard failure** — the build has no spec for the row.
+- Every ticket you write for an owned F-ID appears in exactly one row's pointer cell. A ticket nobody points at is invisible to the row-scoped build.
+- No prose, no numbered steps, no dependency notation. Ordering lives on the ticket (`depends-on`), the objective and the verification live on the ticket (`objective`, `done-when`), and the exact identifiers live on the ticket (`files`, `done-when`). Writing any of it here creates a second spec that will drift.
+- A row with genuinely no discrete work still points at the feature's empty-block sentinel — see `refs/plan/template-todo.md`.
 
-Use these as starting points. Adapt to what the codebase scan revealed in Step 4.
+## Files — the collision key
 
-### API contract
-
-```
-1. Define <METHOD> <path> — request: <shape>, response: <shape>
-2. Add OpenAPI / GraphQL schema entry for <operation>
-3. Wire route to <ControllerClass>.<method>()
-4. Add input validation for <field constraints>
-```
-
-### Schema migration
-
-```
-1. Create migration <migration-id> — add table/column: <name>, type, constraints
-2. Add ORM model / entity definition for <ModelName>
-3. Add index on <column(s)> — reason: <query pattern>
-4. Write rollback script to drop <table/column>
-```
-
-### Authentication
-
-```
-1. Extend <middleware/guard> to validate <token type> for <route group>
-2. Add <claim/scope> to token payload — issued at <point in auth flow>
-3. Wire refresh logic for <expiry scenario>
-4. Update auth integration test fixtures
-```
-
-### Webhook / hook
-
-```
-1. Emit <event-name> from <service/handler> — payload: <shape>
-2. Register <hook-name> at <extension point> in <framework/platform>
-3. Add idempotency key to prevent duplicate delivery
-4. Write consumer stub / test handler for <event-name>
-```
-
-### Client implementation
-
-```
-1. Implement <ScreenName / ComponentName> — state: <what it holds>, actions: <what it triggers>
-2. Bind to <ViewModel / store selector> for <data slice>
-3. Handle <loading | error | empty> states with <UI pattern>
-4. Add <navigation route / deep link> for <entry point>
-```
-
-### Tests
-
-```
-1. Unit test <function/class> — cover: <happy path>, <edge case>, <error case>
-2. Integration test <endpoint or flow> — seed: <fixture>, assert: <response shape and status>
-3. E2E test <user journey> on <platform / environment>
-4. Add fixture / factory for <model> used across test suite
-```
-
-## Cross-agent dependencies
-
-When one of your steps requires output from another agent's row, note it explicitly:
-
-```
-1. Define POST /goals — blocked by: eng-backend F1 API contract
-```
-
-Use `blocked by: <agent-name> <Feature — Concern>` as the notation. Do not leave an implicit dependency — if your client implementation step needs an API endpoint that a different agent owns, say so.
+A comma/space-separated list of every repo-relative path this row creates or modifies — **derived from the union of the `files` fields of the tickets the row points at**, so the two cells cannot disagree. This is what makes collision detection mechanical (`plan-em-exec-collision.py`), so it must be complete.
 
 ## Worked example
 
-PRD feature F2: Track streak. The following rows are assigned to `eng-backend`:
+PRD feature F2: Track streak, assigned to `eng-backend`:
 
-| Feature | Execution steps | Files | Agent |
-|---------|----------------|-------|-------|
-| F2: Track streak — Schema migration | 1. Create migration `0043_add_streaks` — add `streaks` table: `id UUID PK`, `user_id FK`, `date DATE`, `count INT`<br>2. Add `Streak` ORM model with `user` relation<br>3. Add composite index on `(user_id, date)` — supports per-user daily lookup<br>4. Write rollback to drop `streaks` table | migrations/0043_add_streaks.sql, src/models/streak.py | eng-backend |
-
-(The same shape repeats per concern — one imperative, file-anchored step per numbered line; API-contract, Tests, etc. follow the concern patterns above.)
+| Feature | Execution steps | Files | Todos | Agent |
+|---------|----------------|-------|-------|-------|
+| F2: Track streak — Schema migration | → F2-T1, F2-T2 | migrations/0043_add_streaks.sql, src/models/streak.py | [F2](#todos-f2) | eng-backend |
 
 ## Quality gate
 
-Every row where your agent name appears in the **Agent** column must have its **Execution steps** and **Files** filled in before you return your output. A row with a blank Execution steps cell is a hard failure; a row with a blank Files cell is an equally hard failure.
+Every row your agent owns must have **both** cells filled before you return your output. An empty Execution steps cell, an id that resolves to no ticket, or an empty Files cell is a hard failure — the first two leave the row without a spec, the third breaks collision detection.

@@ -307,7 +307,6 @@ Match the first row in the table below where all conditions hold. Use "any" as a
 | Planning | any | A roadmap | plan-pm --roadmap |
 | Building | Nothing yet / rough idea | Working code or test results | plan-pm |
 | Building | A PRD or spec | Working code or test results | eng |
-| Building | any | A roadmap | eng --build roadmap=roadmap/roadmap.md |
 | Building | Code or a diff | Working code or test results | pre-merge |
 | Building | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | Code or a diff | A review or audit report | pre-merge |

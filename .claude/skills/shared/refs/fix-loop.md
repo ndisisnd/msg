@@ -44,7 +44,7 @@ After the report + issues file are written, present via **AskUserQuestion**:
 `eng --plan report=<path>` writes the fix-plan artifact
 `report-prd-<N>-<K>-fix-plan.md` (same stem, colocated in the same `reports/`
 folder as the issues file it fixes) per
-`.claude/skills/eng/refs/plan/report-fix.md`.
+`.claude/skills/eng/refs/plan/fix-plan.md`.
 
 ## Offer #2 — build the fixes
 
@@ -56,7 +56,7 @@ After the fix plan is written, present via **AskUserQuestion**:
   - `No — I'll build later`
 
 The orchestrated build runs per
-`.claude/skills/eng/refs/build/report-fix-orchestrated.md` — an Opus
+`.claude/skills/eng/refs/build/fix-build-orchestrated.md` — an Opus
 session that spawns one fix subagent per issue, routed by model on the complexity
 rubric.
 
@@ -80,6 +80,6 @@ orchestrated `eng --build` without asking.
 
 - `report-prd-<N>-<K>.json` (no-PRD fallback `report-<K>.json`) — the issues file (canonical `issues[]`, `followUp` contract), colocated with the run's `.md` report
 - `report-prd-<N>-<K>-fix-plan.md` — the fix-plan artifact (same stem)
-- `.claude/skills/eng/refs/plan/report-fix.md` — Offer #1 target: writes the fix plan
-- `.claude/skills/eng/refs/build/report-fix-orchestrated.md` — Offer #2 target: orchestrated per-issue fix build
+- `.claude/skills/eng/refs/plan/fix-plan.md` — Offer #1 target: writes the fix plan
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md` — Offer #2 target: orchestrated per-issue fix build
 - `report-schema.md`, `finding-schema.md` — sibling shared refs (run-report + path/numbering contract, finding shape)

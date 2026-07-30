@@ -10,7 +10,7 @@ Loaded only when `--build` is invoked with `report=<path>` (see `protocol.md` §
 
 ## Orchestration routing
 
-`--build report=<path>` routes **by default** to `report-fix-orchestrated.md` — an Opus orchestrator session that projects `issues[]` into issue-tickets (§ Finding → issue-ticket projection below) and fans the fixes out to per-issue subagents. Pass `orchestrate=off` (`eng --build report=<path> orchestrate=off`) to skip the orchestrator and run the flat single-agent flow documented in the rest of this file instead. The orchestrated ref cites this file's projection and loop-closing sections rather than duplicating them.
+`--build report=<path>` routes **by default** to `fix-build-orchestrated.md` — an Opus orchestrator session that projects `issues[]` into issue-tickets (§ Finding → issue-ticket projection below) and fans the fixes out to per-issue subagents. Pass `orchestrate=off` (`eng --build report=<path> orchestrate=off`) to skip the orchestrator and run the flat single-agent flow documented in the rest of this file instead. The orchestrated ref cites this file's projection and loop-closing sections rather than duplicating them.
 
 ## Required fields and rejections
 
@@ -20,9 +20,9 @@ Loaded only when `--build` is invoked with `report=<path>` (see `protocol.md` §
 | `report` | Path to the `report-prd-<N>-<K>.json` issues file whose `issues[]` this build resolves |
 | `branch` | Feature branch the commits land on. Defaults to the file's own `context.branch` when not passed (see **Branch default**); must still exist before work starts |
 | `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from |
-| `orchestrate` | *(optional)* Defaults to `on` (routes to `report-fix-orchestrated.md`, see § Orchestration routing above). `orchestrate=off` runs the flat flow documented in this file |
+| `orchestrate` | *(optional)* Defaults to `on` (routes to `fix-build-orchestrated.md`, see § Orchestration routing above). `orchestrate=off` runs the flat flow documented in this file |
 
-- `report` is valid on **both modes**: `--build` loads this file (or the orchestrated ref) to fix the findings, and `--plan report` loads `../plan/report-fix.md` to plan them first. It is no longer build-only. (`roadmap`, by contrast, stays `--build`-only.)
+- `report` is valid on **both modes**: `--build` loads this file (or the orchestrated ref) to fix the findings, and `--plan report` loads `../plan/fix-plan.md` to plan them first. It is no longer build-only.
 - Supplying **both `prd-path` and `report`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or report, not both (ambiguous input source).`
 - A `report` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: report <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
 

@@ -1,8 +1,8 @@
 ---
 name: eng
 description: >
-  Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todos, falling back to exec-table rows). Invoked by plan-em or directly by the user.
-argument-hint: "<--plan | --build> [report=<path> | roadmap=<path>]"
+  Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec). Invoked by plan-em or directly by the user.
+argument-hint: "<--plan | --build> [report=<path>]"
 allowed_tools:
   - Bash
   - Read
@@ -26,10 +26,9 @@ Read the invocation flag and load exactly one mode protocol:
 | Flag | Read |
 |------|------|
 | `--plan` | `refs/plan/protocol.md` |
-| `--plan report=<path>` | `refs/plan/report-fix.md` (instead of `protocol.md`) |
+| `--plan report=<path>` | `refs/plan/fix-plan.md` (instead of `protocol.md`) |
 | `--build` | `refs/build/protocol.md` |
-| `--build report=<path>` | `refs/build/report-fix.md` (instead of `protocol.md`) |
-| `--build roadmap=<path>` | `refs/build/protocol-roadmap.md` (instead of `protocol.md`) |
+| `--build report=<path>` | `refs/build/fix-build.md` (instead of `protocol.md`) |
 
 Exactly one mode flag must be present (`--plan` | `--build`). If zero or more than one is given, emit:
 
@@ -45,7 +44,7 @@ Stop.
 Hard failure: --todo is no longer a mode — todos are written by `eng --plan` in the same pass. Re-run with --plan.
 ```
 
-Stop. `roadmap=<path>` (a `--build`-only field) loads `refs/build/protocol-roadmap.md` **instead of** `refs/build/protocol.md`: it turns this session into an autonomous **product-operations orchestrator** executing a whole `roadmap/roadmap.md` phase-by-phase, spawning `eng`/`pre-merge` subagents (pre-merge is the single CI gate — it absorbed `/review` + `/test`).
+Stop.
 
 Otherwise read the active mode file **fully** first — it defines the mode-specific input rules, summary content, work steps, and output contract. The numbered steps below are the shared spine; they run for every mode and point to the active mode file where the path diverges.
 
@@ -53,7 +52,7 @@ Otherwise read the active mode file **fully** first — it defines the mode-spec
 
 ## Step 1 — Input validation
 
-Three input sources. The **PRD/exec-table source** is the default for every mode; **`report`** is an alternate available on both modes, and **`roadmap`** is a `--build`-only alternate.
+Two input sources. The **PRD/exec-table source** is the default for every mode; **`report`** is an alternate available on both modes.
 
 ### PRD/exec-table source (all modes)
 
@@ -74,12 +73,10 @@ Hard failure: missing required field(s): <list>. Provide the mode flag, prd-path
 
 Stop. The active mode file may add mode-specific input rules — apply those too.
 
-### Alternate sources
+### Alternate source
 
-- **`report=<path>`** — build or plan from a failed run's issues file (`report-prd-<N>-<K>.json`) instead of an exec-table. On `--build`, required fields, rejections, path-validity failures, and the finding→issue-ticket projection live in `refs/build/report-fix.md`. On `--plan`, the same source plans the fix tickets for the issues file's findings — required fields, rejections, and the fix-plan output contract live in `refs/plan/report-fix.md`.
-- **`roadmap=<path>`** — `--build` only: hand the whole roadmap to the orchestrator (`refs/build/protocol-roadmap.md`), which derives per-PRD fields for each leaf subagent. Required fields and rejections live in that file.
-
-`--plan` accepts `report` but rejects `roadmap`; passing more than one input source is a hard failure (ambiguous source) — exact messages in the mode refs.
+- **`report=<path>`** — build or plan from a failed run's issues file (`report-prd-<N>-<K>.json`) instead of an exec-table. On `--build`, required fields, rejections, path-validity failures, and the finding→issue-ticket projection live in `refs/build/fix-build.md`. On `--plan`, the same source plans the fix tickets for the issues file's findings — required fields, rejections, and the fix-plan output contract live in `refs/plan/fix-plan.md`.
+Passing more than one input source is a hard failure (ambiguous source) — exact messages in the mode refs.
 
 ---
 
@@ -87,9 +84,15 @@ Stop. The active mode file may add mode-specific input rules — apply those too
 
 Before any output, read the spec, devkit, and relevant codebase files in one consolidated scan.
 
-**Orchestrated fast path (scoped context injected).** When an orchestrator (`plan-em` or the roadmap orchestrator) has injected **scoped excerpts** — the assigned rows, the relevant PRD feature sections, and a devkit **digest** — work from those directly; do **not** re-read the full PRD or every devkit file. The PRD path is always supplied as an **escape hatch**: read the full PRD (or a specific devkit file) on demand only when an excerpt is insufficient to resolve a row.
+**Orchestrated fast path (scoped context injected).** When an orchestrator (`plan-em`, or the orchestrated fix build) has injected **scoped excerpts** — the assigned rows, the relevant PRD feature sections, and a devkit **digest** — work from those directly; do **not** re-read the full PRD or every devkit file. The PRD path is always supplied as an **escape hatch**: read the full PRD (or a specific devkit file) on demand only when an excerpt is insufficient to resolve a row.
 
-**Standalone path (default when nothing is injected).** Read the full PRD at `prd-path`, locate the Execution Table, and select rows whose **Feature** column text exactly matches one of the assigned `rows`. A `rows` identifier matching no Feature cell, or a matched row whose **Agent** column differs from the `agent` field, is a hard failure — emit it and stop. On the `report` source there is no exec-table, no `rows`, and no ownership to confirm — read the file and project its `issues[]` per `refs/build/report-fix.md`.
+**Standalone path (default when nothing is injected).** Read the full PRD at `prd-path`, locate the Execution Table, and select rows whose **Feature** column text exactly matches one of the assigned `rows`. **Verify ownership mechanically** — do not grade the table by eye:
+
+```bash
+G=.claude/scripts/scan-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/scan-prd-digest.py"; python3 "$G" "<prd-path>" --verify-rows "<rows>" --agent <agent>
+```
+
+`ROWS_OK` on stdout (exit 0) means every named row exists and this agent owns it. Exit 1 prints one `Hard failure:` line per offending row — a `rows` identifier matching no Feature cell, or a matched row owned by another agent. Emit those lines verbatim and stop. On the `report` source there is no exec-table, no `rows`, and no ownership to confirm — read the file and project its `issues[]` per `refs/build/fix-build.md`.
 
 **Devkit files** (read in parallel with the PRD, unless a digest was injected): `devkit/AHA.md` (past learnings relevant to the rows), `devkit/GLOSSARY.md` (canonical terms; flag PRD deviations), `CLAUDE.md` at project root (tech-stack constraints on every file-path/approach decision), `devkit/ARCHITECTURE.md` (validate scope against system layers; flag conflicts as gaps), `devkit/DESIGN-SYSTEM.md` (reusable components). If `devkit/` does not exist, emit a single warning and continue; a missing individual file is a per-file warning, then continue.
 
@@ -137,8 +140,8 @@ Coding standards come from `/cook`, pulled via **explicit flags** (never a prose
 
 Follow the work steps and output contract in the active mode file, where the modes diverge:
 
-- `--plan` → in one pass, append the `## Engineering — <Agent>` section, fill the Execution steps + Files columns, and write the `## Todos — <Agent>` tickets that decompose each owned F-ID (no implementation code written; inline snippets/pseudocode encouraged).
-- `--build` → write code to derived paths; emit a build summary.
+- `--plan` → in one pass, append the `## Engineering — <Agent>` section, write the `## Todos — <Agent>` tickets that decompose each owned F-ID (the build spec), and fill each owned row's Execution steps pointer + Files set from those tickets (no implementation code written; inline snippets/pseudocode encouraged).
+- `--build` → write code from the tickets to derived paths; emit a build summary.
 
 **Closing message (every mode, every verdict):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the mode's own output contract, report writes, and fix-loop offers.
 
@@ -152,12 +155,11 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 
 ## References
 
-- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **and the `## Todos — <Agent>` ticket-writing spec** run in the same pass. `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the seven fields, rendering, rules, empty-block sentinel, the ticket-sizing rule) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–13 output format.
-- `refs/plan/report-fix.md` — `--plan`'s `report` source: required fields, rejections, and the fix-plan output contract for planning the fixes to a failed run's issues file.
-- `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, per-ticket pair review, commit/PR contract. `refs/build/protocol-exec.md` — Execution-steps column format. `refs/build/report-fix.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
+- `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **and the `## Todos — <Agent>` ticket-writing spec** run in the same pass. `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the seven fields, rendering, rules, empty-block sentinel, the ticket-sizing rule) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–12 output format.
+- `refs/plan/fix-plan.md` — `--plan`'s `report` source: required fields, rejections, and the fix-plan output contract for planning the fixes to a failed run's issues file.
+- `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, per-ticket pair review, commit/PR contract. `refs/build/protocol-exec.md` — the Execution-steps ticket-id pointer + the Files set. `refs/build/fix-build.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
 - `refs/build/pair-review.md` — per-ticket pair-review subagent: platform-parameterised principal-engineer persona, unnecessary-code-only mandate, one-revision-round blocking contract (loaded on the build hot path).
-- `refs/build/protocol-roadmap.md` — `--build roadmap=<path>` orchestrator: executes `roadmap/roadmap.md` phase-by-phase, spawning subagents and injecting per-stack standards.
-- `.claude/scripts/eng-db-touch.sh` — production/data guardrail; the orchestrator pauses for sign-off when it trips.
+- `.claude/scripts/eng-db-touch.sh` — production/data guardrail; a tripped check pauses for sign-off.
 - `.claude/scripts/eng-comment-scan.sh` — deterministic A4 comment scan; flags added symbol declarations with no plain-English comment above them (`--staged` or a diff range).
 - `.claude/scripts/eng-commit-cap.sh` — A5 commit-size measurement on the staged diff (>500 changed LOC, >300 with `--breaking`) — advisory: always exits 0, prints `CAP_OK`/`CAP_EXCEEDED` for the agent to judge split-or-commit; `--oversize-reason` records the justification when committing over-cap anyway.
 - **Contract:** the `## Engineering — <Agent>` and `## Todos — <Agent>` headings written by `--plan` (same pass) are how `plan-em` detects the section is ready and how `--build` locates its spec. Do not rename them.

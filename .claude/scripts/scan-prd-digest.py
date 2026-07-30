@@ -204,7 +204,9 @@ SLICES = {
     # plan-tune --eng: eng-plan integrity (exec_table + todos feed checks 4/5).
     "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
-    "build":   ["frontmatter","features","exec_table","engineering"],
+    # `todos` carries each agent's ticket ids + the prose_lines range to read them
+    # from — the tickets are the build spec, so the slice has to point at them.
+    "build":   ["frontmatter","features","exec_table","engineering","todos"],
     # review / test eval bootstrap + manual-test-plan (C22): derive assertions +
     # the human-testable checklist. edge_cases[] feeds C22's checklist (C11 stays
     # on features + error_cases).
@@ -225,6 +227,21 @@ def slice_digest(d, name, feature=None):
             out["exec_table"] = [r for r in out["exec_table"] if r["feature"].upper().startswith(fid + ":")]
     return out
 
+def verify_rows(d, rows, agent):
+    """Row-ownership check for eng --build Step 2. Returns a list of failure lines."""
+    fails = []
+    table = d.get("exec_table") or []
+    for r in [x.strip() for x in rows.split(";") if x.strip()]:
+        matches = [row for row in table if (row.get("feature") or "").strip() == r]
+        if not matches:
+            fails.append(f"Hard failure: row '{r}' matches no Feature cell in {d['prd']}")
+            continue
+        for row in matches:
+            owner = (row.get("agent") or "").strip()
+            if agent and owner != agent:
+                fails.append(f"Hard failure: row '{r}' is owned by '{owner}', not '{agent}'")
+    return fails
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("prd")
@@ -233,12 +250,22 @@ def main():
     ap.add_argument("--force", action="store_true")
     ap.add_argument("--slice", choices=sorted(SLICES), help="emit only this stage's slice to stdout")
     ap.add_argument("--feature", help="with --slice build: filter to one feature id (e.g. F1)")
+    ap.add_argument("--verify-rows", dest="verify_rows",
+                    help="semicolon-separated exec-table Feature identifiers to verify exist and are owned by --agent")
+    ap.add_argument("--agent", help="with --verify-rows: the agent that must own every named row")
     a = ap.parse_args()
     prd = a.prd
     if not os.path.isfile(prd):
         print(f"error: no such PRD: {prd}", file=sys.stderr); sys.exit(2)
 
     d, text = build(prd)
+    if a.verify_rows is not None:
+        fails = verify_rows(d, a.verify_rows, a.agent)
+        for line in fails:
+            print(line, file=sys.stderr)
+        if fails:
+            sys.exit(1)
+        print("ROWS_OK"); return
     if a.slice:
         print(json.dumps(slice_digest(d, a.slice, a.feature), indent=2, ensure_ascii=False)); return
     if a.stdout:

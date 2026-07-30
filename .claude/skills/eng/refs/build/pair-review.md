@@ -43,6 +43,6 @@ Also verify the **plain-English comment convention (A4)**: every new/modified fu
 
 1. The parent must **resolve** each finding (delete/replace) **or justify** keeping it.
 2. Re-spawn the reviewer **once** on the revised diff.
-3. After that single round, any still-unresolved finding is logged to the eng section's **§12 Findings — PRD gaps** ledger with the parent's justification —
+3. After that single round, any still-unresolved finding is logged to the eng section's **§11 Findings — PRD gaps** ledger with the parent's justification —
    `**Minor** — <file:line>: <what is unnecessary>. **Action:** kept — <justification>.` —
    and the ticket proceeds to its commit gate. No second round.

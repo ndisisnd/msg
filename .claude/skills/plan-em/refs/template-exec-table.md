@@ -1,12 +1,12 @@
 ---
 name: Execution Table Template
-description: Feature execution breakdown table — plan-em pre-populates Feature and Agent; subagents fill in Execution steps
+description: Feature execution breakdown table — plan-em pre-populates Feature, Todos and Agent; subagents fill in the ticket-id pointer and the Files set
 type: reference
 ---
 
 # Execution Table Template
 
-The execution table is a flat breakdown of every feature into its discrete execution concerns. `plan-em` creates the skeleton (Feature + Agent pre-populated, Execution steps blank) after the agent roster is approved. Subagents then fill in their assigned rows.
+The execution table is a flat breakdown of every feature into its discrete execution concerns. `plan-em` creates the skeleton (Feature + Agent pre-populated, Execution steps blank) after the agent roster is approved. Subagents then fill in their assigned rows. The table is an **index over the tickets**, not a spec of its own: the `## Todos` tickets are the single and final build spec, and a row's Execution steps cell just points at the ticket ids that deliver it.
 
 ## Table structure
 
@@ -18,8 +18,8 @@ Every table carries five columns — a **Todos** column sits between Files and A
 **Column definitions:**
 
 - **Feature** — `<ID>: <name> — <execution concern>`. Combines the PRD feature ID, feature name, and the specific execution concern for this row (e.g., `F1: Set daily goal — API contract`). One row per execution concern per feature.
-- **Execution steps** — Left blank by `plan-em`. The assigned agent fills this in later; the step format is defined per-agent.
-- **Files** — Left blank by `plan-em`. The assigned agent fills this in alongside Execution steps: a comma/space-separated list of the repo-relative paths this row will create or modify — the same paths named in the row's Execution steps. This turns collision/parallel-safety detection into a mechanical set-intersection: two rows are unsafe to run in parallel iff their Files sets overlap.
+- **Execution steps** — Left blank by `plan-em`. The assigned agent fills it with a **pointer to the ticket ids** that deliver the row, in ticket-id order: `→ F2-T1, F2-T2`. Never prose steps — the ticket carries the objective, the files and the `done-when`. A cell whose ids do not resolve to real tickets under `## Todos` is a hard failure.
+- **Files** — Left blank by `plan-em`. The assigned agent fills this in alongside Execution steps: a comma/space-separated list of the repo-relative paths this row will create or modify — the union of the `files` fields of the tickets the row points at. This turns collision/parallel-safety detection into a mechanical set-intersection: two rows are unsafe to run in parallel iff their Files sets overlap.
 - **Todos** — Populated by `plan-em` when it builds the skeleton: an anchor link to the feature's `### F<n>` subsection under the `## Todos` section, `[F<n>](#todos-f<n>)`. All rows sharing an F-ID point to the same anchor. A forward pointer — the `### F<n>` blocks are written by the plan wave (same pass as the engineering sections).
 - **Agent** — Pre-populated by `plan-em` from the approved agent roster. Matches the agent responsible for this concern.
 
@@ -65,12 +65,12 @@ After the agent roster is approved, plan-em **decides** the rows but **renders**
 | F3: Daily reminder — Tests | | | [F3](#todos-f3) | mobile-eng-ios |
 ```
 
-The Files cells are blank in the skeleton — the assigned agent populates them together with Execution steps (see the worked example in `.claude/skills/eng/refs/build/protocol-exec.md`). Once filled, a row's Files might read `src/api/goals.ts, src/api/openapi.yaml`.
+The Execution steps and Files cells are blank in the skeleton — the assigned agent populates both (see the worked example in `.claude/skills/eng/refs/build/protocol-exec.md`). Once filled, a row reads `→ F1-T1, F1-T2` under Execution steps and `src/api/goals.ts, src/api/openapi.yaml` under Files.
 
 ## How agents fill in execution steps
 
-Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name. The step format, granularity rules, cross-agent dependency notation, and worked examples are defined in `.claude/skills/eng/refs/build/protocol-exec.md` — read that before writing a single step.
+Each subagent receives the PRD path and the list of feature IDs it owns. It writes its tickets first, then fills the Execution steps pointer and the Files set for every row where the Agent column matches its name. The pointer format and the Files derivation live in `.claude/skills/eng/refs/build/protocol-exec.md` — read that before filling a cell.
 
 ## Quality gate
 
-Every row the agent owns must have its Execution steps **and** Files filled in before the agent returns its output. A blank Execution steps cell is a hard failure; a blank Files cell on an owned row is an equally hard failure — collision detection depends on it.
+Every row the agent owns must have its Execution steps pointer **and** Files filled in before the agent returns its output. A blank Execution steps cell — or one whose ticket ids do not resolve to real tickets under `## Todos` — is a hard failure; a blank Files cell on an owned row is an equally hard failure — collision detection depends on it.
