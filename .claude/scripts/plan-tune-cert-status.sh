@@ -3,7 +3,7 @@
 #
 # Answers a single mechanical question for plan-em's Step 2 / Step 4
 # preconditions: is this PRD certified for the requested wave? A PRD is
-# certified when its frontmatter stamp is `yes` AND the §9 "Plan tune findings"
+# certified when its frontmatter stamp is `yes` AND the §7 "Plan tune findings"
 # ledger carries no Critical finding still Open (or "Still open").
 #
 # Usage:
@@ -17,7 +17,7 @@
 #   UNCERTIFIED no-stamp                        stamp missing / not `yes`
 #   UNCERTIFIED open-critical <finding-id>      a Critical row is Open/Still open
 #
-# A stamped PRD whose §9 ledger section is absent is CERTIFIED (ledger absent =
+# A stamped PRD whose §7 ledger section is absent is CERTIFIED (ledger absent =
 # no findings), with a note on stderr.
 #
 # Exit code: 0 = CERTIFIED, 1 = UNCERTIFIED, 2 = usage/environment error.
@@ -79,8 +79,8 @@ if [[ "$stamp" != "yes" ]]; then
   exit 1
 fi
 
-# ── §9 "Plan tune findings" ledger — hunt for an Open Critical row ────────────
-# Match on the section TITLE (number-agnostic — §9 may renumber). The findings
+# ── §7 "Plan tune findings" ledger — hunt for an Open Critical row ────────────
+# Match on the section TITLE (number-agnostic — §7 may renumber). The findings
 # table columns are: # | Date | Auditor | Severity | ... | Status. We locate the
 # Severity and Status columns from the header row (position-independent) and flag
 # any Critical row whose Status is still Open / Still open.
@@ -122,7 +122,7 @@ result="$(awk '
 case "$result" in
   NOSECTION)
     echo "CERTIFIED"
-    echo "$SELF: note: §9 Plan tune findings ledger absent in $prd — no findings to gate on." >&2
+    echo "$SELF: note: §7 Plan tune findings ledger absent in $prd — no findings to gate on." >&2
     exit 0 ;;
   CLEAN)
     echo "CERTIFIED"
@@ -131,6 +131,6 @@ case "$result" in
     echo "UNCERTIFIED open-critical ${result#OPENCRIT }"
     exit 1 ;;
   *)
-    echo "$SELF: internal error parsing §9 ledger" >&2
+    echo "$SELF: internal error parsing §7 ledger" >&2
     exit 2 ;;
 esac

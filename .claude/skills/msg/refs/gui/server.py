@@ -110,9 +110,9 @@ def as_badge(v):
 
 
 def parse_features(body):
-    """F-ID rows from `## N. Features…` (any leading number, e.g. `## 6. Features &
-    acceptance criteria`) or, failing that, `## Execution Table` (legacy) /
-    `## N. Feature execution table` (new)."""
+    """F-ID rows from `## N. Features…` (any leading number, e.g. `## 3. Features &
+    acceptance criteria`) or, failing that, the exec table under its v5 home
+    `## N. Feature execution table` / the legacy `## Execution Table`."""
     feats, order = {}, []
 
     def scan(section_re):
@@ -146,8 +146,8 @@ def parse_features(body):
         return found
 
     if not scan(r"^##\s*\d+\.\s*Features.*$"):
-        if not scan(r"^##\s*Execution Table.*$"):
-            scan(r"^##\s*\d+\.\s*Feature execution table.*$")
+        if not scan(r"^##\s*\d+\.\s*Feature execution table.*$"):
+            scan(r"^##\s*Execution Table.*$")   # legacy heading, pre-v5 PRDs
     return feats, order
 
 

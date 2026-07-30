@@ -71,7 +71,7 @@ proposal carries **cited evidence** — a proposal with nothing to cite is
 
 | Signal | Evidence line cites |
 |---|---|
-| **PRD traceability** | the test locks in a PRD acceptance criterion the PRD marks **P0/critical** — cite `prd-<n>` + the criterion id (F-ID / §6 row) |
+| **PRD traceability** | the test locks in a PRD acceptance criterion the PRD marks **P0/critical** — cite `prd-<n>` + the criterion id (F-ID / §3 row) |
 | **Failure history** | the test has produced a **blocker/high** finding in a past verdict — cite the run artifact (`.pre-merge/<ts>/*.json`, `reports/*.json`) + the finding's `rule` |
 | **Graph position** | the test covers high fan-in / hotspot code — cite the symbol/file + the metric (tokensave `test_risk`, `hotspots`, `rank`) |
 

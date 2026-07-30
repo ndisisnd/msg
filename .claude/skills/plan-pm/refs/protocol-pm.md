@@ -13,8 +13,8 @@ emission in SKILL.md. In `--sub` mode, substitute the nested sub-PRD path
 
 **Autonomy contract (F3).** The interview is gone — it moved to `/intake`, which
 delivers a graded, fleshed-out row (`idea`, `goal`, `type`, `grade`). plan-pm drafts
-the **full PRD solo** — edge cases, feature/acceptance table, user flows, error
-handling — with **no per-section gates**. Do not re-interview the user and do not
+the **full PRD solo** — objective, scope boundaries, feature/acceptance table, error
+cases — with **no per-section gates**. Do not re-interview the user and do not
 gate section by section: the instinct to check in mid-draft is the one this contract
 overrides. It pauses for **exactly two** things: batched open questions the draft
 couldn't resolve (Step 4), and breaking/critical touches (Step 4 safety pause).
@@ -97,7 +97,7 @@ if absent. Write `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 - `summary`: 2–3 sentence single-line plain-prose gist (core objective + headline features), reconciled in Part 3
 - `module`: primary domain inferred from the idea · `platform`: detected above
 - `affects`: prior-PRD IDs from Step 2 (`[]` if none)
-- `depends_on`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §6 at the end of Part 3** (§ Dependency mirroring) — §6 is the source of truth for cross-PRD edges
+- `depends_on`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §3 at the end of Part 3** (§ Dependency mirroring) — §3 is the source of truth for cross-PRD edges
 - `status: product` · `product-tuned: no` · `eng-tuned: no` · `reviewed: no` · `created`: today `YYYY-MM-DD`
 - **`intake: #<n>`** — the source intake row `#`. Always present; every PRD has an
   ancestor row (Step 1)
@@ -110,7 +110,7 @@ rules govern the whole draft:
   spans multiple problems, surfaces, or ship cycles, propose a split into separate PRDs
   rather than bundling them.
 - **Only what was asked.** Every requirement traces to the intake row. If something seems
-  missing, raise it as a §8 open question — never silently add it to the PRD.
+  missing, raise it as a §5 open question — never silently add it to the PRD.
 
 Canonical order per `refs/template-prd.md`:
 
@@ -118,26 +118,26 @@ Canonical order per `refs/template-prd.md`:
 |---------|-------------------|
 | 1. Product objective | One paragraph from the intake `goal` — the user/business outcome that defines success. No feature list, no implementation |
 | 2. Out-of-scope | Boundaries the draft draws around the idea; non-targeted platforms auto-added |
-| 3. User flow | One ASCII user-visible flow per feature; dependencies (Step 2) as preconditions. No engineering detail |
-| 4. Key user interactions | The core actions the feature must support, derived from the idea + goal |
-| 5. Error cases | Draft the concrete, triggerable error/edge cases per feature (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format from `refs/template-error.md`. Genuinely unresolvable ones → Step 4 open questions |
-| 6. Features & acceptance criteria | Derive the feature set from the idea; assign F-IDs (`refs/template-feature-table.md`); one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
-| 7. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
-| 8. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
-| 9. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder — plan-tune owns it |
-| 10. Glossary | GLOSSARY.md cross-reference; add new terms from this PRD |
-| 11. Todos | Leave the `_Populated by /todo …_` placeholder |
+| 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
+| 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. Genuinely unresolvable ones → Step 4 open questions |
+| 5. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
+| 6. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
+| 7. Plan tune findings | Leave the `_Populated by plan-tune …_` placeholder — plan-tune owns it |
+| 8. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |
 
-Carry every F-ID into §6 unchanged — plan-em keys §7 on them. Reconcile the frontmatter
-`summary` against the finalized §1 + §6 (single-line, plain prose). Components and files
-are engineering detail → §7 (plan-em), never the User flow.
+New domain terms go straight into `devkit/GLOSSARY.md`, where the whole pipeline sees
+them — the PRD carries no glossary of its own.
 
-**Part 4 — Dependency mirroring (mechanical, never skipped).** §6 is the source of truth
-for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §6 Dependencies cell must also appear
-in frontmatter `depends_on`. Do not author the two independently — after §6 is finalized,
-reconcile the frontmatter *from* §6 so the two cannot drift (`plan-tune` check 6 is a backstop,
+Carry every F-ID into §3 unchanged — plan-em keys §6 on them. Reconcile the frontmatter
+`summary` against the finalized §1 + §3 (single-line, plain prose). Components and files
+are engineering detail → §6 (plan-em), never the product sections.
+
+**Part 4 — Dependency mirroring (mechanical, never skipped).** §3 is the source of truth
+for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §3 Dependencies cell must also appear
+in frontmatter `depends_on`. Do not author the two independently — after §3 is finalized,
+reconcile the frontmatter *from* §3 so the two cannot drift (`plan-tune` check 6 is a backstop,
 not the primary catch). Run the deterministic mirror — it extracts every `prd-<n>-<slug>` token
-from the §6 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
+from the §3 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
 mirrored), unions it with the seeded array, and rewrites `depends_on` in place (`[]` when empty):
 
 ```bash
@@ -148,12 +148,25 @@ S=.claude/scripts/plan-pm-deps-mirror.sh; [ -f "$S" ] || S="$HOME/.claude/script
 It prints `ADDED <id>` for each newly-mirrored id and is idempotent. Sub-PRD ids
 (`prd-2.1-slug`) count. No file / no frontmatter → exit 2.
 
+**Part 5 — Shape check (mechanical, never skipped).** The template is only a contract if
+something verifies it was followed. Run the shape validator on the drafted PRD — it is the
+last action of Step 3 and it gates Step 4:
+
+```bash
+S=.claude/scripts/script-prd-shape.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-shape.py"; python3 "$S" "$PRD"
+```
+
+It prints one `FAIL check=<n> code=<slug> ref=<locator> detail=…` line per defect and a
+`SUMMARY checks=5 failures=<n>` line, exiting `1` on any failure and `2` on a usage or
+read error. **Exit 1 → fix the PRD and re-run until it exits 0** — never proceed to Step 4
+on a failing shape, and never edit the checker to match the draft.
+
 ## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 
 **Open questions.** Batch everything the draft couldn't resolve into **one**
 `AskUserQuestion` (≤4 questions per call, `multiSelect` where apt; each entry offers plausible
 answers + "Skip"). Apply every answer **autonomously** — write it into the relevant section and
-mark its §8 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
+mark its §5 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
 entirely.
 
 **Breaking-change / critical-cut safety pause (never relaxed).** If Step 2 flagged a

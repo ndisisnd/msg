@@ -2,6 +2,15 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P4 — the PRD template sweep (i15/i18/i21/i22/i23/i75)
+
+- `plan-pm/refs/template-prd.md`: Changed — 11 sections → 8 in four categories (Intent/Contract/Unresolved/Reserved): User flow, Key user interactions, Glossary deleted; Features §3, Error cases §4 (absorbs template-error.md), Open questions §5, exec table §6, tune ledger §7, Todos §8; template-feature-table.md + template-error.md deleted (folded)
+- Cross-skill §-reference sweep: 14 skill files + 7 scripts renumbered; proving grep zero stale references under .claude/
+- Fixed — three latent parser bugs the renumber exposed: scan-prd-digest.py + script-cert-mech.py exec-table-vs-features `startswith("feature")` misparse; plan-pm-roadmap-scan.sh exec-table fullness signal could never fire (`| F1 |` vs `| F1: |` + unnumbered heading); script-ledger.py anchored inserts on the deleted Glossary
+- `.claude/scripts/script-prd-shape.py`: Added — 5-check PRD shape validator (sections/order, acceptance table, F-ID contiguity, reserved-placeholder integrity, frontmatter), wired as protocol-pm Step 3 Part 5 gate; 11 seeded defects each fail with a distinct code
+- `plan-em`: Changed — exec table's one home is §6 (skeleton script gains `--write`, targets the reserved section); protocol-em.md collision-checker awk now matches numbered + legacy headings; dangling `refs/protocol-exec.md` pointers fixed to eng's real path
+- GUI verified: parse_features + build_data + scan-prd-digest identical output on new-shape and legacy fixtures
+
 ### v5-P3 — plan-pm content: --roadmap removed, principles/persona folded, intake-only entry (i16/i17/i19/i20/i27/i28)
 
 - Removed — `plan-pm --roadmap` (refs/protocol-roadmap.md + plan-pm-roadmap-sequence.py, zero live callers); `roadmap/roadmap.md` is hand-authored now, its format skeleton rescued into new `TEMPLATE-roadmap.md` scaffolded by /msg --init; `plan-pm-roadmap-scan.sh` survives (Step 2 + plan-em consumers)

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-script-ledger.py — the writer for a PRD's §9 "Plan tune findings" ledger.
+script-ledger.py — the writer for a PRD's §7 "Plan tune findings" ledger.
 
 Owns everything about the ledger that is decidable: locating (or creating) the
 section, deduping this run's findings against prior rows, assigning the monotonic
@@ -116,7 +116,7 @@ def is_separator(line):
 
 
 def heading_title(line):
-    """'## 9. Plan tune findings' -> 'plan tune findings'; None if not an H2."""
+    """'## 7. Plan tune findings' -> 'plan tune findings'; None if not an H2."""
     m = re.match(r"^##\s+(.*?)\s*$", line)
     if not m:
         return None
@@ -209,7 +209,7 @@ def main():
         colmap = {}
         for want in COLUMNS:
             if want.lower() not in lowered:
-                die(f"§9 table header is missing the '{want}' column — the schema is a "
+                die(f"§7 table header is missing the '{want}' column — the schema is a "
                     f"GUI + template contract; fix the table rather than writing into it")
             colmap[want] = lowered.index(want.lower())
     else:
@@ -296,9 +296,11 @@ def main():
     else:
         mode = "created"
         block = ["", f"## {SECTION_TITLE}", "", header_line, sep_line] + new_lines_rows + [""]
-        gidx, _ = find_section(out, "glossary")
-        if gidx is not None:
-            out[gidx:gidx] = block
+        # Canonical home is the reserved section between the exec table and Todos;
+        # on a legacy PRD that lacks it, insert before Todos, else append.
+        tidx, _ = find_section(out, "todos")
+        if tidx is not None:
+            out[tidx:tidx] = block
         else:
             while out and out[-1].strip() == "":
                 out.pop()

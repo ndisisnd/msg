@@ -44,12 +44,12 @@ After the agent roster is approved, plan-em **decides** the rows but **renders**
 
 1. For each feature in the PRD, enumerate its applicable execution concerns (using the table above as a checklist) — this judgment stays with the LLM.
 2. Assign each concern to the agent that owns it (from the scope mapping).
-3. Emit one `{"fid","concern","agent"}` object per `(feature, concern)` row, in row order, as a JSON array and pipe it to `plan-em-exec-skeleton.py <prd.md>`. The script reads §6 to resolve each `fid → <name>`, writes one row per spec entry with Feature = `<F-ID>: <name> — <concern>` and Agent pre-populated, Execution steps + Files blank, and each row's **Todos** cell filled with `[F<n>](#todos-f<n>)` for that row's F-ID. A spec `fid` absent from §6 is a hard error (exit 1) — fix the spec, not the PRD.
+3. Emit one `{"fid","concern","agent"}` object per `(feature, concern)` row, in row order, as a JSON array and pipe it to `plan-em-exec-skeleton.py --write <prd.md>`. The script reads §3 to resolve each `fid → <name>`, writes one row per spec entry with Feature = `<F-ID>: <name> — <concern>` and Agent pre-populated, Execution steps + Files blank, and each row's **Todos** cell filled with `[F<n>](#todos-f<n>)` for that row's F-ID. A spec `fid` absent from §3 is a hard error (exit 1) — fix the spec, not the PRD.
 
-The rendered skeleton is appended to the PRD as a new section immediately before the engineering sections (equivalent to):
+**One home.** The rendered skeleton goes into the PRD's **reserved `## 6. Feature execution table` section** — `--write` replaces that section's `_To be populated by plan-em …_` placeholder in place. Never append a second `## Execution Table` heading; that legacy name is read-tolerated by the parsers for PRDs written before v5, and is never written by anything now. The result reads:
 
 ```markdown
-## Execution Table
+## 6. Feature execution table
 
 | Feature | Execution steps | Files | Todos | Agent |
 |---------|----------------|-------|-------|-------|
@@ -65,11 +65,11 @@ The rendered skeleton is appended to the PRD as a new section immediately before
 | F3: Daily reminder — Tests | | | [F3](#todos-f3) | mobile-eng-ios |
 ```
 
-The Files cells are blank in the skeleton — the assigned agent populates them together with Execution steps (see the worked example in `refs/protocol-exec.md`). Once filled, a row's Files might read `src/api/goals.ts, src/api/openapi.yaml`.
+The Files cells are blank in the skeleton — the assigned agent populates them together with Execution steps (see the worked example in `.claude/skills/eng/refs/build/protocol-exec.md`). Once filled, a row's Files might read `src/api/goals.ts, src/api/openapi.yaml`.
 
 ## How agents fill in execution steps
 
-Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name. The step format, granularity rules, cross-agent dependency notation, and worked examples are defined in `refs/protocol-exec.md` — read that before writing a single step.
+Each subagent receives the PRD path and the list of feature IDs it owns. When writing its engineering section, the agent must also fill in the Execution steps column for every row where the Agent column matches its name. The step format, granularity rules, cross-agent dependency notation, and worked examples are defined in `.claude/skills/eng/refs/build/protocol-exec.md` — read that before writing a single step.
 
 ## Quality gate
 

@@ -49,7 +49,7 @@ run is never mistaken for a full one.
 ## 2 — Author this PRD's regression tests (spawned eng subagent)
 
 Spawn **one `eng` subagent** (via `Agent`) whose mandate is: from this PRD's
-acceptance criteria (§6) + its todo tickets, author regression tests that lock in
+acceptance criteria (§3) + its todo tickets, author regression tests that lock in
 the behavior this PRD ships, persisted to `tests/regression/prd-<n>/`. The subagent:
 
 - Writes **test files only** — persisting to `tests/regression/prd-<n>/`. Source-code modification is **refused** (`out_of_scope_modify`), same as pre-merge itself.
@@ -74,7 +74,7 @@ never lets *this* run skip one.
 When this PRD legitimately changes behavior an **older** regression test asserts,
 the eng subagent MAY edit that prior test — but under a strict contract:
 
-- Each edit is emitted as a **finding in the verdict JSON** (per `../finding-schema.md`) citing the PRD clause (F-ID / §6 criterion) that justifies the behavior change (`source: pre-merge:regression`, `category: unit`, `rule: regression-test-edited`, `severity: low` when a citation is present — it is a logged, sanctioned change).
+- Each edit is emitted as a **finding in the verdict JSON** (per `../finding-schema.md`) citing the PRD clause (F-ID / §3 criterion) that justifies the behavior change (`source: pre-merge:regression`, `category: unit`, `rule: regression-test-edited`, `severity: low` when a citation is present — it is a logged, sanctioned change).
 - An edit with **no citable clause** is a `high` finding (`rule: regression-edit-uncited`) — the subagent changed a production guarantee with no spec authority. The human sees it in the issues file.
 
 The subagent never deletes a prior regression test — only edits with citation.

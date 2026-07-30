@@ -54,7 +54,7 @@ Never interview the user; a fix that needs a product decision is escalated as on
 | Name | Format | Destination |
 |------|--------|-------------|
 | Selected tune type | `Tune type: Product` or `Tune type: Eng` emitted inline | Emitted at end of Step 1 |
-| Certification findings | Rows in the findings-table schema (`refs/certification.md`) | Written into the PRD's **§9 Plan tune findings** section (created once, appended thereafter) |
+| Certification findings | Rows in the findings-table schema (`refs/certification.md`) | Written into the PRD's **§7 Plan tune findings** section (created once, appended thereafter) |
 | Auto-fix terminal table | `# \| Sev \| Found \| Fixed` (`refs/certification.md`) | Emitted inline after fixes (Step 3) |
 | Self-healing learnings | Category-tagged `[tune:<category>]` entries | Appended to `devkit/AHA.md` (Step 3), one per auto-fixed Critical/Major |
 | Recurrence protocol-repair flag | Inline warning when a category recurs across ≥3 runs | Emitted inline (Step 3) |
@@ -111,7 +111,7 @@ python3 "$G" "$RESOLVED_PATH" --slice eng-audit
 
 `refs/certification.md` owns which slice each tune reads, what it contains, and the `prose_lines` escape hatch for details the slice omits. The generator re-parses the current PRD on every call, so the slice is never stale (`../shared/refs/session-cache.md`).
 
-**Exclude the §9 ledger from every check.** The **Plan tune findings** section (this skill's own reserved output, and any legacy `## Audit — YYYY-MM-DD` section) is historical record, not certifiable content — the digest slice naturally omits it. Never treat a prior finding's "What is wrong" cell as a fresh instance of the problem it describes; the dedup rule in Step 2 governs how prior findings interact with this run.
+**Exclude the §7 ledger from every check.** The **Plan tune findings** section (this skill's own reserved output, and any legacy `## Audit — YYYY-MM-DD` section) is historical record, not certifiable content — the digest slice naturally omits it. Never treat a prior finding's "What is wrong" cell as a fresh instance of the problem it describes; the dedup rule in Step 2 governs how prior findings interact with this run.
 
 **Read `devkit/AHA.md` if present** — for the recurrence count in Step 3 and to note any `[tune:*]` learning already recorded. Absent → the self-healing writeback is skipped in Step 3.
 
@@ -131,7 +131,7 @@ Each `FINDING check=… sev=… code=… ref=… detail=…` line becomes one le
 
 One finding per issue, from either source. Every "What is wrong" cites the section + which check fired; every "Why it matters" names the consumer that would break. `#`, `Date`, `Auditor` and `Status` are the script's to set, not yours.
 
-**Write the §9 ledger.** Hand this run's findings to `script-ledger.py` as JSON. It owns locating or creating the **Plan tune findings** section, deduping against prior rows, the monotonic `#`, and the `Clean` marker row:
+**Write the §7 ledger.** Hand this run's findings to `script-ledger.py` as JSON. It owns locating or creating the **Plan tune findings** section, deduping against prior rows, the monotonic `#`, and the `Clean` marker row:
 
 ```bash
 S=.claude/scripts/script-ledger.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-ledger.py"
@@ -141,7 +141,7 @@ echo '[{"severity":"Critical","what":"<section + which check fired>","fix":"<con
 
 Report a finding on every run it is still present: the script recognises a repeat by its "What is wrong" text and updates that row in place (`Status` → `Still open`, `Date` → today) rather than duplicating it. Omitting a finding leaves its row untouched — that is how a row you already marked `Fixed` stays `Fixed`.
 
-Read back each `LEDGER_ROW=<#> <added|carried> <severity>` line for the row numbers Step 3 needs. **Exit 2** = malformed findings JSON, or a §9 table whose header is missing a canonical column: report it and stop — never hand-edit the table into shape.
+Read back each `LEDGER_ROW=<#> <added|carried> <severity>` line for the row numbers Step 3 needs. **Exit 2** = malformed findings JSON, or a §7 table whose header is missing a canonical column: report it and stop — never hand-edit the table into shape.
 
 **No-findings path:** send `[]`. The script writes the `Clean` marker row; skip straight to Step 3's open-questions normalization + frontmatter stamp.
 
@@ -204,5 +204,5 @@ When `plan-em` invoked this tune inline as a certification precondition, it driv
 
 - `refs/certification.md` — the seven checks, consumers, severity rubric, findings-table schema, the auto-fix terminal table, and the self-healing AHA loop. The whole certifier definition.
 - `.claude/scripts/script-cert-mech.py` — checks 4, 5 and 6's structure, mechanised.
-- `.claude/scripts/script-ledger.py` — the §9 findings ledger: locate/create, dedup, monotonic `#`, clean row.
+- `.claude/scripts/script-ledger.py` — the §7 findings ledger: locate/create, dedup, monotonic `#`, clean row.
 - `.claude/scripts/script-aha.sh` · `.claude/scripts/script-openq.sh` — the shared devkit writers.

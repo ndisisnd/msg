@@ -41,7 +41,7 @@ it as the staging human-test script (C22/AC-MTP6 — the second render site).
       `features/prd-<n>-*/reports/report-*.md`, already in plain step-by-step language
       ("open the app, add a task, refresh — the task is still there"). Prefer the most
       recent report; concatenate distinct steps across reports for this PRD.
-   b. **The PRD's acceptance criteria** (§6 / "Features & acceptance criteria") — for any
+   b. **The PRD's acceptance criteria** (§3 / "Features & acceptance criteria") — for any
       in-scope feature whose verification isn't already covered by a report step, turn its
       acceptance criterion into a check ("you should be able to … and see …").
 

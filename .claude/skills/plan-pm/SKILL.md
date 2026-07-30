@@ -3,7 +3,7 @@ name: plan-pm
 description: >
   Principal PM skill — the autonomous PRD writer. Consumes a graded, fleshed-out
   row from the INTAKE.md backlog (idea, goal, type, grade) and drafts the full PRD
-  solo — edge cases, feature/acceptance table, user flows, error handling — saved to
+  solo — feature/acceptance table, edge cases, error handling — saved to
   features/planned/prd-[n]-[feature-slug]/. The requirements interview lives in /intake now,
   not here. Pauses ONLY for batched open questions the draft couldn't resolve and for
   breaking/critical touches. Refuses requests that would skip the PRD stage entirely.
@@ -46,11 +46,11 @@ Before emitting any step, stat-check and read the following in parallel via `Bas
 | File | How to apply |
 |------|-------------|
 | `devkit/AHA.md` | Surface relevant entries in the Open questions section; **apply self-healing learnings (G5) to the draft** so a category-tagged pattern (e.g. `[tune:error-cases] …`) is avoided this run |
-| `devkit/GLOSSARY.md` | Cross-reference when populating the Glossary section in Step 3 |
 | `CLAUDE.md` | Extract tech-stack constraints, conventions, architecture notes; validate feasibility of the drafted features and constrain the autonomous draft where the project setup already determines an answer |
 | `devkit/ARCHITECTURE.md` | Load system layers and integration points; validate feasibility and note conflicts in Open questions; source the platform detection in Step 3 |
-| `devkit/DESIGN-SYSTEM.md` | Load the component registry; note impacted/reused components inline when drafting User flow + Key user interactions |
 | `devkit/OPEN-QUESTIONS.md` | Scan for unresolved decisions that constrain the draft; surface relevant entries in Open questions |
+
+`devkit/GLOSSARY.md` and `devkit/DESIGN-SYSTEM.md` are **not** read here: the PRD has no Glossary section (new terms are appended to `devkit/GLOSSARY.md` directly, where the whole pipeline sees them) and no User flow / Key user interactions sections, which were their only stated consumers.
 
 **Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg --init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg --init to initialise the project first.` Proceed without the file; do not create it. Do not ask the user about these files. Do not block. Proceed to Step 1 immediately.
 
@@ -62,7 +62,7 @@ A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) capturing extra changes/fixes 
 
 Follow `refs/protocol-pm.md` end-to-end — it owns the steps, their order, and their outputs.
 
-**Closing message (all modes, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output. Two `What happened` rows are **mandatory** on every completed run: the PRD path, written verbatim so it can be copy-pasted, and `Open questions left: <n>` counted from the drafted §8. That count drives the protocol deterministically — `0` ⇒ 🟢, `>0` ⇒ 🟡. The one-line "what this run did" slot may run to 2–3 lines here, summarising the feature drafted. Take the next step from the registry's plan-pm row; never compose it.
+**Closing message (all modes, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output. Two `What happened` rows are **mandatory** on every completed run: the PRD path, written verbatim so it can be copy-pasted, and `Open questions left: <n>` counted from the drafted §5. That count drives the protocol deterministically — `0` ⇒ 🟢, `>0` ⇒ 🟡. The one-line "what this run did" slot may run to 2–3 lines here, summarising the feature drafted. Take the next step from the registry's plan-pm row; never compose it.
 
 ## PRD status lifecycle
 
@@ -85,9 +85,8 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 - `refs/protocol-pm.md` — end-to-end five-step autonomous protocol; followed from § Step-by-step protocol
 - `refs/protocol-sub.md` — the `--sub` deltas layered over that protocol; read from § Sub-PRD mode when `--sub` is set
 - `.claude/scripts/plan-pm-roadmap-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
-- `refs/template-prd.md` — structured PRD format and its drafting rules; used to initialize the file in Step 3
-- `refs/template-feature-table.md` — F-ID feature table format; §6 output contract
-- `refs/template-error.md` — error case format, rules, and examples; used when drafting §5 in Step 3
+- `refs/template-prd.md` — structured PRD format (eight sections) and its drafting rules, including the §3 F-ID contract and the §4 error-case format; used to initialize the file in Step 3
+- `.claude/scripts/script-prd-shape.py` — deterministic PRD shape validator; call at the end of Step 3 Part 4
 - `.claude/scripts/scan-n.prd prd` — deterministic next-PRD-number resolver; call in Step 3
 - `.claude/scripts/scan-n.prd sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)
 - `INTAKE.md` — the root backlog ledger written by `/intake`; the **only** source of a PRD's idea — read in Step 1 to resolve the row (calling `/intake` to capture one first when the user came in with raw prose), stamped in Step 5

@@ -172,11 +172,14 @@ def check4(lines, body_start, prd_path):
     feature_ids, exec_block, scope_text = [], None, []
     for title, s, e, block in sections(lines, body_start, 2):
         low = norm_title(title)
-        if low.startswith("feature") or "acceptance cri" in low:
+        # The exec table's ONE home (new: `## 6. Feature execution table`; legacy
+        # `## Execution Table` still read). MUST be tested before the features
+        # branch — "feature execution table" also starts with "feature".
+        if low.startswith(("execution table", "feature execution table")):
+            exec_block = block
+        elif low.startswith("feature") or "acceptance cri" in low:
             headers, rows = md_table(block)
             feature_ids += [v.upper() for v in col(headers, rows, "id", "feature id") if v]
-        elif low.startswith("execution table"):
-            exec_block = block
         elif low.startswith("engineering"):
             for st, ss, se, sb in sections(lines, s, 3):
                 if "scope mapping" in st.lower():
@@ -198,7 +201,8 @@ def check4(lines, body_start, prd_path):
 
     if exec_block is None:
         emit(4, "critical", "uncovered-fid", "execution-table",
-             "no '## Execution table' section — eng --build has no rows to read")
+             "no '## N. Feature execution table' section (legacy '## Execution Table' "
+             "also accepted) — eng --build has no rows to read")
         return
 
     collide = Path(__file__).resolve().parent / "plan-em-exec-collision.py"

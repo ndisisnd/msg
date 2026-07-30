@@ -52,5 +52,5 @@ best-effort — their absence is a note, never a blocker (`pre-merge/refs/univer
 
 DB/data/prod-config pauses (`eng-db-touch.sh`) · breaking-change pauses · branch
 isolation (`feat/prd-<n>-*`) · **secret scan (guaranteed floor — no-scanner blocks, C9)**
-· frontmatter stamps · F-ID stability · PRD §9 ledger · gate-fail ticket · pre-merge
+· frontmatter stamps · F-ID stability · PRD §7 ledger · gate-fail ticket · pre-merge
 refusals.

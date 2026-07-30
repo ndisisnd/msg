@@ -118,6 +118,17 @@ def build(prd_path):
             KNOWN.add(title)  # platform already in frontmatter
         elif low.startswith("auth model"):
             d["auth_model"] = {"text": raw(block), **lp}; KNOWN.add(title)
+        elif low.startswith(("execution table", "feature execution table")):
+            # The exec table's ONE home (new: `## 6. Feature execution table`;
+            # legacy `## Execution Table` still read). MUST be tested before the
+            # features branch below — "feature execution table" also starts with
+            # "feature" and would otherwise be parsed as the F-ID table.
+            _, rows = md_table(block)
+            d["exec_table"] = [{"feature": pick(r, "feature"),
+                                "steps": pick(r, "execution steps", "steps", "execution"),
+                                "files": pick(r, "files", "file"),
+                                "agent": pick(r, "agent", "owner")} for r in rows]
+            d["exec_table_prose_lines"] = f"{s}-{e}"; KNOWN.add(title)
         elif low.startswith("feature") or "acceptance cri" in low:
             _, rows = md_table(block)
             for r in rows:
@@ -152,13 +163,6 @@ def build(prd_path):
                 t = pick(r, "term")
                 if t: d["glossary"][t] = pick(r, "definition", "meaning")
             KNOWN.add(title)
-        elif low.startswith("execution table"):
-            _, rows = md_table(block)
-            d["exec_table"] = [{"feature": pick(r, "feature"),
-                                "steps": pick(r, "execution steps", "steps", "execution"),
-                                "files": pick(r, "files", "file"),
-                                "agent": pick(r, "agent", "owner")} for r in rows]
-            d["exec_table_prose_lines"] = f"{s}-{e}"; KNOWN.add(title)
         elif low.startswith("engineering"):
             agent = title.split("—",1)[1].strip() if "—" in title else title
             eng = {"prose_lines": f"{s}-{e}"}

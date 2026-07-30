@@ -118,9 +118,9 @@ Same read model as before — now implemented in `server.py`, re-run per request
    by PRD id so one PRD is listed once) (missing fields are normal → `null`;
    missing/unparseable frontmatter → `skipped[]`, keep going).
 2. **F-ID feature rows** from `## N. Features…` (any leading number, e.g.
-   `## 6. Features & acceptance criteria`), falling back to `## Execution Table` (legacy)
-   or `## N. Feature execution table` (new).
-3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 11. Todos`) → tickets per
+   `## 3. Features & acceptance criteria`), falling back to `## N. Feature execution
+   table` (the v5 home) or `## Execution Table` (legacy, pre-v5 PRDs).
+3. **Todos** under `## Todos` / `## N. Todos` (e.g. `## 8. Todos`) → tickets per
    `.claude/skills/eng/refs/plan/template-todo.md` (`**<id> — <title>**` + labelled field
    bullets). A ticket's `done` is read from its `- **done:** true` field when present
    (written by the toggle endpoint); absent → `false`.
@@ -183,9 +183,9 @@ is unchanged from the previous protocol revision, with these notes:
   HTML-escaped before any markup transformation; no external libraries, no network) and
   now **splits it into one collapsible accordion per `##` section**. Section-name
   matching tolerates an optional leading section number, so both the legacy unnumbered
-  headings and the new numbered template render: `## Todos` / `## 11. Todos`,
-  `## Execution Table` / `## 7. Feature execution table`, and `## 3. Features` /
-  `## 6. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
+  headings and the new numbered template render: `## Todos` / `## 8. Todos`,
+  `## Execution Table` (legacy) / `## 6. Feature execution table`, and
+  `## Features` / `## 3. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
   omitted (todos render in their own section). The findings section — new
   `## N. Plan tune findings` (legacy `## Audit — <date>` still supported) — plus any
   nested `### 12. Findings` eng list is parsed into a dedicated **Plan-tune findings**

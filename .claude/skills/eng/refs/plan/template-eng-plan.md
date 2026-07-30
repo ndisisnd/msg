@@ -199,8 +199,8 @@ Numbered findings. Each carries a severity and a required action. If `plan-em` r
 - **Minor** — Note for future PRDs; no action required this cycle.
 
 **Worked example:**
-1. **Critical** — PRD §5 F2 acceptance criterion does not name timezone reference. **Action:** PM clarifies before backend schema is frozen.
-2. **Minor** — PRD §6 success metric for "notification opt-in" lacks measurement window. **Action:** PM adds a window in next PRD revision.
+1. **Critical** — PRD §3 F2 acceptance criterion does not name timezone reference. **Action:** PM clarifies before backend schema is frozen.
+2. **Minor** — PRD §3 acceptance criterion for "notification opt-in" lacks a measurement window. **Action:** PM adds a window in next PRD revision.
 
 ---
 

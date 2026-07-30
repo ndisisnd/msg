@@ -7,7 +7,7 @@
 # depends_on[], affects[], parent, created, path, full, missing[].
 #
 #   full     — true iff the PRD is roadmap-ready: pipeline stamps complete AND a
-#              real §6 acceptance-criteria table AND a real §7 execution table.
+#              real §3 acceptance-criteria table AND a real §6 execution table.
 #   missing  — JSON array of the tokens that failed the fullness check, empty when
 #              full. Tokens: "stamps", "acceptance-criteria", "exec-table".
 #
@@ -170,7 +170,7 @@ emit_prd() {
       }
       return out "]"
     }
-    BEGIN { infm = 0; seen = 0; sec = 0; has_f6 = 0; has_f7 = 0 }
+    BEGIN { infm = 0; seen = 0; sec = 0; has_f3 = 0; has_f6 = 0 }
     {
       if (NR == 1 && $0 ~ /^---[ \t]*$/) { infm = 1; next }
       if (infm && $0 ~ /^---[ \t]*$/)    { infm = 0; next }   # end frontmatter, read body
@@ -188,18 +188,21 @@ emit_prd() {
         seen = 1
         next
       }
-      # --- body scan: §6 acceptance-criteria + §7 execution-table completeness ---
+      # --- body scan: §3 acceptance-criteria + §6 execution-table completeness ---
       # Track the current numbered H2 section. A real feature/exec row is a table
       # row whose first data cell is an F-ID (F1, F2, …) — this excludes header
       # rows (| ID |, | F-ID |), separators (|----|), and the template placeholders.
-      if ($0 ~ /^##[ \t]*[0-9]+[.]/) {
+      if ($0 ~ /^##[ \t]/) {
+        # legacy unnumbered exec-table heading (pre-v5 PRDs) counts as the §6 home
+        if (tolower($0) ~ /^##[ \t]*execution table[ \t]*$/) { sec = 6; next }
         h = $0
         sub(/^##[ \t]*/, "", h)
-        sec = h + 0
+        sec = ($0 ~ /^##[ \t]*[0-9]+[.]/) ? h + 0 : 0
         next
       }
-      if (sec == 6 && $0 ~ /^[|][ \t]*F[0-9]+[ \t]*[|]/) has_f6 = 1
-      if (sec == 7 && $0 ~ /^[|][ \t]*F[0-9]+[ \t]*[|]/) has_f7 = 1
+      # §3 rows read `| F1 | …`; §6 rows read `| F1: <name> — <concern> | …`
+      if (sec == 3 && $0 ~ /^[|][ \t]*F[0-9]+([.][0-9]+)?[ \t]*[|:]/) has_f3 = 1
+      if (sec == 6 && $0 ~ /^[|][ \t]*F[0-9]+([.][0-9]+)?[ \t]*[|:]/) has_f6 = 1
     }
     END {
       if (!seen) { print "plan-pm-roadmap-scan: no frontmatter in " file > "/dev/stderr"; exit 0 }
@@ -239,11 +242,11 @@ emit_prd() {
         else                           bucket = "product"
       }
 
-      # --- fullness: pipeline stamps + real §6 rows + real §7 rows ---
+      # --- fullness: pipeline stamps + real §3 rows + real §6 rows ---
       missing = ""
       if (complete != "true") missing = missing (missing == "" ? "" : ",") "\"stamps\""
-      if (!has_f6)            missing = missing (missing == "" ? "" : ",") "\"acceptance-criteria\""
-      if (!has_f7)            missing = missing (missing == "" ? "" : ",") "\"exec-table\""
+      if (!has_f3)            missing = missing (missing == "" ? "" : ",") "\"acceptance-criteria\""
+      if (!has_f6)            missing = missing (missing == "" ? "" : ",") "\"exec-table\""
       full = (missing == "") ? "true" : "false"
 
       printf "{"

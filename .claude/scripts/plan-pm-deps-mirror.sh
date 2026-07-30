@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# plan-pm-deps-mirror.sh — mirror a PRD's §6 Dependencies column into its
+# plan-pm-deps-mirror.sh — mirror a PRD's §3 Dependencies column into its
 # frontmatter `depends_on` array.
 #
-# §6 (Features & acceptance criteria) is the source of truth for cross-PRD edges:
-# every prd-<n>-<slug> id that appears in a §6 Dependencies cell must also appear
+# §3 (Features & acceptance criteria) is the source of truth for cross-PRD edges:
+# every prd-<n>-<slug> id that appears in a §3 Dependencies cell must also appear
 # in the frontmatter `depends_on` array. This script extracts those ids, unions
 # them with the current array, and rewrites `depends_on` in place. It replaces the
 # inline awk-and-eyeball snippet in plan-pm's protocol Step 3 Part 4, and — per the
@@ -14,7 +14,7 @@
 #
 # - Sub-PRD ids (prd-2.1-slug) count as ids. External services and bare F-IDs in
 #   the Dependencies column are never mirrored — only prd-<n>-<slug> tokens.
-# - The Dependencies column is located from the §6 table header, not a fixed index.
+# - The Dependencies column is located from the §3 table header, not a fixed index.
 # - Prints `ADDED <id>` to stdout for each newly-added id (none added → no output).
 # - Idempotent. Writes via a temp file + mv. `depends_on: []` when the union empty.
 #
@@ -60,7 +60,7 @@ function extract(s, setarr, ordarr,   rest,tok) {
   }
 }
 
-# ── Pass 1: collect current depends_on ids and §6 Dependencies ids ──
+# ── Pass 1: collect current depends_on ids and §3 Dependencies ids ──
 FNR==NR {
   if (FNR==1) { if ($0=="---") { fm=1 } else { nofm=1 } ; next }
   if (fm==1) {
@@ -68,8 +68,8 @@ FNR==NR {
     if ($0 ~ /^depends_on:/) { extract($0, curset, curord); have_dep=1 }
     next
   }
-  # body — locate §6 and its Dependencies column
-  if ($0 ~ /^##[[:space:]]*6\./) { insec=1; next }
+  # body — locate §3 and its Dependencies column
+  if (tolower($0) ~ /^##[[:space:]]*([0-9]+\.[[:space:]]*)?features[[:space:]]*&/) { insec=1; next }
   if (insec==1 && $0 ~ /^## /) { insec=0 }
   if (insec==1 && $0 ~ /\|/) {
     if (depcol==0 && tolower($0) ~ /dependencies/) {
@@ -90,7 +90,7 @@ FNR==NR {
 # ── Between passes: build the union line + ADDED list (once) ──
 FNR==1 {
   if (nofm || fm!=2) { badfm=1 }
-  # ordered union: existing ids first, then new §6 ids in first-seen order
+  # ordered union: existing ids first, then new §3 ids in first-seen order
   ucount=0
   for (i=1;i<=curord[0];i++) { ulist[++ucount]=curord[i] }
   for (i=1;i<=sixord[0];i++) {
