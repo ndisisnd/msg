@@ -2,6 +2,12 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P1 — plan-tune slim + mechanise (i4–i10)
+
+- `.claude/skills/plan-tune/SKILL.md`: Changed — Persona → 2-line Posture (non-inferable rules relocated), Step-3 re-verification checklist cut, no-op instructions cut, certification.md restatements → pointers, D*/G* plan-history citations stripped, glossary Minor + Step-1 GLOSSARY read cut; §9-ledger and cert-check prose replaced by script calls. 2,946 → 2,239 words (−24%)
+- `.claude/scripts/`: Added — `script-cert-mech.py` (mechanical checks 4/5/6: scope map, tickets, edges/buckets; 9 finding codes, exit 0/1/2), `script-ledger.py` (§9 locate/create/fill, carry-forward dedup, severity-sorted monotonic numbering, Clean row), `script-aha.sh` + `script-openq.sh` (file-owned devkit appenders; openq never touches `## Resolved`, rejects `--status resolved`)
+- `.claude/skills/plan-tune/refs/certification.md`: Changed — gains the "who runs what" split (scripts own 4/5/6-structure; model keeps 1/2/3/7 + fixes + product pause); citation strip applied
+
 ### v5-P0 — Quick wins (one commit per phase; queue: update/plan-msg-v5.md §4) (i13/i14/i35/i38/i52/i53)
 
 - `.claude/skills/plan-pm/SKILL.md`: Changed — `allowed_tools` gains `Edit`, `WebFetch`, `WebSearch`; `refs/principles.md`'s web rule is now executable and scoped to convention lookups
