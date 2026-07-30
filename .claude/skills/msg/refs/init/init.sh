@@ -158,6 +158,7 @@ done
 for pair in \
   "AHA.md:template-AHA.md" \
   "DOCTOR.md:template-DOCTOR.md" \
+  "ENV.md:template-ENV.md" \
   "GLOSSARY.md:template-GLOSSARY.md" \
   "OPEN-QUESTIONS.md:template-OPEN-QUESTIONS.md"
 do

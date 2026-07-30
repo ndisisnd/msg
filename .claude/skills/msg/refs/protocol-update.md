@@ -142,7 +142,7 @@ nothing and calls nothing. `/msg --update` writes **no other `policy.json` key**
 **Step 3-TS — Revisit the minified test selection decision** (named to avoid
 collision with `protocol-init.md`'s own Step 3b row top-up, alongside Step 3-CI)
 
-`policies.test_selection` (`../../shared/refs/policy-schema.md` §2c) is the
+`policies.test_selection` (`../../shared/refs/policy-schema-pre-merge.md` §2c) is the
 second policy key this protocol writes, and the two halves of the decision are
 asymmetric. **Gate:** only asked when a test-running component (`unit`,
 `integration`, or `regression`) is present in `components[]` — no test suite,
@@ -166,7 +166,7 @@ nothing to select over, skip silently and write nothing.
 >   `critical_markers`, and the `criticality_review` stamp are all read only
 >   inside the selection path, so no second cleanup step exists or is needed.
 >   End with the one-line retained-inert audit
->   (`../../shared/refs/policy-schema.md` §`policies.test_selection`), e.g.
+>   (`../../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection`), e.g.
 >   *"test_selection disabled — critical tags and `run_minified` commands
 >   retained (inert); re-enable via `/pre-merge --init` or `--update`."*
 
@@ -245,5 +245,5 @@ Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — plain `
 - `.claude/scripts/script-policy-set.py` — the only writer of `devkit/policy.json`; both this protocol's keys (Step 3-CI `policies.github_actions`, Step 3-TS `policies.test_selection.enabled`) go through it, siblings preserved and the result re-parsed
 - `.claude/scripts/script-branch-topology.sh` — the `HAS_GH_REMOTE` gate Step 3-CI reads; same resolver `protocol-init.md` uses
 - `../../shared/refs/policy-schema.md` — §2b `policies.github_actions`, the one key this protocol writes (Step 3-CI); the read-contract that turns it into post-merge's inactive CI stage lives there too
-- `../../shared/refs/policy-schema.md` — §2c `policies.test_selection`, the second key this protocol writes (Step 3-TS, disable only); the read-contract for the 5-step selection rule lives there too
+- `../../shared/refs/policy-schema-pre-merge.md` — §2c `policies.test_selection`, the second key this protocol writes (Step 3-TS, disable only); the read-contract for the 5-step selection rule lives there too
 - `../../pre-merge/refs/protocol-init.md` — owns the `policies.test_selection` **enabling** interview (backstop verification + the initial criticality-tagging pass) that Step 3-TS's "Turn it on" hands off to, rather than duplicating it here

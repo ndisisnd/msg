@@ -1,6 +1,6 @@
 ---
 name: pre-merge-protocol-init
-description: Spec for /pre-merge --init — detect each gate step's tooling from the pre-merge fingerprint, cross-reference nulls against the Step-0 required_buckets, interview + gated-install the gaps OSS-first, and record per-step decisions into devkit/policy.json (Steps 2/3/5/6 only).
+description: Spec for /pre-merge --init and --update — run the preflight checks, cross-reference nulls against the Step-0 required_buckets, interview + gated-install the gaps OSS-first, assemble the delta-only components[] manifest in devkit/policy.json, and scaffold the devkit/ENV.md env contract.
 type: reference
 ---
 
@@ -9,7 +9,7 @@ type: reference
 The setup half of the pre-merge gate. It **detects** each step's tooling, **interviews** the user
 about the real gaps, **offers to install** the missing pieces (gated, per-item, OSS-first), and
 **records** every decision into `devkit/policy.json` — turning today's silent "no tooling → skip"
-into an explicit, persisted `steps.<key>` decision the gate reads at run time.
+into an explicit, persisted `components[]` decision the gate reads at run time.
 
 `--init` **never runs the gate, never opens a PR, never merges, never deploys, and never writes
 `devkit/PLATFORMS.md`** (AC-DR1). Its only outputs are repo mutations under explicit per-item
@@ -38,9 +38,10 @@ contract"). Pre-merge's flavor:
 5. **Offer install** — for each gap the user wants filled, run the OSS-first command, gated
    per-item (AC-DR2). A tool installed this run is persisted as `ready` — never `installed` (that
    is a transient terminal-display state only; see policy-schema.md's status vocabulary).
-6. **Write** `devkit/policy.json`, stamp `generated` (the skill stamps the ISO date — scripts
-   can't), and flip `init:true`. The written file must re-load with **zero** validation warnings
-   (AC-S6).
+6. **Write** `devkit/policy.json` via `.claude/scripts/script-policy-set.py` — the one
+   sanctioned writer. It stamps `generated` + `generated_by` from the system clock
+   (`--stamp-by "pre-merge --init"`) and flips `init:true`. The written file must re-load
+   with **zero** validation warnings (AC-S6). Scaffold `devkit/ENV.md` in the same pass.
 7. **Summary** — a step→status table to the terminal. No gate run, no PR, no merge.
 
 ---
@@ -49,27 +50,30 @@ contract"). Pre-merge's flavor:
 
 The `preflight-check-*.sh` family emits one normalized detect report per component, together
 covering the full fingerprint of detected tooling — one slot per runner (the probe primitives
-live in `preflight-common.sh`; they superseded the retired monolithic detector at v3 P3).
+live in `preflight-common.sh`).
 **Every `null`/`no_tooling` slot is a candidate gap.** `--init` does not re-detect by hand; it
 reads the reports and the Step-0 profile, then classifies.
 
-**Fingerprint slot → canonical step-key** (the key written under `steps.<key>`):
+**Detector slot → component `id`** (the `components[]` entry the detection lands in —
+one entry per catalog row; the slot names are the catalog's `run` column):
 
-| Detector slot | `steps.<key>` | Gate step |
-|---|---|---|
-| `mechanical_runners[]`, `build_tool` | `mechanical` | Step 2 |
-| `test_runner` | `unit_int` | Step 3 |
-| `e2e_runner` | `e2e` | Step 5 |
-| `qa_runner` | `qa` | Step 5 |
-| `a11y_runner` | `a11y` | Step 5 |
-| `perf_runner` (+ `bundle_analyzer`) | `perf` | Step 5 |
-| `load_runner` | `load` | Step 5 |
-| `api_runner[]` | `api` | Step 5 |
-| `mobile_runner` | `mobile` | Step 5 |
-| `coverage_runner` | `coverage` | Step 5 |
-| `security_scanners[]`, `secret_scanner` | `security` | Step 6 |
-| _(static SQL scan — no runner slot)_ | `migration` | Step 6 |
-| _(`.github/workflows/*.yml` presence — no runner slot)_ | `ci` | cross-cutting — the pipeline that runs the gate on the PR |
+| Detector slot | component `id` |
+|---|---|
+| `mechanical_runners[]`, `build_tool` | `mechanical` |
+| `test_runner` | `unit` · `integration` · `regression` |
+| `e2e_runner` | `e2e` |
+| `a11y_runner` | `a11y` |
+| `perf_runner` (+ `bundle_analyzer`) | `perf` |
+| `load_runner` | `load` |
+| `api_runner[]` | `api` |
+| `mobile_runner` | `mobile` |
+| `coverage_runner` | `coverage` |
+| `preview_deploy_cmd` (+ visual capture) | `preview` |
+| `smoke_runner` | `smoke` |
+| `security_scanners[]`, `secret_scanner` | `security` |
+| _(static SQL scan — no runner slot)_ | `migration` |
+| _(subagent — no runner slot)_ | `prd-consistency` · `manual-test-plan` |
+| _(`.github/workflows/*.yml` presence — no runner slot)_ | **`steps.ci`** — the one non-component key `--init` writes |
 
 **Cross-reference against `required_buckets`.** Resolve the Step-0 profile from `devkit/PLATFORMS.md`
 (`refs/platform-profiles.md`): a `null` slot is only a **gap** if its component is in the profile's
@@ -126,17 +130,30 @@ gaps, never `n/a`.
 > `AskUserQuestion` to confirm the pick (or declare one, or skip). When **two**
 > candidates apply at once (full-stack mobile: a simulator **and** a compose backend),
 > record a composite **`stacks[]`** — one logical sandbox, both stacks. The answer is
-> recorded as the manifest's **`env_provision`** resolution (`policy-schema.md` — the
-> neutral provision / seed / reset / teardown interface; post-merge-consumable schema,
-> pre-merge-only writer). Alongside it, `--init` detects/asks for the **committed seed
-> script** (S-Q1: migrate-from-zero + versioned fixture — never a prod-like snapshot)
-> and the optional `perf`/`load` **`scale_factor`**. **Skip / nothing detected ⇒
-> `provisioner: "none"`** — recorded, valid, and loud at gate time: every env-needing
-> component then carries a `high` `sandbox-unprovisioned` finding per run
-> (`refs/executor.md` §3b), never a silent pass. A provisioner without a seed script is
-> also recorded and flagged loudly at gate time. Same detect→catalog→record pattern as
-> every other resolution; the provisioner itself may be an install offer (e.g. Docker
-> absent) under the normal per-item gate (AC-DR2).
+> written into **`devkit/ENV.md`** — the committed env-setup contract
+> ([`../../shared/refs/env-contract.md`](../../shared/refs/env-contract.md)): human prose
+> (prerequisites, ports, seed-fixture location, gotchas) around **one** fenced `env`
+> block carrying the neutral provision / seed / reset / teardown verbs. It is a devkit
+> doc, **not** a `policy.json` key — one source of truth for env setup, shared with the
+> humans and agents who also need it, following the `PLATFORMS.md` precedent.
+>
+> **Scaffold, don't interrogate.** Fill every value detection resolved; write a
+> `[USER: …]` placeholder — naming exactly what to put there — wherever it didn't.
+> `ENV.md` is **committed** (not gitignored): it is documentation.
+>
+> Alongside it, `--init` detects/asks for the **committed seed script** (S-Q1:
+> migrate-from-zero + versioned fixture — never a prod-like snapshot) and the optional
+> `perf`/`load` **`scale_factor`**, and may offer the companion stubs
+> ([`stubs/docker-compose.test.yml`](stubs/docker-compose.test.yml),
+> [`stubs/seed-test.ts`](stubs/seed-test.ts)) under the usual per-item approval —
+> accepting them fills the matching verbs.
+>
+> **Skip / nothing detected ⇒ `provisioner: "none"`** — recorded, valid, and loud at
+> gate time: every env-needing component then carries a `high` `sandbox-unprovisioned`
+> finding per run (`refs/executor.md` §3b), never a silent pass. A remaining
+> `[USER: …]` placeholder in a consumed verb resolves the same way. A provisioner
+> without a seed script is also recorded and flagged loudly. The provisioner itself may
+> be an install offer (e.g. Docker absent) under the normal per-item gate (AC-DR2).
 
 > **Regression suite composition (C23, AC-SBX8).** When `regression` is present,
 > `--init` resolves **`regression.needs_env`** from the accumulated suite's
@@ -184,11 +201,10 @@ gaps, never `n/a`.
 > `/msg --init` / `/msg --update` and is only read here. `steps.ci` stays this protocol's own key
 > (post-merge reads it, never writes it).
 
-**Steps covered:** `mechanical` (Step 2), `unit_int` (Step 3), the Step-5 platform components (`e2e`,
-`qa`, `a11y`, `perf`, `load`, `api`, `mobile`, `coverage`), `security` + `migration` (Step 6), and
-the cross-cutting `ci` workflow. The `deploy_staging` / `deploy_production` / `smoke` keys are
-**post-merge's** — pre-merge `--init` leaves them untouched. (post-merge `--init` *reads* the
-`ci` record at item 2 but never writes it — see its `protocol-init.md`.)
+**Covered:** every catalog component (`component-catalog.md`), plus the cross-cutting `ci`
+workflow. The `deploy_staging` / `deploy_production` / `smoke` **step-keys** are
+**post-merge's** — pre-merge `--init` leaves them untouched. (post-merge `--init` *reads*
+the `ci` record at item 2 but never writes it — see its `protocol-init.md`.)
 
 ---
 
@@ -258,7 +274,8 @@ For each real gap (after the `required_buckets` cross-reference), `--init` asks 
 
 - **Offer choices** = the catalog's Preferred and Fallback for that slot, plus a **Skip** option.
 - **Install** (Preferred/Fallback chosen) → run the OSS-first command for the picked tool; on
-  success record `steps.<key> = { status: "ready", chosen: "<tool>" }`. A tool installed this run
+  success record the component `{ present: true, status: "ready", run: "<cmd>", tooling: {...} }`.
+  A tool installed this run
   is persisted `ready`, never `installed`.
 - **Config-missing flavor** → additionally scaffold the minimal stub config (below) so the gate has
   something runnable immediately.
@@ -293,13 +310,13 @@ gate can execute the tool on the next run (not a curated house style). The templ
 | `biome.json` | mechanical (lint+format) | `@biomejs/biome` |
 | `.prettierrc.json` | mechanical (format) | `prettier` |
 | `ruff.toml` | mechanical (Python) | `ruff` |
-| `vitest.config.ts` | unit_int + coverage | `vitest` + `@vitest/coverage-v8` |
+| `vitest.config.ts` | unit + integration + coverage | `vitest` + `@vitest/coverage-v8` |
 | `playwright.config.ts` | e2e | `@playwright/test` |
 | `.size-limit.json` | perf (bundle) | `size-limit` + `@size-limit/preset-app` |
 | `pre-merge.yml` → `.github/workflows/` | ci | — (no dep; substitute the detected gate commands) |
 
 `pre-merge.yml` is the one stub that is **command-dependent**: `--init` copies it to
-`.github/workflows/pre-merge.yml`, then substitutes the `mechanical` / `unit_int` / `security`
+`.github/workflows/pre-merge.yml`, then substitutes the `mechanical` / `unit` / `security`
 commands it detected (from the fingerprint) into the `[init: …]` placeholders and drops any step
 whose component the repo lacks. It installs no dependency of its own. Everything else about the gated,
 per-item `AskUserQuestion` approval is identical to a config stub.
@@ -314,41 +331,41 @@ the pairing is runnable. `--init` should confirm a copied stub matches the insta
 
 ---
 
-## Writing `steps.<key>` and flipping `init`
+## Recording each decision and flipping `init`
 
-`--init` writes one `steps.<key>` entry per step it touched, using the persisted vocabulary and the
-`reason`/`chosen` fields — **the schema, statuses, and required-field rules are defined in
-`../../shared/refs/policy-schema.md`; this spec does not restate them.** In outline:
+Every decision lands on its **`components[]` entry's `status`**, using the persisted
+vocabulary — **the schema, statuses, and required-field rules are defined in
+`../../shared/refs/policy-schema-pre-merge.md`; this spec does not restate them.** In outline:
 
-- **installed / already present** → `ready` (+ `chosen`).
-- **user skipped, won't revisit** → `opted_out` (+ `reason`).
-- **user skipped, will revisit / paid-only** → `deferred` (+ `reason`).
-- **not in `required_buckets`** → `n/a` (+ `reason`).
-- **known unresolved gap left as-is** → `missing` (+ `reason`).
+- **installed / already present** → `ready` (+ the resolved `run` and `tooling`).
+- **user skipped, won't revisit** → `opted_out` (+ `reason`), `present:false`.
+- **user skipped, will revisit / paid-only** → `deferred` (+ `reason`), `present:false`.
+- **not in `required_buckets`** → `n/a` (+ `reason`), `present:false`.
+- **known unresolved gap left as-is** → `no_tooling` (+ `reason`), `present:false`.
 
-On completion `--init` **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote) and
-stamps `generated` + `generated_by: "pre-merge --init"`. The gate then consumes each entry via the
-policy-schema read-contract (§3 `steps.<key>`): `ready` with no live tool → one `medium`
-`policy-mismatch` finding then the no-tooling path; `opted_out`/`n/a` → skip silently;
-`missing`/`deferred` → the existing `no_tooling` note. `--init`'s job is to *record*; the gate's job
-is to *read*.
+The one **`steps`** key `--init` writes is `ci`
+(`../../shared/refs/policy-schema-post-merge.md` § `steps.<key>`) — post-merge's green-CI
+check reads it. Pre-merge itself never consults `steps`.
+
+On completion `--init` **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote)
+and stamps `generated` + `generated_by: "pre-merge --init"` — all three via
+`.claude/scripts/script-policy-set.py --stamp-by "pre-merge --init"`, which dates the file
+from the system clock. `--init`'s job is to *record*; the gate's job is to *read*.
 
 The written file must round-trip clean — re-loading it in a gate run produces **zero** validation
-warnings (AC-S6). Never write `installed`, an unknown step-key, or a step-key outside the closed
-15-key vocabulary.
+warnings (AC-S6). Never write `installed`, and never write a `steps` key other than `ci`.
 
 ---
 
-## v3 — preflight ingestion → `components[]`
+## Preflight ingestion → `components[]`
 
-> **v3 (P2 assembly, P3 cutover).** `--init` runs a preflight-driven assembly step: it
-> runs the `preflight-check-*.sh` family, ingests their normalized reports, and writes the
-> `components[]` manifest into `devkit/policy.json` — the resolved instance of the
-> [`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)
-> defaults. The single monolithic `pre-merge` tooling detector is **retired** (deleted at
-> v3 P3) — the per-check `preflight-check-*.sh` family is the only detector now, and the
-> executor reads each component's resolved `run` from the manifest. The check-report shape is
-> [`../../shared/refs/check-report-schema.md`](../../shared/refs/check-report-schema.md).
+`--init` runs a preflight-driven assembly step: it runs the `preflight-check-*.sh`
+family, ingests their normalized reports, and writes the `components[]` manifest into
+`devkit/policy.json`. The per-check `preflight-check-*.sh` family is the only detector;
+the executor reads each component's resolved `run` from the manifest and every
+**constant** from [`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md).
+The check-report shape is
+[`../../shared/refs/check-report-schema.md`](../../shared/refs/check-report-schema.md).
 
 The assembly runs **after** the interview + gated install (so a just-installed tool is
 detected) and **before** the write:
@@ -361,34 +378,34 @@ detected) and **before** the write:
    detected (AC-PF2).
 2. **Ingest the 16 reports.** For each, validate it round-trips against the check-report
    schema (AC-CK5); reject a malformed report rather than assembling a bad entry.
-3. **Assemble `components[]`** (AC-CAT9): start from the catalog default row for each
-   `nn`; overlay the detection (`present`, `run`, `tooling`, `status`); apply user
-   overrides from the interview (`opted_out`/`deferred` decisions, any user-set
-   `criticality`). Each row carries its catalog `needs_env` default (C23);
-   `regression.needs_env` is the one resolved value (suite composition, AC-SBX8).
-   Ingestion needs **zero** per-check special-casing (AC-CK7) — one uniform loop keyed
-   on `nn`. Write the **`env_provision`** resolution (C23, AC-SBX6) beside
-   `components[]` from the provisioner interview above.
-4. **Validate the DAG is acyclic** (AC-PF3): topo-check the union of every component's
-   `depends_on`. A cycle → report it and write **no** manifest (leave `policy.json`
-   unchanged).
+3. **Assemble `components[]` — deltas only** (AC-CAT9). Each entry gets exactly the
+   five detection fields (`id`, `present`, `run`, `run_minified`, `tooling`, `status`)
+   plus any **explicit** user override from the interview (`opted_out`/`deferred`
+   decisions with their `reason`, a user-set `criticality`, the C17/C15/C16/C18 hints,
+   and `regression.needs_env` — the one resolved `needs_env`, AC-SBX8).
+   **Do not copy catalog metadata into the manifest**: `nn`, `group`, `kind`, `cost`,
+   `depends_on`, `active_when`, `platforms`, `mandatory`, the default `criticality`
+   and every other component's `needs_env` resolve from
+   [`component-catalog.md`](../../shared/refs/component-catalog.md) by `id` at run time.
+   Copying them is what created the AC-UP2 drift class — a catalog change could never
+   reach an existing manifest. Also **not** persisted: `test_selector` (audit-only; it
+   stays in the check reports) and `source` (derivable from `id` + the catalog's
+   `check` column). Ingestion needs **zero** per-check special-casing (AC-CK7) — one
+   uniform loop keyed on `id`.
+4. **Validate the DAG is acyclic** (AC-PF3): topo-check the union of every present
+   component's **catalog** `depends_on`. A cycle → report it and write **no** manifest
+   (leave `policy.json` unchanged). `script-pipeline-resolve.py` exits `4` on a cycle;
+   reuse it rather than hand-checking.
 5. **Write `components[]`** with **no `order` field** (AC-PF4 — ordering is the
    executor's runtime topo-sort) and **stamp `source_signature`** (AC-UP4) — the
-   sha256 defined in `policy-schema.md` over the sorted `id:present:run:tooling.chosen`
-   lines across all reports.
+   sha256 defined in `policy-schema-pre-merge.md` over the sorted
+   `id:present:run:tooling.chosen` lines across all reports. The write goes through
+   `.claude/scripts/script-policy-set.py` (`--set components=<json>`), the one
+   sanctioned `policy.json` writer — never a hand-authored edit.
+5b. **Scaffold `devkit/ENV.md`** from the provisioner interview (below) — a devkit
+   doc, not a policy key.
 6. **Everything `--init` already did stays:** the interview, the gated per-item install,
    and the `init:true` flip on completion.
-
-### Q2 — `steps.*` migration (dual-write dropped at P3)
-
-On a **pre-v3** `policy.json` (has `init`/`release_flow`, no `components[]`), `--init`
-rewrites the old `steps.*` states into `components[]` **once**, per the mapping table in
-`policy-schema.md` (`ready`→`present:true`; `opted_out`/`n/a`→`present:false` + status
-**preserved**; `missing`/`deferred`→`present:false` + status). **At v3 P3 the pre-merge
-`steps` dual-write is dropped** — the executor reads run-vs-skip from `components[]`
-presence (AC-PF6), not the §3 `steps` consult, so `--init` no longer needs to keep
-pre-merge's `steps.*` coherent. It still writes the `ci`/`deploy_*`/`smoke` step-keys that
-**post-merge** and the green-CI check read (those consumers are not yet on an executor).
 
 ---
 
@@ -496,8 +513,13 @@ reconciles **facts about the code**, never settled policy choices.
    - `active_when` flips (a surface appeared or disappeared),
    - **new** components, seeded with **catalog defaults**,
    - `regression.needs_env` re-resolution (C23/AC-SBX8 — the suite's composition
-     changed) and `env_provision` provisioner flips (a compose file / testcontainers
-     dep appeared or vanished) — both **facts**, re-detected like `present`.
+     changed) — a **fact**, re-detected like `present`,
+   - **`devkit/ENV.md` deltas** — a compose file appeared, a seed script moved, a
+     placeholder is now resolvable. Proposed in the same approved-delta table; a
+     hand-edited verb is never silently overwritten (`env-contract.md`).
+   **Catalog metadata needs no reconcile at all** — the manifest never copied it, so a
+   new `depends_on` edge or a shifted criticality default is live on the next run
+   (this is the AC-UP2 drift hole, closed by the delta-only shape).
    It **never** re-prompts a settled `opted_out`/`n/a` decision, **never** changes a
    **user-set** `criticality`, and **never** re-prompts a settled
    `policies.test_selection` — those are policy, not facts. It does refresh that
@@ -508,13 +530,13 @@ reconciles **facts about the code**, never settled policy choices.
 5. **Fill genuinely-new gaps** by reusing `--init`'s gated per-item install/scaffold
    offer (AC-UP3) — a newly-detected-but-untooled component follows the same
    OSS-first `AskUserQuestion` path.
-6. **Restamp `source_signature`** (AC-UP4) and stamp `generated_by: "pre-merge --update"`.
-   Re-validate the DAG (AC-PF3) before writing. As of v3 P3 the pre-merge `steps` dual-write
-   is dropped (the executor runs from `components[]`); `--update` only touches the
+6. **Restamp `source_signature`** (AC-UP4) and stamp `generated_by: "pre-merge --update"`
+   — both via `.claude/scripts/script-policy-set.py`. Re-validate the DAG (AC-PF3)
+   before writing. `--update` writes no pre-merge `steps` entry; it only touches the
    post-merge-owned `ci`/`deploy_*`/`smoke` step-keys, same as `--init`.
 
 `--update` never runs the gate, opens a PR, merges, or deploys — same boundaries as
-`--init`. A pre-v3 `policy.json` with no `components[]` is an `--init` case, not
+`--init`. A `policy.json` with no `components[]` is an `--init` case, not
 `--update` (there's nothing to reconcile against) — `--update` says so and points to
 `--init`.
 

@@ -14,17 +14,19 @@ folder split, the `preflight-check-*` scripts, wave sequencing, and result
 reporting all key off this file — nothing downstream re-derives component
 metadata by hand.
 
-> **This phase (P1).** This file transcribes the catalog defaults and wires the
-> `ref` pointers to the moved protocol files. The `preflight-check-<nn>-<slug>.sh`
-> scripts named by `check` below do not exist yet — they land in Phase 2 (C4).
-> Nothing in this phase changes gate run order or pass/fail behavior.
-
 ## Entry schema
 
 ```
 { id, nn, group, kind, criticality, cost, depends_on[], active_when,
-  platforms[], needs_env, mandatory, run, run_minified, test_selector, ref, check }
+  platforms[], needs_env, mandatory, run, run_minified, ref, check }
 ```
+
+Everything here except `run` / `run_minified` is a **constant** — identical in every
+repo. The per-project `components[]` manifest therefore stores only the resolved
+`run`/`run_minified`/`tooling`/`status`/`present` plus explicit user overrides, and
+joins back to this table by `id` at run time (`policy-schema-pre-merge.md`
+§ `components[]`). A catalog edit is live for every repo on the next gate run, with
+no migration.
 
 | Field | Meaning |
 |---|---|
@@ -40,18 +42,16 @@ metadata by hand.
 | `needs_env` | **C23** — `true` iff the component requires a running app/DB and therefore runs **inside** the ephemeral test-sandbox (legend `env` column; see "The env-needing tier", below). `false` = static/in-process, runs outside, never triggers provisioning |
 | `mandatory` | `true` only for `security` and `migration` (AC-CAT4) — never opts out, only degrades per their own safety-floor rules |
 | `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
-| `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema.md`; `pre-merge/refs/executor.md` § *Test selection*) |
-| `test_selector` | **additive**, sibling of `run_minified` — the freeform note naming the selection mechanism detected (`vitest related --changed`, `pytest-testmon`, `xcodebuild -testPlan Critical`, …). Audit only, never branched on; `null` wherever `run_minified` is |
+| `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema-pre-merge.md`; `pre-merge/refs/executor.md` § *Test selection*) |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
 | `check` | `preflight-check-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
 
-## The components (17 live, 18 authored)
+## The components (17)
 
-**C20 note:** `qa` (`15`) is merged into `preview` (`16`) — the single human-review
-gate. Id `15` is **retired, not reused**; `[NN]` stays a stable global id. The
-catalog below carries 18 rows for continuity with the id space, one of which is
-a retired tombstone (so 17 are live). Row 18 (`manual-test-plan`, C22) is the
-newest live component.
+**Id `15` is retired and never reused** — `qa` merged into `preview` (`16`), the
+single human-review gate (C20). `nn` is a stable global id, so the sequence skips
+15 rather than renumbering. Row 18 (`manual-test-plan`, C22) is the newest
+component.
 
 | nn | id | group | kind | criticality | cost | depends_on | active_when | platforms | env | mandatory |
 |----|----|-------|------|------|------|-----------|-------------|-----------|-----|------|
@@ -69,7 +69,6 @@ newest live component.
 | 12 | load | platform | subagent | config-driven† | expensive | sync | api-surface **+ diff-scoped**ᵈ | srv | **✔**ˢ | – |
 | 13 | migration | platform | hybrid | **critical** | moderate | sync | **migrations** | DB³ | **✔**ˢ | **✔** |
 | 14 | mobile | platform | subagent | blocking | expensive | sync | mobile-surface | mob✦ | **✔**ˢ | – |
-| **15** | ~~qa~~ | — | — | — | — | — | **retired (qa merged into preview, C20/D26); never reused** | — | — | — |
 | 16 | preview | platform | **gate** | blocking | expensive | sync (only-on-green, late wave) | **UI or api/migration/deploy surface** (union, C20) | all‡ | ➜ᵖ | – ᵍ |
 | 17 | smoke | platform | subagent | blocking | moderate | **preview** | preview-fired | all‡ | **✔**ˢ | – |
 | 18 | manual-test-plan | **prd** | subagent | **advisory** ᵐ | moderate | **prd-consistency** | **prd** | all | – | – |
@@ -83,9 +82,9 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | nn | id | run (detection field / mechanism) | ref | check |
 |----|----|------------------------------------|-----|-------|
 | 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `preflight-check-01-mechanical.sh` |
-| 02 | unit | `test_runner` **+ `test_selector`ˢᵉˡ** | `universal/protocol-unit.md` | `preflight-check-02-unit.sh` |
-| 03 | integration | `test_runner` (same field as `unit`; Phase 2 splits detection) **+ `test_selector`ˢᵉˡ** | `universal/protocol-integration.md` | `preflight-check-03-integration.sh` |
-| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring **+ `test_selector`ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾** | `universal/protocol-regression.md` | `preflight-check-04-regression.sh` |
+| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-unit.md` | `preflight-check-02-unit.sh` |
+| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-integration.md` | `preflight-check-03-integration.sh` |
+| 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾ | `universal/protocol-regression.md` | `preflight-check-04-regression.sh` |
 | 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `preflight-check-05-security.sh` |
 | 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `preflight-check-06-coverage.sh` |
 | 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `preflight-check-07-prd-consistency.sh` |
@@ -96,7 +95,6 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `preflight-check-12-load.sh` |
 | 13 | migration | static SQL-safety scan + `/cook` semantic pass | `platform/protocol-migration.md` | `preflight-check-13-migration.sh` |
 | 14 | mobile | `mobile_runner` (set: **native** XCUITest/XCTest + Espresso/JUnit **and** Flutter/Patrol/Maestro, C18) + **enforced declared `{platform,os}` matrix** | `platform/protocol-mobile.md` | `preflight-check-14-mobile.sh` |
-| ~~15~~ | ~~qa~~ | — retired, no script — | — | — no `preflight-check-15-qa.sh` — |
 | 16 | preview | `preview_deploy_cmd` + `qa_runner` (visual capture, merged) | `platform/protocol-preview.md` | `preflight-check-16-preview.sh` |
 | 17 | smoke | `smoke_runner` (resolves Q3) — **default-liveness floor** when unconfigured on a fired preview + **critical-tagged e2e-flow subset** (C21/D29) | `platform/protocol-smoke.md` (C21) | `preflight-check-17-smoke.sh` |
 | 18 | manual-test-plan | subagent (PRD digest + reuse of `prd-consistency`'s per-item evidence grades — no runner) | `prd/protocol-manual-test-plan.md` | `preflight-check-18-manual-test-plan.sh` |
@@ -183,14 +181,14 @@ before; a static component never triggers provisioning and never enters the sand
 - **Fix-loop reuse** (S-Q2 resolved): within one fix-loop, the stack stays warm and
   the DB is reset (drop → remigrate → re-seed) between iterations; the final green run
   promoted to preview gets a **fresh** provision.
-- **`env_provision`** — *how* the env comes up is project-specific (docker-compose /
-  testcontainers / ephemeral DB branch / preview-deploy / simulator), detected/declared
-  at `--init` and recorded as the manifest's `env_provision` resolution
-  (`policy-schema.md`) — a neutral provision / seed / reset / teardown interface,
-  designed post-merge-consumable (schema shared, machinery not). A repo needing two
-  provisioners at once (full-stack mobile: simulator + compose backend) records a
-  composite **`stacks[]`** — still **one logical sandbox**, all stacks provisioned and
-  torn down together.
+- **`devkit/ENV.md`** — *how* the env comes up is project-specific (docker-compose /
+  testcontainers / ephemeral DB branch / preview-deploy / simulator), detected at
+  `--init` and recorded in the committed **`devkit/ENV.md`** contract file
+  (`env-contract.md`) — human prose around one fenced block with a neutral
+  provision / seed / reset / teardown interface, read by both gates (schema shared,
+  machinery not). A repo needing two provisioners at once (full-stack mobile:
+  simulator + compose backend) records a composite **`stacks[]`** — still **one
+  logical sandbox**, all stacks provisioned and torn down together.
 - **No provisioner ⇒ loud degrade** (AC-SBX6, the D28 safety-floor pattern):
   non-destructive env-needing checks run against the ambient environment with a `high`
   `sandbox-unprovisioned` finding ("cannot run hermetically — no sandbox provisioner");
@@ -201,7 +199,7 @@ before; a static component never triggers provisioning and never enters the sand
 
 Three components carry a `run_minified` (legend `ˢᵉˡ`): `unit`, `integration`,
 `regression`. When `policies.test_selection` resolves **enabled** (opt-IN — absent
-⇒ off, `policy-schema.md` §2c), the executor may run them over
+⇒ off, `policy-schema-pre-merge.md` §2c), the executor may run them over
 **affected(diff) ∪ critical-floor** instead of the whole suite, per the size-tier
 rubric in `pre-merge/refs/executor.md` § *Test selection*. Everything below is a
 **default** the per-project `policy.json` overrides — the catalog never dictates a

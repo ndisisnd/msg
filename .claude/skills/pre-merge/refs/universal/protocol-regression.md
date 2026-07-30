@@ -22,7 +22,7 @@ this branch broke an assertion an earlier PRD locked in — treat it as `high`.
 ### Under a minified run (`policies.test_selection`)
 
 Selection resolves once per run — `--full` > `--minified` > policy, and **absent
-policy ⇒ off** (`../../../shared/refs/policy-schema.md` §2c). Selection **off** ⇒
+policy ⇒ off** (`../../../shared/refs/policy-schema-pre-merge.md` §2c). Selection **off** ⇒
 everything above runs verbatim: the whole `tests/regression/prd-*/` tree, no
 selection artifact read, no selection note emitted (AC-TS1).
 

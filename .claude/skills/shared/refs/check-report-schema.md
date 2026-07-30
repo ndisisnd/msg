@@ -78,7 +78,7 @@ silent (AC-PF2).
 Both v4 fields are emitted by `preflight-common.sh`'s `mk_report` on **every**
 check (as `null` where the script passed nothing), so the round-trip rule below
 holds unchanged; ingestion carries them onto the `components[]` entry
-(`policy-schema.md` § `components[]`).
+(`policy-schema-pre-merge.md` § `components[]`).
 
 ### `status` — detection facts only
 

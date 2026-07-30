@@ -29,7 +29,7 @@
 #                         policies.test_selection.{tiers,force_full_paths,
 #                         max_affected_ratio} from (default: devkit/policy.json).
 #                         Missing/malformed/unset keys fall back to the documented
-#                         defaults (policy-schema.md §test_selection).
+#                         defaults (policy-schema-pre-merge.md §test_selection).
 #
 # Output (stdout, one JSON object, AC-TS10):
 #   {"tier":"S|M|L","signals":{"modules":N,"ratio":N|null,"fan_in_pct":N|null},"trigger":"..."}
@@ -86,7 +86,7 @@ if [[ -z "$diff_files" ]]; then
   diff_files="$(git diff --name-only "${base}...HEAD" -- 2>/dev/null || true)"
 fi
 
-# --- policy-configured knobs (defaults per policy-schema.md §test_selection) ----
+# --- policy-configured knobs (defaults per policy-schema-pre-merge.md §test_selection) ----
 small_max_modules=2
 small_max_affected_ratio="0.10"
 medium_max_modules=6

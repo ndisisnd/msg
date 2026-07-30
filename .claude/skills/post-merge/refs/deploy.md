@@ -15,7 +15,7 @@ command (a multi-platform repo deploys each in turn).
 1. Read `devkit/PLATFORMS.md`. Parse the pipe table; the relevant columns are
    `platform | … | release_model | … | staging_deploy_cmd | production_deploy_cmd | …`.
 2. Missing file → warn (`No devkit/PLATFORMS.md — run /msg --init`) and treat every command as empty (Step "empty" below). Do not refuse the whole run over a missing deploy file; the merge/sign-off flow still has value.
-3. For each shipping platform, pick the deploy column for this mode **and** resolve its `release_model` (`../shared/refs/policy-schema.md` §4): missing/blank → infer from the platform (`web`/`macos`/`server` → `deploy`; `ios`/`android` → `submission`) with a warn, never silently (AC-RM1).
+3. For each shipping platform, pick the deploy column for this mode **and** resolve its `release_model` (`../shared/refs/policy-schema-post-merge.md` §4): missing/blank → infer from the platform (`web`/`macos`/`server` → `deploy`; `ios`/`android` → `submission`) with a warn, never silently (AC-RM1).
 4. **Per-platform resolution is independent (AC-RM4).** In a mixed repo each platform resolves its own `release_model` and is deployed + verified under that model in the same run — e.g. a `web`+`ios` ship treats web as `deploy` (live) and ios as `submission` (submitted) in one pass. One platform's model never coerces another's.
 
 ## Run

@@ -7,7 +7,7 @@ description: post-merge Step 1/2 — verify branch protection via post-merge-pro
 
 Branch protection is what makes "green CI required" and "human review required on
 main" machine-enforced rather than convention. Whether its **absence** blocks a
-merge is now a policy decision (`../shared/refs/policy-schema.md` §2): under the
+merge is now a policy decision (`../shared/refs/policy-schema-post-merge.md` §2): under the
 default `enforced` mode nothing merges without it (today's behavior); `optional`
 warns and proceeds; `skip` doesn't verify at all. `NO_GH`/`NO_REMOTE` still refuse
 **regardless of mode** — a PR can't be merged without them.
@@ -21,7 +21,7 @@ Per target branch `b` (`staging` for `--staging` Step 1, `main` for
 mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 ```
 
-from `devkit/policy.json` (`../shared/refs/policy-schema.md` §2). **No file /
+from `devkit/policy.json` (`../shared/refs/policy-schema-post-merge.md` §2). **No file /
 malformed → `enforced` everywhere (= today).** When `mode_b = skip`, do **not**
 run `--verify` at all — record "protection check skipped by policy" and proceed
 (`NO_GH`/`NO_REMOTE` still surface as merge-prerequisite refusals downstream).

@@ -6,7 +6,7 @@ description: The submission release model (iOS / Android). deploy-cmd exit 0 = S
 # Submission release model — `release_model: submission`
 
 For a platform whose `release_model` is `submission` (iOS, Android by default —
-`../shared/refs/policy-schema.md` §4), release is **asynchronous**. The deploy
+`../shared/refs/policy-schema-post-merge.md` §4), release is **asynchronous**. The deploy
 command uploads/submits an artifact to a store track; the app becomes available to
 users **later, out-of-band**, after store processing and review that post-merge
 neither owns nor blocks on. This ref specifies the whole model: the primitive

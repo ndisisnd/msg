@@ -2,6 +2,16 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P11 — pre-merge structure: lighter manifest, pipeline resolver, schema split, ENV.md (i62/i63/i64/i68/i72/i82)
+
+- `components[]` manifest: Changed — entries shrink ~15 fields → 6 (+ user overrides only); catalog constants resolve at run time from component-catalog.md; `test_selector` + `source` dropped; the AC-UP2 drift hole closes by construction (catalog edits are live next run, no migration)
+- `shared/refs/policy-schema.md`: Split — core (243 ln, both gates) + `policy-schema-pre-merge.md` (272) + `policy-schema-post-merge.md` (212); a gate run loads 515 ln instead of 693 and none of the other gate's; §-numbers stable; "scripts can't date" premise fixed at all four sites
+- `.claude/scripts/script-pipeline-resolve.py`: Added — policy+catalog+flags+diff → plan JSON (prune with reasons, C12 gap findings, topo waves, only-on-green from the catalog marker); `--check-complete` exits 5 with MISSING= lines; fails open without a diff
+- `.claude/scripts/pre-merge-aggregate-verdict.sh`: Rewritten — v3 result reports replace the pre-v3 BUCKETS (qa/functional gone); dedup by (category,file,line,rule), §2/§4 path downgrades with exemptions, verdict math, abort signal, gap ingestion; merged `source` joined by comma (GUI wire contract — caught by the i104 grep)
+- `devkit/ENV.md` (i82): Added — `shared/refs/env-contract.md` + `template-ENV.md` (init-scaffolded, committed not gitignored) + executor §3b read + `--init` detect/scaffold + `--update` reconcile; `env_provision` OUT of policy.json (zero live refs); absent/placeholder → the same loud sandbox-unprovisioned degrade; compose + seed stubs join refs/stubs/
+- v3 residue reaped: Q2 migration table, steps.* dual-write prose, retired-qa tombstones, unit_int, stale P1 banner
+- GUI verified: only policy read is release_branches(); build_data green on the new-shape manifest
+
 ### v5-P10 — plan-em: resume rules, strips, closing message, roster intent (i76–i79/i81/i83/i92)
 
 - `refs/protocol-em.md`: Changed — Step 3 resume rules (exec table present → verify-never-reappend, duplicate/orphan rows = hard stop; roster matching engineering_agents → one-line confirm, per-PRD not per-wave; 3a /cook payloads still run — build wave needs them); roster gate opens with a 2–3 line PRD-intent summary (suppressed on resume)

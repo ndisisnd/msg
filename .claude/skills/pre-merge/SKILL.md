@@ -77,26 +77,34 @@ prose, severity counts before the issue list, JSON-first.
 
 The gate is a **preflight-driven executor** (`refs/executor.md`) — it runs the resolved
 `components[]` pipeline from `devkit/policy.json`, not a fixed step list. Load + validate
-the policy once per run (`../shared/refs/policy-schema.md` read-contract), then gate on
-the **manifest**:
+the policy once per run (`../shared/refs/policy-schema.md` read-contract §0/§1 plus
+`../shared/refs/policy-schema-pre-merge.md` §2c — post-merge's half is never loaded),
+then gate on the **manifest**:
 
 | state | behavior |
 |---|---|
 | `components[]` present, non-empty | **run** the executor (`refs/executor.md`) |
 | file **absent** / malformed / `version` ≠ 1 | **REFUSE `no_manifest`** — name `/pre-merge --init`, run **zero** components (`refs/refusal-patterns.md`) |
-| **pre-v3** `policy.json` (`init`/`release_flow`, **no** `components[]`) | **REFUSE `no_manifest`** + upgrade nudge — name `/pre-merge --init` |
+| `policy.json` with `init`/`release_flow` but **no** `components[]` | **REFUSE `no_manifest`** + upgrade nudge — name `/pre-merge --init` |
 
 This is the **breaking cutover** (Fork C, AC-PF13/PF14): the old "file absent → run on
 built-in defaults" fallback is **retired** (`AC-LC6`/`AC-ST5` retired). There is no
 defaults path and no inline auto-`--init` — a run without a `components[]` manifest does
 nothing but tell the user to run `/pre-merge --init`, which detects the pipeline and
-writes the manifest. The old per-step policy self-consult (the retired `steps` entries)
-is superseded by component **presence** (an absent component simply isn't in the
-pipeline). The loaded policy still drives base resolution (below).
+writes the manifest. Run-vs-skip comes from component **presence** (an absent component
+simply isn't in the pipeline). The loaded policy still drives base resolution (below).
+
+**The manifest carries deltas only.** Each entry holds `present` / `run` /
+`run_minified` / `tooling` / `status` plus explicit user overrides; every catalog
+constant (`group`, `kind`, `cost`, `depends_on`, `active_when`, `mandatory`, the
+default `criticality`) resolves from `../shared/refs/component-catalog.md` by `id` at
+run time. `.claude/scripts/script-pipeline-resolve.py` performs the join and prints the
+run's plan (waves, pruned list, coverage-gap findings) — the executor quotes it verbatim
+rather than re-deriving the order.
 
 **Manifest staleness nudge (Fork E, read-only).** With a valid manifest, the executor
 **recomputes** `source_signature` cheaply (the sha256 over the sorted
-`id:present:run:tooling.chosen` lines, per `../shared/refs/policy-schema.md`) and, on
+`id:present:run:tooling.chosen` lines, per `../shared/refs/policy-schema-pre-merge.md`) and, on
 mismatch, prints one line — *"pipeline may be stale — run `/pre-merge --update`"* — then
 **proceeds on the current manifest**. The gate **never** writes `policy.json` or mutates
 `components[]`; only `--init`/`--update` do (AC-UP5/UP6).
@@ -151,7 +159,7 @@ components — `unit`, `integration`, `regression` — run `run_minified`
 (*affected(diff) ∪ the critical floor*) instead of their full suites, at the size
 tier computed from the diff's blast radius. The rule, the tier rubric, and the
 recording contract live in **`refs/executor.md` §3c**; the key's schema in
-`../shared/refs/policy-schema.md` § `policies.test_selection`. Absent/disabled ⇒
+`../shared/refs/policy-schema-pre-merge.md` § `policies.test_selection`. Absent/disabled ⇒
 byte-identical to today: no selection artifact is read and none is emitted
 (AC-TS1). Every resolution failure fails open to the full suite;
 `mechanical`/`security`/`migration` and this PRD's newly authored regression tests
@@ -221,7 +229,9 @@ so the gate never dead-ends.
 - `refs/platform/protocol-preview.md` — `preview` deploy + human gate (D6/D10; only-on-green tail)
 - `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; also the test-selection enabling interview + its single-run disable
 - `refs/protocol-update-criticality.md` — `--update-criticality` mode: inventory → evidence-cited proposals → human gate → tag commit + `criticality_review` restamp; also the gate's read-only staleness nudge
-- `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (`components[]` manifest, base `release_flow`, `source_signature`, `policies.test_selection` §2c + the `criticality_review` stamp)
+- `../shared/refs/policy-schema.md` — the shared core of the `devkit/policy.json` schema + read-contract (`init` lifecycle §0, `release_flow` §1, `github_actions` §2b, validation rules)
+- `../shared/refs/policy-schema-pre-merge.md` — pre-merge's half: the `components[]` delta manifest, `source_signature`, `policies.test_selection` §2c, the `criticality_review` stamp. Post-merge's half (`branch_protection`, `steps`, `release_model`, `staging_ready`, the release lock) is never loaded on a gate run
+- `../shared/refs/env-contract.md` — the `devkit/ENV.md` env-setup contract: the fenced `provision`/`seed`/`reset`/`teardown` block the executor reads at §3b (`--init` scaffolds it; gate runs never write it)
 - `../shared/refs/component-catalog.md` — component metadata (schema, defaults, `depends_on` edges, grouping) the manifest + executor key off
 - `refs/output-schema.md` — final emission schema (shape unchanged, AC-PF16) · `refs/finding-schema.md` — per-finding shape
 - `refs/severity-rubric.md` — grading + criticality fail-fast rules · `refs/refusal-patterns.md` — refusal shapes (incl. `no_manifest`)
@@ -229,5 +239,6 @@ so the gate never dead-ends.
 - `../shared/refs/fix-loop.md` — post-failure Offer #1 → Offer #2 sequence the issues-file loop hands off to
 - `../shared/refs/check-report-schema.md` — the normalized check-report schema (`detect` + `result` sections); the executor writes the `result` section per check and aggregates them
 - `.claude/scripts/preflight-check-*.sh` — the per-check detect+normalize family (C4); `--init`/`--update` run + ingest them into `components[]` (`refs/protocol-init.md`). **These + the manifest are the detector now — the monolithic pre-merge tooling detector is retired (v3 P3)**
-- `.claude/scripts/pre-merge-aggregate-verdict.sh` — per-component verdict aggregation/merge helper
+- `.claude/scripts/script-pipeline-resolve.py` — **the pipeline resolver**: joins the delta manifest to the catalog, prunes, runs the C12 coverage-gap correlation, topo-sorts into waves, and prints the run's plan JSON. `--check-complete` verifies every planned component wrote a result report
+- `.claude/scripts/pre-merge-aggregate-verdict.sh` — the aggregation half of §5: collect → dedup → path-pattern downgrades → verdict + summary + `checks[]` + the critical-abort signal
 - `scripts/resolve-diff.sh` — diff-vs-base structured summary

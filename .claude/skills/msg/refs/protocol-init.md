@@ -4,7 +4,7 @@ description: >
   Protocol for /msg --init — one-time project bootstrap. Scans the working
   directory, resolves the interview mode (cto = advisory / eng = direct) and
   delegates Step 2 to refs/protocol-cto.md or refs/protocol-eng.md, then
-  creates a `devkit/` directory containing AHA.md, DOCTOR.md,
+  creates a `devkit/` directory containing AHA.md, DOCTOR.md, ENV.md,
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
   README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the three `features/`
@@ -37,6 +37,7 @@ type: reference
 |------|---------|
 | `AHA.md` | Institutional knowledge log — past learnings that future agents must not repeat |
 | `DOCTOR.md` | Harness-incident ledger — where the harness itself misbehaved (script failures, tool errors, retries, missed writes). Write-mostly: no skill reads it during a run; `/msg --doctor` reads it on demand. **Gitignored** (see `.gitignore` row). Contract: [`shared/refs/doctor-logging.md`](../../shared/refs/doctor-logging.md) |
+| `ENV.md` | Env-setup contract — how to stand up an isolated test environment. Human prose (prereqs, ports, seed fixture, gotchas) around one fenced `env` block with the provision/seed/reset/teardown verbs both gates read. **Committed** (documentation, not telemetry). `/pre-merge --init` fills in what it detects; gate runs only read. Contract: [`shared/refs/env-contract.md`](../../shared/refs/env-contract.md) |
 | `GLOSSARY.md` | Canonical domain terms — ensures consistent naming across all agents |
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
@@ -66,6 +67,7 @@ type: reference
 | devkit/ | Directory — agent context files | `<cwd>/devkit/` |
 | devkit/AHA.md | Markdown from `refs/init/templates/template-AHA.md` | `<cwd>/devkit/AHA.md` |
 | devkit/DOCTOR.md | Markdown from `refs/init/templates/template-DOCTOR.md` — the harness-incident ledger, appended to by `.claude/scripts/script-doctor-log.sh` and read only by `/msg --doctor`. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/devkit/DOCTOR.md` |
+| devkit/ENV.md | Markdown from `refs/init/templates/template-ENV.md` — the env-setup contract, scaffolded with `provisioner: "none"` and `[USER: …]` placeholders; `/pre-merge --init` detects and fills the verbs. **Committed**, never gitignored | `<cwd>/devkit/ENV.md` |
 | devkit/GLOSSARY.md | Markdown from `refs/init/templates/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
 | devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with the platform and architecture answers (eng) or recommendations (cto) | `<cwd>/devkit/ARCHITECTURE.md` |
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
@@ -107,7 +109,7 @@ Parse the nine `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK
 | `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
 | otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
 
-**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/PLATFORMS.md`,
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/ENV.md`, `devkit/PLATFORMS.md`,
 `devkit/policy.json` or `.claude/msg/pref.json` existed can never receive them by
 waiting: `init.sh` writes any absent file, but the protocol used to stop at "nothing to
 initialise" before reaching it. Top-up is that repair — and it is **strictly additive**:
@@ -168,7 +170,7 @@ already carries its value.
 
 | Missing artifact | Variables it needs |
 |---|---|
-| `INTAKE.md` · `devkit/AHA.md` · `devkit/DOCTOR.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/DOCTOR.md` · `devkit/ENV.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
 | `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
 | `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
 | `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
@@ -348,6 +350,7 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars. Accepts an optional `INTERACTIVE_LANES` env var (set by `/msg --update` only) that turns silent rung-3 PRD-lane defaulting into an `UNRESOLVED` report instead
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/init/templates/template-DOCTOR.md` — template for devkit/DOCTOR.md (the harness-incident ledger; gitignored, written by `script-doctor-log.sh`, read by `/msg --doctor`)
+- `refs/init/templates/template-ENV.md` — template for devkit/ENV.md (the env-setup contract: prose + one fenced `env` block of provision/seed/reset/teardown verbs; committed, read by both gates, filled in by `/pre-merge --init`)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)
 - `refs/init/templates/template-gitignore.md` — .gitignore content keyed by platform/stack

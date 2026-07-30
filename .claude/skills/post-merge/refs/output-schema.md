@@ -122,7 +122,7 @@ smoke emits the defaults below, so a pre-v2 reader is unaffected (AC-SM1):
 
 **Release-lock fields (C8/CV2/AC-CONTRACT1 — additive, `--production` only).** The
 `release_lock` block (above) records the concurrency lock's per-run state
-(`refs/production.md` § *Release lock*, `../shared/refs/policy-schema.md` §6). All
+(`refs/production.md` § *Release lock*, `../shared/refs/policy-schema-post-merge.md` §6). All
 additive — absent on `--staging` and pre-P5 runs, so no existing reader is affected:
 
 | Field | Meaning |
@@ -248,7 +248,7 @@ Sets verdict `fail` and skips the intake stamp (Step 8) and the release tag
 ## Test-selection-miss finding (`--staging`, additive, policy-conditional)
 
 Only emitted when `policies.test_selection.enabled` resolves `true`
-(`../shared/refs/policy-schema.md` §2c) and the backstop's full run (a red CI
+(`../shared/refs/policy-schema-pre-merge.md` §2c) and the backstop's full run (a red CI
 check, or the human's staging test outcome) fails a test pre-merge's minified
 verdict **selected away** — the detection contract lives in
 `refs/staging.md` § *Test-selection-miss detection*; this is its wire shape.

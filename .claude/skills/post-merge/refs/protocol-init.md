@@ -90,7 +90,7 @@ writing `optional` — the relaxation is never silent.
 `enforced` while `staging` stays `optional`. Record these under
 `branch_protection.overrides` (`overrides[b] ?? mode`, per `policy-schema.md`
 §`branch_protection` — this is the AC-BP4 setup side). The full read-contract that turns
-these modes into refuse / warn-proceed / skip at merge time lives in `policy-schema.md`
+these modes into refuse / warn-proceed / skip at merge time lives in `policy-schema-post-merge.md`
 §2 (AC-BP1–BP6 are enforced there; `--init` only *records* the stance).
 
 **Phantom-check guard — a workflow must exist first.** Requiring "green CI" via protection is
@@ -165,7 +165,7 @@ stack-specific probing, no network pings, no store-CLI queries, no credentials).
 
 Resolve each platform's `release_model` first (the P1 path — from the PLATFORMS.md
 column, else inferred from platform identity with a warn; `../SKILL.md` § *Release
-model*, `policy-schema.md` §4). What "ready" means is model-shaped:
+model*, `policy-schema-post-merge.md` §4). What "ready" means is model-shaped:
 
 | `release_model` | Ready when the row declares… | Checked (declared-artifact only) |
 |---|---|---|
@@ -188,7 +188,7 @@ missing artifact and the exact fix** (AC-SR1, AC-SR2), e.g.:
   `/post-merge --init`.*
 
 **Persist** the result to `policy.json` as the `staging_ready` record
-(`../../shared/refs/policy-schema.md` §5) — a resolved **fact**, re-derived on every
+(`../../shared/refs/policy-schema-post-merge.md` §5) — a resolved **fact**, re-derived on every
 re-init, that `--staging` reads to guard the ship (AC-SR3). `--init` performs no
 merge/deploy here; it only reads what the row declares and records readiness.
 
@@ -246,12 +246,12 @@ writes no `staging_ready` record in `direct` (AC-SR4).
 - `policies.release_flow` — completes/confirms the topology (item 1).
 - `staging_ready` — per-platform staging-readiness fact (item 6; **`staged` flow
   only** — omitted in `direct`). A resolved fact, re-derived each re-init, read by
-  `--staging` (`../../shared/refs/policy-schema.md` §5).
+  `--staging` (`../../shared/refs/policy-schema-post-merge.md` §5).
 - flips **`init:true`** on completion, stamps `generated` + `generated_by:"post-merge --init"`.
 
 The written file must pass its own validation and re-load with **zero** warnings (AC-DR5,
 AC-S6). Schema, status vocabulary (`ready`/`opted_out`/`n/a`/`missing`/`deferred` — no
-`installed`), and the full field spec are authoritative in `policy-schema.md`; do not
+`installed`), and the full field spec are authoritative in `policy-schema-post-merge.md`; do not
 duplicate them here.
 
 ## Never

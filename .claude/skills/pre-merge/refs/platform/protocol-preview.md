@@ -40,7 +40,7 @@ Everything below runs against the **promoted test-sandbox** — the same ephemer
 isolated environment the executor provisioned for the `needs_env` wave
 (`refs/executor.md` §3b), promoted to serve as this preview. **This gate never
 provisions an environment of its own — no second env, ever.** The mechanism is the
-manifest's `env_provision` resolution (`shared/refs/policy-schema.md` — provision /
+`devkit/ENV.md` contract (`shared/refs/env-contract.md` — provision /
 seed / reset / teardown; recorded at `--init`), which **supersedes** the old
 preview-scoped `preview_env` field. The promoted sandbox is a **fresh provision**
 (S-Q2): a run that arrived via warm fix-loop resets is re-provisioned before

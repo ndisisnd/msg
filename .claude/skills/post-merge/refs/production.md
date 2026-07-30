@@ -126,7 +126,7 @@ inline human-test approval (§ *Inline human-test approval* below) remain active
 
 ## Step 2 — Branch protection (policy-conditional)
 
-Per `refs/protection.md` + `../shared/refs/policy-schema.md` §2. Resolve
+Per `refs/protection.md` + `../shared/refs/policy-schema-post-merge.md` §2. Resolve
 `mode_main = overrides[main] ?? branch_protection.mode ?? "enforced"` (no file →
 `enforced` = today), then `post-merge-protection.sh --verify main`:
 
@@ -180,7 +180,7 @@ and it is **silent when uncontended**: an uncontended acquire + release adds no
 prompt and no gate, so a solo dev shipping one release at a time never sees it
 (AC-LK3). Friction appears **only** on a real collision.
 
-### Mechanism — a remote git tag (`refs/release-identity.md` machinery, `../shared/refs/policy-schema.md` §6)
+### Mechanism — a remote git tag (`refs/release-identity.md` machinery, `../shared/refs/policy-schema-post-merge.md` §6)
 
 The lock is an **annotated git tag** `release-lock-<prod>` (e.g. `release-lock-main`)
 pushed to the remote — the **same pushed-tag primitive P3's release tag already
@@ -623,5 +623,5 @@ Write `report-prd-<N>-<K>.md` (`skill: post-merge`, production flavor) — relea
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (that means tooling was missing) or *relaxed* (that means a threshold was lowered). In `staged` flow the line is omitted entirely.
 - `## Test results` — one line per platform per `refs/verify-deploy.md`'s full vocabulary: for `deploy` platforms — verified / smoke-failed / **smoke-never-live** (poll timeout) / **degraded-in-window** (watch-window) / skipped (no `smoke_cmd`); for `submission` platforms — submitted (+ track) / backend-health-ok / backend-health-failed / skipped, never "live".
-- `## What to expect` — **per `release_model`** (`../shared/refs/policy-schema.md` §4): `deploy` platforms — production is live; `submission` platforms — carry the **full monitor-handoff block** (AC-SB3, `refs/submission.md` § *Monitor-handoff*): submitted to `<track>` at `<submitted_at>`, **now in Apple App Store / Google Play review, not yet live to users**, monitor at **App Store Connect** / **Google Play Console**, halt via `rollout_halt_cmd`. Never report a `submission` platform as live (AC-RM3/AC-SB1), and never reduce it to a bare "submitted-not-live" — the human needs the monitor pointer + halt lever. **Rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
+- `## What to expect` — **per `release_model`** (`../shared/refs/policy-schema-post-merge.md` §4): `deploy` platforms — production is live; `submission` platforms — carry the **full monitor-handoff block** (AC-SB3, `refs/submission.md` § *Monitor-handoff*): submitted to `<track>` at `<submitted_at>`, **now in Apple App Store / Google Play review, not yet live to users**, monitor at **App Store Connect** / **Google Play Console**, halt via `rollout_halt_cmd`. Never report a `submission` platform as live (AC-RM3/AC-SB1), and never reduce it to a bare "submitted-not-live" — the human needs the monitor pointer + halt lever. **Rollback notes per platform, iOS `IRREVERSIBLE` surfaced prominently** (keep the literal token `IRREVERSIBLE` in the body — the GUI renders a callout when it's present).
 - `## Links` — the release PR, the merge commit, per-platform deploy logs.

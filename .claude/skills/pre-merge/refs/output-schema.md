@@ -69,7 +69,7 @@ attributable — it records exactly what was excluded and why (AC-TS3/TS6/TS10).
 Components with no `run_minified` (`mechanical`, `security`, `migration`, and every
 platform component) never appear in `per_check` — they are not selection-capable and
 always ran whole (AC-TS5). Rule and rubric in `refs/executor.md` §3c; policy fields in
-`../../shared/refs/policy-schema.md` §`policies.test_selection`.
+`../../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection`.
 
 ## Universal report (the paired issues file — C7)
 

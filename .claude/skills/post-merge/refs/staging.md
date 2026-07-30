@@ -13,7 +13,7 @@ staging**: Step 6 STOPS and waits for a human.
 
 ## Step 1 — Branch protection (policy-conditional)
 
-Per `refs/protection.md` + `../shared/refs/policy-schema.md` §2. Resolve
+Per `refs/protection.md` + `../shared/refs/policy-schema-post-merge.md` §2. Resolve
 `mode_staging = overrides[staging] ?? branch_protection.mode ?? "enforced"` (no file
 → `enforced` = today), then `post-merge-protection.sh --verify staging`: `enforced` →
 `UNPROTECTED` **refuses** (`refs/refusal-patterns.md` → `unprotected`); `optional` →
@@ -23,7 +23,7 @@ Per `refs/protection.md` + `../shared/refs/policy-schema.md` §2. Resolve
 ## Staging-readiness guard (pre-flight, after Step 1)
 
 Before locating the PR, read the `staging_ready` record `--init` wrote
-(`../shared/refs/policy-schema.md` §5) — verify staging is a **real environment**,
+(`../shared/refs/policy-schema-post-merge.md` §5) — verify staging is a **real environment**,
 not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"`
 (mirrors `branch_protection`'s stance + default). Then:
 
@@ -57,7 +57,7 @@ merging into `staging` now advances the branch the release is shipping: the PR
 silently grows past what the human double-confirmed, and past the commit the
 sign-off certified — **reopening C2's uncertified-commit hole at the concurrency
 level**. So `--staging` **reads** the production release lock and refuses if one is
-held (`../shared/refs/policy-schema.md` §6):
+held (`../shared/refs/policy-schema-post-merge.md` §6):
 
 ```bash
 PROD=${prod_branch:-main}; LOCK="release-lock-$PROD"
@@ -107,7 +107,7 @@ acquirer.
    - Any check still `PENDING`/`IN_PROGRESS`/`QUEUED` → refuse (`pending_ci`), listing the pending checks. Do not wait/poll — the human re-runs post-merge when CI settles.
    - **Empty check set** (the PR reports *zero* checks — no CI pipeline ran) → don't treat "no red" as green. First resolve `ga = policies.github_actions.enabled ?? true` (`policy-schema.md` §2b):
      - `ga:false` → **CI is inactive by the user's own choice** (no Actions minutes / no Pro plan / CI lives elsewhere). Proceed silently: no `vacuous-ci` note, no `/pre-merge --init` nudge. Record one report line — "GitHub Actions disabled by policy (`<reason>`) — change with `/msg --update`" — and nothing else.
-     - `ga:true`/absent → resolve `steps.ci` per `policy-schema.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --init`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today.
+     - `ga:true`/absent → resolve `steps.ci` per `policy-schema-post-merge.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --init`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today.
 
      Never blocks the merge — branch protection is the enforcement. Note the opt-out governs *only* the empty set: the two bullets above still refuse on red/pending checks whatever `ga` says.
    - All `SUCCESS`/`NEUTRAL`/`SKIPPED` → proceed.
@@ -115,7 +115,7 @@ acquirer.
 ## Test-selection-miss detection (`policies.test_selection` backstop attribution)
 
 Read-only, additive, and only relevant when `policies.test_selection.enabled`
-resolves `true` (`../shared/refs/policy-schema.md` §2c) — otherwise nothing in
+resolves `true` (`../shared/refs/policy-schema-pre-merge.md` §2c) — otherwise nothing in
 this section is read, per the same dead-config rule every other selection
 artifact follows (AC-TS12). When it's on, pre-merge's minified runs traded
 full-suite coverage for speed on the promise that the full suite still runs
@@ -172,7 +172,7 @@ PRD's committed reports plus the rest of the repo's
 recommending `/pre-merge --update-criticality` (tag the escapee critical so it
 stops being selected away) or `/msg --update` to disable `policies.test_selection`
 outright, and names the escapee's test **file** as a `force_full_paths` candidate
-(`../shared/refs/policy-schema.md` §`policies.test_selection.force_full_paths`) —
+(`../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection.force_full_paths`) —
 a cross-cutting-enough surface that selection should stop trying to prune around
 it. A single miss stays a plain finding with no escalation line; the
 recommendation only fires once a second one lands.

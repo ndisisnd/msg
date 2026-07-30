@@ -7,13 +7,18 @@ type: reference
 # The pipeline executor
 
 The gate is a **manifest-driven executor**, not a fixed step list. It reads the
-resolved `components[]` manifest from `devkit/policy.json`
-(`../../shared/refs/policy-schema.md` §`components[]`; catalog defaults +
-detection + user overrides seeded by `--init`/`--update`), computes the run order
-at runtime, and runs the resolved pipeline. Nothing here re-derives component
-metadata by hand — every component's `id`/`group`/`kind`/`criticality`/`cost`/
-`depends_on`/`run`/`active_when`/`mandatory`/`present` comes from the manifest
-(`../../shared/refs/component-catalog.md` is its source of defaults).
+`components[]` manifest from `devkit/policy.json`
+(`../../shared/refs/policy-schema-pre-merge.md` §`components[]`), computes the run
+order at runtime, and runs the resolved pipeline.
+
+**The manifest is deltas; the catalog is the constants.** Each entry carries only
+`present` / `run` / `run_minified` / `tooling` / `status` plus explicit user
+overrides. Everything else — `nn`, `group`, `kind`, `cost`, `depends_on`,
+`active_when`, `platforms`, `mandatory`, the default `criticality`, `needs_env` —
+is **resolved by `id` against `../../shared/refs/component-catalog.md` at run
+time**, never read from the manifest. A catalog edit is therefore live for every
+repo on its next run, with no reconcile step. `../../../scripts/script-pipeline-resolve.py`
+performs the join; nothing here re-derives component metadata by hand.
 
 The **spine is un-prunable** (Fork B): `SYNC` is the mandatory DAG root — every
 component implicitly depends on it, so the tree is synced before anything runs —
@@ -22,14 +27,15 @@ both bracket the resolved pipeline.
 
 ## 0 · Load the manifest (Fork C — the no-manifest refusal)
 
-Load + validate `devkit/policy.json` once per run (`policy-schema.md` read-contract).
+Load + validate `devkit/policy.json` once per run (`policy-schema.md` read-contract
+§0/§1 + `policy-schema-pre-merge.md` §2c — post-merge's sections are never loaded).
 Then gate on `components[]`:
 
 | Manifest state | Executor behavior |
 |---|---|
 | `components[]` present, non-empty | **run** — proceed to §1 |
 | `components[]` **absent** (file absent, malformed, or `version` ≠ 1) | **REFUSE `no_manifest`** — name `/pre-merge --init`, run **zero** components |
-| **pre-v3** `policy.json` (`init`/`release_flow` present, **no** `components[]`) | **REFUSE `no_manifest`** + upgrade nudge — name `/pre-merge --init` |
+| `policy.json` with `init`/`release_flow` present but **no** `components[]` | **REFUSE `no_manifest`** + upgrade nudge — name `/pre-merge --init` |
 
 The refusal shape is `../refs/refusal-patterns.md` §`no_manifest`. This is the
 **breaking cutover** (AC-PF13/PF14): the old "file absent → run on built-in
@@ -39,14 +45,45 @@ defaults path — a run without a manifest does nothing but tell the user to run
 component **presence** (an absent component simply isn't in the pipeline).
 
 **Staleness nudge (Fork E, read-only).** With a valid manifest, recompute
-`source_signature` cheaply (`policy-schema.md` §`source_signature`) and, on
+`source_signature` cheaply (`policy-schema-pre-merge.md` §`source_signature`) and, on
 mismatch, print one line — *"pipeline may be stale — run `/pre-merge --update`"* —
 then **proceed on the current manifest**. The executor **never** writes
 `policy.json` or mutates `components[]` (AC-UP5/UP6); only `--init`/`--update` do.
 
-## 1 · Resolve the pipeline (prune)
+## 1 · Resolve the pipeline — one script call
 
-Build the run set from `components[]` (AC-PF6):
+Pruning, the C12 coverage-gap correlation (§1b), and the topo-sort into waves (§2)
+are **100% decidable** from the manifest + the catalog + this run's flags + the
+diff. They are therefore **resolved by script, not by judgment** — a wrong wave
+order or a silently dropped component is invisible in the output, which is exactly
+the fail-silent class `script-*` exists to close.
+
+```bash
+.claude/scripts/script-pipeline-resolve.py \
+  --policy devkit/policy.json \
+  --catalog .claude/skills/shared/refs/component-catalog.md \
+  --platforms-file devkit/PLATFORMS.md \
+  [--diff <resolve-diff output>] [--prd <path>] [--changed-only] [--flaky <N>]
+```
+
+It prints the run's **plan JSON**:
+
+| Key | Holds |
+|---|---|
+| `waves[]` | the ordered Kahn levels, each component resolved (`criticality`, `cost`, `needs_env`, `run`, `ref`), tie-broken by criticality then cost |
+| `run[]` | the flat ordered id list — **the expected-report set** (§5's completeness check) |
+| `pruned[]` | every dropped component with its `reason`, verbatim |
+| `gap_findings[]` | the §1b coverage-gap findings, already in canonical finding shape |
+| `flags` / `counts` | what was passed, what resolved |
+
+**Quote the plan verbatim.** The run report's `## How to verify`, the verdict JSON's
+`pipeline` block (§5), and every wave the executor runs come from this output — the
+executor never re-orders or re-prunes on its own. Exit `2` is the `no_manifest`
+refusal (§0); exit `4` is a dependency cycle (refuse, never loop — AC-PF3).
+
+Write the plan to `.pre-merge/<ts>/plan.json` so §5's completeness check can read it.
+
+### What the script implements (reference — do not re-execute by hand)
 
 1. **Presence.** Include a component iff `present:true` **or** `mandatory:true`.
    `security` + `migration` are always `mandatory` and can never be pruned
@@ -71,7 +108,11 @@ is a *ran-and-skipped* trace, not an absent component.)
 
 ## 1b · Platform coverage-gap check (C12 — post-detection)
 
-After pruning, before ordering, run the **coverage-gap check**. It turns the
+`script-pipeline-resolve.py` performs this check and emits its findings as the plan's
+`gap_findings[]` — the prose below is the **specification** it implements, kept here
+because the rule is a contract, not because the executor re-runs it.
+
+After pruning, before ordering, the **coverage-gap check** runs. It turns the
 catalog's documented platform gaps (AC-CAT14) into **enforced findings** so a native
 app can no longer silently green with zero UI/perf/a11y coverage.
 
@@ -117,7 +158,8 @@ double-counting (absent → gap; hollow → floor). `severity-rubric.md` carries
 
 ## 2 · Order the pipeline (Fork B — runtime topo-sort)
 
-Compute order every run — the manifest carries **no** frozen `order` field (AC-PF4).
+Order is computed every run by `script-pipeline-resolve.py` (§1) — the manifest carries
+**no** frozen `order` field (AC-PF4). The rules it implements:
 
 1. **Topological sort on `depends_on`** (the only hard edges — AC-CAT3/SEQ6):
    `coverage → {unit, integration}`, `smoke → {preview}`,
@@ -145,10 +187,12 @@ AC-SEQ1):
 | **1** *(static)* | `mechanical` (critical, short-circuits) · `security` (critical) · `unit` · `prd-consistency` *(prd; only with `--prd`)* · `api` *(spec-diff — its static half)* | `needs_env:false`, need only `sync` — no effect edges among them |
 | **2** *(env wave — in the C23 sandbox)* | `integration` · `e2e` · `a11y` · `perf` · `load` · `mobile` (whichever are present) | `needs_env:true` — sandbox provisioned only-on-green after Wave 1 (§3b, AC-SBX3) |
 | **3** | `coverage` · `manual-test-plan` *(prd; only with `--prd`)* | `coverage depends_on {unit, integration}`; `manual-test-plan depends_on {prd-consistency}` (reuses its grades) |
-| **4** | `regression` | tail-pinned: `depends_on` all other universal/prd; `regression.needs_env` follows its suite composition (AC-SBX8) — if `true`, its accumulated-suite run executes in the sandbox |
+| **4+** | `preview` · `smoke` · `regression` | the only-on-green tail — `preview` waits on every correctness component and runs in the **promoted** sandbox (§3b); `smoke depends_on preview`; `regression` is tail-pinned (`depends_on` all other universal/prd), and its `needs_env` follows its suite composition (AC-SBX8) |
 
-`preview` (only-on-green, late — runs in the **promoted** sandbox, §3b) and `smoke`
-(`depends_on preview`) land in the tail waves alongside/after `regression`.
+**The table is illustrative, not normative** — the wave numbers a run actually gets
+come from the plan JSON. A component whose dependencies clear early lands early: with
+`--prd`, `manual-test-plan` joins the wave right after `prd-consistency` rather than
+waiting for `coverage`, because it needs no sandbox and no other input.
 
 **Smoke gates preview's expensive checks (C21).** `preview` first *fires* — takes over
 the **promoted C23 sandbox** (§3b; it provisions nothing itself) + a preview handle —
@@ -201,8 +245,15 @@ The `needs_env: true` components (catalog `env` column; manifest `needs_env`) ru
 inside **exactly one** ephemeral, isolated sandbox per gate run — own DB/state/ports,
 concurrent-run safe (AC-SBX2/SBX4). A `needs_env: false` component **never** triggers
 provisioning and **never** enters the sandbox — the static waves run exactly as before
-(AC-SBX7). The mechanism comes from the manifest's `env_provision` resolution
-(`../../shared/refs/policy-schema.md`) — the executor never invents provisioning. A
+(AC-SBX7).
+
+**The mechanism is read from `devkit/ENV.md`, never invented and never written.** That
+file is the project's committed env-setup contract (`../../shared/refs/env-contract.md`):
+human prose around one fenced `env` block carrying the four verbs below. The executor
+**reads** it (Fork E — gate runs never write it); `--init` scaffolds it and `--update`
+reconciles it. Resolution, including the placeholder and absent-file cases, is the table
+in `env-contract.md` § *Resolution*; every unresolved case lands on the loud degrade at
+the bottom of this section. A
 composite resolution (`stacks[]` — e.g. simulator + compose backend for a full-stack
 mobile repo) is still **one logical sandbox**: every verb below runs across **all**
 stacks together — provisioned together, promoted together, torn down together, never
@@ -211,7 +262,7 @@ partially.
 1. **Provision — only-on-green (AC-SBX3).** Stand the sandbox up **only after** the
    static correctness waves pass. A run that fails `mechanical`/`unit` (or aborts on a
    `critical`) never provisions — zero env cost on a fail-fast. Run
-   `env_provision.provision`, then `env_provision.seed` (migrate-from-zero + the
+   `ENV.md`'s `provision`, then its `seed` (migrate-from-zero + the
    committed seed fixture; `scale_factor` dataset for `perf`/`load` when declared).
 2. **Run the env wave.** All present `needs_env:true` components execute inside the
    sandbox, concurrency rules unchanged (§3 — `load`/`perf` still run isolated). Each
@@ -222,21 +273,24 @@ partially.
    For the promoted run the sandbox must be a **fresh provision** (S-Q2): if the run
    arrived via warm fix-loop resets (below), re-provision before promotion so the
    approved artifact is provably hermetic.
-4. **Teardown — always (AC-SBX4).** Run `env_provision.teardown` after **every** run,
+4. **Teardown — always (AC-SBX4).** Run `ENV.md`'s `teardown` after **every** run,
    pass or fail. One exception inherited from the preview gate: a `parked` run keeps
    the promoted env up until the human's decision returns, then tears down.
 
 **Fix-loop warm reuse (S-Q2).** Within one fix-loop, the stack stays warm between
-iterations: run `env_provision.reset` (drop → remigrate → re-seed — seconds) instead of
+iterations: run `ENV.md`'s `reset` (drop → remigrate → re-seed — seconds) instead of
 a full re-provision (minutes). Freshness is restored at promotion (step 3).
 
-**No provisioner ⇒ loud degrade (AC-SBX6, D28 pattern).** `env_provision` absent or
+**No provisioner ⇒ loud degrade (AC-SBX6, D28 pattern).** `devkit/ENV.md` absent, its
+`env` block missing/unparseable, a consumed verb still a `[USER: …]` placeholder, or
 `provisioner: "none"`:
 
 - **Non-destructive** env-needing checks run against the **ambient** environment,
   each carrying a `high` finding (`rule: sandbox-unprovisioned`,
   `source: pre-merge:executor`): *"cannot run hermetically — no sandbox provisioner;
-  declare one via `/pre-merge --init`"*. Never a silent pass.
+  declare one in `devkit/ENV.md`, or run `/pre-merge --init` to scaffold it"*. Never a
+  silent pass. The finding names the **exact** unresolved line (missing file / missing
+  fence / the placeholder verb) so the fix is one edit.
 - **Destructive** checks (the migration up→down→up round-trip) are **skipped-with-note**
   — never run against shared state (the existing preview-gate rule, now general).
 - A provisioner **without** a `seed_script` runs the sandbox but flags the same loud
@@ -249,7 +303,7 @@ How a **test** component's command is chosen — `run` (full) vs `run_minified`
 it changes **which tests a component runs**, never which components are in the
 pipeline (that is §1's pruning) and never the wave order (§2).
 
-**Resolution + precedence** (`../../shared/refs/policy-schema.md` §2c):
+**Resolution + precedence** (`../../shared/refs/policy-schema-pre-merge.md` §2c):
 
 ```
 ts = policies.test_selection.enabled ?? false      // opt-IN — absent means off
@@ -308,7 +362,7 @@ a shared util is large. All three signals are computed **in the prelude**, from
 | `fan_in_pct` | highest fan-in **percentile** among touched files | code graph (tokensave `rank`/`hotspots`), cached | **treat as exceeding the small bound** — degrade toward more testing (AC-TS10) |
 
 Thresholds come from `policies.test_selection.tiers` + `max_affected_ratio`
-(defaults in `policy-schema.md`); a `force_full_paths` hit is a fourth,
+(defaults in `policy-schema-pre-merge.md`); a `force_full_paths` hit is a fourth,
 short-circuiting signal (rule step 1) that lands directly in **L**.
 
 **The tier is resolved by script, not by judgment.** Run
@@ -423,17 +477,51 @@ authored separately (AC-RR6/UR6).
 
 ## 5 · Aggregate → verdict JSON + universal report (C7)
 
-Read back the per-check result reports and aggregate (this replaces the old
-per-stage collect):
+### 5a · Completeness check — every planned component reported
 
-1. **Collect** every result report's `findings[]`; filter nulls.
-2. **Dedup** by `(category, file, line, rule)` — keep highest severity, concatenate
-   `source` (`../../shared/refs/finding-schema.md`).
-3. **Triage** with `../severity-rubric.md` (in-diff weighting, dev-only /
-   unreachable downgrades, profile coverage floor).
-4. **Mark regressions** from `--prior-issues` on `(category, file, rule)`.
-5. **Verdict:** `fail` (any blocker/high) · `pass_with_warnings` (only medium/low)
-   · `pass` (zero) · `refused`/`skipped` (early-termination paths).
+Before aggregating, verify the run is whole. "Every component writes a report" was
+an unenforced convention: a component that died mid-flight simply vanished from the
+aggregate, producing a **smaller, quieter, greener** verdict than the run deserved.
+
+```bash
+.claude/scripts/script-pipeline-resolve.py --check-complete   --plan .pre-merge/<ts>/plan.json --run-dir .pre-merge/<ts>/
+```
+
+Exit `5` with `MISSING=<id>` lines means a planned component never wrote its result
+report. That is a **`high` finding** (`rule: missing-result-report`,
+`source: pre-merge:executor`) naming each component — *"`<id>` was in the plan but
+wrote no result report; its outcome is unknown"* — never a silently smaller
+aggregate. `EXTRA=<id>` (a report with no planned component) is one `low` note.
+
+### 5b · Aggregate
+
+The mechanical half runs as one script:
+
+```bash
+.claude/scripts/pre-merge-aggregate-verdict.sh --run-dir .pre-merge/<ts>/   --plan .pre-merge/<ts>/plan.json --diff <resolve-diff output> [--prd <path>]
+```
+
+It owns everything decidable — collect (the result reports' `findings[]` **plus the
+plan's already-resolved `gap_findings[]`**, so §1b's coverage gaps are never
+re-derived), dedup by `(category, file, line, rule)`
+keeping the highest severity and comma-joining the distinct `source` values (the
+wire contract `/msg --gui` splits on — `../../shared/refs/finding-schema.md`), the two **path-pattern**
+downgrades from `../severity-rubric.md` (§2 dev-only scope, §4 out-of-diff, with the
+secret-scanner / build-failure / repo-level exemptions), the verdict derivation, the
+per-severity summary, the `checks[]` roll-up, `skipped[]`, and the critical-abort
+signal (`aborted` / `aborted_by`). It refuses malformed input rather than quietly
+dropping a component. No `--diff` ⇒ the out-of-diff downgrade is skipped: a finding
+is never weakened on a guess.
+
+**Judgment stays out of the script**, and stays with the model:
+
+- **reachability** (`../severity-rubric.md` §3 — dead code, compile-time-false flags),
+- **profile coverage floors** and any in-context re-grading,
+- **regression marking** from `--prior-issues` on `(category, file, rule)`.
+
+Apply those to the script's `issues[]`, then re-derive the verdict with the same
+rule the script used: `fail` (any blocker/high) · `pass_with_warnings` (only
+medium/low) · `pass` (zero) · `refused`/`skipped` (early-termination paths).
 
 **Verdict JSON (stdout — the final emission, `../refs/output-schema.md`).** Shape
 is **unchanged** (AC-PF16) so `eng --build report=`, `fix-loop.md`, and `/msg --gui`

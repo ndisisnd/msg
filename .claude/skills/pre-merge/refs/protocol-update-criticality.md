@@ -51,7 +51,7 @@ convention, membership of `Critical.xctestplan`, the `@Critical` annotation.
 `criticality_review` from `devkit/policy.json` — `{reviewed_at, suite_hash}`, the
 `source_signature` pattern applied to the **test tree** (sha256 over the sorted
 test-file paths + each file's declared markers,
-`../../shared/refs/policy-schema.md` § `criticality_review`). Recompute the hash;
+`../../shared/refs/policy-schema-pre-merge.md` § `criticality_review`). Recompute the hash;
 enumerate only what changed since. **Stamp absent ⇒ "never reviewed" ⇒
 full inventory** — never a validation error, and identical to the
 **full-inventory mode** the enabling interview's initial tagging pass runs
@@ -152,7 +152,7 @@ i.e. full inventory rather than a since-last-review diff — so the critical flo
 is non-empty from day one rather than accumulating over the first N PRDs. Same
 proposals, same evidence requirement, same single `AskUserQuestion` gate, same
 commit, same stamp. It is the second (and only other) writer of
-`criticality_review` (`../../shared/refs/policy-schema.md`).
+`criticality_review` (`../../shared/refs/policy-schema-pre-merge.md`).
 
 ---
 
@@ -161,5 +161,5 @@ commit, same stamp. It is the second (and only other) writer of
 - [`executor.md`](executor.md) §3c — the selection rule, the size-tier rubric, and §3c.3's recording contract (the critical floor is consumed there)
 - [`protocol-init.md`](protocol-init.md) — `--init`/`--update`, incl. the test-selection enabling interview + the disable contract
 - [`universal/protocol-regression.md`](universal/protocol-regression.md) — born-tagged authoring, the primary tag-drift defense this pass backstops
-- [`../../shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) — `policies.test_selection`, the `criticality_review` stamp, and the writer table
+- [`../../shared/refs/policy-schema-pre-merge.md`](../../shared/refs/policy-schema-pre-merge.md) — `policies.test_selection` and the `criticality_review` stamp; the writer table is in [`policy-schema.md`](../../shared/refs/policy-schema.md)
 - [`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md) — the `critical_markers` per-platform defaults and their mechanisms

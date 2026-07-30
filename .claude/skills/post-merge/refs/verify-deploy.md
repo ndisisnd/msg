@@ -7,7 +7,7 @@ description: Post-deploy verification per release_model. deploy platforms — ru
 
 "The deploy command exited 0" is not "the release is verified". After every
 deploy — `--staging` Step 5 and `--production` Step 7 — post-merge verifies each
-platform **according to its `release_model`** (`../shared/refs/policy-schema.md`
+platform **according to its `release_model`** (`../shared/refs/policy-schema-post-merge.md`
 §4):
 
 - **`deploy`** (web, macOS, server) → the target is live, so post-merge runs the
