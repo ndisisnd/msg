@@ -2,6 +2,11 @@
 
 ## 2026-07-30
 
+### [91] — v5.0.1-P5: pre-merge SKILL.md router slim (S2)
+
+- `pre-merge/SKILL.md`: Changed — 2,595 → 1,758 words (−32%), the persona/router pass its three peer skills got in v5: Posture replaces the persona essay, one Dispatch table, pipeline narrative and test-selection explainer cut to flag semantics + pointers (executor §3c / policy-schema-pre-merge own the detail), safety-floor prose cites the shared ref
+- Everything dispatchable survives, grep-proven: all seven flags, the `no_manifest` refusal (pointing at `--init`), the no-human-gate statement, closing-message + doctor-logging bindings; every refs/ pointer resolves; frontmatter untouched; fences balanced
+
 ### [90] — v5.0.1-P4: eng review protocol slim (S1)
 
 - `eng/refs/review/protocol.md`: Changed — 1,258 → 699 words (−44%); the seven priority classes go table→numbered list, meta-commentary/worked-examples/double-homed rules cut (no-threshold spawn rule, /cook exclusion and comment-scan mechanics now cited at their homes instead of restated); every operational item preserved and grep-proven (7 classes, verify-before-report, silence-is-an-outcome, blocker/high gate, `source: eng:review` + schema pointer, diff-only + public-contract trigger, digest-exit awareness); all 6 caller citations resolve, fences balanced
