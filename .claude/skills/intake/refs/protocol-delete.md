@@ -6,8 +6,7 @@ type: reference
 
 # Intake Delete Protocol
 
-The flow `/intake --delete` follows. Emit `Step X/5 — <title>` at the start of
-each step. **This is the only destructive mode in intake.** It exists because no
+The flow `/intake --delete` follows. **This is the only destructive mode in intake.** It exists because no
 other surface can remove a ledger row — `--update` edits content, the `/msg --gui`
 Intake tab edits `status`, and neither deletes.
 

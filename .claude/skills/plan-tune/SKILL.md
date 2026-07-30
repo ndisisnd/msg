@@ -66,9 +66,7 @@ Never interview the user; a fix that needs a product decision is escalated as on
 
 **No new files or folders are created at any step.**
 
-## Progress emission
-
-Emit `Step X/3 — <title>` at the start of each step, unconditionally.
+## Run output
 
 **Closing message (both tune types, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the certification verdict / auto-fix table.
 

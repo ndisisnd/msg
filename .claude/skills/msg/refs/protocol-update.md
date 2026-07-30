@@ -49,10 +49,6 @@ type: reference
 | Test selection disable | `policies.test_selection.enabled: false` (+ `reason`), merged surgically — enabling is never written here, only handed off | `<cwd>/devkit/policy.json` |
 | Summary | Inline — components added, PRDs classified | Shown inline at Step 4 |
 
-## Progress emission
-
-Emit `Step X/4 — <title>` at the start of each step, unconditionally.
-
 ## Step-by-step protocol
 
 **Step 1/4 — Precondition + scan**

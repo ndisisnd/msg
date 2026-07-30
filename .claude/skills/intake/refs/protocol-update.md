@@ -6,8 +6,7 @@ type: reference
 
 # Intake Update Protocol
 
-The flow `/intake --update` follows. Emit `Step X/6 — <title>` at the start of
-each step. The whole run stays **≤2 `AskUserQuestion` calls** — the same budget
+The flow `/intake --update` follows. The whole run stays **≤2 `AskUserQuestion` calls** — the same budget
 as capture. Never read the codebase; never draft a PRD; never write `status` or
 `prd`.
 

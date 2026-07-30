@@ -6,8 +6,7 @@ type: reference
 
 # Plan Protocol
 
-The five-step protocol plan-pm follows end-to-end. Emit progress per § Progress
-emission in SKILL.md. In `--sub` mode, substitute the nested sub-PRD path
+The five-step protocol plan-pm follows end-to-end. In `--sub` mode, substitute the nested sub-PRD path
 (§ Sub-PRD mode, delta D3) everywhere the steps write the drafted PRD's own path
 `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`.
 

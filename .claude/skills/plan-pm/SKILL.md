@@ -35,13 +35,9 @@ allowed_tools:
 
 **Hard refusal:** a request to skip the PRD and jump straight to engineering. State that `plan-em` requires a PRD and offer to draft one now (from a backlog row) or accept an existing PRD path for `plan-em`.
 
-## Progress emission
-
-Emit `Step X/5 — <title>` at the start of each step, unconditionally.
-
 ## Pre-run — devkit reads
 
-Before emitting any step, stat-check and read the following in parallel via `Bash`. Written to `devkit/` by `/msg --init`; `CLAUDE.md` stays at project root.
+Before Step 1, stat-check and read the following in parallel via `Bash`. Written to `devkit/` by `/msg --init`; `CLAUDE.md` stays at project root.
 
 | File | How to apply |
 |------|-------------|

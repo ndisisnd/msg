@@ -85,10 +85,6 @@ type: reference
 | Migrated PRDs | Any pre-lane flat `features/prd-*/` dir is moved into a lane by the completion ladder (plain `mv`; `git mv` only for the legacy case where the dir is already tracked) (shipped → `done/`, live branch → `wip/`, else → `planned/`); reported as `migrated` in the manifest. Empty `features/` → no migration | `<cwd>/features/<lane>/prd-*/` |
 | Manifest | Inline table — file, status (created / skipped / migrated / FAILED), line count | Shown inline at Step 5 |
 
-## Progress emission
-
-Emit `Step X/5 — <title>` at the start of each step, unconditionally.
-
 ## Step-by-step protocol
 
 **Step 1/5 — Scan the working directory**
@@ -127,8 +123,7 @@ initialise" before reaching it. Top-up is that repair — and it is **strictly a
   mode recommends an architecture for a project that doesn't exist yet; a top-up
   repo already has one, so there is nothing to advise on — asking is correct.
 
-Emit `Step X/5` progress as normal; Step 2 and Step 3b are the only steps that
-behave differently.
+Step 2 and Step 3b are the only steps that behave differently.
 
 **Step 2/5 — Interview (mode-gated, delegated)**
 

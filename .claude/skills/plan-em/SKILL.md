@@ -74,10 +74,6 @@ is the one exception, and it sits inside the PRD's own folder.
 
 `[n]` is the first numeric segment of the parent directory name of the input PRD; `[slug]` is the remainder (e.g., `features/prd-3-habit-tracking/prd-3-habit-tracking.md` → `n=3`, `slug=habit-tracking`). Resolve the actual matched directory once at Step 1 and write every artifact relative to it — do not reconstruct a bare `features/prd-[n]/` path.
 
-## Progress emission
-
-Emit `Step X/5 — <title>` at the start of each step, unconditionally.
-
 ## Step-by-step protocol
 
 Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and

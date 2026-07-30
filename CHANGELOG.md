@@ -2,6 +2,12 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P16 — the calm pass: no unconditional step counters (i80)
+
+- Removed — every unconditional `Step X/N` progress-emission mandate across 10 files/12 sites (plan-pm, plan-em, plan-tune, msg ×3 protocols, intake ×3 protocols + lead-ins); generalises i26/i41 repo-wide
+- Kept — three event-driven markers in plan-em's team protocol (agent completions, orchestrator returns): output when something real happens, not per-step ceremony
+- eng/pre-merge/post-merge verified mandate-free already (their Step N/M strings are document structure, not output instructions)
+
 ### v5-P15 — post-merge mechanisation: five fixed-result scripts (i94–i98)
 
 - `.claude/scripts/`: Added — `script-ci-status.py` (five-way CI verdict + failing names + PR resolution rider, exit-coded), `script-platforms-parse.py` (17-column PLATFORMS table → per-platform key=value; macOS must DECLARE release_model per i100, malformed rows loud), `script-smoke-run.sh` (one-shot/poll/watch loops, bounded ceilings, config-gated macOS notarization/signing/appcast; never asks/rolls back/writes), `script-policy-read.py` (all ?? defaults in one call against the split schema; fail-safe full-default emission on absent/malformed), `script-ts-miss.py` (CI-backstop half only; `HUMAN_HALF=model` standing marker; 30-day window count)

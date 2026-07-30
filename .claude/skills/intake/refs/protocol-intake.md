@@ -12,8 +12,7 @@ Update mode (`/intake --update`) is a separate protocol —
 hybrid-split, Step 3 flesh-out, and Step 4 grading passes rather than restating
 them.
 
-Emit `Step X/5 — <title>` at the start of
-each step. The whole run stays **≤2 `AskUserQuestion` calls for a well-formed idea**
+The whole run stays **≤2 `AskUserQuestion` calls for a well-formed idea**
 (batch questions, ≤4 per call). Never read the codebase; never draft a PRD.
 
 ## Pre-run — reads

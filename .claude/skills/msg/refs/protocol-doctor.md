@@ -53,9 +53,7 @@ health check's name. That is the scope creep this boundary exists to prevent.
 | Graduated issues | One block per graduated signature — occurrences, 2–3 line diagnosis, recommended fix path | `<cwd>/devkit/DOCTOR.md` § Graduated issues |
 | Triage report | Inline table | Step 4 |
 
-## Progress emission
-
-Emit `Step X/4 — <title>` at the start of each step, unconditionally.
+## Step-by-step protocol
 
 **Step 1/4 — Tally the ledger**
 

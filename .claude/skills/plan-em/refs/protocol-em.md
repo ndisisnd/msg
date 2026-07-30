@@ -6,7 +6,7 @@ type: reference
 
 # EM Protocol
 
-The five-step protocol plan-em runs end-to-end. Emit progress per § Progress emission in SKILL.md (`Step X/5 — <title>`). Ref paths (`refs/template-exec-table.md`) resolve relative to the skill root.
+The five-step protocol plan-em runs end-to-end. Ref paths (`refs/template-exec-table.md`) resolve relative to the skill root.
 
 **Harness incidents.** Any script this protocol runs that exits non-zero on an outcome the step's own text does not document appends a `devkit/DOCTOR.md` row via the shared appender, per `../../shared/refs/doctor-logging.md`. Logging never changes control flow — the step's own rule (continue, stop, repair-once) still decides. The individual call sites below name their signature.
 
@@ -14,7 +14,7 @@ The five-step protocol plan-em runs end-to-end. Emit progress per § Progress em
 
 ---
 
-**Step 0 — Resolve execution mode** (no progress marker — resolve before Step 1)
+**Step 0 — Resolve execution mode** (resolve before Step 1)
 
 Resolve `$TEAM_MODE` from the **inline flag**, else the **persisted preference**, else the
 default. The pref file (path resolution, schema, and the read snippet) is defined in
