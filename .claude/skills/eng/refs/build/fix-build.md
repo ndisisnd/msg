@@ -24,7 +24,7 @@ Loaded only when `--build` is invoked with `report=<path>` (see `protocol.md` §
 
 - `report` is valid on **both modes**: `--build` loads this file (or the orchestrated ref) to fix the findings, and `--plan report` loads `../plan/fix-plan.md` to plan them first. It is no longer build-only.
 - Supplying **both `prd-path` and `report`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or report, not both (ambiguous input source).`
-- A `report` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: report <path> not found or unparseable`) — the findings can't be projected, so there is nothing to build.
+- Input validity is **not** eyeballed: `script-project-findings.py` (§ Finding → issue-ticket projection) is the validator, and it is the same call that produces the tickets. A missing, unparseable, empty, or malformed issues file is its non-zero exit — emit the `Hard failure:` line it prints and stop, since the findings can't be projected and there is nothing to build.
 
 **Path derivation.** Eng derives all *implementation* file paths from the codebase scan and the projected issue-tickets. `report`'s `issues[].file` is where a *symptom* was observed, **not** a command to blindly edit that path — Step 2's codebase scan and Step 6's scope enforcement still run per issue exactly as they do per row.
 
@@ -56,12 +56,16 @@ When the build was driven by `report`, swap the summary table's **`Row`** column
 
 ## Closing the loop
 
-On completion, `eng --build` **updates the issues file's own `followUp.status`** (camelCase — the key `server.py`/the `--gui` board reads) so the ticket reflects that it was acted on rather than sitting permanently `open`:
+On completion, `eng --build` records that the findings were acted on rather than leaving them permanently `open`, by updating the issues file's own `followUp.status`. **Never hand-edit the JSON** — run the one script that owns this write:
 
-- every issue verified green → `"resolved"`
-- one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `"partially_resolved"`
+```bash
+C=.claude/scripts/script-eng-close-loop.py; [ -f "$C" ] || C="$HOME/.claude/scripts/script-eng-close-loop.py"; python3 "$C" "<report-path>" resolved|partially_resolved
+```
 
-This is the **only** write build mode makes to `report-prd-<N>-<K>.json`; the `issues[]` array and every other field stay untouched (the file remains canonical findings — the projection was read-time only). The `--gui` board reads this `followUp.status` back to render an honest Open/Resolved state per gate-issue card.
+- every issue verified green → `resolved`
+- one or more issues escalated (3-cycle debug escalation) or left unreproduced (flaky) → `partially_resolved`
+
+This is the **only** write build mode makes to `report-prd-<N>-<K>.json`, and the script makes that physically true rather than promised: it splices the status into the original bytes, asserts everything outside that span is byte-identical and the reparsed document differs in no other field, then replaces the file atomically — any drift aborts before the write. Exit 0 prints `CLOSED …` + `VERIFIED …`; a non-zero exit prints a `Hard failure:` line to emit verbatim. The `--gui` board reads `followUp.status` back to render an honest Open/Resolved state per gate-issue card.
 
 ## The `kind` discriminator
 
@@ -76,31 +80,14 @@ A ticket with no explicit `kind` is a `"todo"` (back-compat). The id shape alone
 
 ## Finding → issue-ticket projection
 
-`report-prd-<N>-<K>.json` (written by `/pre-merge` on a non-clean verdict) stores **canonical finding objects** — the same shape `/pre-merge` emits, defined in `../../../shared/refs/finding-schema.md`. To let `eng --build` walk those findings with the same ticket vocabulary a PRD-todo build uses, and to let the `--gui` board render them beside PRD todos, each finding is **projected** into an issue-ticket through the single mapping below.
+`report-prd-<N>-<K>.json` (written by `/pre-merge` on a non-clean verdict) stores **canonical finding objects** — the shape defined in `../../../shared/refs/finding-schema.md`. To walk them with the same ticket vocabulary a PRD-todo build uses, each finding is **projected** into an issue-ticket.
 
-This projection is cited by **both** `eng --build` (its `report` input path — this file) and the `--gui` board (`msg/refs/protocol-gui.md` Step 1b). Defining it once here keeps the two consumers from drifting.
+**The projection has exactly one implementation:** `.claude/scripts/script-project-findings.py`. Run it; never re-derive the mapping by hand. Its module docstring is the field-mapping documentation (`kind`/`id`/`title`/`objective`/`type`/`files`/`dependsOn`/`doneWhen`, plus the preserved diagnostic fields `severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, `flaky` that a todo has no slot for but the fix flow and the GUI side panel need). The `--gui` board (`msg/refs/protocol-gui.md` Step 1b) loads the same file, so the two consumers of this contract cannot drift.
 
-**It is a read-time view, never a rewrite.** `report-prd-<N>-<K>.json` stays canonical findings on disk — the projection is applied in memory each time a finding is consumed. Findings are never re-serialized into ticket shape, so the `/pre-merge` ↔ `eng --build` interop and the shared dedup/regression keys (`id`, `rule`, `regression_of`) are untouched.
+```bash
+P=.claude/scripts/script-project-findings.py; [ -f "$P" ] || P="$HOME/.claude/scripts/script-project-findings.py"; python3 "$P" "<report-path>"
+```
 
-### Field mapping
+**The script is also the input validator** — the required-fields and rejection checks above are its exit codes, not a manual read: exit 0 emits `{"file", "count", "tickets": […]}` on stdout; exit 2 prints `Hard failure: report <path> not found or unparseable`; exit 1 prints `Hard failure: report <path> has no findings to plan` or `… finding <id> is malformed: <detail>`. Emit the printed line verbatim and stop.
 
-| Issue-ticket field | Source (canonical finding) |
-|--------------------|----------------------------|
-| `kind` | literal `"issue"` |
-| `id` | finding `id` **verbatim** (`unit-002`) — its non-`F<n>-T<k>` shape itself signals an issue, and keeps `depends-on`/dedup handles stable |
-| `title` | finding `message` |
-| `objective` | synthesized `Restore correct behavior — <message>` (prefer `suggestion` when present). Does **not** trace to a PRD user story — a bug's intent is the fix, and `context.prd` is often `null` |
-| `type` | mapped from `category`: test buckets (`unit`, `e2e`, `functional`, `qa`, `a11y`, `api`, `mobile`, `coverage`, `load`, `perf`, `integration`, `contract`) → `test`; code/security concerns (`security`, `performance`, `complexity`, …) → `code` |
-| `files` | `[{ path: <finding.file>, action: "edit" }]`, or `[]` when `file` is `null` (suite-level finding). `action` is always `edit` — `file` is where the *symptom* was observed, not a command to edit that path; Step 2's codebase scan still resolves the real target |
-| `depends-on` | `none` — findings carry no dependency graph |
-| `done-when` | `<repro> passes and the covering test file is green` (from `repro`; when `repro` is `null`, `the finding no longer reproduces`) |
-
-### Preserved diagnostic fields
-
-A todo has no slot for these, but a bug needs them for the fix flow and the GUI side panel, so they ride **alongside** the projected fields on the issue-ticket (copied verbatim from the finding, never dropped):
-
-`severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, and `evidence.flaky`.
-
-`source` is the originating gate stage (`pre-merge:mechanical`, `pre-merge:bucket:e2e`, …); the `--gui` board renders it as a per-issue gate-step badge, so it must survive the projection.
-
-`evidence.flaky: true` in particular changes how `eng --build` treats the ticket (fix only if a reproducible root cause surfaces — see § Work-step deltas above) and how `--gui` tags it, so it must survive the projection.
+**It is a read-time view, never a rewrite.** The script only reads; `report-prd-<N>-<K>.json` stays canonical findings on disk, so the `/pre-merge` ↔ `eng --build` interop and the shared dedup/regression keys (`id`, `rule`, `regression_of`) are untouched. `evidence.flaky: true` survives the projection as `flaky` and changes how this build treats the ticket (fix only if a reproducible root cause surfaces — see § Work-step deltas above).

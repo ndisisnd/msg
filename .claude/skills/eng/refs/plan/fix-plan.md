@@ -19,15 +19,19 @@ This is the target of the fix loop's Offer #1 (`../../../shared/refs/fix-loop.md
 | `agent` | *(optional)* Defaults to a single generic identity `eng-fix` — a bug list has no roster to assign owners from (same default the `report` build uses) |
 
 - Supplying **both `prd-path` and `report`** is a hard failure — ambiguous input source: `Hard failure: pass either prd-path+rows or report, not both (ambiguous input source).`
-- A `report` path that does not exist or cannot be parsed as JSON is an input-validation failure (`Hard failure: report <path> not found or unparseable`) — the findings can't be projected, so there is nothing to plan.
-- A file that parses but carries an **empty `issues[]`** (or no `issues` key) is a hard failure: `Hard failure: report <path> has no findings to plan`. A clean run never writes an issues file, so an empty one is malformed input, not a no-op.
-- A finding that does not conform to `../../../shared/refs/finding-schema.md` (missing a required field the projection reads — `id`, `severity`, `category`, `rule`, `message`) is a hard failure: `Hard failure: report <path> finding <id|index> is malformed`. Findings are consumed structurally; a malformed one can't be projected or complexity-graded.
+- Input validity is **mechanical, not eyeballed**: `script-project-findings.py` (below) is the validator and the projector in one call. Its non-zero exits are the three rejections — `Hard failure: report <path> not found or unparseable` (missing/unparseable), `Hard failure: report <path> has no findings to plan` (empty `issues[]`, and a clean run never writes an issues file so an empty one is malformed input, not a no-op), and `Hard failure: report <path> finding <id|index> is malformed: <detail>` (a finding missing a required field of `../../../shared/refs/finding-schema.md` — `id`, `source`, `severity`, `category`, `rule`, `message`). Emit the printed line verbatim and stop; a malformed finding can't be projected or complexity-graded.
 
 **No file paths as input.** As in a PRD `--plan`, eng derives file paths from the codebase scan and the projected tickets, never from input. A finding's `file` marks where the *symptom* was observed, not a path to edit — it rides onto the ticket's `files` (below) but the fix-build's Step 2 scan still resolves the real target.
 
 ## Reading the issues file + projection
 
-Read the issues file `report-prd-<N>-<K>.json` (the canonical findings written by the failed run) and project each entry of `issues[]` into an issue-ticket through the **existing** finding→issue-ticket projection — the single mapping defined in `../build/fix-build.md` § Finding → issue-ticket projection (field mapping + preserved diagnostic fields + the `kind` discriminator). That projection is authoritative and read-time-only; **do not duplicate or re-derive it here, and do not re-serialize the findings** — the issues file stays canonical on disk. This plan pass consumes the same in-memory projection the build pass does, then writes its own fix-plan artifact.
+Project each entry of `issues[]` into an issue-ticket by running the **single** projection implementation — `.claude/scripts/script-project-findings.py`, cited by `../build/fix-build.md` § Finding → issue-ticket projection (field mapping + preserved diagnostic fields + the `kind` discriminator live in its docstring):
+
+```bash
+P=.claude/scripts/script-project-findings.py; [ -f "$P" ] || P="$HOME/.claude/scripts/script-project-findings.py"; python3 "$P" "<report-path>"
+```
+
+**Do not re-derive the mapping and do not re-serialize the findings** — the script only reads, so the issues file stays canonical on disk. This plan pass consumes exactly the tickets the build pass consumes, then writes its own fix-plan artifact.
 
 Each projected issue-ticket already carries `kind: "issue"`, its verbatim finding `id`, `title`, `objective`, `type`, `files`, `depends-on`, `done-when`, and the preserved diagnostic fields (`severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, `evidence.flaky`). This pass adds exactly one field: the **`complexity` tag** (below).
 
@@ -91,7 +95,13 @@ Never group across unrelated files, categories, or root causes — the fix-build
 
 Tag **every** fix ticket `complexity: simple | complex`. The orchestrated fix-build reads this tag to route each fix to the right model tier and **falls back to grading itself if the tag is absent** — so absence degrades gracefully but is never the intended output.
 
-**The rubric is defined once, in `../build/fix-build-orchestrated.md` § Complexity rubric** (it is the fallback grader, so it must carry the rubric; this pass grades ahead of time as a convenience). Read it and apply it exactly — do not restate or re-derive it here. A group ticket takes `complex` if any member is `complex`.
+**The rubric is defined once and it is executable** (`../build/fix-build-orchestrated.md` § Complexity rubric, implemented in `.claude/scripts/script-eng-fix-grade.py`). Do not grade by eye and do not restate the predicate here — run it:
+
+```bash
+G=.claude/scripts/script-eng-fix-grade.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-eng-fix-grade.py"; python3 "$G" "<report-path>"
+```
+
+Take each `GRADE … complexity=…` line as the ticket's tag. **You may escalate `simple` → `complex`, never downgrade `complex` → `simple`** — that is this pass's only power over the grade, and it is where the old rubric's judgment clause went. A group ticket is graded from its combined `files` set (pipe the group's ticket JSON in on `-`) and takes `complex` if any member is `complex`.
 
 ## References
 

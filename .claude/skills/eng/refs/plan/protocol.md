@@ -35,7 +35,7 @@ Produce a structured engineering section following `refs/plan/template-eng-plan.
 
 Cover only the features implied by the assigned rows. Every section of the template is required — write `None.` only when a subsection genuinely does not apply.
 
-Also fill in the **Execution steps** and **Files** columns for every row in the PRD's execution table where the Agent column matches this invocation — after the tickets are written, since Execution steps is a pointer to their ids (`→ F2-T1, F2-T2`) and Files is the union of their `files`. Format and rules: `refs/build/protocol-exec.md`. A blank Execution steps cell, or one whose ids resolve to no ticket, is a hard failure.
+Also fill in the **Execution steps** and **Files** columns for every row in the PRD's execution table where the Agent column matches this invocation — after the tickets are written, since Execution steps is a pointer to their ids (`→ F2-T1, F2-T2`) and Files is the union of their `files`. Format and rules: `refs/build/protocol-exec.md`.
 
 **Exact identifier requirement (hard):** Every proposed change must name the precise artifact to be modified or created, verified against the codebase scan:
 
@@ -61,9 +61,22 @@ After the engineering section is written, decompose every owned F-ID into `F<n>-
 - Use this agent's own `## Engineering — <Agent Name>` section (integration contracts, exact identifiers) as the authority on *how*, and the PRD's Features & acceptance criteria F-ID table as the authority on *which* F-IDs are in scope and *why*. Do not re-interpret the features section independently of the engineering section you just wrote.
 - Append the agent's `## Todos — <Agent Name>` block under the `## Todos` umbrella heading (created by `plan-em` before the plan wave — do **not** create the umbrella yourself), one `### F<n>` block per owned feature in F-ID order. A feature with no discrete work still gets an explicit `_No discrete work for this feature._` block.
 - Every exact identifier this agent owns in §7 (endpoint, table, column, migration filename, test file, webhook/hook) must surface in some ticket's `files` + `done-when`.
-- **Dependency graph is valid:** every `depends-on` id resolves to a real ticket in this PRD's `## Todos` and the graph is acyclic. A dangling or cyclic dependency is surfaced as a named gap in §11 (Findings), not silently dropped.
-- **Then fill the exec-table cells** (§ Output contract above): each owned row's Execution steps pointer and Files set, derived from the tickets just written. Every ticket is pointed at by exactly one row; every owned row points at at least one ticket.
+- **Then fill the exec-table cells** (§ Output contract above): each owned row's Execution steps pointer and Files set, derived from the tickets just written.
 
 Extend the write confirmation to note the tickets (e.g. `Written to features/prd-4/prd-4.md → ## Engineering — eng-backend + ## Todos — eng-backend (F2: 3 tickets)`).
 
 Ambiguity that cannot be resolved from the PRD, exec-table, or codebase scan is surfaced as a named gap in §11 (Findings) — never resolved by assumption.
+
+---
+
+## Closing check — validate the plan's shape mechanically
+
+The plan's three outputs (engineering section, tickets, exec-table cells) are bound together by contracts that all fail **silently** — a dangling ticket pointer, a cyclic `depends-on`, or a guessed file path produce a plausible-looking plan that only explodes during the build wave. Do not grade them by eye. After the write confirmation, run:
+
+```bash
+V=.claude/scripts/script-eng-plan-shape.py; [ -f "$V" ] || V="$HOME/.claude/scripts/script-eng-plan-shape.py"; python3 "$V" "<prd-path>" --agent "<Agent Name>"
+```
+
+Exit 0 (`SUMMARY … failures=0`) means the pass is shape-clean. Exit 1 prints one `FAIL check=<n> code=<slug> ref=<locator> detail=…` line per defect; **fix every one and re-run** — the pass is not done while any FAIL stands. The seven checks: both contract headings byte-exact · the ticket schema · `### F<n>` blocks ↔ the exec-table F-IDs this agent owns · `depends-on` resolves and is acyclic · the empty-feature sentinel · every Execution-steps pointer resolves and every ticket is pointed at · **files-vs-reality** (`(edit)`/`(remove)` paths must exist, `(add)` paths must not — this is what catches a guessed or stale identifier).
+
+A defect the script cannot fix — a genuinely unresolvable path or F-ID — is surfaced as a named gap in §11 (Findings), never left as a silent FAIL.

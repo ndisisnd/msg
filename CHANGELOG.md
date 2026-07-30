@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P6 — eng mechanisation: five scripts (i42/i43/i44/i45/i46)
+
+- `.claude/scripts/script-eng-plan-shape.py`: Added — 7-check fail-loud plan validator (headings, ticket schema, F-ID↔exec alignment both ways, depends-on acyclic, sentinel, pointer resolution, files-vs-reality); wired as eng --plan's closing check
+- `.claude/scripts/script-eng-fix-grade.py`: Added — the [i31] rubric executable (fixed-order predicate; fast=sonnet/deep=opus); model may only escalate simple→complex, stated at the script + both call sites
+- `.claude/scripts/script-project-findings.py`: Added — the single finding→issue-ticket projection + issues-file validator; `server.py` loads it as a module (26-line duplicate deleted; degrade = explicit skipped entry); board output proven byte-identical before/after
+- `.claude/scripts/script-eng-close-loop.py`: Added — the one sanctioned followUp.status write; splices into original bytes, asserts outside-span byte-identity + masked-document equality before os.replace; idempotent
+- `.claude/scripts/eng-commit-cap.sh`: Changed — `--message/--message-file` pair the Oversize-reason trailer with an over-cap diff (exit 3 when missing); under-cap never blocked, advisory posture unchanged
+
 ### v5-P5 — eng content: roadmap orchestrator removed, tickets-final, fix-* renames (i29/i30/i31/i33/i34/i47/i48/i49)
 
 - Renamed — report-fix.md ×3 → `fix-plan.md` / `fix-build.md` / `fix-build-orchestrated.md`; 39 citations across 9 files; `.gitignore` gains a scoped negation so fix-plan.md isn't eaten by the scratch-plan rule

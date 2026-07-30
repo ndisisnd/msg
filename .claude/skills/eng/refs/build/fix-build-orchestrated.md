@@ -19,18 +19,21 @@ This session runs as **Opus** and does not write code itself. It coordinates per
 Resolve the issue set and each issue's `complexity` (`simple` | `complex` — § Complexity rubric), in priority order:
 
 1. **Fix plan present** — `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` exists (same `<N>`/`<K>` as the issues file; written by `eng --plan report=…` per `../plan/fix-plan.md`). Read its tickets and take each ticket's `complexity` tag as authoritative. This is the normal path — `pre-merge`/`post-merge` reach here through the § fix-loop offer sequence (`../../../shared/refs/fix-loop.md`), which plans before it builds.
-2. **No fix plan** — project the tickets directly from the issues file's `issues[]` using the **finding→issue-ticket projection in `fix-build.md`** (§ Finding → issue-ticket projection — read-time view, never a rewrite; cite, do not re-derive), then grade each projected issue's `complexity` yourself via the rubric below.
+2. **No fix plan** — project the tickets directly from the issues file's `issues[]` by running `script-project-findings.py` (**`fix-build.md` § Finding → issue-ticket projection** — read-time view, never a rewrite; call it, do not re-derive), then grade each projected issue's `complexity` via the rubric below.
 
 ## Complexity rubric
 
-**This is the one definition of simple-vs-complex in eng.** `../plan/fix-plan.md` grades ahead of time by citing it; this file carries it because it is the fallback grader when no plan tag exists. When Step 0 falls back to grading (no plan, or a ticket carries no `complexity`), grade each issue here. The plan's tag, when present, always wins.
+**This is the one definition of simple-vs-complex in eng, and it is executable, not prose.** `../plan/fix-plan.md` grades ahead of time by calling the same script; this file carries the definition because it is the fallback grader when no plan tag exists. The plan's tag, when present, always wins.
 
-- **simple → fast tier** — single-file (`files` length ≤ 1); a clear `suggestion` is present; `category` ∈ {mechanical/lint/format/typecheck, dead-code, duplication, readability, naming, coverage}; or a localized single-assertion `unit` failure with a small `repro`.
-- **complex → deep tier** — multi-file (`files` length > 1); `category` ∈ {security, migration/schema, architecture, performance/perf, integration, e2e, contract}; no `suggestion`; `regression_of` is set (recurring); or `file` is `null` (a suite-level finding).
+```bash
+G=.claude/scripts/script-eng-fix-grade.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-eng-fix-grade.py"; python3 "$G" "<report-path>"
+```
 
-On mixed or ambiguous signals, grade **complex** — an over-powered subagent is safe; an under-powered one on a security/migration fix is not.
+Pipe tickets in on `-` to grade a grouped ticket carrying more than one file. **Inputs:** `files` length (or `file`) · `category` · `suggestion` · `regression_of` · `file` null · `repro`. Each issue returns `GRADE id=… complexity=simple|complex tier=fast|deep model=… reason=…`.
 
-**Tier → model (the one mapping line):** fast tier = `model: sonnet` · deep tier = `model: opus`. A model-family change is this line, nowhere else.
+**Escalate, never downgrade.** `simple` → `complex` is the orchestrator's one power over the grade — use it when an issue looks scarier than its fields suggest. `complex` → `simple` is forbidden: an over-powered subagent is safe, an under-powered one on a security or migration fix is not.
+
+**Tier → model (the one mapping line):** fast = `model: sonnet` · deep = `model: opus`, in the script's `TIER` table. A model-family change is that line, nowhere else.
 
 ## Step 1 — Route each issue to a fix subagent
 
@@ -67,16 +70,21 @@ After a subagent returns, the **orchestrator re-runs that ticket's covering test
 
 ## Step 4 — Close the loop
 
-Once every ticket is done or escalated, write the **single** issues-file mutation — `followUp.status` — per the existing contract in `fix-build.md` § Closing the loop (cite, do not duplicate):
+Once every ticket is done or escalated, write the **single** issues-file mutation — `followUp.status` — by running `script-eng-close-loop.py` per `fix-build.md` § Closing the loop (call it, never hand-edit the JSON):
 
-- every issue verified green → `"resolved"`
-- one or more issues escalated (3-cycle bound hit) or left unreproduced (flaky) → `"partially_resolved"`
+```bash
+C=.claude/scripts/script-eng-close-loop.py; [ -f "$C" ] || C="$HOME/.claude/scripts/script-eng-close-loop.py"; python3 "$C" "<report-path>" resolved|partially_resolved
+```
 
-This is the **only** write to the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`; `issues[]` and every other field stay canonical (the projection was read-time only). Emit an `Issue`-keyed roll-up summary (per-ticket status + assigned model) so the human/`--gui` board sees which model fixed each issue and which escalated. After loop-close the user re-runs the gate (`/pre-merge` or `/post-merge`) — the fixed branch comes back through the same gate (`fix-loop.md` § Re-entry).
+- every issue verified green → `resolved`
+- one or more issues escalated (3-cycle bound hit) or left unreproduced (flaky) → `partially_resolved`
+
+This is the **only** write to the issues file `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`, and the script proves it — `issues[]` and every other field stay byte-identical by construction (the projection was read-time only). Emit an `Issue`-keyed roll-up summary (per-ticket status + assigned model) so the human/`--gui` board sees which model fixed each issue and which escalated. After loop-close the user re-runs the gate (`/pre-merge` or `/post-merge`) — the fixed branch comes back through the same gate (`fix-loop.md` § Re-entry).
 
 ## References (cited, not duplicated)
 
 - `fix-build.md` — finding→issue-ticket projection, per-issue reproduce→fix→verify-green deltas, `Issue`-keyed summary, `followUp.status` loop-close, `orchestrate=off` escape hatch
+- `.claude/scripts/script-project-findings.py` — the one projection implementation + issues-file validator · `.claude/scripts/script-eng-fix-grade.py` — the executable complexity rubric (escalate-only) · `.claude/scripts/script-eng-close-loop.py` — the one sanctioned `followUp.status` write
 - `protocol.md` Step 7 — one commit per issue-ticket + the two mechanical commit gates
 - `protocol-build-debug.md` — the bounded 3-cycle debug escalation (reused per subagent and per orchestrator re-entry)
 - `../plan/fix-plan.md` — writes `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` with the `complexity` tags this orchestrator reads
