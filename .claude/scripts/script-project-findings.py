@@ -62,6 +62,11 @@ the GUI side panel need them):
   severity · category · source · rule · repro · evidence.snippet · suggestion
   · flaky (from `evidence.flaky`) · regression_of
 
+`source` is the one field normalized on read: retired wire values are mapped to
+their current name via LEGACY_SOURCE (e.g. `pair-review` → `eng:review`) so an
+already-committed report stays readable after a producer is renamed. Nothing is
+ever rejected for carrying an old value, and the file on disk is not rewritten.
+
 Key casing is camelCase (`dependsOn`, `doneWhen`) because the projected ticket
 is consumed by the `--gui` board's JSON contract. The prose ticket schema
 (`eng/refs/plan/template-todo.md`) renders the same fields hyphenated in
@@ -99,6 +104,28 @@ CATEGORY_TEST = {"unit", "e2e", "functional", "qa", "a11y", "api", "mobile",
 # The finding fields the projection and the complexity grader read structurally.
 REQUIRED = ("id", "source", "severity", "category", "rule", "message")
 
+# ---------------------------------------------------------------- legacy wire values
+# THE legacy-wire-value map. Committed reports on disk keep whatever `source`
+# was canonical the day they were written, so a producer rename must never make
+# an old report unreadable: retired values are mapped on read, never rejected.
+# This is the single implementation for every reader on this path — the
+# `/msg --gui` board imports this module rather than re-deriving the mapping.
+# Adding a rename is one line here (e.g. "post-merge": "merge"); see
+# `shared/refs/finding-schema.md` § Legacy wire values, which lists the same
+# table in prose. Dedup/regression keys never match on `source`, so mapping a
+# value cannot change how findings group.
+LEGACY_SOURCE = {
+    "pair-review": "eng:review",   # v5: per-ticket pair review → one eng --review
+}
+
+
+def normalize_source(value):
+    """Map a retired `source` wire value onto its current name; pass others through."""
+    if not isinstance(value, str):
+        return value
+    # A deduped finding carries a comma-separated list of merged sources.
+    return ",".join(LEGACY_SOURCE.get(p.strip(), p.strip()) for p in value.split(","))
+
 
 def die(msg, code=2):
     print(msg, file=sys.stderr)
@@ -123,7 +150,7 @@ def project_finding(f):
                     else "the finding no longer reproduces",
         "severity": f.get("severity"),
         "category": f.get("category"),
-        "source": f.get("source"),
+        "source": normalize_source(f.get("source")),
         "rule": f.get("rule"),
         "repro": repro,
         "evidence": {"snippet": ev.get("snippet")},

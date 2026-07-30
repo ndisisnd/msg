@@ -1,8 +1,8 @@
 ---
 name: eng
 description: >
-  Platform-agnostic engineering agent with two modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec). Invoked by plan-em or directly by the user.
-argument-hint: "<--plan | --build> [report=<path>]"
+  Platform-agnostic engineering agent with three modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec), --review (one adversarial whole-change review of the working diff, run by a separate reviewer subagent — spawned by --build automatically, and available standalone on any branch at any time). Use --review when the user says "review this change", "review my diff", "code review this branch", or invokes /eng --review. Invoked by plan-em or directly by the user.
+argument-hint: "<--plan | --build | --review> [report=<path>]"
 allowed_tools:
   - Bash
   - Read
@@ -15,7 +15,7 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent with two modes — `--plan`, `--build` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
+Platform-agnostic engineering agent with three modes — `--plan`, `--build`, `--review` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
 
 ---
 
@@ -29,11 +29,14 @@ Read the invocation flag and load exactly one mode protocol:
 | `--plan report=<path>` | `refs/plan/fix-plan.md` (instead of `protocol.md`) |
 | `--build` | `refs/build/protocol.md` |
 | `--build report=<path>` | `refs/build/fix-build.md` (instead of `protocol.md`) |
+| `--review` | `refs/review/protocol.md` |
 
-Exactly one mode flag must be present (`--plan` | `--build`). If zero or more than one is given, emit:
+**Natural-language triggers for `--review`.** "review this change", "review my diff", "code review this branch", "adversarial review", "look for bugs in what I just wrote" → route to `--review`. Anything asking for *style, naming or standards* is `/cook`, not this mode.
+
+Exactly one mode flag must be present (`--plan` | `--build` | `--review`). If zero or more than one is given, emit:
 
 ```
-Hard failure: exactly one mode flag required (--plan | --build). Got: <list>.
+Hard failure: exactly one mode flag required (--plan | --build | --review). Got: <list>.
 ```
 
 Stop.
@@ -52,7 +55,9 @@ Otherwise read the active mode file **fully** first — it defines the mode-spec
 
 ## Step 1 — Input validation
 
-Two input sources. The **PRD/exec-table source** is the default for every mode; **`report`** is an alternate available on both modes.
+Two input sources. The **PRD/exec-table source** is the default for `--plan` and `--build`; **`report`** is an alternate available on both of those modes.
+
+**`--review` is exempt from this whole step.** Its input is the working diff — no `prd-path`, no `rows`, no `agent`, no `report`, and no preceding build in the same session. It resolves its own change set at `refs/review/protocol.md` Step 1, and skips Steps 2–4 below (no PRD/devkit pre-flight, no summary gate, no `/cook` call) — go straight to Step 5. Optional `prd-path` and injected ticket context are used when supplied and simply absent otherwise.
 
 ### PRD/exec-table source (all modes)
 
@@ -60,7 +65,7 @@ Requires four fields. Hard-refuse if any is missing:
 
 | Field | Value |
 |-------|-------|
-| mode flag | `--plan` or `--build` |
+| mode flag | `--plan` or `--build` (`--review` does not use this source) |
 | `prd-path` | Path to the PRD `.md` file containing the execution table |
 | `rows` | Semicolon-separated exec-table Feature identifiers for this invocation — each the exact `<ID>: <name> — <concern>` text of a Feature cell (e.g. `F2: Track streak — Schema migration`) |
 | `agent` | This invocation's agent identity (e.g. `eng-backend`) — the exec-table **Agent** column value for the assigned rows; names the `## Engineering — <agent>` heading and confirms row ownership. |
@@ -141,7 +146,8 @@ Coding standards come from `/cook`, pulled via **explicit flags** (never a prose
 Follow the work steps and output contract in the active mode file, where the modes diverge:
 
 - `--plan` → in one pass, append the `## Engineering — <Agent>` section, write the `## Todos — <Agent>` tickets that decompose each owned F-ID (the build spec), and fill each owned row's Execution steps pointer + Files set from those tickets (no implementation code written; inline snippets/pseudocode encouraged).
-- `--build` → write code from the tickets to derived paths; emit a build summary.
+- `--build` → write code from the tickets to derived paths; emit a build summary. At Step 5a of `refs/build/protocol.md` — after the full-suite gate, before the human commit confirm — it spawns the `--review` reviewer subagent by default.
+- `--review` → resolve the change set, review it adversarially, fix what is unambiguous, and return the findings payload in `refs/review/protocol.md` § Return contract.
 
 **Closing message (every mode, every verdict):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the mode's own output contract, report writes, and fix-loop offers.
 
@@ -157,8 +163,8 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 
 - `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **the `## Todos — <Agent>` ticket-writing spec** run in the same pass, and the mechanical closing check (`script-eng-plan-shape.py`). `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the seven fields, rendering, rules, empty-block sentinel, the ticket-sizing rule) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — §1–12 output format.
 - `refs/plan/fix-plan.md` — `--plan`'s `report` source: required fields, rejections, and the fix-plan output contract for planning the fixes to a failed run's issues file.
-- `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, per-ticket pair review, commit/PR contract. `refs/build/protocol-exec.md` — the Execution-steps ticket-id pointer + the Files set. `refs/build/fix-build.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
-- `refs/build/pair-review.md` — per-ticket pair-review subagent: platform-parameterised principal-engineer persona, unnecessary-code-only mandate, one-revision-round blocking contract (loaded on the build hot path).
+- `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, the Step-5a whole-change review spawn, commit/PR contract. `refs/build/protocol-exec.md` — the Execution-steps ticket-id pointer + the Files set. `refs/build/fix-build.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
+- `refs/review/protocol.md` — `--review`: change-set resolution, reviewer inputs (diff + `done-when` + digest acceptance criteria), the adversarial charter and its exclusion list, the A4 what-vs-how exception, severity discipline against `shared/refs/finding-schema.md` (`source: eng:review`), the blocker/high-before-commit-confirm rule, the JSON return contract, and the subagent spawn rules. Replaces the retired per-ticket pair review — one review, whole-change, run by an agent that did not write the code.
 - `.claude/scripts/eng-db-touch.sh` — production/data guardrail; a tripped check pauses for sign-off.
 - `.claude/scripts/eng-comment-scan.sh` — deterministic A4 comment scan; flags added symbol declarations with no plain-English comment above them (`--staged` or a diff range).
 - `.claude/scripts/eng-commit-cap.sh` — A5 commit-size measurement on the staged diff (>500 changed LOC, >300 with `--breaking`). The measurement is advisory — an under-cap commit is never blocked and the agent judges split-or-commit from `CAP_OK`/`CAP_EXCEEDED`. The trailer pairing is **not** advisory: pass the prepared message (`--message` / `--message-file`) and an over-cap commit with no `Oversize-reason:` trailer prints `TRAILER_MISSING` and exits 3. `--oversize-reason` records the same justification for the ledger.

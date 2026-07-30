@@ -411,6 +411,11 @@ def parse_prd_dir(d):
 # CLI; the board loads the same file as a module and calls the same function,
 # so the two consumers of a drift-prevention contract cannot themselves drift.
 # Do NOT re-implement the mapping here — change the script instead.
+# That import also carries the legacy-wire-value map (LEGACY_SOURCE in the
+# script): a committed report whose `source` names a retired producer — e.g.
+# `pair-review` before it became `eng:review` — is mapped on read and rendered
+# normally. The board therefore needs no source tolerance of its own, and a
+# future rename is one line in the script, not two.
 
 PROJECTOR_REL = os.path.join(".claude", "scripts", "script-project-findings.py")
 _PROJECTOR = None            # cached module, or the string reason it is missing

@@ -1,13 +1,13 @@
 ---
 name: finding-schema
-description: Canonical finding object emitted by pre-merge's gate stages and eng's pair-review / issues-file loop. One severity enum, one field set, one evidence shape. The single source of truth for finding interoperability across the gate.
+description: Canonical finding object emitted by pre-merge's gate stages and eng's review / issues-file loop. One severity enum, one field set, one evidence shape. The single source of truth for finding interoperability across the gate.
 ---
 
 # Finding Schema
 
 The single canonical finding shape emitted across the harness — every pre-merge
 gate stage (mechanical, unit-int, regression, platform buckets, security,
-migration, PRD-consistency, preview), eng's per-ticket pair-review, and the
+migration, PRD-consistency, preview), eng's whole-change review, and the
 `report-prd-<N>-<K>.json` issues file (in the PRD's `reports/` folder, written on
 a failed run) that `eng --build report=` consumes. Every producer conforms to
 this object so downstream consumers (the `/msg --gui` board, `eng --build`'s
@@ -51,7 +51,7 @@ in some and absent in others).
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | string | yes | `<prefix>-<zero-padded 3-digit index>`, e.g. `sec-001`, `quality-003`, `unit-002`. Prefix names the producing bucket/mode. |
-| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:preview`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). eng's per-ticket pair-review emits `pair-review`. `post-merge` emits `post-merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. |
+| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:preview`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). `eng --review` emits `eng:review`. `post-merge` emits `post-merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. **Retired values are mapped on read, never rejected** — see "Legacy wire values" below. |
 | `severity` | enum | yes | `blocker` / `high` / `medium` / `low`. See "Severity enum" below. |
 | `category` | enum | yes | See "Category enum" below. Never omit — dedup and regression keys depend on it. |
 | `rule` | string | yes | **The dedup/regression key.** Tool rule-id (`stripe-access-token`, semgrep check id), failing test name, or the verbatim assertion text. Never null — synthesize a stable slug from the finding if the tool gives no id. |
@@ -72,6 +72,25 @@ in some and absent in others).
 
 Both keys depend on `rule` being present and stable on every finding — this is
 why `rule` is required, not optional.
+
+## Legacy wire values
+
+Reports already written to disk carry the `source` value that was canonical the
+day they were produced. A renamed producer must therefore never make an old
+report unreadable: **every reader maps a retired value on read, and no reader
+rejects one.** The map is a single table, one line per rename, and it lives in
+exactly one place per reader path — today that is `LEGACY_SOURCE` in
+`.claude/scripts/script-project-findings.py`, which the `/msg --gui` board
+imports rather than re-implements.
+
+| Retired value | Reads as | Retired in |
+|---|---|---|
+| `pair-review` | `eng:review` | v5 — per-ticket pair review deleted, one whole-change `eng --review` replaces it |
+
+Writers only ever emit the right-hand column. Dedup and regression keys are
+unaffected: both match on `(category, file, line, rule)` / `(category, file,
+rule)` and never on `source`, so a mapped value can only change display and the
+merged-source list, never grouping.
 
 ## Severity enum
 
@@ -107,7 +126,7 @@ results are NOT findings — route them to `totals`/`evaluated`, never `findings
 `complexity`, `scope-creep`, `performance`, `deploy`, `other`.
 
 A bucket-based stage (a pre-merge platform bucket) sets `category` to its bucket
-name. A semantic stage (security, migration, PRD-consistency) or eng's pair-review
+name. A semantic stage (security, migration, PRD-consistency) or `eng --review`
 picks the closest concern category.
 
 ## Verdict normalization

@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P7 — eng --review born, per-ticket pair review deleted (i2/i11)
+
+- `eng/refs/review/protocol.md`: Added — whole-change adversarial review by a spawned reviewer subagent: seven priority classes, verify-before-report, diff-only context with the public-contract trigger, silence-is-an-outcome; findings per shared finding-schema with `source: eng:review`; only blocker/high gate the commit confirm; the merge floor stays pre-merge's green run
+- `eng/refs/build/protocol.md`: Changed — new Step 5a spawns the reviewer by default on every build with a diff (after the full-suite gate, before the human commit confirm); Step 4e per-ticket review deleted; A4 "enforced twice" → enforced once mechanically + judged at 5a
+- Removed — `eng/refs/build/pair-review.md` (406 words); zero live citations remain
+- `shared/refs/finding-schema.md`: Changed — `source` enum `pair-review` → `eng:review` + new Legacy wire values section (never-reject rule); the one legacy map lives in `script-project-findings.py` (`LEGACY_SOURCE`), inherited by the GUI via the module import — P17 adds `post-merge`→`merge` as one line; dedup/regression keys verified source-free
+- GUI proven rendering both `eng:review` and legacy `pair-review` reports; on-disk files never rewritten
+
 ### v5-P6 — eng mechanisation: five scripts (i42/i43/i44/i45/i46)
 
 - `.claude/scripts/script-eng-plan-shape.py`: Added — 7-check fail-loud plan validator (headings, ticket schema, F-ID↔exec alignment both ways, depends-on acyclic, sentinel, pointer resolution, files-vs-reality); wired as eng --plan's closing check

@@ -34,7 +34,7 @@ twice `C:3`+`C:1`".
 | Dim | Cell | Scale | Bands |
 |---|---|---|---|
 | **Complexity** | `C:` | `1 / 2 / 3 / 5 / 8 / 13` | counts **moving parts** — see the anchors below. `13` = max |
-| **Token cost** | `T:` | `1 / 2 / 3 / 5 / 8 / 13` | derived from complexity + platform count: more platforms → more eng agents; more tickets → more pair reviews; migrations → a stricter gate. A **band**, not a total. `13` = max |
+| **Token cost** | `T:` | `1 / 2 / 3 / 5 / 8 / 13` | derived from complexity + platform count: more platforms → more eng agents; more tickets → a bigger change for `eng --review`; migrations → a stricter gate. A **band**, not a total. `13` = max |
 | **Sequencing** | `S:` | `now / next / later / blocked-by-#n` | position vs the other `INTAKE.md` rows + existing PRD `depends_on`/`affects` edges. `blocked-by-#n` cites an intake row `#` (or a `prd-<n>`). Feeds `plan-pm --roadmap`, which sequences from this graded backlog |
 
 `S:` is **not** on the Fibonacci scale and never will be — it's a position in a
@@ -98,7 +98,7 @@ tickets whose moving parts no single review holds at once — the reviewer eithe
 rubber-stamps what they can't fully reason about, or the ticket sits. Splitting at
 the front door is cheaper than splitting at build time, and the split is what makes
 each piece reviewable. The gate is not defending a line count; it is defending the
-point at which a human (or a pair-review agent) can still say "yes, all of this is
+point at which a human (or `eng --review`) can still say "yes, all of this is
 correct" in one pass.
 
 **The gate fires at `≥ 8`, not at `13`.** Six bands spread across the range that
