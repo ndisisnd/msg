@@ -9,14 +9,18 @@ Ships everything currently on the release head to `prod`. This is the harness's
 single path to `prod` — **always human-initiated** (no orchestrator invokes it)
 and its gates never relax, in any mode.
 
-Three deterministic checks are **scripted, not reasoned** — the sign-off
-coverage, the release lock, and the release identity. Each emits `key=value`
-lines the protocol below reads; none of them is re-derived by hand:
+Every deterministic check here is **scripted, not reasoned**. Each emits
+`key=value` lines the protocol below reads; none of them is re-derived by hand:
 
 ```bash
 S=.claude/scripts/script-signoff-coverage.sh   # coverage verdict + uncertified commits
 S=.claude/scripts/script-release-lock.sh       # acquire | release | status
 S=.claude/scripts/script-release-identity.sh   # tag, version, build, monotonicity, provenance
+S=.claude/scripts/script-ci-status.py          # the CI verdict (Steps 1 + 5)
+S=.claude/scripts/script-policy-read.py        # every policy mode + its `?? default`
+S=.claude/scripts/script-platforms-parse.py    # PLATFORMS.md → per-platform key=value
+S=.claude/scripts/script-smoke-run.sh          # the v2 smoke loops + macOS checks
+S=.claude/scripts/stamp-intake.sh --find-row   # PRD id → ledger row # (Step 8)
 ```
 
 (Resolution form — repo copy first, global install second — is stated once in
@@ -48,7 +52,11 @@ is the git tag at Step 9, which changes no tracked file. Full contract:
 
 For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
 
-1. **Staging CI is green.** Check the latest CI on `staging` (`gh api repos/{owner}/{repo}/commits/staging/status` or `gh run list --branch staging --limit 1`). Not green → refuse (`staging_not_green`). **Empty result** — `state:"pending"` with zero statuses and no runs — resolves `ga = policies.github_actions.enabled ?? true` (`policy-schema.md` §2b): `ga:false` → the precondition is **inactive**, proceed silently with one report line; `ga:true`/absent → treat as today. A real failing or in-flight status still refuses whatever `ga` says.
+1. **Staging CI is green** — the same scripted verdict `--staging` Step 2 runs, in branch mode:
+   ```bash
+   S=.claude/scripts/script-ci-status.py; python3 "$S" --branch "$STG"
+   ```
+   `green` (0) → proceed. `red`/`pending` (3/4) → refuse (`staging_not_green`), quoting `FAILING_CHECKS`/`PENDING_CHECKS`. `empty-inactive` (5) → the precondition is **inactive**: proceed, recording `NOTE` when it is non-empty. `empty-vacuous` (6) → proceed + the `low` `vacuous-ci` note. The script owns the empty-set branch (`github_actions` outranking `steps.ci`), so a real failing or in-flight status still refuses whatever `ga` says.
 2. **`staging-signoff:` stamp present** in the PRD frontmatter. Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
 3. **The sign-off still covers what is about to ship** (below). Staging advanced past every stamped sha → refuse (`stale_signoff`).
 
@@ -304,7 +312,11 @@ Release-style body (what the GUI production report and the PR render from):
 
 Branch protection enforces both; post-merge checks them, then merges:
 
-1. Verify the release PR's CI is green (the same `statusCheckRollup` check `--staging` runs, **including** its empty-check-set branch). Red/pending → refuse (`red_ci`/`pending_ci`).
+1. Verify the release PR's CI is green — the same scripted verdict, in PR mode:
+   ```bash
+   S=.claude/scripts/script-ci-status.py; python3 "$S" --pr <number>
+   ```
+   `red`/`pending` (3/4) → refuse (`red_ci`/`pending_ci`), releasing the lock first. `empty-inactive`/`empty-vacuous` (5/6) → proceed, recording `NOTE`. The empty-check-set branch is the script's, identical to `--staging`'s — one implementation, three call sites.
 2. Verify the required human review: `gh pr view <n> --json reviewDecision` → must be `APPROVED`. Not approved → refuse (`no_review`).
 3. Merge:
    ```bash
@@ -375,18 +387,23 @@ never auto. The merge stands — never pretend to un-ship.
 
 ## Step 8 — Stamp the intake ledger `completed`
 
-Close the loop for each shipped PRD. Read `INTAKE.md` (repo root), find the row
-whose `prd` cell matches this PRD's id (`prd-<n>-<slug>`), take that row's `#`,
-and set its `status` cell via the shared ledger writer — it rewrites only that
-row's status cell, leaving every other row byte-identical:
+Close the loop for each shipped PRD. Both halves go through the ledger's one
+parser — the lookup as much as the write, so no second table parser exists:
 
 ```bash
-S=.claude/scripts/stamp-intake.sh; bash "$S" INTAKE.md <row-#> --status completed
+S=.claude/scripts/stamp-intake.sh
+bash "$S" INTAKE.md - --find-row --prd prd-<n>-<slug>   # read: ROW=<#> STATUS=…
+bash "$S" INTAKE.md <ROW> --status completed            # write: that cell only
 ```
+
+`--find-row` is read-only and matches on the `prd-<n>-<slug>` token, so a bare
+id, a backticked id and a markdown link all resolve identically. `FOUND=false`
+(exit 1) → skip that PRD with a one-line note (below). The write rewrites only
+that row's status cell, leaving every other row byte-identical.
 
 This is the terminal ledger transition (`backlog` → `in-progress` →
 `completed`), and it makes the `/msg --gui` Intake tab render the idea as
-shipped. Missing `INTAKE.md`, or a PRD matching no row → **skip that PRD with a
+shipped. Missing `INTAKE.md`, or `FOUND=false` → **skip that PRD with a
 one-line note**; an unmapped PRD is not an error.
 
 **When it fires, per `release_model`:**
@@ -427,17 +444,31 @@ shipped PRD**:
    are left intact** — `reviewed` records that a gate ran, `staging-signoff`
    records the human staging test, `status: done` records that the feature
    shipped; the three are orthogonal.
-2. **Move the folder to `done/`** — `mv features/wip/prd-<n>-<slug>/
-   features/done/prd-<n>-<slug>/`, a whole-directory rename that carries the PRD
-   and its colocated `reports/`, `preflight.md` and `test/` with no path
-   rewriting. `features/` is gitignored, so the directory is normally untracked
-   and plain `mv` is the correct mover. Use `git mv` **only** when the directory
-   is actually tracked (a legacy repo that committed its PRDs before the ignore).
+2. **Move the folder to `done/`** — a whole-directory rename that carries the
+   PRD and its colocated `reports/`, `preflight.md` and `test/` with no path
+   rewriting. **Resolve the source lane first — never assume `wip/`:**
+   ```bash
+   SRC=""
+   for L in planned wip done; do
+     for D in features/$L/prd-<n>-*/; do [ -d "$D" ] && SRC="$D" && break 2; done
+   done
+   [ -n "$SRC" ] || for D in features/prd-<n>-*/; do [ -d "$D" ] && SRC="$D" && break; done
+   ```
+   The glob is **lane-agnostic and slug-agnostic** (`prd-<n>-*`, not a
+   hand-written slug) and falls back to the legacy flat layout; the **first hit
+   wins** — a PRD lives in exactly one place. Then:
+   ```bash
+   case "$SRC" in features/done/*) : ;;    # already filed — no-op
+     *) mkdir -p features/done && mv "$SRC" "features/done/$(basename "$SRC")" ;;
+   esac
+   ```
+   `features/` is gitignored, so the directory is normally untracked and plain
+   `mv` is the correct mover. Use `git mv` **only** when the directory is
+   actually tracked (a legacy repo that committed its PRDs before the ignore).
 
-**Lane-agnostic + idempotent.** Do not assume the PRD sits under `wip/`. Resolve
-it across `features/{planned,wip,done}/prd-<n>-*/` then the legacy flat
-`features/prd-<n>-*/`, and move the **first hit** (a PRD lives in exactly one
-place). Already under `features/done/` → **no-op**, skip with a one-line note.
+**Lane-agnostic + idempotent.** No hit anywhere → skip with a one-line note (the
+stamp in step 1 still stands). Already under `features/done/` → **no-op**, also
+noted — re-running `--production` after a partial run must never fail on it.
 
 **Only on a successful production ship.** A failed ship skips this step entirely
 — exactly as it skips Step 8's stamp and Step 9's tag — so a broken release

@@ -81,25 +81,35 @@ acquirer.
 
 ## Step 2 — Locate the PR + verify green CI
 
-1. Resolve the feature branch: from `--prd`'s `feat/prd-<n>-<slug>`, else the current branch, else the single open `--base staging` PR.
-2. Find the PR:
-   ```bash
-   gh pr list --base staging --head "<feature-branch>" --state open \
-     --json number,headRefName,url,statusCheckRollup --limit 1
-   ```
-   No open PR → refuse (`no_pr`) — pre-merge hasn't opened one, or it already merged.
-3. **Verify CI is green.** Branch protection is the machine enforcement; this is
-   post-merge's own check so it can refuse with a clear reason rather than a raw
-   merge rejection. Inspect `statusCheckRollup` (or
-   `gh pr checks <number> --json name,state`):
-   - Any check `state` in `FAILURE`/`ERROR`/`CANCELLED` → refuse (`red_ci`), listing each failing check name.
-   - Any check still `PENDING`/`IN_PROGRESS`/`QUEUED` → refuse (`pending_ci`), listing the pending checks. Do not wait/poll — the human re-runs post-merge when CI settles.
-   - **Empty check set** (the PR reports *zero* checks — no CI pipeline ran) → don't treat "no red" as green. First resolve `ga = policies.github_actions.enabled ?? true` (`policy-schema.md` §2b):
-     - `ga:false` → **CI is inactive by the user's own choice** (no Actions minutes / no Pro plan / CI lives elsewhere). Proceed silently: no `vacuous-ci` note, no `/pre-merge --init` nudge. Record one report line — "GitHub Actions disabled by policy (`<reason>`) — change with `/msg --update`" — and nothing else.
-     - `ga:true`/absent → resolve `steps.ci` per `policy-schema-post-merge.md` §3: `ready` → emit one `low` `vacuous-ci` note (a workflow was expected but nothing ran — likely a broken or missing `.github/workflows/` pipeline; run `/pre-merge --init`) and proceed; `opted_out`/`n/a` → the empty set is intentional, proceed silently; `missing`/`deferred`/absent → proceed as today.
+**Scripted.** PR resolution and the five-way CI verdict are one deterministic
+call — the identical logic `--production` Steps 1 and 5 run, so it lives in one
+place (`script-ci-status.py`), not three:
 
-     Never blocks the merge — branch protection is the enforcement. Note the opt-out governs *only* the empty set: the two bullets above still refuse on red/pending checks whatever `ga` says.
-   - All `SUCCESS`/`NEUTRAL`/`SKIPPED` → proceed.
+```bash
+S=.claude/scripts/script-ci-status.py
+python3 "$S" --base "$STG" --prd <prd-path>          # or --head <feature-branch>
+```
+
+The branch resolves from `--prd`'s `feat/prd-<n>-<slug>`, else pass `--head`
+with the current branch:
+
+| `VERDICT` (exit) | Do |
+|---|---|
+| — (7) `REASON=no_pr` | **refuse** `no_pr` — pre-merge hasn't opened one, or it already merged |
+| `green` (0) | proceed to Step 3 |
+| `red` (3) | **refuse** `red_ci`, listing `FAILING_CHECKS` verbatim |
+| `pending` (4) | **refuse** `pending_ci`, listing `PENDING_CHECKS`. Do not wait/poll — the human re-runs post-merge when CI settles |
+| `empty-inactive` (5) | proceed. `REASON=policy_disabled` → record `NOTE` as the one report line; `step_opted_out`/`step_na`/`no_ci_record` → proceed silently |
+| `empty-vacuous` (6) | proceed **+ one `low` `vacuous-ci` note** (`NOTE` carries it verbatim) |
+| — (8) `REASON=gh_error` | the CI state could not be read — **never a green**; surface `ERROR` and stop rather than merging blind |
+
+Branch protection is the machine enforcement; this check exists so post-merge
+refuses with a clear reason instead of a raw merge rejection. The script owns
+the whole empty-set branch — `github_actions` outranking `steps.ci`
+(`../shared/refs/policy-schema.md` §2b,
+`../shared/refs/policy-schema-post-merge.md` §3) — so "no red" is never read as
+green, here or at either `--production` call site. The opt-out governs **only**
+the empty set: checks that *do* report are graded exactly as always.
 
 ## Test-selection-miss detection (`policies.test_selection` backstop attribution)
 
@@ -113,38 +123,48 @@ This is where that promise is checked: a test the minified run **selected away**
 breaking at the backstop is the false-green risk the plan calls out, and it must
 be observable, not anecdotal.
 
-**`ci` backstop — off the Step 2 `red_ci` check just above.** When Step 2 finds a
-failing check, resolve the pre-merge run that produced this PR's head commit and
-read its `test_selection` block (`../../pre-merge/refs/output-schema.md`) — the
-committed universal report in the PRD's `reports/` folder carries it verbatim
-(`../shared/refs/report-schema.md` § *`test_selection` in the paired `.json`*, the
-durable source; the verdict JSON itself is stdout and doesn't survive the run). For each
-failing check name that names a test:
+**`ci` backstop — SCRIPTED, off the Step 2 `red_ci` check just above.** The
+attribution is a deterministic read: block → component → did the selected set
+run full or minified → the 30-day count. `script-ts-miss.py` is the one
+implementation; the model never re-derives it.
 
-- Look up that test's owning component (`unit`/`integration`/`regression`) in
-  `test_selection.per_check`.
-- That component ran minified (`selected < total`, a `fallback_reason` absent for
-  it) **and** the failing test isn't among the ones it selected → this is a
-  genuine miss: the minified run never exercised the test that just broke.
-- Record a `high` finding — category the owning component when the closed
-  category vocabulary has a slot for it (`unit`/`integration`; a `regression`
-  miss uses `other` by the deliberate convention in `refs/output-schema.md`
-  § *Test-selection-miss finding*), `rule: "test-selection-miss"` — naming the failing
-  test, its file, and the exclusion reason read straight off the
-  `test_selection` block: `not-affected` (excluded by the affected-diff rule),
-  `not-tagged` (no critical marker, so a widened tier still passed over it), or
-  `tier` (the resolved size tier's own contract excluded it, e.g. `integration`
-  at tier M). This finding is **additive** to the `red_ci` refusal already in
-  play — it explains the refusal, it never manufactures a new one or turns a
-  green run red on its own.
-- Component ran full (it **carries** a `fallback_reason` — the rule fell back —
-  or `selected == total`, or it has no `per_check` entry at all) → this is an
-  ordinary regression, not a selection miss; no finding here. Note the polarity:
-  a `fallback_reason` **present** means that component ran the full suite;
-  **absent** means it genuinely ran minified
-  (`../../pre-merge/refs/output-schema.md`).
+```bash
+S=.claude/scripts/script-ts-miss.py
+python3 "$S" --report features/**/prd-<n>-<slug>/reports/report-prd-<N>-<K>.json \
+             --failing-check "<name>" [--failing-check "<name>" …]
+```
 
-**`post-merge`/`both` backstop — Step 7's human test outcome.** The full suite
+`--report` is the **committed universal report** for the pre-merge run that
+produced this PR's head commit — the durable source
+(`../shared/refs/report-schema.md` § *`test_selection` in the paired `.json`*;
+the verdict JSON itself is stdout and doesn't survive the run).
+`--failing-check` takes `FAILING_CHECKS` straight off Step 2.
+
+| Key / exit | Meaning | Do |
+|---|---|---|
+| `SELECTION_RAN=false` (4) | the block is absent — a full or selection-off run | nothing in this section applies |
+| `MISS_COUNT=0` (0) | every failing check's component ran full, or names no selection-capable component (`NONMISS` says which) | an ordinary regression — **no finding** |
+| each `MISS=<check>\|<component>\|<selected>/<total>\|<exclusion>` (3) | the minified run never exercised the test that just broke | record a `high` finding per line |
+| `ESCALATE=true` | `WINDOW_MISS_COUNT ≥ 2` in `WINDOW_DAYS` | add `RECOMMENDATION` verbatim to the run report |
+
+Each `MISS` becomes a `high` finding — category the owning component when the
+closed category vocabulary has a slot for it (`unit`/`integration`; a
+`regression` miss uses `other` by the deliberate convention in
+`refs/output-schema.md` § *Test-selection-miss finding*),
+`rule: "test-selection-miss"` — naming the failing test, its file, and the
+exclusion reason. The script's `<exclusion>` is the block's deterministic read
+(`tier` when the resolved tier's contract excluded the component, else
+`not-affected`); telling `not-tagged` (no critical marker) from `not-affected`
+(excluded by the affected-diff rule) is the **model's** read of the finding
+context, not a schema field. These findings are **additive** to the `red_ci`
+refusal already in play — they explain it, they never manufacture a new one or
+turn a green run red.
+
+**`post-merge`/`both` backstop — Step 7's human test outcome. This half is the
+MODEL's, deliberately.** `script-ts-miss.py` does not attempt it and has no flag
+for it: mapping a "Not yet" answer's named behaviour to a known test is judgment
+about English, not a lookup (the fixed-results ruling). The script's
+`HUMAN_HALF=model` key is the standing marker. The full suite
 here is the human exercising staging, so attribution is necessarily coarser: on
 **Not yet** at Step 7, if the human's answer names a specific broken behaviour
 that maps to a known test (by name, or by the acceptance criterion it covers),
@@ -154,17 +174,19 @@ yet** (no specific test named) changes nothing about today's behaviour — still
 just an unstamped sign-off — plus one `low` note: "staging failed testing while
 test_selection is enabled; consider whether a selected-away test caused it."
 
-**Rolling-window escalation.** Count `test-selection-miss` findings across this
-PRD's committed reports plus the rest of the repo's
-`features/**/reports/report-*.json`, restricted to the most recent 30 days.
-**Two or more misses in that window** → the run report adds one line
-recommending `/pre-merge --update-criticality` (tag the escapee critical so it
-stops being selected away) or `/msg --update` to disable `policies.test_selection`
-outright, and names the escapee's test **file** as a `force_full_paths` candidate
-(`../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection.force_full_paths`) —
-a cross-cutting-enough surface that selection should stop trying to prune around
-it. A single miss stays a plain finding with no escalation line; the
-recommendation only fires once a second one lands.
+**Rolling-window escalation — the script counts it.** `WINDOW_MISS_COUNT` is
+`test-selection-miss` findings across this PRD's committed reports plus the rest
+of the repo's `features/**/reports/report-*.json`, restricted to the most recent
+30 days, **plus this run's misses**. `ESCALATE=true` (two or more in that
+window) → put `RECOMMENDATION` in the run report verbatim: it names
+`/pre-merge --update-criticality` (tag the escapee critical so it stops being
+selected away) or `/msg --update` to disable `policies.test_selection` outright,
+and points at `force_full_paths`
+(`../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection.force_full_paths`)
+— a cross-cutting-enough surface that selection should stop trying to prune
+around it; `FORCE_FULL_CANDIDATES` names the escapees' components and the model
+names the specific test **file**. A single miss stays a plain finding with no
+escalation line; the recommendation only fires once a second one lands.
 
 ## Step 3 — Merge into staging
 

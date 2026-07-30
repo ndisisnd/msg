@@ -2,6 +2,14 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P15 — post-merge mechanisation: five fixed-result scripts (i94–i98)
+
+- `.claude/scripts/`: Added — `script-ci-status.py` (five-way CI verdict + failing names + PR resolution rider, exit-coded), `script-platforms-parse.py` (17-column PLATFORMS table → per-platform key=value; macOS must DECLARE release_model per i100, malformed rows loud), `script-smoke-run.sh` (one-shot/poll/watch loops, bounded ceilings, config-gated macOS notarization/signing/appcast; never asks/rolls back/writes), `script-policy-read.py` (all ?? defaults in one call against the split schema; fail-safe full-default emission on absent/malformed), `script-ts-miss.py` (CI-backstop half only; `HUMAN_HALF=model` standing marker; 30-day window count)
+- `stamp-intake.sh`: Changed — read-only `--find-row --prd` verb reusing the existing parser (existing verbs regression-tested)
+- Call sites rewired across SKILL/staging/production/deploy/verify-deploy; Step-10 lane move now resolves across all lanes (glob was hardcoded wip/ while claiming otherwise)
+- Shared-ref pickups: policy-schema.md:211 now agrees with i73 (ask BEFORE the merge); policy-schema-post-merge.md deploy typing softened per i100
+- Honest ledger: protocols +552 words net — verdict→action contract tables and three pieces of owed content (glob fix, i100 rule ×3, scripts inventory); prose parses and loop mechanics are gone
+
 ### v5-P14 — post-merge content: three release scripts, router −44%, gate moved pre-merge-side (i54–i61/i73/i99/i100)
 
 - `.claude/scripts/`: Added — `script-signoff-coverage.sh` (ancestry + newest-stamp + uncovered-commit verdicts), `script-release-lock.sh` (acquire/release/status on the transient tag; ~1,100 words of lock spec retired), `script-release-identity.sh` (read-only tag parse/bump/build/monotonicity/regression/provenance); `stamp-prd.sh` gains `staging-signoff` (+ insert-when-absent); both stamp sites call it — no improvised frontmatter edits remain

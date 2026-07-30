@@ -119,15 +119,22 @@ decision on it (`post-merge/SKILL.md` § *Release model*):
 
 | `release_model` | Meaning | Deploy-cmd exit 0 means | Verification | Rollback lever |
 |---|---|---|---|---|
-| `deploy` | synchronous (web, macOS, server) | the target is **live** | smoke the live target (`post-merge/refs/verify-deploy.md`) | redeploy the last-good build — **`rollback_cmd`**, offered on a failed ship before the fix loop (C3, `post-merge/SKILL.md`) |
-| `submission` | asynchronous (iOS, Android) | **submitted** to store review — never "live" | submission accepted; a configured smoke is **backend/build health**, never app liveness (`post-merge/refs/submission.md`) | halt the rollout — **`rollout_halt_cmd`**, offered once a rollout exists (C3) |
+| `deploy` | synchronous (web, server, **directly-distributed macOS**) | the target is **live** | smoke the live target (`post-merge/refs/verify-deploy.md`) | redeploy the last-good build — **`rollback_cmd`**, offered on a failed ship before the fix loop (C3, `post-merge/SKILL.md`) |
+| `submission` | asynchronous (iOS, Android, **Mac App Store macOS**) | **submitted** to store review — never "live" | submission accepted; a configured smoke is **backend/build health**, never app liveness (`post-merge/refs/submission.md`) | halt the rollout — **`rollout_halt_cmd`**, offered once a rollout exists (C3) |
 
 **Resolution + inference (AC-RM1).** For each shipping platform, resolve
 `release_model` from its PLATFORMS.md row. **Missing / blank → infer from platform
-identity** (`web`/`macos`/`server` → `deploy`; `ios`/`android` → `submission`) and
+identity** (`web`/`server` → `deploy`; `ios`/`android` → `submission`) and
 emit a **warn in the resolution output** naming the platform and the inferred
 value — never guess silently. An unknown platform with no `release_model` defaults
 to `deploy` with the same warn.
+
+**`macos` is the one identity that does not settle the model.** A
+directly-distributed, Sparkle-updated `.app` is `deploy`; a Mac App Store build is
+`submission` (App Store Connect is the same console iOS uses). So a **macOS row
+declares its model**. An undeclared one still falls back to `deploy` so the run
+proceeds, and carries a macOS-specific warn naming the declaration as the fix —
+the fallback is a courtesy, not an inference from identity.
 
 **Mirrored into the resolved manifest (D7).** This follows the authored-source →
 resolved-consumer pattern `tolerance` already uses (a PLATFORMS.md profile that

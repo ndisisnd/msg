@@ -10,13 +10,25 @@ Post-merge deploys using the commands declared per platform in
 `--production` runs `production_deploy_cmd`. Each shipping platform gets its own
 command (a multi-platform repo deploys each in turn).
 
-## Resolve
+## Resolve — one scripted parse, read by every consumer
 
-1. Read `devkit/PLATFORMS.md`. Parse the pipe table; the relevant columns are
-   `platform | … | release_model | … | staging_deploy_cmd | production_deploy_cmd | …`.
-2. Missing file → warn (`No devkit/PLATFORMS.md — run /msg --init`) and treat every command as empty (Step "empty" below). Do not refuse the whole run over a missing deploy file; the merge/sign-off flow still has value.
-3. For each shipping platform, pick the deploy column for this mode **and** resolve its `release_model` (`../shared/refs/policy-schema-post-merge.md` §4): missing/blank → infer from the platform (`web`/`server` → `deploy`; `ios`/`android` → `submission`) with a warn, never silently. **`macos` is the one identity that does not settle it** — a directly-downloaded, Sparkle-updated `.app` is `deploy`, a Mac App Store build is `submission` — so an undeclared macOS row infers `deploy` **and** warns that the row must declare its model if the app ships through the Mac App Store.
-4. **Per-platform resolution is independent.** In a mixed repo each platform resolves its own `release_model` and is deployed + verified under that model in the same run — e.g. a `web`+`ios` ship treats web as `deploy` (live) and ios as `submission` (submitted) in one pass. One platform's model never coerces another's.
+**Never parse the table by hand.** `script-platforms-parse.py` is the one parser
+— this ref, `refs/verify-deploy.md` and both protocols read its output, so a
+shifted column can never mean a different command in one place than another:
+
+```bash
+S=.claude/scripts/script-platforms-parse.py; python3 "$S"     # devkit/PLATFORMS.md
+```
+
+It matches columns **by header name** (never by position) and emits one
+`<platform>.<key>=value` line per cell plus a `WARN=` line per inference or
+oddity (the script's header is the key list). Then:
+
+1. `PLATFORMS` is the shipping set; take each platform's deploy column for this mode (`staging_deploy_cmd` / `production_deploy_cmd`).
+2. **Cell markers arrive normalised**: blank, `—`, and `[USER: …]` are all the empty string — the "empty" path below. Post-merge never invents a command.
+3. **Missing file** (exit 4) → `PLATFORM_COUNT=0` + a `WARN`; warn (`No devkit/PLATFORMS.md — run /msg --init`) and treat every command as empty — do not refuse the whole run, the merge/sign-off flow still has value. **Malformed table** (exit 3) → the script refuses loudly with an `ERROR` naming the row; surface it rather than deploying a mis-mapped command.
+4. `release_model` arrives with its provenance — `release_model_source=declared` or `inferred` plus the matching `WARN`, never silently. The rule (including why **a macOS row declares its model**) is stated once in `SKILL.md` § *Release model* and `../shared/refs/policy-schema-post-merge.md` §4; surface every `WARN` in the run report.
+5. **Per-platform resolution is independent.** A `web`+`ios` ship treats web as `deploy` (live) and ios as `submission` (submitted) in one pass. One platform's model never coerces another's.
 
 ## Run
 

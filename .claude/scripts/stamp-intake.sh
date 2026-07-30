@@ -33,6 +33,15 @@
 #   remove-row   stamp-intake.sh <intake.md> <row-#> --remove-row
 #                Delete exactly one row. Never renumbers — the gap stays.
 #
+#   find-row     stamp-intake.sh <intake.md> - --find-row --prd <prd-id>
+#                READ-ONLY row lookup by PRD id — the fixed-result half of
+#                post-merge's Step 8 "find the row whose prd cell matches this
+#                PRD's id, take that row's #". Writes nothing. Emits KEY=value
+#                (FOUND / ROW / STATUS / PRD / TYPE / IDEA / GOAL / GRADE) so
+#                the caller feeds ROW straight back into the stamp verb. The
+#                positional row-# is unused — pass `-`. Reuses this file's one
+#                parser rather than growing a second one elsewhere.
+#
 #   log-append   stamp-intake.sh <intake.md> <row-#> --log-append
 #                  --change <modify|add|remove> --detail <text> [--when <YYYY-MM-DD>]
 #                Append one entry (when | row | change | detail) to
@@ -62,6 +71,7 @@ usage: stamp-intake.sh <intake.md-path> <row-#> <verb>
                [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>]
   --set-cell <type|idea|goal|grade> <value>
   --remove-row
+  --find-row --prd <prd-id>                        (read-only; pass `-` as row-#)
   --log-append --change <modify|add|remove> --detail <text> [--when <YYYY-MM-DD>]
 USAGE
 }
@@ -101,6 +111,7 @@ while [[ $# -gt 0 ]]; do
     --prd)        prd="${2:-}"; have_prd=1; shift 2 || { usage; exit 2; } ;;
     --append-row) set_verb append-row; shift ;;
     --remove-row) set_verb remove-row; shift ;;
+    --find-row)   set_verb find-row; shift ;;
     --log-append) set_verb log-append; shift ;;
     --set-cell)   set_verb set-cell; cell="${2:-}"; value="${3:-}"
                   [[ $# -ge 3 ]] || { usage; exit 2; }; shift 3 ;;
@@ -408,6 +419,72 @@ remove-row)
     0) commit_tmp "$tmp"; trap - EXIT; exit 0 ;;
     1) echo "stamp-intake: row #$row not found in ledger $file" >&2; exit 1 ;;
     2) echo "stamp-intake: no ledger table found in $file" >&2; exit 1 ;;
+    *) echo "stamp-intake: internal error (awk rc=$rc)" >&2; exit 2 ;;
+  esac
+  ;;
+
+# ── find-row (READ-ONLY: PRD id → row #) ─────────────────────────────────────
+# post-merge --production Step 8 needs "the row whose prd cell matches this
+# PRD's id" before it can stamp `completed`. That lookup is a fixed result, and
+# it belongs to the ledger's one parser — a second parser somewhere else is the
+# drift this file exists to prevent. Matching is on the `prd-<n>-<slug>` token
+# extracted from the cell, so a bare id, a backticked id and a markdown link
+# all resolve identically. A no-match is NOT an error in the caller's protocol
+# (an unmapped PRD is skipped with a note) — it is exit 1 with FOUND=false.
+find-row)
+  if [[ -z "$prd" ]]; then
+    echo "stamp-intake: --find-row needs --prd <prd-id>" >&2
+    usage; exit 2
+  fi
+  SI_WANT="$prd" awk "$awk_lib"'
+  function token(v,   t) {
+    t = tolower(unesc(trim(v)))
+    if (match(t, /prd-[0-9]+(-[a-z0-9._-]+)?/)) return substr(t, RSTART, RLENGTH)
+    return t
+  }
+  BEGIN {
+    header_found=0; matched=0
+    want = token(ENVIRON["SI_WANT"])
+  }
+  {
+    line=$0
+    if (line !~ /\|/) next
+    if (!header_found) {
+      n=splitcells(line, hc)
+      ci_num=0; ci_status=0
+      for (j=1;j<=n;j++) {
+        name=tolower(trim(hc[j]))
+        if (name=="#") ci_num=j
+        else if (name=="status") ci_status=j
+        cols[name]=j
+      }
+      if (ci_num>0 && ci_status>0) { header_found=1 }
+      next
+    }
+    n=splitcells(line, dc)
+    if (issep(dc, n)) next
+    if (cols["prd"]==0) next
+    if (want=="" || token(dc[cols["prd"]]) != want) next
+    matched=1
+    print "FOUND=true"
+    print "ROW=" rownum(dc[cols["#"]])
+    print "PRD=" unesc(trim(dc[cols["prd"]]))
+    print "STATUS=" unesc(trim(dc[cols["status"]]))
+    if (cols["type"]>0)  print "TYPE="  unesc(trim(dc[cols["type"]]))
+    if (cols["idea"]>0)  print "IDEA="  unesc(trim(dc[cols["idea"]]))
+    if (cols["goal"]>0)  print "GOAL="  unesc(trim(dc[cols["goal"]]))
+    if (cols["grade"]>0) print "GRADE=" unesc(trim(dc[cols["grade"]]))
+    exit 0
+  }
+  END {
+    if (!header_found) { print "FOUND=false"; print "ROW="; exit 2 }
+    if (!matched)      { print "FOUND=false"; print "ROW="; exit 1 }
+  }' "$file"
+  rc=$?
+  case $rc in
+    0) exit 0 ;;
+    1) echo "stamp-intake: no ledger row maps to PRD '$prd' in $file" >&2; exit 1 ;;
+    2) echo "stamp-intake: no ledger table found in $file" >&2; exit 2 ;;
     *) echo "stamp-intake: internal error (awk rc=$rc)" >&2; exit 2 ;;
   esac
   ;;

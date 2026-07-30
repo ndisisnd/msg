@@ -108,10 +108,20 @@ Finding shape: `../shared/refs/finding-schema.md` (source `post-merge`). Report:
 
 ## Pre-flight: policy file + `init` lifecycle (both modes)
 
-Before Step 1 in **either** mode, load + validate `devkit/policy.json` **once**
-and check the `init` lifecycle gate (`../shared/refs/policy-schema.md` §0). No
-file / malformed / `version` ≠ 1 → built-in defaults + exactly one info line;
-never abort on a parse error.
+Before Step 1 in **either** mode, resolve the policy **once, by script** —
+`script-policy-read.py` is the read-side twin of `script-policy-set.py` and
+resolves every `?? default` in one call, so no mode re-derives one in prose:
+
+```bash
+S=.claude/scripts/script-policy-read.py; python3 "$S"     # devkit/policy.json
+```
+
+It emits the full key set (the script's header is the key list) plus one `WARN=`
+line per validation finding — surface each as one report note. **Fail-safe by
+construction**: no file / malformed / `version` ≠ 1 → built-in defaults with
+`POLICY_STATE` saying why, exit 0, so a policy read can never refuse a run. Emit
+exactly one info line in those cases. Then check the `init` lifecycle gate
+(`../shared/refs/policy-schema.md` §0).
 
 | policy `init` state | action |
 |---|---|
@@ -119,17 +129,18 @@ never abort on a parse error.
 | `init: false` (or absent on a present file) | **auto-run `--init` inline first**; on completion it flips `init: true`, then continue. If the user **aborts** `--init`, stop — run **no** protocol step |
 | `init: true` | proceed to Step 1 directly |
 
-The same load resolves `release_flow`, `branch_protection`, and `github_actions`
-(`ga = policies.github_actions.enabled ?? true` — the user's answer to whether
-GitHub Actions CI is wanted at all, `../shared/refs/policy-schema.md` §2b). No
-gate run ever *writes* `policy.json` — only `--init` does, and `--init` itself
-never merges, opens PRs, or deploys (`refs/protocol-init.md`).
+That one call is also where `release_flow`, `branch_protection`,
+`staging_readiness`, `steps.*` and `github_actions` come from
+(`GITHUB_ACTIONS` = the user's answer to whether GitHub Actions CI is wanted at
+all, `../shared/refs/policy-schema.md` §2b) — no step re-reads the file. No gate
+run ever *writes* `policy.json` — only `--init` does, and `--init` itself never
+merges, opens PRs, or deploys (`refs/protocol-init.md`).
 
 ## Release flow (both modes)
 
-Resolve from the policy file (`../shared/refs/policy-schema.md` §1):
-`flow = policies.release_flow.mode ?? "staged"`, `prod = prod_branch ?? "main"`,
-`stg = staging_branch ?? "staging"`. No `policy.json` → `staged` everywhere.
+Already resolved by the pre-flight call above (`../shared/refs/policy-schema.md`
+§1): `flow = FLOW`, `prod = PROD_BRANCH`, `stg = STG_BRANCH`. No `policy.json` →
+`staged`/`main`/`staging` everywhere.
 
 | `flow` | `--staging` | `--production` |
 |---|---|---|
@@ -165,7 +176,9 @@ rather than restating it.
 ## Release model (both modes)
 
 Every shipping platform carries a `release_model` ∈ `deploy` | `submission`,
-authored as a `devkit/PLATFORMS.md` column and resolved per platform
+authored as a `devkit/PLATFORMS.md` column and resolved per platform by
+`script-platforms-parse.py` — the **one** parser of that table, read by
+`refs/deploy.md`, `refs/verify-deploy.md` and both protocols
 (`../shared/refs/policy-schema-post-merge.md` §4). It is **orthogonal to
 `release_flow`**: `release_flow` decides *which stages run*, `release_model`
 decides *what a deploy/verify stage means* for each platform.
@@ -176,10 +189,12 @@ decides *what a deploy/verify stage means* for each platform.
 | `submission` | iOS, Android, macOS on the Mac App Store | **submitted** to store review | submission accepted; a configured smoke is backend/build health | `submitted` (+ track) + monitor-handoff, **never** `live` |
 
 Resolution is **per platform and independent**: a mixed repo verifies web as
-live and iOS as submitted in the **same run**. Missing `release_model` →
-inferred from the platform identity with a warn, never guessed silently — and a
-macOS row is the one platform whose identity does not settle it (direct download
-vs Mac App Store), so a macOS row **declares** its model. The full submission
+live and iOS as submitted in the **same run**. `release_model_source` says which
+happened — `declared` (the row said so) or `inferred` from the platform identity
+with a `WARN`, never guessed silently. A macOS row is the one platform whose
+identity does **not** settle it (direct download vs Mac App Store), so a macOS
+row **declares** its model; an undeclared one falls back to `deploy` and carries
+the macOS-specific warn naming the declaration as the fix. The full submission
 lifecycle, the monitor-handoff, `completed`-on-submit and the submitted-not-live
 rule live in `refs/submission.md` — the one home; nothing here restates them.
 
@@ -206,8 +221,10 @@ dead-end. In order:
 
 1. **Offer the rollback / rollout-halt — BEFORE the fix loop, always-ask, never
    auto.** The highest-value action after a broken ship is to restore last-good
-   (deploy model) or halt the rollout (submission model). Resolve the failing
-   platform's lever from `devkit/PLATFORMS.md`:
+   (deploy model) or halt the rollout (submission model). The failing platform's
+   lever is already resolved — `script-platforms-parse.py` emits
+   `<p>.rollback_lever_key` (which lever this model uses) and
+   `<p>.rollback_lever` (the command; empty ⇒ unconfigured):
    - **`deploy` model with a configured `rollback_cmd`** → `AskUserQuestion`
      (header **Rollback**): "The `<platform>` `<staging|production>` deploy
      failed. Restore the last-good build now (`rollback_cmd`)?" — **Yes, roll
@@ -275,4 +292,5 @@ chat output after the mode's own emissions.
 - `../shared/refs/policy-schema.md` — the shared core of `devkit/policy.json` (§0 `init`, §1 `release_flow`, §2b `github_actions`)
 - `../shared/refs/policy-schema-post-merge.md` — post-merge's half: §2 `branch_protection`, `steps.<key>` + §3, §4 `release_model`, §5 `staging_ready`, §6 the release lock
 - `../shared/refs/fix-loop.md`, `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`
-- `.claude/scripts/post-merge-protection.sh` · `script-signoff-coverage.sh` · `script-release-lock.sh` · `script-release-identity.sh` · `stamp-prd.sh` · `stamp-intake.sh`
+- `.claude/scripts/` — `post-merge-protection.sh` · `script-signoff-coverage.sh` · `script-release-lock.sh` · `script-release-identity.sh` · `stamp-prd.sh` · `stamp-intake.sh` (incl. `--find-row`, PRD id → ledger row)
+- `.claude/scripts/` — the resolvers: `script-policy-read.py` (every policy mode + its `?? default`) · `script-ci-status.py` (PR resolution + the one CI verdict) · `script-platforms-parse.py` (the one `PLATFORMS.md` parse) · `script-smoke-run.sh` (the v2 smoke loops + the macOS checks) · `script-ts-miss.py` (test-selection-miss, CI-backstop half)
