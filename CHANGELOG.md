@@ -2,6 +2,11 @@
 
 ## Unreleased — v5.0.0
 
+### v5-P2 — intake: deterministic row writer + single-homed rules (i102/i103)
+
+- `.claude/scripts/stamp-intake.sh`: Changed — four new verbs beside the untouched stamp path: `--append-row` (dup-# refused), `--set-cell` (old value on stdout for the diff echo; `#`/`date`/`status`/`prd` refused), `--remove-row` (never renumbers), `--log-append` (lazy-creates `INTAKE-UPDATE.md` with the canonical header, `modify|add|remove` only); exit codes extended 0/1/2 → +3 refused / +4 dup / +5 write-fail; shared awk parser, env-passed values, escaped-pipe safe
+- `.claude/skills/intake/refs/*.md`: Changed — the three protocols' write steps call the writer (byte-for-byte-preservation promises → script guarantees); INTAKE-UPDATE format single-homed in `protocol-update.md` § The update log; ≥8-gate split why→rubric / mechanics→protocol-intake; "Two edit surfaces" retitled "Three edit surfaces"
+
 ### v5-P1 — plan-tune slim + mechanise (i4–i10)
 
 - `.claude/skills/plan-tune/SKILL.md`: Changed — Persona → 2-line Posture (non-inferable rules relocated), Step-3 re-verification checklist cut, no-op instructions cut, certification.md restatements → pointers, D*/G* plan-history citations stripped, glossary Minor + Step-1 GLOSSARY read cut; §9-ledger and cert-check prose replaced by script calls. 2,946 → 2,239 words (−24%)

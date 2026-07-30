@@ -88,41 +88,57 @@ Grade every confirmed idea (core + accepted suggestions + split rows) per
 codebase read.** Produce the compact `grade` cell: `C:<1|2|3|5|8|13> T:<1|2|3|5|8|13>
 S:<now|next|later|blocked-by-#n>`.
 
-**≥8-split gate.** Any idea graded `C:` ≥ `8` triggers one `AskUserQuestion`:
+**≥8-split gate.** Any idea graded `C:` ≥ `8` triggers one `AskUserQuestion`. Why the
+gate exists and why the threshold is `8`: `refs/rubric.md` § *Complexity drives the split
+gate* — this step owns only the mechanics.
 
 > header **Split ≥8**, question "`<idea>` grades `<grade>` (cross-platform / migration + breaking
 > surface). Break it into smaller ideas?"
 > - **Yes, split it** — derive 2–4 smaller ideas (same muscle as Step 2), re-grade each
->   (typically `3`/`5`), and replace the `≥8` row with them. Front-door defence of
->   reviewability — each piece is small enough for one reviewer to hold at once.
+>   (typically `3`/`5`), and replace the `≥8` row with them.
 > - **Keep it whole** — record the single `≥8` row; the downstream reviewability risk is
 >   now a known, logged fact.
 
+**Replacement semantics** — for this gate and for Step 2's hybrid split, in capture and
+in `--update` alike: the original row's `#` is retained by the **first** resulting row;
+the others take fresh `#`s after the current maximum. No existing `#` is reused or
+renumbered, so `S:blocked-by-#n` references elsewhere in the ledger never dangle. At
+capture there is no original row on disk yet, so every resulting row is simply appended.
+
 ## Step 5/5 — Write the rows + summarise
 
-Append each confirmed, graded idea as a row to `INTAKE.md`'s table, in capture order:
+Append each confirmed, graded idea to `INTAKE.md`'s row table, in capture order — **one
+call per row**, through the shared ledger writer. Never hand-edit the file:
 
+```bash
+S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"
+bash "$S" INTAKE.md <row-#> --append-row \
+  --type <feature|bug> --idea "<idea>" --goal "<goal>" --grade "<grade cell>"
 ```
-| # | date | type | idea | goal | grade | status | prd |
-```
 
-- `#` — next integer after the highest existing row (`1` for the first).
-- `date` — today, `YYYY-MM-DD`.
-- `type` — `feature` or `bug`.
-- `idea` — the sharpened one-line description.
-- `goal` — the core user outcome (or `[USER: …]` if the user genuinely declined to specify — never invent one).
-- `grade` — the Step-4 cell.
-- `status` — `backlog` (always, on capture — intake never advances a row).
-- `prd` — empty (filled by `plan-pm` when it plans the row).
+What you decide:
 
-Preserve every existing row verbatim; only append. **Capture writes no log
-entries** — the row's own `date` cell already records when it entered, and
-logging captures would duplicate the whole ledger into the log. The log lives
-in `INTAKE-UPDATE.md`, a separate file written only by `--update`/`--delete`;
-capture never touches it. If a legacy `INTAKE.md` still carries an in-file
-`## Update log` section (pre-migration), append new rows **above** it, inside
-the row table — migrating that section out to `INTAKE-UPDATE.md` is
-`--update`/`--delete`'s job on their first touch, not capture's.
+- `<row-#>` — next integer after the highest existing row (`1` for the first); increment it yourself across a multi-row capture.
+- `--type` — `feature` or `bug`.
+- `--idea` — the sharpened one-line description.
+- `--goal` — the core user outcome (or `[USER: …]` if the user genuinely declined to specify — never invent one).
+- `--grade` — the Step-4 cell.
+
+What the writer guarantees, so this protocol no longer promises it: `date` defaults to
+today, `status` to `backlog` (capture never advances a row), `prd` to empty; every other
+row, the header and the surrounding prose stay byte-identical; pipes inside `idea`/`goal`
+are escaped; a legacy in-file `## Update log` section is never appended past — the new
+row lands inside the ledger table above it.
+
+**Exit codes:** `0` written · `1` no ledger table (Step 1 should have caught that —
+re-check the file) · `2` usage error · `4` that `#` already exists (re-read the ledger
+for the true maximum, then retry) · `5` write failure. On any non-zero, stop and report;
+do not fall back to a hand-edit.
+
+**Capture writes no log entries** — the row's own `date` cell already records when it
+entered, and logging captures would duplicate the whole ledger into the log. The log is
+`--update`/`--delete`'s file: `protocol-update.md` § *The update log*. Migrating a legacy
+in-file `## Update log` section out is likewise their job on first touch, not capture's.
 
 Then emit a compact summary:
 

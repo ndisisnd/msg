@@ -42,14 +42,10 @@ check here means `INTAKE-UPDATE.md` already reflects the row's history by the
 time W4 reads it, instead of W4 finding that file absent while the real history
 still sits in the in-file section.
 
-1. **Present** → move the log's **entry rows only** — never the legacy `##
-   Update log` heading or its column-header row — into `INTAKE-UPDATE.md`.
-   `protocol-update.md` § *The update log* states the canonical header and the
-   entry-rows-only rule in full; this step follows that rule by citation, not
-   by restating it: create `INTAKE-UPDATE.md` with the canonical header if it
-   doesn't exist yet, append the moved entry rows under the header's table,
-   then strip the section from `INTAKE.md` (row table + everything above it is
-   untouched).
+1. **Present** → migrate it exactly as `protocol-update.md` § *The update log*
+   (**Migration**) prescribes — same rule, same result, whichever mode touches
+   the ledger first. Only the trigger point differs: here it runs pre-run
+   rather than at write time, for the W4 reason above.
 2. **Absent** → nothing to migrate; proceed directly.
 
 **Idempotent.** A ledger already split (no in-file section) hits case 2 on
@@ -138,18 +134,29 @@ On **Cancel**: write nothing, say so, terminate.
 
 ## Step 5/5 — Remove + log
 
-- Remove the target row line(s) **only**. Every other row, the header, the
-  separator, and the preamble are preserved byte-for-byte. `INTAKE.md` no
-  longer carries the log **for a post-migration ledger** — and every ledger is
-  post-migration by this point, since **Pre-run — migration** (above) already
-  ran, unconditionally and idempotently, before Step 1. So there is nothing
-  else in the ledger to preserve around the removal.
-- **Do not renumber.** The gap stays.
+- Remove the target row line(s) **only** — one writer call per row, never a
+  hand-edit:
+
+```bash
+S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"
+bash "$S" INTAKE.md <row-#> --remove-row
+```
+
+  The writer deletes exactly that row and **never renumbers** — the gap is
+  structural, not a promise. Every other row, the header, the separator and the
+  preamble stay byte-identical. Exit codes: `0` removed · `1` no such row
+  (re-read the ledger; write nothing further) · `2` usage error / missing file ·
+  `5` write failure. On any non-zero, stop and report before the log write.
 - **Do not touch** `features/`, any PRD file, or any branch. The ledger row is the
   entire blast radius.
-- Append one `remove` entry per deleted row to `INTAKE-UPDATE.md` — this is the
-  first and only writer of the `remove` kind. Lazy-created on first write, same
-  as `--update`'s log writes:
+- Append one `remove` entry per deleted row — this mode is the first and only
+  writer of the `remove` kind. Format, canonical header and the lazy-create
+  rule: `protocol-update.md` § *The update log*.
+
+```bash
+bash "$S" INTAKE.md <row-#> --log-append --change remove \
+  --detail 'deleted "<idea>" (<grade>, <status>) — orphaned <prd-path>'
+```
 
 ```
 | 2026-07-21 | #4 | remove | deleted "add full-text search over notes" (C:5 T:3 S:now, backlog) — orphaned features/prd-7-search/ |

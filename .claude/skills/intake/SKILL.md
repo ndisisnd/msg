@@ -122,6 +122,11 @@ ranges only; fake-precise numbers are forbidden. Full rubric: `refs/rubric.md`.
 `devkit/AHA.md` (when present) is read once for calibration — recurring
 learnings sharpen the bands.
 
+**The `≥8` split gate.** An idea grading `C:` ≥ `8` gets one question: split it,
+or keep it whole and carry the logged risk. Why the gate exists and why `8`:
+`refs/rubric.md` § *Complexity drives the split gate*. The question itself and
+its replacement semantics: `refs/protocol-intake.md` Step 4.
+
 **Re-grading (`--update`).** A grade is a judgment *of a specific text*. When an
 update changes an idea **materially** (scope, surface, or capability), the row is
 re-graded by the same single-turn pass and the same split gates apply. A
@@ -132,7 +137,7 @@ the meaning; intake re-derives the band.
 ## Status lifecycle (D14)
 
 intake writes every new row as `backlog`. It never advances a row itself — **in
-either mode.** `--update` *reads* `status` as a gate (§ Two edit surfaces) and
+either mode.** `--update` *reads* `status` as a gate (§ Three edit surfaces) and
 still never writes it.
 
 | Status | Set by | When |
@@ -143,10 +148,10 @@ still never writes it.
 
 The `/msg --gui` Intake tab may hand-edit statuses (same trust level as its PRD-board edits).
 
-## Two edit surfaces
+## Three edit surfaces
 
-The ledger has two writers, and they are **deliberately split by cell** — neither
-is a superset of the other.
+The ledger has three writers, and they are **deliberately split by cell** — none
+is a superset of another.
 
 | | `/intake --update` | `/intake --delete` | `/msg --gui` Intake tab |
 |---|---|---|---|
@@ -172,25 +177,20 @@ earn a dedicated warning pass rather than a flag on an edit path.
 
 ## Update log
 
-Every `--update` edit and every `--delete` removal appends to `INTAKE-UPDATE.md`
-— its **own file**, at the repo root beside `INTAKE.md`, not a section inside
-the ledger. Append-only, columns `when | row | change | detail`, where `change`
-is exactly one of `modify` (a cell changed, one entry per cell) / `add` (a row
-created by a split) / `remove` (a row deleted). `INTAKE.md`'s row table is the
-current state; `INTAKE-UPDATE.md` is how it got there — including rows that no
-longer exist, whose entries are never pruned. **Lazy-created**: absence is
-never an error, and the file appears on the first log write; there is no
-`TEMPLATE-INTAKE-UPDATE.md` to scaffold from, since `/msg --init` does not
-pre-create it. A ledger that predates the split and still carries an in-file
-`## Update log` section is **migrated on first touch** by `--update`/`--delete`
-— section moved verbatim, then removed from `INTAKE.md`; idempotent. Canonical
-header + format: `refs/protocol-update.md` § *The update log*.
+Every `--update` edit and every `--delete` removal appends one entry to
+`INTAKE-UPDATE.md` — its **own file**, at the repo root beside `INTAKE.md`, not
+a section inside the ledger. Append-only and lazy-created; capture never touches
+it. `INTAKE.md`'s row table is the current state, `INTAKE-UPDATE.md` is how it
+got there. Columns, the `modify`/`add`/`remove` kinds, the canonical header and
+the migration rule for a legacy in-file `## Update log` section all live in one
+place: `refs/protocol-update.md` § *The update log*.
 
 ## References
 
 - `refs/protocol-intake.md` — end-to-end capture protocol: scaffold check, interview, hybrid/`≥8` split, grading pass, row write
 - `refs/protocol-update.md` — end-to-end update protocol: ledger scan, full review table, target resolution, lock gates, change interview, re-grade + re-split, targeted write + update log (canonical `INTAKE-UPDATE.md` header + migration rule)
 - `refs/protocol-delete.md` — end-to-end delete protocol: full ledger table, target resolution, the four-check warning pass, the confirm, no-renumber removal + `remove` log entry
+- `.claude/scripts/stamp-intake.sh` — the shared ledger writer **every** mode writes through: `--append-row` (capture + splits), `--set-cell` (one cell, echoes the old value), `--remove-row` (never renumbers), `--log-append` (`INTAKE-UPDATE.md`, lazy-created with the canonical header). Its `--status`/`--prd` stamp verb belongs to `plan-pm` and `post-merge`, not to intake
 - `refs/rubric.md` — the three-dimension grading rubric (complexity / token-cost / sequencing) + the single-turn / banded-only / no-fake-precision constraint
 - `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds (row table only, no log section); **capture mode** offers to scaffold from it when the ledger is missing (update mode never does)
 - `devkit/AHA.md` — read (when present) for grading calibration; written by `plan-tune` self-healing (G5)

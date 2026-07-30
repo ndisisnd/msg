@@ -85,9 +85,13 @@ grade above `1`**, or the rubric is just measuring file counts.
 
 ## Complexity drives the split gate
 
+This section owns **why** the gate exists and why it sits at `8`. The question's
+wording, the accept/decline branches and the replacement semantics are the
+protocol's: `refs/protocol-intake.md` Step 4.
+
 A **`C:` ≥ 8 complexity grade is actionable, not just descriptive.** It triggers the
 split question at capture — "this grades 8 — break it into smaller ideas?" — the
-same muscle as hybrid-ask detection (`refs/protocol-intake.md`).
+same muscle as hybrid-ask detection.
 
 **Why the gate exists: reviewability.** An idea that stays whole above `8` produces
 tickets whose moving parts no single review holds at once — the reviewer either
@@ -96,10 +100,6 @@ the front door is cheaper than splitting at build time, and the split is what ma
 each piece reviewable. The gate is not defending a line count; it is defending the
 point at which a human (or a pair-review agent) can still say "yes, all of this is
 correct" in one pass.
-
-On accept → replace the one `≥8` row with the split rows (each re-graded, typically
-`3`/`5`). On decline → keep the single `≥8` row (the downstream reviewability
-pressure is now a known, recorded risk).
 
 **The gate fires at `≥ 8`, not at `13`.** Six bands spread across the range that
 four bands used to cram into one, so firing on the top band alone would catch *less*

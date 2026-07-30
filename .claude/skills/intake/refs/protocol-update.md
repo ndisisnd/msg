@@ -167,10 +167,8 @@ Classify the settled change:
     fire the split confirmation from `protocol-intake.md` Step 2. Same
     replacement semantics.
 
-**Replacement semantics** (both gates): the original row's `#` is retained by the
-**first** resulting row; the others take fresh `#`s appended after the current
-maximum. No existing `#` is reused or renumbered — so `S:blocked-by-#n`
-references elsewhere in the ledger never dangle.
+**Replacement semantics** for both gates are `protocol-intake.md` Step 4's, applied
+verbatim here — the surviving row keeps the original `#`, the rest take fresh ones.
 
 **Sequencing.** `S:` is re-derived with the rest of the grade cell, which can
 flip `S:blocked-by-#4` → `S:now`. Correct, but surface it — the grade diff in
@@ -190,18 +188,29 @@ Show old → new for **every** changed cell, including the grade:
 
 ### The write
 
-A **targeted row rewrite, never a file rewrite**:
+A **targeted cell rewrite, never a file rewrite** — one call per changed cell,
+through the shared ledger writer. Never hand-edit `INTAKE.md`:
 
-- Rewrite **only** the target row's changed cells. Every other row, the header,
-  the preamble prose, and all table formatting are preserved byte-for-byte.
-  `INTAKE.md` holds the ledger only — the log lives in `INTAKE-UPDATE.md`
-  (below), a separate file this write does not touch except to append.
-- `#` and `date` are **never** rewritten.
-- `status` and `prd` are **never** written.
-- Split cases (Step 5) rewrite the target row **and** append the new rows in the
-  same write.
-- **Log entries are written in the same operation as the row change.** A row
-  edited without its log entry is a defect, not a degraded success.
+```bash
+S=.claude/scripts/stamp-intake.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/stamp-intake.sh"
+bash "$S" INTAKE.md <row-#> --set-cell <idea|goal|type|grade> "<new value>"
+```
+
+- The writer **prints the cell's old value on stdout** — the authoritative
+  left-hand side of the diff echo above, and the way to confirm the echo matched
+  what was really on disk. Everything the call does not name (every other row,
+  the header, the preamble prose, all table formatting) stays byte-identical.
+- `#` and `date` are **refused** by the writer, and so are `status` and `prd` —
+  D14 is enforced in code here, not by good intentions.
+- Split cases (Step 5) call `--set-cell` for the surviving row and
+  `--append-row` (`protocol-intake.md` Step 5) for each new row.
+- **Log entries are written in the same operation as the row change** — one
+  `--log-append` call each (below). A row edited without its log entry is a
+  defect, not a degraded success.
+- **Exit codes:** `0` written · `1` no such row `#` · `2` usage error or no such
+  column · `3` refused cell · `4` `#` already exists (`--append-row`) · `5` write
+  failure. On any non-zero: stop, report, write nothing further — a half-applied
+  edit is worse than none.
 - **No-op guard:** if the resolved change equals the current value, report
   `no change` and write **nothing** — no row edit, no log entry, and (see
   *Migration* below) no migration either: migration rides the first *write*,
@@ -210,9 +219,18 @@ A **targeted row rewrite, never a file rewrite**:
 
 ### The update log — `INTAKE-UPDATE.md`
 
+**This section is the single home of the `INTAKE-UPDATE.md` contract** — format,
+kinds, canonical header, migration. Everywhere else in intake cites it.
+
 The log is a **separate file**, `INTAKE-UPDATE.md`, sitting beside `INTAKE.md`
 at the repo root — not a section inside the ledger. Append **one entry per
-changed cell**:
+changed cell**, one writer call each:
+
+```bash
+bash "$S" INTAKE.md <row-#> --log-append --change <modify|add|remove> --detail "<text>"
+```
+
+The entries it produces:
 
 ```
 | when | row | change | detail |
@@ -223,19 +241,22 @@ changed cell**:
 | 2026-07-21 | #9 | add | split from #4 — "search result ranking" (C:3 T:2 S:next) |
 ```
 
-- `when` — today, `YYYY-MM-DD`. Distinct from the row's `date`.
-- `row` — the `#` the entry is *about*. A split writes one `modify` for the
-  surviving row plus one `add` per new row.
-- `change` — **exactly one of `modify` / `add` / `remove`.** No other value is
-  ever written. **Update mode never writes `remove`** — that kind belongs to
-  `/intake --delete` (`protocol-delete.md`), which is the only writer of it.
+- `when` — stamped by the writer as today, `YYYY-MM-DD` (override with `--when`).
+  Distinct from the row's `date`.
+- `row` — the `#` the entry is *about*, from the positional argument. A split
+  writes one `modify` for the surviving row plus one `add` per new row.
+- `change` — **exactly one of `modify` / `add` / `remove`**; the writer refuses
+  anything else (exit `3`). **Update mode never writes `remove`** — that kind
+  belongs to `/intake --delete` (`protocol-delete.md`), its only writer.
 - `detail` — `<cell>: <old> → <new>` for `modify`; `split from #n — "<idea>"
-  (<grade>)` for `add`.
-- **Append-only.** Existing entries are never rewritten, reordered, or pruned.
+  (<grade>)` for `add`. Pipes inside it are escaped by the writer.
+- **Append-only.** The writer only ever appends; existing entries are never
+  rewritten, reordered, or pruned.
 
 **Missing file.** `INTAKE-UPDATE.md` is **lazy-created** — it does not exist
-until the first entry is written. Absence is never an error; on first write,
-create it with this canonical header, then append the entry rows:
+until the first entry is written. Absence is never an error: the first
+`--log-append` creates the file with this canonical header and then appends the
+entry row, and later appends never repeat the header.
 
 ```
 # INTAKE-UPDATE — Update log
@@ -254,7 +275,9 @@ reused, so the ledger keeps a visible gap).
 ```
 
 No `TEMPLATE-INTAKE-UPDATE.md` exists — this header is the one canonical
-source for the file's shape; `/msg --init` does not pre-create it.
+source for the file's shape, emitted verbatim by
+`.claude/scripts/stamp-intake.sh --log-append`; `/msg --init` does not
+pre-create it.
 
 **Migration (first touch — meaning first *writing* touch).** A ledger that
 predates the split may still carry an in-file `## Update log` section at the
