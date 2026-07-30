@@ -97,6 +97,11 @@ After the `COLLISION` / `MISSING_FILES` lines the script emits the decomposition
   wave mutually file-disjoint, checked **across** agents so cross-agent file sharing splits
   into different waves).
 
+**Exit 3** (`ERROR=no-files-column` on stderr, no decomposition emitted) — the exec table has
+no `Files` column at all, so there is nothing to decompose. Same hard failure as an
+`UNPACKETED` row: stop, have the plan wave populate the column, and re-run. `--waves` exits 0
+on collisions but **not** on this.
+
 The script's `PACKET` / `WAVE` lines **ARE** the decomposition — any hand-derived packet or
 wave that contradicts them is wrong; the script wins. Your **residual judgment is exactly
 two things**: (a) the **model tier** per packet (§ Model policy — the script never assigns

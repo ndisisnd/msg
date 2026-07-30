@@ -12,12 +12,19 @@ consumed/produced.
 
 Usage:
   echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}]' \\
-    | script-em-exec-skeleton.py [--write] <prd.md>
+    | script-em-exec-skeleton.py [--write] [--force] <prd.md>
 
   --write   write the table into the PRD's reserved "## N. Feature execution
             table" section in place (the exec table's ONE home), replacing the
             "_To be populated by plan-em …_" placeholder and any blank skeleton
             table already there. Without it the table only goes to stdout.
+
+  --force   allow --write to overwrite an exec table that already holds work.
+            Without it, --write refuses (exit 1, REFUSING_OVERWRITE=<n>) when the
+            section's table has any populated "Execution steps"/"Files" cell, or
+            holds a table whose header resolves neither column (then the key is
+            REFUSING_OVERWRITE=unresolved-columns). A genuinely blank skeleton
+            (or the placeholder) is replaced as before.
 
 Stdin: a JSON array of {"fid","concern","agent"} objects, in row order.
 Stdout: the skeleton table — header + separator + one row per spec entry:
@@ -28,11 +35,15 @@ Stdout: the skeleton table — header + separator + one row per spec entry:
 
 Exit codes:
   0 = table rendered (or written).
-  1 = a spec fid is absent from §3, or --write found no reserved
-      "Feature execution table" section (named on stderr; nothing written).
+  1 = a spec fid is absent from §3, --write found no reserved
+      "Feature execution table" section, or --write would overwrite a populated
+      exec table without --force (named on stderr; nothing written).
   2 = malformed JSON on stdin / usage / unreadable or unwritable PRD.
+
+--write goes through a temp file + os.replace, so a crash can never truncate the
+PRD (same discipline as script-eng-close-loop.py / script-ledger.py).
 """
-import sys, re, json
+import sys, re, json, os, tempfile
 
 HEADER = "| Feature | Execution steps | Files | Todos | Agent |"
 SEP    = "|---------|----------------|-------|-------|-------|"
@@ -116,7 +127,42 @@ EXEC_HDR = re.compile(r"^##\s+(?:\d+\.\s*)?(?:Feature execution table|Execution 
 PLACEHOLDER = re.compile(r"^_To be populated by plan-em\b.*_$", re.I)
 
 
-def write_section(prd, lines, rows):
+def scan_existing_table(body):
+    """Inspect the table already sitting in the exec-table section.
+
+    Returns (has_table, resolved, populated):
+      has_table  a markdown table was found in the section body
+      resolved   its header resolved AT LEAST ONE of Execution steps / Files
+                 (a pre-v5 table carries Feature/Execution steps/Agent only)
+      populated  number of data rows with a non-blank cell in a resolved column
+
+    A blank skeleton (header + separator, no rows) and the bare placeholder both
+    come back populated=0 — those are the only shapes --write may replace.
+    """
+    headers, cols, populated, has_table = None, [], 0, False
+    for ln in body:
+        s = ln.strip()
+        if not s.startswith("|"):
+            continue
+        if re.match(r"^[\s:|-]+$", s.replace("|", "")):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if headers is None:
+            has_table = True
+            headers = [c.lower() for c in cells]
+            # Containing-match, so "Execution steps (phase)" still resolves.
+            for want in ("execution", "file"):
+                for idx, h in enumerate(headers):
+                    if want in h:
+                        cols.append(idx)
+                        break
+            continue
+        if any(i < len(cells) and cells[i] for i in cols):
+            populated += 1
+    return has_table, bool(cols), populated
+
+
+def write_section(prd, lines, rows, force=False):
     """Replace the reserved exec-table section's body with the rendered table."""
     start = None
     for i, ln in enumerate(lines):
@@ -133,6 +179,24 @@ def write_section(prd, lines, rows):
             end = j
             break
 
+    # Refuse to wipe an exec table that already holds work. The keep-filter below
+    # drops every `|` line, so without this guard a second --write pass silently
+    # destroys populated Execution-steps/Files cells (A8).
+    if not force:
+        has_table, resolved, populated = scan_existing_table(lines[start + 1:end])
+        if has_table and not resolved:
+            sys.stdout.write("REFUSING_OVERWRITE=unresolved-columns\n")
+            die("the '%s' section in %s holds a table whose header resolves neither "
+                "'Execution steps' nor 'Files' — refusing to overwrite an unreadable "
+                "table; fix the header or re-run with --force"
+                % (lines[start].lstrip("# ").strip(), prd), 1)
+        if populated:
+            sys.stdout.write("REFUSING_OVERWRITE=%d\n" % populated)
+            die("the '%s' section in %s already has %d row(s) with populated "
+                "Execution steps/Files — refusing to overwrite engineering work; "
+                "re-run with --force to replace it anyway"
+                % (lines[start].lstrip("# ").strip(), prd, populated), 1)
+
     kept = []
     for ln in lines[start + 1:end]:
         s = ln.strip()
@@ -144,10 +208,23 @@ def write_section(prd, lines, rows):
 
     body = kept + ([""] if kept else []) + [HEADER, SEP] + rows
     new = lines[:start + 1] + [""] + body + [""] + lines[end:]
+    # Temp file + os.replace: a crash mid-write can never leave a truncated PRD
+    # (A8b — the same discipline every other writer in .claude/scripts/ uses).
+    directory = os.path.dirname(os.path.abspath(prd)) or "."
+    fd, tmp = tempfile.mkstemp(dir=directory, prefix=".exec-skeleton.")
     try:
-        with open(prd, "w", encoding="utf-8") as fh:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write("\n".join(new).rstrip("\n") + "\n")
+        try:
+            os.chmod(tmp, os.stat(prd).st_mode & 0o777)
+        except OSError:
+            pass
+        os.replace(tmp, prd)
     except OSError as e:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
         die("cannot write PRD: %s" % e, 2)
     sys.stdout.write("WROTE %s section=%s rows=%d\n"
                      % (prd, lines[start].lstrip("# ").strip(), len(rows)))
@@ -155,12 +232,11 @@ def write_section(prd, lines, rows):
 
 def main():
     argv = sys.argv[1:]
-    write = False
-    if "--write" in argv:
-        write = True
-        argv = [a for a in argv if a != "--write"]
+    write = "--write" in argv
+    force = "--force" in argv
+    argv = [a for a in argv if a not in ("--write", "--force")]
     if len(argv) != 1:
-        die("usage: script-em-exec-skeleton.py [--write] <prd.md>", 2)
+        die("usage: script-em-exec-skeleton.py [--write] [--force] <prd.md>", 2)
     prd = argv[0]
 
     try:
@@ -191,7 +267,7 @@ def main():
                     % (canon, name, concern, canon, anchor, agent))
 
     if write:
-        write_section(prd, lines, rows)
+        write_section(prd, lines, rows, force=force)
     else:
         sys.stdout.write("\n".join([HEADER, SEP] + rows) + "\n")
 

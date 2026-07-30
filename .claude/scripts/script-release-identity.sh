@@ -37,6 +37,8 @@
 # Output (stdout, KEY=VALUE lines, always the full key set):
 #   VERDICT=ok|version_regression|nonmonotonic_build|provenance_fail
 #   PROD_REF=<ref read>            e.g. origin/main
+#   PROD_REF_SOURCE=remote|local-fallback   `local-fallback` ⇒ no remote-tracking
+#                                  ref existed; numbers reflect the LOCAL branch
 #   PROD_SHA=<sha>
 #   CURRENT_TAG=<v…|>              empty ⇒ no release yet
 #   CURRENT_VERSION=<x.y.z>        0.0.0 when there is no tag
@@ -57,6 +59,9 @@
 # Exit codes:
 #   0  VERDICT=ok
 #   3  VERDICT=version_regression   (refuse — resolved early, before the lock)
+#   3  NO_REACHABLE_TAG=<n> tags exist  (refuse — v* tags exist but none is
+#      reachable from the prod ref, so 0.0.0 would understate the live release;
+#      emitted instead of the key block, with PROD_REF/PROD_REF_SOURCE)
 #   4  VERDICT=nonmonotonic_build   (refuse before a submission's submit)
 #   5  VERDICT=provenance_fail      (fail the ship — the merge already stands)
 #   2  usage error / not a git repo / unresolvable prod ref
@@ -101,9 +106,13 @@ git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git
 g() { git -C "$REPO" "$@"; }
 
 PROD_REF="$REMOTE/$PROD"
+PROD_REF_SOURCE="remote"
 PROD_SHA="$(g rev-parse --verify --quiet "$PROD_REF^{commit}" 2>/dev/null || true)"
 if [[ -z "$PROD_SHA" ]]; then
+  # A4: falling back to the local branch is a materially different reading —
+  # a stale local prod produces stale numbers. Say so in the output.
   PROD_REF="$PROD"
+  PROD_REF_SOURCE="local-fallback"
   PROD_SHA="$(g rev-parse --verify --quiet "$PROD^{commit}" 2>/dev/null || true)"
 fi
 [[ -n "$PROD_SHA" ]] || die "cannot resolve prod ref: $REMOTE/$PROD or $PROD"
@@ -111,6 +120,22 @@ fi
 # 1 · Current tag — newest v* reachable on prod. A tag on an unmerged branch is
 #     not a release, hence --merged.
 CURRENT_TAG="$(g tag --list 'v*' --merged "$PROD_REF" --sort=-v:refname 2>/dev/null | head -1)"
+
+# A4: "no tag reachable from prod" and "this repo has never released" look
+# identical downstream (CURRENT_VERSION=0.0.0 → a v0.1.0 proposal over a live
+# v4.0.0, VERDICT=ok). If v* tags exist but none is reachable, the prod ref is
+# wrong or shallow — refuse instead of numbering from zero.
+if [[ -z "$CURRENT_TAG" ]]; then
+  TAG_COUNT="$(g tag --list 'v*' 2>/dev/null | grep -c . || true)"
+  TAG_COUNT="${TAG_COUNT//[^0-9]/}"
+  if [[ -n "$TAG_COUNT" && "$TAG_COUNT" -gt 0 ]]; then
+    echo "NO_REACHABLE_TAG=$TAG_COUNT tags exist"
+    echo "PROD_REF=$PROD_REF"
+    echo "PROD_REF_SOURCE=$PROD_REF_SOURCE"
+    echo "$SELF: no v* tag is reachable from $PROD_REF, but $TAG_COUNT v* tag(s) exist in this repo — refusing to number a release from 0.0.0." >&2
+    exit 3
+  fi
+fi
 
 parse_ver() {                      # v2.2.0+417 -> 2.2.0
   local t="${1#v}"; printf '%s' "${t%%+*}"
@@ -182,6 +207,7 @@ fi
 cat <<EOF
 VERDICT=$VERDICT
 PROD_REF=$PROD_REF
+PROD_REF_SOURCE=$PROD_REF_SOURCE
 PROD_SHA=$PROD_SHA
 CURRENT_TAG=$CURRENT_TAG
 CURRENT_VERSION=$CURRENT_VERSION

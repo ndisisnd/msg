@@ -16,6 +16,7 @@
 #   CERTIFIED                                   stamp yes + no open Criticals
 #   UNCERTIFIED no-stamp                        stamp missing / not `yes`
 #   UNCERTIFIED open-critical <finding-id>      a Critical row is Open/Still open
+#   LEDGER_HEADER_UNRESOLVED=severity|status    §7 header drift (exit 2, never CLEAN)
 #
 # A stamped PRD whose §7 ledger section is absent is CERTIFIED (ledger absent =
 # no findings), with a note on stderr.
@@ -104,7 +105,18 @@ result="$(awk '
         if (c=="status")   stat_col=i
         if (c=="#")        id_col=i
       }
-      header_done=1; next
+      header_done=1
+      # A1: the Severity/Status columns are how an open Critical is detected. If
+      # the header drifted and either did not resolve, every row would compare
+      # against an empty cell and the ledger would read CLEAN past an open
+      # Critical. Fail loud instead of falling through.
+      if (sev_col==0 || stat_col==0) {
+        miss = (sev_col==0 ? "severity" : "")
+        if (stat_col==0) miss = (miss=="" ? "status" : miss "|status")
+        print "HEADERBAD " miss
+        emitted=1; exit
+      }
+      next
     }
     sev=tolower(trim(cells[sev_col]))
     stat=tolower(trim(cells[stat_col]))
@@ -131,6 +143,10 @@ case "$result" in
   OPENCRIT\ *)
     echo "UNCERTIFIED open-critical ${result#OPENCRIT }"
     exit 1 ;;
+  HEADERBAD\ *)
+    echo "LEDGER_HEADER_UNRESOLVED=${result#HEADERBAD }"
+    echo "$SELF: §7 findings table header did not resolve required column(s): ${result#HEADERBAD } — refusing to report CERTIFIED." >&2
+    exit 2 ;;
   *)
     echo "$SELF: internal error parsing §7 ledger" >&2
     exit 2 ;;

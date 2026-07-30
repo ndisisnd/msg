@@ -38,6 +38,8 @@ severity within a run while staying monotonic across runs.
 
 Output (KEY=VALUE lines on stdout):
   LEDGER_SECTION=created|filled|appended
+  LEDGER_PLACEMENT=eof-fallback                  created-mode only, and only when
+                                                 no Todos anchor was found
   LEDGER_ROW=<#> <added|carried> <severity>      one per finding
   LEDGER_ADDED=<n>
   LEDGER_CARRIED=<n>
@@ -46,8 +48,10 @@ Output (KEY=VALUE lines on stdout):
 
 Exit codes:
   0  ledger written (or --dry-run plan emitted)
-  2  usage error, unreadable PRD, malformed findings JSON, or an existing table
-     whose header is missing a canonical column
+  2  usage error, unreadable PRD, malformed findings JSON, an existing table
+     whose header is missing a canonical column, an existing table with rows but
+     no parsable `#` (LEDGER_NUMBERING_UNPARSABLE), or a drifted findings heading
+     that would get a second section appended beside it (SECTION_TITLE_DRIFT)
 
 Writes via a temp file + mv, so a crash can never truncate the PRD.
 """
@@ -229,11 +233,25 @@ def main():
     # ── Dedup + numbering ─────────────────────────────────────────────────────
     by_what = {}
     highest = 0
+    parsed_any = False
+    first_bad = None
     for j, cells in existing_rows:
         by_what.setdefault(norm(get(cells, "What is wrong")), (j, cells))
-        m = re.match(r"^\d+$", get(cells, "#").strip())
+        raw_num = get(cells, "#").strip()
+        m = re.match(r"^\d+$", raw_num)
         if m:
-            highest = max(highest, int(get(cells, "#").strip()))
+            parsed_any = True
+            highest = max(highest, int(raw_num))
+        elif first_bad is None:
+            first_bad = raw_num
+    # A10 — rows exist but not one `#` parsed: `highest` would stay 0 and this run
+    # would renumber from 1 alongside the rows already there. Mixed tables (some
+    # rows parse) keep today's max-of-parsed behaviour.
+    if existing_rows and not parsed_any:
+        print(f"LEDGER_NUMBERING_UNPARSABLE={first_bad}")
+        die(f"§7 ledger has {len(existing_rows)} row(s) but no parsable '#' "
+            f"(first offending cell: {first_bad!r}) — refusing to renumber from 1 "
+            f"on top of them; fix the '#' column")
 
     carried, fresh = [], []
     for f in findings:
@@ -289,6 +307,7 @@ def main():
     for j, repl in edits.items():
         out[j] = repl
 
+    placement = None
     header_line = render([c for c in header_cells] if header_cells else COLUMNS)
     sep_line = "|" + "|".join("---" for _ in COLUMNS) + "|"
 
@@ -301,7 +320,24 @@ def main():
         # Replace the section body (placeholder prose and all) with the table.
         out[hidx + 1:hend] = [""] + body + [""]
     else:
+        # A11 — creating a second findings section is only ever right when the PRD
+        # has none. A reworded §7 heading ("Plan review findings (product)" is fine
+        # — startswith matches; "Review findings" is not) otherwise gets a duplicate
+        # section appended beside it, and consumers read the wrong table.
+        drift = None
+        for ln in lines:
+            t = heading_title(ln)
+            if t is not None and "findings" in t:
+                drift = ln.strip()
+                break
+        if drift is not None:
+            print(f"SECTION_TITLE_DRIFT={drift}")
+            die(f"a findings section already exists as {drift!r} but its title does "
+                f"not match '{SECTION_TITLE}' (or a known legacy title) — refusing to "
+                f"append a second findings section; restore the canonical heading")
+
         mode = "created"
+        placement = "todos-anchor"
         block = ["", f"## {SECTION_TITLE}", "", header_line, sep_line] + new_lines_rows + [""]
         # Canonical home is the reserved section between the exec table and Todos;
         # on a legacy PRD that lacks it, insert before Todos, else append.
@@ -309,11 +345,14 @@ def main():
         if tidx is not None:
             out[tidx:tidx] = block
         else:
+            placement = "eof-fallback"
             while out and out[-1].strip() == "":
                 out.pop()
             out.extend(block)
 
     print(f"LEDGER_SECTION={mode}")
+    if mode == "created" and placement == "eof-fallback":
+        print("LEDGER_PLACEMENT=eof-fallback")
     for num_s, what, sev in report:
         print(f"LEDGER_ROW={num_s} {what} {sev}")
     print(f"LEDGER_ADDED={len(new_lines_rows)}")

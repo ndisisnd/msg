@@ -68,6 +68,11 @@ Output (stdout, KEY=VALUE lines, always the full key set):
   NOTE=<one line>              exactly what the caller puts in the run report
   ERROR=<short reason>         set on REASON=gh_error / no_pr
 
+On stderr only, never stdout (the key set above is unchanged):
+  RESOLVED_VIA=global <path>   the policy reader was taken from ~/.claude/scripts
+                               because `--repo`'s own .claude/scripts has no
+                               copy. The repo-copy case stays silent.
+
 Verdict rules (the whole branch, in one place)
   * ANY check FAILURE/ERROR/CANCELLED/TIMED_OUT/ACTION_REQUIRED → red.
   * else ANY check PENDING/IN_PROGRESS/QUEUED/REQUESTED/WAITING/EXPECTED
@@ -125,18 +130,29 @@ def run(cmd, cwd):
     return p.returncode, p.stdout, p.stderr
 
 
-def script_path(name):
-    """Repo copy first, global install second — the house resolution form."""
-    local = os.path.join(".claude", "scripts", name)
+def script_path(name, repo):
+    """Repo copy first, global install second — the house resolution form.
+
+    A23 — two silences closed. The repo candidate is resolved against `repo`
+    (the directory every child process is actually run in), not the process
+    cwd: called as `--repo <elsewhere>` the old form tested `./.claude/scripts`
+    of wherever the caller happened to stand, so it reliably fell through to
+    the global install. And the fallback is now stated on stderr, because a
+    stale `~/.claude` copy grading a repo's CI is worth one line.
+    """
+    local = os.path.abspath(os.path.join(repo, ".claude", "scripts", name))
     if os.path.exists(local):
         return local
     home = os.path.join(os.path.expanduser("~"), ".claude", "scripts", name)
-    return home if os.path.exists(home) else None
+    if os.path.exists(home):
+        sys.stderr.write("%s: RESOLVED_VIA=global %s\n" % (SELF, home))
+        return home
+    return None
 
 
 def read_policy(path, repo):
     """github_actions.enabled + steps.ci.status, via the one reader."""
-    reader = script_path("script-policy-read.py")
+    reader = script_path("script-policy-read.py", repo)
     if reader:
         rc, out, _ = run([sys.executable, reader, "--file", path], repo)
         if rc == 0:

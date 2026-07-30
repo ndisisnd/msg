@@ -2,6 +2,61 @@
 
 ## 2026-07-30
 
+### [93] — v5.0.1-P7: merge verdict→action prose tighten (S4)
+
+- `merge/refs/staging.md` / `production.md` / `verify-deploy.md`: Changed — 267 words of table-restating prose reclaimed (9,993 → 9,726 across the refs); every one of the 45 verdict→action table rows proven byte-identical to HEAD (empty extract-diff per file), all 27 verdict vocabulary tokens survive, i100 (macOS model declared-never-inferred), i73 (direct-flow test before the merge) and rollback always-ask intact at every call site
+- `deploy.md`: Unchanged — it carries no verdict table; a marginal 9-word trim was made and deliberately reverted (byte-identical to HEAD)
+
+### [92] — v5.0.1-P6: eng build protocol slim (S3)
+
+- `eng/refs/build/protocol.md`: Changed — 5,386 → 4,298 words (−20%), its first dedicated slim: script-return narration, design-history asides, double-homed fragments (merge-floor line, per-ticket-review negation, Engineering-authority note) and rule-repeating examples cut; transitions gone
+- Nothing mechanical moved: heading + step inventory proven identical (diff = empty, Steps 0–8 + 5a + commit confirm in place), every script call/failure message/sentinel at the same occurrence count as HEAD, fences 14/14; the fix-complexity chain now names `fix-build-orchestrated.md` at its `report=` pointer (single-home citation, +8 words)
+
+### [91] — v5.0.1-P5: pre-merge SKILL.md router slim (S2)
+
+- `pre-merge/SKILL.md`: Changed — 2,595 → 1,758 words (−32%), the persona/router pass its three peer skills got in v5: Posture replaces the persona essay, one Dispatch table, pipeline narrative and test-selection explainer cut to flag semantics + pointers (executor §3c / policy-schema-pre-merge own the detail), safety-floor prose cites the shared ref
+- Everything dispatchable survives, grep-proven: all seven flags, the `no_manifest` refusal (pointing at `--init`), the no-human-gate statement, closing-message + doctor-logging bindings; every refs/ pointer resolves; frontmatter untouched; fences balanced
+
+### [90] — v5.0.1-P4: eng review protocol slim (S1)
+
+- `eng/refs/review/protocol.md`: Changed — 1,258 → 699 words (−44%); the seven priority classes go table→numbered list, meta-commentary/worked-examples/double-homed rules cut (no-threshold spawn rule, /cook exclusion and comment-scan mechanics now cited at their homes instead of restated); every operational item preserved and grep-proven (7 classes, verify-before-report, silence-is-an-outcome, blocker/high gate, `source: eng:review` + schema pointer, diff-only + public-contract trigger, digest-exit awareness); all 6 caller citations resolve, fences balanced
+- [i2]'s 150–250-word body band formally re-set: the mode's mandated contract content floors at ~420 words — body landed at 515; the honest target is the ≤700 file total, now met
+
+### [89] — v5.0.1-P3: pipeline + structural fail-silent assertions — components can no longer vanish quietly (A19–A25)
+
+- `script-pipeline-resolve.py`: Changed — an unrecognised PLATFORMS row is named (`WARN=unknown-platform`, stderr) instead of silently unscheduled; an existing-but-unreadable PLATFORMS.md is exit 7 (was: read as "ships nothing", skipping the coverage-gap check); a **mandatory** component absent from the manifest now refuses (exit 6, `MANDATORY_ABSENT=<id>`) instead of resolving a plan without a safety-floor step (A19/A20); the no-diff fail-open stays untouched
+- `script-em-exec-collision.py` + `script-cert-mech.py`: Changed — a Files-less exec table is a distinct exit 3 `ERROR=no-files-column` (both modes) instead of a discarded stderr warning + "no collisions"; cert-mech renders it as `SKIP … reason=no-files-column` plus a major finding so the gate stays at least as loud as before (A21)
+- `script-eng-plan-shape.py`: Changed — exec-column drift and short rows are named root causes (`exec-columns-unresolved` listing headers seen, `short-exec-row`) instead of cascading into misleading unpointed-ticket noise (A22)
+- `script-cert-mech.py` + `script-ci-status.py`: Changed — falling back to the global `~/.claude` copy prints `RESOLVED_VIA=global <path>` (stderr; repo-copy runs stay silent); ci-status resolves its repo-local candidate against `--repo`, not the process cwd — proven: a stale global reader flipped a verdict in the fixture (A23)
+- `script-platforms-parse.py`: Changed — >1 platform-header tables ⇒ `WARN=multiple-platform-tables lines=…` (rows above the last header were silently invisible); Q3 verified: last-header-wins is a real accommodation (the template's Column-contract pseudo-header), comment rewritten to say what it actually protects (A24)
+- `script-em-branch-resolve.sh`: Changed — `MAIN_BEHIND_REMOTE=true` emitted when origin's prod branch is strictly ahead of local, flagging the stale-local double-merge verdict before it bites (A25)
+- Caller docs: executor.md exits 6/7; plan-em collision/decomposition exits 3
+
+### [88] — v5.0.1-P2: parser fail-silent assertions — digests, scans, tallies name their misses (A14–A18)
+
+- `script-prd-digest.py`: Changed — a §3 row digesting with an empty id ⇒ exit 2 `FEATURE_ID_EMPTY=<row>` in every mode (stdout/slice/cache — no poisoned cache left behind); a `--feature` filter that empties a non-empty set ⇒ exit 2 `FEATURE_NOT_RESOLVED=<fid>` naming the ids actually seen (A14/A15); all four real PRDs digest byte-identically
+- `script-prd-scan.sh`: Changed — fullness anchors on section titles, not hardcoded §-numbers; decorated ids (`**F1**`) count; "written but unparsed" now distinct from "never written" (`acceptance-criteria-unparsed`/`exec-table-unparsed`); branch names resolve via script-policy-read.py with a loud grep fallback (A16/A17). Bonus fix: the old grep block could abort the whole scan under `set -e` on an ungreppable policy.json — every PRD line silently vanished, exit 1
+- `script-doctor-tally.sh`: Changed — Incidents columns resolved from the header by name (a shifted column no longer tallies zero rows / misreads status); body rows present but none parsed ⇒ exit 2 `LEDGER_ROWS_UNPARSED=<n>`; empty and header-less ledgers keep today's behaviour (A18)
+- Caller docs: eng build/review protocols + protocol-doctor now say what the new non-zero exits mean (stop and surface — never guess)
+
+### [87] — v5.0.1-P1: Tier 2 fail-silent assertions — writers and ledgers refuse to corrupt (A8–A13)
+
+- `script-em-exec-skeleton.py`: Changed — `--write` refuses (exit 1 `REFUSING_OVERWRITE=<n>`, or `=unresolved-columns` on an unreadable header) instead of wiping a populated exec table; new `--force` overrides; writes now go temp-file + os.replace so a crash can never truncate the PRD (A8/A8b)
+- `script-prd-number`: Changed — a lane-agnostic sweep after the four-lane max catches parked PRD folders; a colliding id ⇒ exit 2 `NUMBER_COLLISION=<id>` instead of handing out a duplicate number (A9)
+- `script-ledger.py`: Changed — rows present but no parsable `#` ⇒ exit 2 `LEDGER_NUMBERING_UNPARSABLE=<cell>` instead of renumbering from 1 alongside them (A10); a drifted findings heading ⇒ exit 2 `SECTION_TITLE_DRIFT=<heading>` instead of appending a duplicate section; EOF-fallback creation now says so (`LEDGER_PLACEMENT=eof-fallback`) (A11)
+- `script-intake-stamp.sh`: Changed — `stamp` and `append-row` refuse (exit 2 `COLUMN_ABSENT=<name>`) when a supplied value's column is missing from the header, instead of silently dropping it; well-formed writes proven byte-identical; GUI intake render verified per [i104] (A12)
+- `script-prd-deps-mirror.sh`: Changed — an unmatched §3 heading ⇒ exit 2 `SECTION_NOT_FOUND=features` (and the heading match now tolerates "and"/"&"); a table that mentions dependencies but resolves no such column ⇒ exit 2 `DEPS_COLUMN_UNRESOLVED`; decorated headers like "Dependencies (PRD ids)" now resolve (A13)
+
+### [86] — v5.0.1-P0: Tier 1 fail-silent assertions — safety gates can no longer open quietly (A1–A7)
+
+- `script-cert-status.sh`: Changed — §7 ledger header drift now exits 2 `LEDGER_HEADER_UNRESOLVED=…` instead of reporting CERTIFIED past an open Critical (A1)
+- `script-branch-protection.sh`: Changed — verify requires ≥1 required status context (`UNPROTECTED <b> no-required-contexts` on `contexts:[]`); the prod branch (branch list + required-reviews clause) resolves from policy via script-policy-read.py, default `main` — no longer the literal string (A2)
+- `script-signoff-coverage.sh`: Changed — a failed `--fetch` exits 2 `FETCH_FAILED=<ref>` instead of grading against a possibly-stale ref (A3)
+- `script-release-identity.sh`: Changed — v* tags exist but none reachable from prod ⇒ exit 3 `NO_REACHABLE_TAG=…` instead of proposing v0.1.0 over a live release; `PROD_REF_SOURCE=remote|local-fallback` joins the key set (A4)
+- `script-tier-resolve.sh`: Changed — an undiffable base ref now degrades to tier L per AC-TS10 (was: read as an empty diff ⇒ tier S, inverting fail-large); genuinely-empty diffs unchanged (A5)
+- `script-cert-mech.py`: Changed — check 6 prints `SKIP … reason=no-prds-matched-glob` when the PRD glob matches nothing (was silent); check 4 emits a critical `features-id-column-unresolved` finding naming the headers seen instead of passing vacuously with zero F-IDs (A6/A7)
+- Every assertion fixture-proven both ways (fires on seeded drift, happy path byte-compatible); designed fail-opens untouched
+
 ### [85] — README + QUICKSTART point at the release history
 
 - `README.md`: Added — a current-release line (v5.0.0) linking `RELEASES.md` under the install section

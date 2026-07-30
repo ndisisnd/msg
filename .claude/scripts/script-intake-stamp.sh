@@ -57,7 +57,9 @@
 # writes go through a temp file + mv. The header contract is owned by this file.
 #
 # Exit codes: 0 = done; 1 = row-# not found (or no ledger table); 2 = usage
-#             error / missing file / unknown column; 3 = refused (protected
+#             error / missing file / unknown column / a supplied value whose
+#             column is absent from the header (COLUMN_ABSENT=<name>, stamp and
+#             append-row — nothing is written); 3 = refused (protected
 #             cell, bad --change value); 4 = `#` already exists (--append-row);
 #             5 = write failure (temp file, mv, or log write).
 
@@ -178,6 +180,50 @@ function issep(arr, n,   j,b) {
 function rownum(x) { x=trim(x); sub(/^#/, "", x); return (x ~ /^[0-9]+$/) ? x : "" }
 '
 
+# ── header column resolver (A12) ─────────────────────────────────────────────
+# The write verbs resolve their target columns inside awk and silently skip any
+# that resolve to 0 — so an explicitly-supplied --prd/--goal/--grade lands
+# nowhere and the run still exits 0. Resolve the header once here, up front, and
+# refuse instead. Read-only: it never touches the file it inspects, so a
+# well-formed ledger write is byte-identical to before.
+header_cols() {
+  awk "$awk_lib"'
+  BEGIN { done=0 }
+  {
+    if (done) next
+    if ($0 !~ /\|/) next
+    n=splitcells($0, hc)
+    ci_num=0; ci_status=0; delete map
+    for (j=1;j<=n;j++) {
+      name=tolower(trim(hc[j]))
+      if (name!="") map[name]=j
+      if (name=="#") ci_num=j
+      else if (name=="status") ci_status=j
+    }
+    if (ci_num>0 && ci_status>0) { done=1; for (k in map) print k "=" map[k] }
+  }' "$file"
+}
+
+cols_dump=""
+col_index() {
+  printf '%s\n' "$cols_dump" | awk -F= -v k="$1" '$1==k { print $2; f=1; exit } END { if (!f) print 0 }'
+}
+
+# Refuse when a value was supplied for a column this ledger does not have.
+# Silent when no header resolved at all — that is the pre-existing "no ledger
+# table found" path (exit 1), and this check must not pre-empt it.
+require_col() {
+  local name
+  [[ -n "$cols_dump" ]] || return 0
+  for name in "$@"; do
+    if [[ "$(col_index "$name")" == "0" ]]; then
+      echo "COLUMN_ABSENT=$name"
+      echo "script-intake-stamp: ledger $file has no '$name' column but a value was supplied for it — refusing to write a partial row" >&2
+      exit 2
+    fi
+  done
+}
+
 mktmp() {
   local dir
   dir=$(dirname "$file")
@@ -196,6 +242,9 @@ case "$verb" in
 # ── stamp (original behaviour) ───────────────────────────────────────────────
 stamp)
   if [[ $have_status -ne 1 ]]; then usage; exit 2; fi
+  cols_dump=$(header_cols)
+  require_col status
+  [[ $have_prd -eq 1 ]] && require_col prd
   tmp=$(mktmp) || exit 5
   trap 'rm -f "$tmp"' EXIT
 
@@ -251,6 +300,12 @@ append-row)
   fi
   [[ -n "$rdate" ]] || rdate=$(date +%F)
   [[ $have_status -eq 1 ]] || status="backlog"
+
+  # Every cell below is written unconditionally (date and status via their
+  # defaults), so any of these columns missing means a silently partial row.
+  cols_dump=$(header_cols)
+  require_col '#' date type idea goal grade status
+  [[ $have_prd -eq 1 ]] && require_col prd
 
   tmp=$(mktmp) || exit 5
   trap 'rm -f "$tmp"' EXIT

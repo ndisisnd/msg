@@ -29,7 +29,29 @@ case "$mode" in
       n="${BASH_REMATCH[1]}"
       (( n > max )) && max=$n
     done
-    echo $(( max + 1 ))
+
+    # A9 — the four globs above are lane-shaped: a PRD parked anywhere else under
+    # features/ (a new lane, an archive folder, a nesting depth nobody planned) is
+    # invisible to them, and the number we are about to hand out would collide with
+    # it. Sweep lane-agnostically and refuse rather than mint a duplicate id.
+    next=$(( max + 1 ))
+    if [[ -d features ]]; then
+      collide=0
+      while IFS= read -r d; do
+        base="${d##*/}"                       # prd-<n>[.<m>]-<slug>
+        n="${base#prd-}"
+        [[ "$n" =~ ^([0-9]+) ]] || continue
+        n="${BASH_REMATCH[1]}"
+        (( n >= next && n > collide )) && collide=$n
+      done < <(find features -type d -name 'prd-*' 2>/dev/null)
+      if (( collide > 0 )); then
+        echo "NUMBER_COLLISION=$collide"
+        echo "script-prd-number: a PRD folder numbered $collide exists under features/ but sits outside the scanned lanes — refusing to hand out $next; move it into a lane (planned/wip/done) first" >&2
+        exit 2
+      fi
+    fi
+
+    echo "$next"
     ;;
 
   sub)

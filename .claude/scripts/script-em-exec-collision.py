@@ -43,12 +43,18 @@ With --waves, after the lines above, emits the wave decomposition:
 Exit code:
   Without --waves (the existing contract, preserved for existing callers):
     1  if any collision was found
-    0  if no collisions (missing/empty Files degrades gracefully — reported, never a crash)
+    0  if no collisions (EMPTY Files cells degrade gracefully — reported per row
+       as MISSING_FILES, never a crash)
   With --waves:
     0  ALWAYS — a collision is a serialization constraint expressed by the packets
        (colliding rows share a packet and run serially), not an error. Callers that
        rely on the exit-1-on-collision signal must NOT pass --waves.
     2  genuine parse error (no markdown table found), same as the no-flag mode.
+  Both modes:
+    3  the table has NO Files column at all (A21). Distinct from 0 because every
+       row's Files set would be empty and the run would report zero collisions —
+       "not checked" must not read as "safe to parallelise". Nothing is emitted
+       on stdout; stderr carries `ERROR=no-files-column` and the headers seen.
 
 Deterministic: identical input → byte-identical output. A missing Agent column
 puts every row in one empty-string agent group (no crash).
@@ -208,9 +214,20 @@ def main():
     feati = col_index(headers, "feature")
     ai = col_index(headers, "agent")
 
+    # A21: a table with no Files column cannot answer the question this script
+    # exists to answer — every row's Files set is empty, so zero collisions are
+    # found and the old exit 0 read exactly like "safe to run in parallel". The
+    # stderr WARNING was invisible to `script-cert-mech.py`, which captures the
+    # streams separately and only inspected stdout. Distinct exit 3 instead:
+    # callers can now tell "no collisions" from "not checked".
     if fi == -1:
-        print("WARNING: no Files column — treating every row's Files as empty "
-              "(legacy table, degrading gracefully)", file=sys.stderr)
+        print("ERROR=no-files-column", file=sys.stderr)
+        print("%s: the table has no `Files` column (headers seen: %s) — every "
+              "row's Files set would be empty, so a zero-collision result "
+              "would be meaningless; populate the Files column before the "
+              "build wave" % ("script-em-exec-collision",
+                              ", ".join(headers) or "(none)"), file=sys.stderr)
+        sys.exit(3)
 
     def cell(row, idx):
         return row[idx] if 0 <= idx < len(row) else ""

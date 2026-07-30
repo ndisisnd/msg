@@ -35,8 +35,8 @@ not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"
 - **Present, any platform with `gaps[]`:**
   - `enforced` → **refuse** (`refs/refusal-patterns.md` → `staging_unready`),
     listing each unready platform's gaps and its exact fix verbatim from the
-    record. The merge has not happened yet — refusing here is the whole point:
-    surface the gap before deploying into an environment that was never set up.
+    record. The merge has not happened yet — surface the gap before deploying
+    into an environment that was never set up.
   - `optional` → **warn + proceed**, one `low` note per unready platform.
   - `skip` → don't guard (record "staging-readiness check skipped by policy").
 
@@ -73,11 +73,10 @@ This closes the race from the **staging side**. The **reverse** window — a
 closed from the **production side** (`refs/production.md` § *Re-verify sign-off
 coverage immediately after acquire*).
 
-**Asymmetric by design:** `--staging` **reads** the lock but never **acquires** one.
-A staging merge (a single `gh pr merge`) is near-atomic — the reverse window (a
-production ship starting mid-staging-merge) is sub-second and not worth the machinery
-or the friction. The production ship is the long-lived hold; it is the only
-acquirer.
+**Asymmetric by design:** `--staging` **reads** the lock but never **acquires** one;
+the long-lived production ship is the only acquirer. A staging merge (a single
+`gh pr merge`) is near-atomic — the reverse window (a production ship starting
+mid-staging-merge) is sub-second and not worth the machinery or the friction.
 
 ## Step 2 — Locate the PR + verify green CI
 
@@ -107,8 +106,8 @@ Branch protection is the machine enforcement; this check exists so merge
 refuses with a clear reason instead of a raw merge rejection. The script owns
 the whole empty-set branch — `github_actions` outranking `steps.ci`
 (`../shared/refs/policy-schema.md` §2b,
-`../shared/refs/policy-schema-merge.md` §3) — so "no red" is never read as
-green, here or at either `--production` call site. The opt-out governs **only**
+`../shared/refs/policy-schema-merge.md` §3) — here and at both `--production`
+call sites, so "no red" is never read as green. The opt-out governs **only**
 the empty set: checks that *do* report are graded exactly as always.
 
 ## Test-selection-miss detection (`policies.test_selection` backstop attribution)
@@ -120,8 +119,7 @@ artifact follows. When it's on, pre-merge's minified runs traded
 full-suite coverage for speed on the promise that the full suite still runs
 somewhere — the declared `full_run_backstop` (`ci` \| `merge` \| `both`).
 This is where that promise is checked: a test the minified run **selected away**
-breaking at the backstop is the false-green risk the plan calls out, and it must
-be observable, not anecdotal.
+breaking at the backstop is the false-green risk the plan calls out.
 
 **`ci` backstop — SCRIPTED, off the Step 2 `red_ci` check just above.** The
 attribution is a deterministic read: block → component → did the selected set
@@ -147,24 +145,23 @@ the verdict JSON itself is stdout and doesn't survive the run).
 | each `MISS=<check>\|<component>\|<selected>/<total>\|<exclusion>` (3) | the minified run never exercised the test that just broke | record a `high` finding per line |
 | `ESCALATE=true` | `WINDOW_MISS_COUNT ≥ 2` in `WINDOW_DAYS` | add `RECOMMENDATION` verbatim to the run report |
 
-Each `MISS` becomes a `high` finding — category the owning component when the
-closed category vocabulary has a slot for it (`unit`/`integration`; a
-`regression` miss uses `other` by the deliberate convention in
-`refs/output-schema.md` § *Test-selection-miss finding*),
-`rule: "test-selection-miss"` — naming the failing test, its file, and the
-exclusion reason. The script's `<exclusion>` is the block's deterministic read
-(`tier` when the resolved tier's contract excluded the component, else
-`not-affected`); telling `not-tagged` (no critical marker) from `not-affected`
-(excluded by the affected-diff rule) is the **model's** read of the finding
-context, not a schema field. These findings are **additive** to the `red_ci`
-refusal already in play — they explain it, they never manufacture a new one or
-turn a green run red.
+Category each finding by the owning component when the closed category
+vocabulary has a slot for it (`unit`/`integration`; a `regression` miss uses
+`other` by the deliberate convention in `refs/output-schema.md` §
+*Test-selection-miss finding*), `rule: "test-selection-miss"`, naming the
+failing test, its file, and the exclusion reason. The script's `<exclusion>` is
+the block's deterministic read (`tier` when the resolved tier's contract
+excluded the component, else `not-affected`); telling `not-tagged` (no critical
+marker) from `not-affected` (excluded by the affected-diff rule) is the
+**model's** read of the finding context, not a schema field. These findings are
+**additive** to the `red_ci` refusal already in play — they explain it, they
+never manufacture a new one or turn a green run red.
 
 **`merge`/`both` backstop — Step 7's human test outcome. This half is the
-MODEL's, deliberately.** `script-ts-miss.py` does not attempt it and has no flag
-for it: mapping a "Not yet" answer's named behaviour to a known test is judgment
-about English, not a lookup (the fixed-results ruling). The script's
-`HUMAN_HALF=model` key is the standing marker. The full suite
+MODEL's, deliberately.** `script-ts-miss.py` does not attempt it: mapping a
+"Not yet" answer's named behaviour to a known test is judgment about English,
+not a lookup (the fixed-results ruling). The script's `HUMAN_HALF=model` key is
+the standing marker. The full suite
 here is the human exercising staging, so attribution is necessarily coarser: on
 **Not yet** at Step 7, if the human's answer names a specific broken behaviour
 that maps to a known test (by name, or by the acceptance criterion it covers),
@@ -177,16 +174,14 @@ test_selection is enabled; consider whether a selected-away test caused it."
 **Rolling-window escalation — the script counts it.** `WINDOW_MISS_COUNT` is
 `test-selection-miss` findings across this PRD's committed reports plus the rest
 of the repo's `features/**/reports/report-*.json`, restricted to the most recent
-30 days, **plus this run's misses**. `ESCALATE=true` (two or more in that
-window) → put `RECOMMENDATION` in the run report verbatim: it names
+30 days, **plus this run's misses**. `RECOMMENDATION` names
 `/pre-merge --update-criticality` (tag the escapee critical so it stops being
 selected away) or `/msg --update` to disable `policies.test_selection` outright,
 and points at `force_full_paths`
 (`../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection.force_full_paths`)
 — a cross-cutting-enough surface that selection should stop trying to prune
 around it; `FORCE_FULL_CANDIDATES` names the escapees' components and the model
-names the specific test **file**. A single miss stays a plain finding with no
-escalation line; the recommendation only fires once a second one lands.
+names the specific test **file**.
 
 ## Step 3 — Merge into staging
 
@@ -218,12 +213,11 @@ Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`).
 ## Step 5 — Verify the deploy
 
 Per `refs/verify-deploy.md`: run each platform's smoke against the deployed staging
-target — the **v2 smoke contract** (`smoke: {cmd, watch_window?, poll?}`): a bare
-`smoke_cmd` is one-shot (unchanged); a declared `poll` waits for a late-live target
-first, a declared `watch_window` re-checks health after it passes. Verified (or
-skipped-with-note) → continue. **Any smoke failure** — a plain non-zero, a poll
-timeout (`smoke-never-live`), or a watch-window degrade — emits the finding, sets
-verdict `fail`, and **stops here** — skip Steps 6–7. Never hand a human a test
+target under the **v2 smoke contract** (`smoke: {cmd, watch_window?, poll?}`).
+Verified (or skipped-with-note) → continue. **Any smoke failure** — a plain
+non-zero, a poll timeout (`smoke-never-live`), or a watch-window degrade —
+emits the finding, sets verdict `fail`, and **stops here** — skip Steps 6–7.
+Never hand a human a test
 script for an environment that is already failing its own health check; the report
 points at fixing forward via `/pre-merge` (the merge stands). For a macOS platform,
 the config-gated notarization / signing / appcast checks (`refs/verify-deploy.md`

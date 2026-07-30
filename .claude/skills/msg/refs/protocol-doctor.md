@@ -62,7 +62,8 @@ health check's name. That is the scope creep this boundary exists to prevent.
 ```
 
 Exit 3 means no ledger — stop per the precondition above. Exit 2 means the file is not a
-ledger — stop and say so; do not repair it.
+ledger, or it has Incident rows none of which parse (`LEDGER_ROWS_UNPARSED=<n>`) — either
+way stop and say so, naming the key when present; do not repair it.
 
 Read `DOCTOR_ROWS`, `DOCTOR_LOGGED`, `DOCTOR_GRADUATED`, `DOCTOR_GROUPS`,
 `DOCTOR_AT_THRESHOLD`, the `CLASS_<class>=` counts, and one `TRIAGE=` row per signature at

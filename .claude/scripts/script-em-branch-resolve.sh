@@ -31,6 +31,16 @@
 #     Emitted only on create/fresh-cut of a TOP-LEVEL PRD whose folder is not
 #     already under features/wip/. Sub-PRDs never move (they ride the parent's
 #     lane); a re-checkout is never a move.
+#   MAIN_BEHIND_REMOTE=true
+#     Emitted ONLY when origin/<main> exists and is strictly ahead of the local
+#     <main> (A25). The merged test below is answered against the LOCAL <main>,
+#     so a stale local copy makes an already-merged branch look unmerged: the
+#     resolver says ACTION=checkout, the caller commits onto a shipped branch,
+#     and the work merges twice — the exact outcome fresh-cut exists to prevent.
+#     BRANCH/ACTION/LANE_MOVE are UNCHANGED by this line; it tells the caller to
+#     `git fetch origin <main>` and re-run before acting on ACTION=checkout.
+#     Absent = the local <main> is up to date with its remote, or there is no
+#     origin/<main> to compare against (offline / no remote / no local <main>).
 #
 # Merged test: `git branch --merged <main>` listing containing BRANCH.
 #
@@ -140,7 +150,24 @@ if [[ ( "$action" == "create" || "$action" == "fresh-cut" ) && "$is_sub" -eq 0 &
   fi
 fi
 
+# A25 — the merged test above reads the LOCAL "$main". If origin/$main carries
+# commits the local copy has not fetched, a branch that has already merged
+# upstream still reads unmerged here. Report the staleness (READ-ONLY: no fetch,
+# no mutation); the verdict itself is deliberately left unchanged.
+main_behind_remote=0
+if git rev-parse --verify --quiet "refs/remotes/origin/$main" >/dev/null 2>&1 \
+   && branch_exists "$main"; then
+  ahead="$(git rev-list --count "$main..origin/$main" 2>/dev/null || true)"
+  if [[ "${ahead:-0}" =~ ^[0-9]+$ ]] && (( ahead > 0 )); then
+    main_behind_remote=1
+  fi
+fi
+
 echo "BRANCH=$branch"
 echo "ACTION=$action"
 echo "LANE_MOVE=$lane_move"
+if (( main_behind_remote )); then
+  echo "MAIN_BEHIND_REMOTE=true"
+  echo "$SELF: local '$main' is $ahead commit(s) behind origin/$main — the merged test ran against the stale local ref; fetch and re-run before acting on ACTION=$action" >&2
+fi
 exit 0
