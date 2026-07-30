@@ -2,6 +2,33 @@
 
 What's new for you, release by release.
 
+## v5.0.0 — 2026-07-30
+
+> v5 is the subtraction release: the pipeline does everything it did before with far less machinery, and far more of it is deterministic. Two skills have new names — `/plan-tune` is now `/plan-review` and `/post-merge` is now `/merge` — every build now ends with an independent adversarial code review by default, and roughly twenty-five pieces of judgment-by-prose became small scripts that give the same answer every run.
+
+### ✨ New
+- Every build now closes with an adversarial review from a separate reviewer agent: it hunts problems across the whole change, verifies each one before reporting it, and only genuine blockers or high-severity findings hold up your commit. This replaces the old per-ticket pair review, which looked at fragments instead of the change you actually ship.
+- The framework now keeps an honest ledger of its own misbehaviour — failed scripts, tool errors, retries, missed writes — and `/msg --doctor` reads it to diagnose recurring problems and recommend fixes. It reports and recommends; it never repairs itself silently.
+- Your project can declare its test-environment contract in one place, scaffolded at setup: what must be provisioned for the gate's checks to actually run. The gate reads the declaration instead of guessing, and an unprovisioned sandbox now degrades loudly instead of passing quietly.
+- The gate now checks your change against its PRD by default, as advice rather than a blocker — drift between what was planned and what was built gets surfaced without stopping an otherwise-green run.
+- Roughly twenty-five new deterministic helpers replace instruction prose: release locking and version identity, CI status reading, smoke-test running, policy reads and writes, PRD and plan shape validation, backlog row writes. Same inputs, same answer, every run.
+
+### 📈 Improved
+- The whole framework got substantially smaller. The four biggest skills' front doors shrank 24–44%, every repeated rule now lives in exactly one place, and step-counter ceremony is gone — you hear from a run when something real happens, not on every step.
+- A gate run now loads only the policy text that applies to it (about a quarter less), and per-component configuration shrank from ~15 fields to 6 — shared defaults resolve at run time, so a defaults improvement reaches every project immediately, with no migration.
+- First-time gate setup asks two questions up front instead of nine; everything else is seeded with sensible defaults and asked only when it first matters.
+- Fix work is now sized by a fixed rubric that picks the right model tier mechanically — escalating to the heavier tier is allowed, silently downgrading is not.
+
+### 🐛 Fixed
+- The rework flushed out several latent bugs that had been shipping quietly: two PRD parsers misreading section tables, a roadmap fullness signal that could never fire, a shipped-feature move hardcoded to one folder lane, a filename collision waiting in the gate's check discovery, and a dashboard field that was silently dropped.
+- Release history is repaired: v2.2.0's notes heading was restored (its notes had been rendering as part of v2.3.0's section), and the missing v3.0.0 tag and GitHub release were backfilled at the original release commit — additively, with nothing moved or rewritten.
+
+### ⚠️ Breaking
+- Two skills are renamed: `/plan-tune` → `/plan-review` and `/post-merge` → `/merge`. Use the new names — the old ones are retired, and reinstalling removes the old copies so they can't shadow the new. Everything you produced under the old names is still understood; nothing needs rewriting.
+- The preview-deploy approval gate is gone. Its human judgment moved rather than vanished: in a staged flow, the staging sign-off is the human look at the running change; in a direct-to-production flow, you're now asked to test the change yourself before the merge happens — never after.
+- PRDs slimmed from 11 sections to 8. The user-flow, key-interactions, and glossary sections are gone — glossary terms now live at the project level, where every pipeline stage sees them. Existing PRDs keep working; new ones are drafted in the new shape.
+- Roadmap-driven build orchestration is removed: roadmaps are still written by hand and viewable on the board, but builds run per-PRD now, never from the roadmap surface.
+
 ## v4.0.0 — 2026-07-26
 
 > The gate can now run only the tests your diff can actually break. Opt in, and small changes stop paying for the whole test suite on every single run — while the full suite still runs wherever you've told it to (CI, staging, or both), so nothing gets quietly weaker. It's a major release because it's a new decision surface across the whole gate contract, not a tweak: a new policy key, a new run mode, a new tagging workflow, and a new safety net that watches for the one failure mode that matters — a test being skipped that shouldn't have been.
