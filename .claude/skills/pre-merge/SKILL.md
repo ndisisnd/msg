@@ -31,7 +31,6 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 
 - `/pre-merge` — gate the current feature branch against `staging`
 - `/pre-merge --init` — run the one-time setup: detect tooling (incl. the `.github/workflows/` CI pipeline that runs the gate on PRs, unless `policies.github_actions.enabled` is `false` — then the missing workflow is a settled opt-out, not a gap, and no scaffold is offered) → interview → gated install/scaffold → write `devkit/policy.json` (no gate run); see `refs/protocol-init.md`
-  - `/pre-merge --doctor` — **deprecated alias for one release**: runs `--init` and prints a deprecation note naming `--init`/`--update`
 - `/pre-merge --update` — reconcile the manifest with codebase reality (re-run preflight checks → diff `components[]` → approve the delta → apply `present`/`active_when`/new-component changes only; never re-grades user-set criticality or re-prompts settled opt-outs); see `refs/protocol-init.md`
 - `/pre-merge --prd <path>` — load a PRD; enables the `prd`-group components (`prd-consistency`, `manual-test-plan`) and feeds the `regression` component (repeatable)
 - `/pre-merge --prior-issues <path>` — load a prior verdict JSON to mark regressions
@@ -218,7 +217,7 @@ so the gate never dead-ends.
 - `refs/universal/protocol-security.md`, `refs/platform/protocol-migration.md` — the mandatory safety-floor components
 - `refs/prd/protocol-prd-consistency.md` — `prd`-group spec-match pass (Wave 1, `active_when --prd`)
 - `refs/platform/protocol-preview.md` — `preview` deploy + human gate (D6/D10; only-on-green tail)
-- `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; also the test-selection enabling interview + its single-run disable; `--doctor` is a deprecated one-release alias for `--init` (see Usage)
+- `refs/protocol-init.md` — `--init`/`--update` mode: detect → interview → gated install → assemble `components[]` → write `devkit/policy.json`; also the test-selection enabling interview + its single-run disable
 - `refs/protocol-update-criticality.md` — `--update-criticality` mode: inventory → evidence-cited proposals → human gate → tag commit + `criticality_review` restamp; also the gate's read-only staleness nudge
 - `../shared/refs/policy-schema.md` — `devkit/policy.json` schema + read-contract (`components[]` manifest, base `release_flow`, `source_signature`, `policies.test_selection` §2c + the `criticality_review` stamp)
 - `../shared/refs/component-catalog.md` — component metadata (schema, defaults, `depends_on` edges, grouping) the manifest + executor key off

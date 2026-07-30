@@ -580,11 +580,13 @@ For **each shipped PRD**:
    and the `staging-signoff:` stamp are left intact and unchanged** — `reviewed`
    records that a gate ran, `staging-signoff` records the human staging test, and
    `status: done` records that the feature shipped; the three are orthogonal.
-2. **Move the folder `wip/ → done/`.** `git mv features/wip/prd-<n>-<slug>/
+2. **Move the folder `wip/ → done/`.** `mv features/wip/prd-<n>-<slug>/
    features/done/prd-<n>-<slug>/` — a whole-directory rename that carries the PRD and
    its colocated `reports/`, `preflight.md`, and `test/` with no path rewriting (they
-   live **inside** the moved dir, so they travel with it). Always `git mv`, never plain
-   `mv`, so history follows the file and the move is a tracked rename.
+   live **inside** the moved dir, so they travel with it). `features/` is gitignored, so
+   the dir is normally untracked and plain `mv` is the correct mover — `git mv` would
+   fail on it. Use `git mv` **only** if the dir is actually tracked (a legacy repo that
+   committed its PRDs before the ignore), so the rename is recorded.
 
 **Lane-agnostic resolution + idempotency.** Do not assume the PRD sits under `wip/`.
 Resolve it via a glob across the three lanes and the legacy flat path —
@@ -604,8 +606,8 @@ broken release neither stamps `status: done` nor files the PRD into `done/`. And
 production, so the staging flow moves no folder and stamps no `status: done`.
 
 **Safety floor.** The `status: done` stamp is a PRD-frontmatter edit (docs/metadata,
-the same category as the Step 8 intake stamp); the folder move is a tracked `git mv`
-of the PRD's own directory. Neither touches `src/` or writes any source code — the
+the same category as the Step 8 intake stamp); the folder move is a rename of the PRD's
+own (gitignored) directory. Neither touches `src/` or writes any source code — the
 safety floor holds (`../shared/refs/safety-floor.md`), and both are named in
 `SKILL.md`'s canonical sanctioned-writes enumeration (items 4 and 8).
 

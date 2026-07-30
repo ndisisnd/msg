@@ -25,7 +25,9 @@
 #   ACTION=checkout     branch exists, unmerged  -> checkout, no re-create/reset
 #   ACTION=fresh-cut    branch exists but already merged to main (reuse would
 #                       double-merge) -> BRANCH is the fresh, non-colliding name
-#   LANE_MOVE=git mv <src>/ features/wip/<prd-id>/   or   LANE_MOVE=none
+#   LANE_MOVE=mv <src>/ features/wip/<prd-id>/       or   LANE_MOVE=none
+#     (`git mv` instead of `mv` only when <src> is actually tracked — features/
+#      is gitignored, so plain `mv` is the normal path and `git mv` would fail.)
 #     Emitted only on create/fresh-cut of a TOP-LEVEL PRD whose folder is not
 #     already under features/wip/. Sub-PRDs never move (they ride the parent's
 #     lane); a re-checkout is never a move.
@@ -131,7 +133,11 @@ fi
 # Lane move: only on create/fresh-cut of a top-level PRD not already in wip/.
 lane_move="none"
 if [[ ( "$action" == "create" || "$action" == "fresh-cut" ) && "$is_sub" -eq 0 && "$lane" != "wip" ]]; then
-  lane_move="git mv $srcdir/ features/wip/$own_id/"
+  if [[ -n "$(git ls-files -- "$srcdir" 2>/dev/null)" ]]; then
+    lane_move="git mv $srcdir/ features/wip/$own_id/"
+  else
+    lane_move="mv $srcdir/ features/wip/$own_id/"
+  fi
 fi
 
 echo "BRANCH=$branch"

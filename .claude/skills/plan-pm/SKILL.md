@@ -11,8 +11,11 @@ argument-hint: "[#<n> | --sub <prd-path> | --roadmap]"
 allowed_tools:
   - AskUserQuestion
   - Bash
+  - Edit
   - Read
   - Skill
+  - WebFetch
+  - WebSearch
   - Write
 ---
 

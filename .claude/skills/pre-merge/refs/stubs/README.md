@@ -4,8 +4,7 @@ Minimal, runnable config templates that `/pre-merge --init` copies into a target
 repo for the **config-missing** gap flavor (a tool's dependency exists, or is being
 installed, but no config file is present so the gate can't run it) — plus the
 **workflow-missing** flavor (`pre-merge.yml`), scaffolded when no `.github/workflows/`
-pipeline produces PR status checks. (`--doctor` is a deprecated one-release alias for
-`--init` — see `../protocol-init.md`.)
+pipeline produces PR status checks.
 
 Each stub is deliberately minimal — just enough for the corresponding component/step
 to execute — and is meant to be tuned by the project afterward. `--init` writes

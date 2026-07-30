@@ -7,7 +7,6 @@
 # detected (the resolved `run` commands from the preflight-check-*.sh family)
 # into the run steps below, replacing the `[init: …]` placeholders. Steps whose
 # component the repo doesn't have are dropped. Tune the runner/setup afterward.
-# (`--doctor` is a deprecated one-release alias for `--init`.)
 name: pre-merge
 
 on:

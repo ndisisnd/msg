@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — v5.0.0
+
+### v5-P0 — Quick wins (one commit per phase; queue: update/plan-msg-v5.md §4) (i13/i14/i35/i38/i52/i53)
+
+- `.claude/skills/plan-pm/SKILL.md`: Changed — `allowed_tools` gains `Edit`, `WebFetch`, `WebSearch`; `refs/principles.md`'s web rule is now executable and scoped to convention lookups
+- `.claude/skills/msg/SKILL.md`: Changed — `allowed_tools` gains `Edit`; `--update` precondition corrected to key on `devkit/` (`INITIALISED`), not `policy.json` (also in `refs/protocol-update.md`, where a missing `policy.json` is now explicitly a top-up case, not a refusal)
+- 8 files: Removed — every mention of the expired `--doctor` one-release alias for the gates' `--init` (msg, pre-merge, post-merge, `shared/refs/policy-schema.md`); the name is now free
+- `features/` is gitignored: Added to `template-gitignore.md` + `protocol-init.md` docs; new `--update` Step 3-FT offers `git rm -r --cached features/` (stage-only, confirmed) for legacy tracked repos; lane moves now branch tracked→`git mv` / untracked→`mv` (`plan-em-branch-resolve.sh`, post-merge refs, `init.sh` comments)
+
+
 ## 2026-07-26
 
 ### [60] — The gate can now run only the tests your diff can break (contract core)

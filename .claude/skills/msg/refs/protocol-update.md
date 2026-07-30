@@ -24,7 +24,7 @@ type: reference
 
 - Natural language: "check for msg updates", "reinitialise this project", "resync my init setup", "are there new init components", "classify my PRDs"
 
-**Hard refusal:** `devkit/policy.json` (equivalently, `devkit/` — `INITIALISED` from `init-setup.sh`) absent → this repo was never bootstrapped, there is nothing to update. Stop and direct the user to `/msg --init`. Do not create anything here.
+**Hard refusal:** `devkit/` absent (`INITIALISED=false` from `init-setup.sh`) → this repo was never bootstrapped, there is nothing to update. A missing `devkit/policy.json` is **not** a refusal signal on its own — a repo bootstrapped before `policy.json` existed is exactly the top-up case this mode serves. Stop and direct the user to `/msg --init`. Do not create anything here.
 
 ## Inputs
 
@@ -36,13 +36,15 @@ type: reference
 | PRD lane classifications | planned \| wip \| done, per unresolved PRD | Step 4, batched `AskUserQuestion` |
 | GitHub Actions decision | keep \| on \| off (+ reason when off) | Step 3-CI `AskUserQuestion`, gated on a GitHub remote + `gh` |
 | Test selection decision | keep \| on (hand-off) \| off (+ reason when off) | Step 3-TS `AskUserQuestion`, gated on a detected test suite (a `unit`/`integration`/`regression` component present) |
+| Untrack-`features/` decision | leave tracked \| untrack | Step 3-FT `AskUserQuestion`, gated on `git ls-files -- features/` being non-empty |
 
 ## Outputs
 
 | Name | Format | Destination |
 |------|--------|-------------|
 | Newly-added devkit/root files, rows, lanes | Same as `/msg --init`'s Outputs | Same as `/msg --init` |
-| Reclassified PRDs | `git mv` / `mv` into the user-chosen lane | `<cwd>/features/<lane>/prd-*/` |
+| Reclassified PRDs | `mv` (or `git mv` for a legacy tracked dir) into the user-chosen lane | `<cwd>/features/<lane>/prd-*/` |
+| Untracked `features/` | `git rm -r --cached features/` — a **staged** deletion, on explicit confirmation only; never committed here | git index |
 | GitHub Actions decision | `policies.github_actions: {enabled, reason}`, merged surgically — the only `policy.json` key this protocol writes | `<cwd>/devkit/policy.json` |
 | Test selection disable | `policies.test_selection.enabled: false` (+ `reason`), merged surgically — enabling is never written here, only handed off | `<cwd>/devkit/policy.json` |
 | Summary | Inline — components added, PRDs classified | Shown inline at Step 4 |
@@ -171,6 +173,27 @@ untouched. Report the transition in the Step 4 summary as
 report nothing written. `/msg --update` never writes `enabled:true` itself
 (AC-TS2) — only `/pre-merge --init`/`--update`'s enabling interview does.
 
+**Step 3-FT — Untrack a previously committed `features/`** (named alongside Steps 3-CI
+and 3-TS)
+
+`features/` is gitignored from the Universal `# msg skill artifacts` block onward, but
+**a gitignore row never untracks what is already committed**. A repo bootstrapped before
+the ignore keeps committing its PRDs until someone runs `git rm -r --cached features/`.
+**Gate:** only asked when `git ls-files -- features/` returns at least one path — an
+already-untracked repo (every fresh one) skips silently and does nothing.
+
+> header **Tracked PRDs**, question "`features/` is now gitignored, but this repo still
+> tracks **`<n>`** committed file(s) under it. Untrack them?"
+> - **Leave them tracked** — do nothing. The ignore has no effect on these files; they
+>   keep committing exactly as before.
+> - **Untrack them** — run `git rm -r --cached features/`. The files stay on disk, but
+>   the change **stages a deletion of every one of them** and lands as a visible deletion
+>   commit on the product repo, with their history ending at that commit.
+
+Never do this silently and never commit it here — stage the removal, report it, and leave
+the commit to the user. Report in the Step 4 summary as
+`features/: untracked <n> file(s) — review and commit the staged deletion`.
+
 **Step 4/4 — Batched PRD lane classification**
 
 Parse `UNRESOLVED` from Step 3's `init.sh` output. If `none`, skip straight to the summary — every flat PRD was resolved automatically (rung 1 shipped / rung 2 wip) or there were none to begin with.
@@ -192,7 +215,7 @@ else
 fi
 ```
 
-Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — history-preserving `git mv` when the dir is tracked, plain `mv` otherwise. Report each as `classified (manual) → <lane>` in the final summary.
+Same tracked-vs-untracked branch `init.sh`'s own migration loop uses — plain `mv` in the normal case (`features/` is gitignored, so the dir is untracked), `git mv` only for a legacy dir tracked from before the ignore. Report each as `classified (manual) → <lane>` in the final summary.
 
 **Summary.** Print what happened: components added/skipped (from Step 3's manifest), rows added/declined, the CI decision if it changed (Step 3-CI), the test-selection decision if it changed (Step 3-TS — a disable, or a hand-off note when the user chose to turn it on), and PRDs classified (automatic ladder vs. manual, each with its resulting lane). No next-step suggestion beyond noting the repo is now current with `/msg --init`'s latest scaffold.
 

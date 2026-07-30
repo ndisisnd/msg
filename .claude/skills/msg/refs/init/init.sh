@@ -268,7 +268,8 @@ fi
 
 # ── features/ lifecycle lanes ─────────────────────────────────────────────────
 # Three lanes mirror the pipeline stage — planned (drafted), wip (in build),
-# done (shipped). Each carries a tracked .gitkeep so the empty lane commits.
+# done (shipped). Each carries a .gitkeep marking the empty lane on disk;
+# features/ is gitignored, so the lanes are local working state, not committed.
 # Idempotent: a lane that already exists is skipped, never emptied or recreated.
 
 for lane in planned wip done; do
@@ -304,7 +305,8 @@ fi
 #   merged staging->prod release PR (or a shipped tag) that names the PRD → done/
 #   a live unshipped feat/prd-<n>-* branch (local or remote)             → wip/
 #   otherwise                                                            → planned/
-# git mv when the dir is tracked (history-preserving rename); plain mv otherwise.
+# plain mv is the normal path (features/ is gitignored, so nothing is tracked);
+# git mv only for the legacy case of a dir tracked before features/ was ignored.
 # Idempotent: a PRD already inside a lane is never matched, and a brand-new repo
 # with an empty features/ matches nothing and migrates nothing.
 

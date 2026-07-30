@@ -8,7 +8,7 @@ Five categories of rules for producing a PRD. Apply all of them, every time.
 
 Reduces ambiguity. PRD is self-contained; no follow-up needed to start building.
 
-- **Search existing patterns before inventing** — check the codebase first, then the web. Ground requirements in real, observed patterns, not invented ones.
+- **Search existing patterns before inventing** — check the codebase first. Search the web only when the draft has to name a real-world convention the codebase does not already demonstrate (a third-party API's error semantics, a platform's permission model) — never for general product research, competitor scans, or PRD-writing advice. Ground requirements in real, observed patterns, not invented ones.
 - **Exact values over approximations** — write `300ms`, `50 items`, `7 days`. Never `fast`, `a few`, `about a week`.
 - **Name the flow, don't describe it** — reference flows by name (e.g. `OnboardingStep3.tsx`, `checkout.confirm`). Do not paraphrase them in prose.
 - **Constraints as hard limits, not preferences** — write `must complete in <2s`, not `should be fast`.

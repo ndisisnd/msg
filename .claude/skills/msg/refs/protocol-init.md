@@ -8,7 +8,8 @@ description: >
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
   README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the three `features/`
-  lifecycle lanes (`planned/`, `wip/`, `done/`, each with a tracked `.gitkeep`).
+  lifecycle lanes (`planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the
+  empty lane). `features/` is gitignored — PRDs are local working state.
   Idempotent — skips files that already exist; never overwrites. All other msg
   skills read these files but never create them.
 type: reference
@@ -40,7 +41,7 @@ type: reference
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
 | `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/post-merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
-| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`, and `policies.github_actions` — whether you want GitHub Actions CI at all, revisable via `/msg --update`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`; `--doctor` is a deprecated one-release alias) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
+| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`, and `policies.github_actions` — whether you want GitHub Actions CI at all, revisable via `/msg --update`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
 
 **Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
 
@@ -71,12 +72,12 @@ type: reference
 | devkit/policy.json | JSON seed skeleton written by the skill (not `init.sh` — the skill stamps `generated`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten (AC-LC7). **Plus `policies.github_actions`, merged in surgically at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
-| .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, **and `INTAKE-UPDATE.md`** — both ledger files are local working state (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
+| .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, **and `features/`** — the ledger files and the PRD lanes are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
 | INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `post-merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
-| features/ lanes | Three lifecycle lanes — `planned/`, `wip/`, `done/`, each with a tracked `.gitkeep` so the empty lane commits. A PRD lives in exactly one lane, matching its pipeline stage (drafted → `planned`, branch cut → `wip`, shipped → `done`) | `<cwd>/features/{planned,wip,done}/` |
-| Migrated PRDs | Any pre-lane flat `features/prd-*/` dir is `git mv`d into a lane by the completion ladder (shipped → `done/`, live branch → `wip/`, else → `planned/`); reported as `migrated` in the manifest. Empty `features/` → no migration | `<cwd>/features/<lane>/prd-*/` |
+| features/ lanes | Three lifecycle lanes — `planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the empty lane on disk. **Gitignored** (see `.gitignore` row) — created, then ignored. A PRD lives in exactly one lane, matching its pipeline stage (drafted → `planned`, branch cut → `wip`, shipped → `done`) | `<cwd>/features/{planned,wip,done}/` |
+| Migrated PRDs | Any pre-lane flat `features/prd-*/` dir is moved into a lane by the completion ladder (plain `mv`; `git mv` only for the legacy case where the dir is already tracked) (shipped → `done/`, live branch → `wip/`, else → `planned/`); reported as `migrated` in the manifest. Empty `features/` → no migration | `<cwd>/features/<lane>/prd-*/` |
 | Manifest | Inline table — file, status (created / skipped / migrated / FAILED), line count | Shown inline at Step 5 |
 
 ## Progress emission
@@ -209,7 +210,7 @@ DS_CONVENTIONS="<component naming / folder conventions>" \
 every variable above is set — neither protocol may leave one unresolved, and no
 variable outside this block reaches `init.sh`.
 
-`init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, the three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`, each with a tracked `.gitkeep`), a one-time migration of any pre-lane flat `features/prd-*/` dirs into a lane by the completion ladder (`git mv`, reported as `migrated`), and idempotency. Capture its stdout — it includes the manifest for Step 5.
+`init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, the three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`, each with a `.gitkeep`), a one-time migration of any pre-lane flat `features/prd-*/` dirs into a lane by the completion ladder (plain `mv`, or `git mv` for a legacy tracked dir; reported as `migrated`), and idempotency. Capture its stdout — it includes the manifest for Step 5.
 
 **Seed `devkit/policy.json`.** After `init.sh` returns (so `devkit/` exists), seed the committed
 release-flow policy file. The **skill writes this one directly** (via `Write`) — not `init.sh` —
@@ -221,9 +222,8 @@ because the seed carries a `generated` date and scripts can't stamp the date. Sc
    (AC-LC7). Consistent with `init.sh`'s "writes only files absent from the target" rule.
 2. Otherwise write **exactly** the keys below — `version`, `init:false`, `generated`,
    `generated_by`, and `policies.release_flow` from Call 4, and **nothing else** (no `repo`, no
-   `branch_protection`, no `steps` — those are the gate skills' `--init`'s to fill (`--doctor` is
-   a deprecated one-release alias), which is why `init` is
-   `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`.
+   `branch_protection`, no `steps` — those are the gate skills' `--init`'s to fill, which is why
+   `init` is `false`) (AC-LC1). Stamp `generated` with today's date in `YYYY-MM-DD`.
    `policies.github_actions` is the one exception to "nothing else", and it is written
    later — at **Step 5**, once the GitHub-remote-gated CI question has an answer; on a
    no-remote repo it is never written at all:

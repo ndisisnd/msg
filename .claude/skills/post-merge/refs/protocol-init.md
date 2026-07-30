@@ -13,10 +13,6 @@ branches, deploy, and smoke-verify — and what release flow does it follow. `--
 per-item), and **completes `devkit/policy.json`**. It runs no protocol step: no merge, no
 PR, no deploy, no smoke, and it never writes `devkit/PLATFORMS.md` (AC-DR1).
 
-> **Deprecated alias.** `/post-merge --doctor` still works for one release: it runs
-> `--init` and prints a deprecation note naming `--init`/`--update`. New callers should
-> use `--init`.
-
 Follow the **Shared `--init` contract** (prereqs → load/seed policy → detect → interview
 → offer install → write → summary — the same seven-step contract both gates run,
 spelled out in `../../pre-merge/refs/protocol-init.md` § *Shared `--init` contract*).

@@ -44,6 +44,7 @@ out/
 .pre-merge/
 INTAKE.md
 INTAKE-UPDATE.md
+features/
 ```
 
 ## Stack sections

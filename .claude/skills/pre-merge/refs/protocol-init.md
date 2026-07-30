@@ -11,9 +11,6 @@ about the real gaps, **offers to install** the missing pieces (gated, per-item, 
 **records** every decision into `devkit/policy.json` — turning today's silent "no tooling → skip"
 into an explicit, persisted `steps.<key>` decision the gate reads at run time.
 
-> **Deprecated alias.** `/pre-merge --doctor` still works for one release: it runs `--init` and
-> prints a deprecation note naming `--init`/`--update`. New callers should use `--init`.
-
 `--init` **never runs the gate, never opens a PR, never merges, never deploys, and never writes
 `devkit/PLATFORMS.md`** (AC-DR1). Its only outputs are repo mutations under explicit per-item
 approval (binaries, stub configs) and the `policy.json` write.

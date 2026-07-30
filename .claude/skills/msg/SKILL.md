@@ -14,6 +14,7 @@ argument-hint: "[--init | --init-staging | --update | --gui | --help]"
 allowed_tools:
   - AskUserQuestion
   - Read
+  - Edit
   - Write
   - Bash
 ---
@@ -124,8 +125,9 @@ reinit (re-running the complete Step 2 interview); the default path only adds wh
 same idempotent guarantee as `--init`'s top-up (no existing file is ever rewritten). Unlike
 `--init`, ambiguous PRDs (no shipped PR/tag, no live `feat/prd-*` branch) are never silently
 defaulted to `planned` here — they're batched to the user via `AskUserQuestion` to classify by
-hand. Preconditions: `devkit/policy.json` must already exist (`INITIALISED=true`); if it's
-absent, stop and direct the user to `/msg --init` first — there's nothing to update yet.
+hand. Preconditions: `devkit/` must already exist (`INITIALISED=true`); if it's absent, stop and
+direct the user to `/msg --init` first — there's nothing to update yet. A missing
+`devkit/policy.json` is not a refusal signal: topping it up is one of this mode's jobs.
 
 ---
 
@@ -135,7 +137,6 @@ The **only** path that creates a `staging` branch. It takes a direct-flow repo (
 prod) and adds the staging stage: branch `staging` off the prod branch, push it, offer branch
 protection, then flip `devkit/policy.json` release flow to `staged`. Offered by
 `/post-merge --init` when it detects a direct-flow repo, and directly invocable. Skip the picker.
-(`--doctor` is a deprecated one-release alias for `--init`.)
 
 **Preconditions.**
 - A git repo with `devkit/policy.json` present. If it is **absent**, the repo was never bootstrapped —

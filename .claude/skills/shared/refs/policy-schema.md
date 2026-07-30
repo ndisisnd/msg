@@ -1,6 +1,6 @@
 ---
 name: policy-schema
-description: Canonical schema, status vocabulary, and gate read-contract for devkit/policy.json — the committed, shared policy file seeded by /msg --init, flipped by /msg --init-staging, completed by --init (--doctor is a deprecated one-release alias), and read by both gates
+description: Canonical schema, status vocabulary, and gate read-contract for devkit/policy.json — the committed, shared policy file seeded by /msg --init, flipped by /msg --init-staging, completed by --init, and read by both gates
 type: reference
 ---
 
@@ -21,9 +21,6 @@ The single authoritative definition of `devkit/policy.json`: the **committed, sh
 
 No gate run ever writes it (AC-OW1, AC-UP6) — a gate only recomputes `source_signature`
 read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
-
-**Deprecated alias.** `--doctor` still works for one release: it runs `--init` and prints a
-deprecation note naming `--init`/`--update`.
 
 ## Canonical v1 schema (annotated)
 
@@ -100,7 +97,7 @@ did before the key existed.
 | `version` | int | ✔ | — | must be `1`; any other value → whole file treated as absent (AC-S1) |
 | `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--init` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--init` flips it `true` on completion |
 | `generated` | `YYYY-MM-DD` | ✔ | — | stamped by the skill (scripts can't date); informational |
-| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge --init` \| `pre-merge --update` \| `post-merge --init` \| `post-merge --update` | ✖ | — | last writer; informational. `pre-merge --doctor`/`post-merge --doctor` still appear on files written during the one-release deprecation window (aliases of `--init`) |
+| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge --init` \| `pre-merge --update` \| `post-merge --init` \| `post-merge --update` | ✖ | — | last writer; informational |
 | `repo` | object | ✖ | — | evidence/audit only — gates never branch on it |
 | `policies` | object | ✖ | `{}` | the enforced half |
 | `components` | object[] | ✖ | — | the **v3 preflight manifest** — the resolved per-project pipeline (catalog defaults + detection + user overrides). Purely **additive** to the same file (AC-PF5). See [`components[]`](#components--the-v3-preflight-manifest) |
@@ -450,7 +447,7 @@ init = policy.init ?? false          // file present but no `init` → false
 | `init: false` | **auto-run `--init` inline before the protocol** (AC-LC2). `--init` completes setup and flips `init:true` (AC-LC3), then the gate continues. If the user **aborts** `--init`, the gate stops — nothing was set up, so it runs **no** protocol step on a half-configured repo (AC-LC4). |
 | `init: true` | run the protocol directly — no init run (AC-LC5). |
 
-Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/post-merge` auto-runs `--init` → `--init` flips `init:true` → every later run is a normal gate. `--init` can still be invoked manually anytime to re-tune (it does not depend on `init`). (`--doctor` is a deprecated one-release alias for `--init` throughout this lifecycle.)
+Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/post-merge` auto-runs `--init` → `--init` flips `init:true` → every later run is a normal gate. `--init` can still be invoked manually anytime to re-tune (it does not depend on `init`).
 
 > **v3 pre-merge override (Fork C, AC-PF13/PF14).** The pre-merge executor gates on the
 > **`components[]` manifest**, not on the `init` states above: a `/pre-merge` run with no
