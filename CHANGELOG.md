@@ -2,6 +2,11 @@
 
 ## 2026-07-30
 
+### [93] — v5.0.1-P7: merge verdict→action prose tighten (S4)
+
+- `merge/refs/staging.md` / `production.md` / `verify-deploy.md`: Changed — 267 words of table-restating prose reclaimed (9,993 → 9,726 across the refs); every one of the 45 verdict→action table rows proven byte-identical to HEAD (empty extract-diff per file), all 27 verdict vocabulary tokens survive, i100 (macOS model declared-never-inferred), i73 (direct-flow test before the merge) and rollback always-ask intact at every call site
+- `deploy.md`: Unchanged — it carries no verdict table; a marginal 9-word trim was made and deliberately reverted (byte-identical to HEAD)
+
 ### [92] — v5.0.1-P6: eng build protocol slim (S3)
 
 - `eng/refs/build/protocol.md`: Changed — 5,386 → 4,298 words (−20%), its first dedicated slim: script-return narration, design-history asides, double-homed fragments (merge-floor line, per-ticket-review negation, Engineering-authority note) and rule-repeating examples cut; transitions gone

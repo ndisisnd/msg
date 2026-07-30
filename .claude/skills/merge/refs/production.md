@@ -41,8 +41,7 @@ here, **before** the lock is acquired, so a bad `--version` never touches it.
 This early read is a **preview**: the merge commit does not exist yet. The
 **authoritative** `BUILD` comes from re-running the same script after the Step-5
 merge + fetch (Step 5), because the tag must encode tag-time truth. The preview
-feeds the Step-3 confirm; the recompute feeds the Step-6 monotonicity gate, the
-Step-7 provenance read, and the Step-9 tag.
+feeds the Step-3 confirm; every later step reads the recompute.
 
 merge **never writes a VERSION file or a bump commit** — the only new write
 is the git tag at Step 9, which changes no tracked file. Full contract:
@@ -56,7 +55,7 @@ For each `--prd` (or every PRD with a merged feature→staging PR since the last
    ```bash
    S=.claude/scripts/script-ci-status.py; python3 "$S" --branch "$STG"
    ```
-   `green` (0) → proceed. `red`/`pending` (3/4) → refuse (`staging_not_green`), quoting `FAILING_CHECKS`/`PENDING_CHECKS`. `empty-inactive` (5) → the precondition is **inactive**: proceed, recording `NOTE` when it is non-empty. `empty-vacuous` (6) → proceed + the `low` `vacuous-ci` note. The script owns the empty-set branch (`github_actions` outranking `steps.ci`), so a real failing or in-flight status still refuses whatever `ga` says.
+   `green` (0) → proceed. `red`/`pending` (3/4) → refuse (`staging_not_green`), quoting `FAILING_CHECKS`/`PENDING_CHECKS`. `empty-inactive` (5) → the precondition is **inactive**: proceed, recording `NOTE` when it is non-empty. `empty-vacuous` (6) → proceed + the `low` `vacuous-ci` note. The empty-set branch is the script's (`github_actions` outranking `steps.ci`), so a real failing or in-flight status still refuses.
 2. **`staging-signoff:` stamp present** in the PRD frontmatter. Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
 3. **The sign-off still covers what is about to ship** (below). Staging advanced past every stamped sha → refuse (`stale_signoff`).
 
@@ -92,8 +91,7 @@ whose feature→staging PR already merged — it would refuse `no_pr`.
 *its own* merge sha, so older stamps legitimately lag the tip. What must hold is
 that the **newest** sign-off is the tip: every commit on `staging` is at or below
 a sha a human certified. Requiring every stamp to equal the tip would refuse
-almost every multi-PRD release; requiring none would let post-sign-off commits
-ride to production.
+almost every multi-PRD release.
 
 **Unpinned (legacy) stamp — the one judgment half.** A stamp with no `@<sha>`
 predates the pin. Do not refuse: the PRD's feature→staging PR is already merged,
@@ -118,9 +116,8 @@ Record a `low` `unpinned-signoff` note in the run report either way.
 **`direct` flow** — this whole step is **inactive**, not waived: there is no
 staging, so there is no sign-off to check and nothing to pin. Record it as
 `inactive (no staging)` in the run report, never as skipped or relaxed
-(`SKILL.md` § *Release flow*). The human judgment the sign-off represents is not
-dropped — it moves to the **inline human-test approval** below, which fires
-before the merge.
+(`SKILL.md` § *Release flow*). The human judgment it represents moves to the
+**inline human-test approval** below, which fires before the merge.
 
 A `submission`-model platform under `direct` flow still runs the full submission
 lifecycle on the single feature→`prod` ship (`refs/submission.md`) —
@@ -200,17 +197,13 @@ Ask exactly once:
   nothing to release. Under an autonomy contract with no human present, default
   to **Cancel** (do not ship an untested build unattended).
 
-The gate is never a formality: declining it stops the ship exactly as a withheld
-sign-off blocks a `staged` release.
-
 ## Release lock (acquire before Step 4, release on every exit)
 
 Two `--production` runs in flight at once — two terminals, two teammates, or a
 retry over a still-running ship — race on `prod`: both open a release PR, both
 merge, both deploy. The lock serializes them. It applies to **both flows** (a
 `direct` feature→`prod` ship races the same way) and is **silent when
-uncontended**: a solo dev shipping one release at a time never sees it. Friction
-appears only on a real collision.
+uncontended**: a solo dev shipping one release at a time never sees it.
 
 `script-release-lock.sh` owns the whole mechanism — the atomic push-reject
 acquire, the holder metadata, the 2h staleness read, the remote holder read, and
@@ -231,8 +224,8 @@ bash "$S" acquire --prod "$PROD" --prds "<prd ids>"
 step.** Late enough that no pre-flight refusal ever touches the lock (Step 1,
 Step 2, a Step-3 Cancel and a declined inline human-test all exit before it, so
 there is nothing to release). Early enough to cover the whole mutating window:
-Step 4 onward runs inside it. Two runs can both clear Step 3 concurrently; the
-acquire is what serializes them.
+Step 4 onward runs inside it — two runs can both clear Step 3 concurrently, and
+the acquire is what serializes them.
 
 ### Re-verify sign-off coverage immediately after acquire (`staged` flow)
 
@@ -275,8 +268,7 @@ and a failed delete is a `low` note, never a hard stop — the TTL reclaims it.
   (merge → deploy → verify → rollback offer).
 - **Success** — release after Step 10.
 - **A hard process kill** between acquire and release is the one path code cannot
-  cover; the TTL + the script's `UNLOCK_CMD` handle it, documented honestly
-  rather than pretended away.
+  cover; the TTL + the script's `UNLOCK_CMD` handle it.
 
 Record `{ref, acquired, acquired_at, released, released_at}` — straight off the
 script's keys — into the run report's `release_lock` block.
@@ -306,7 +298,7 @@ Release-style body (what the GUI production report and the PR render from):
   | `yes` | Rollback = redeploy the previous build (`rollback_cmd`). For a `server` platform, add the standing caveat: a redeploy does **not** revert schema migrations. |
   | `limited` | Partial rollback — a lever exists but does not fully un-ship: `deploy` (macOS direct download) → re-publish the prior build; `submission` (Android, Mac App Store) → **halt the staged/phased rollout** (`rollout_halt_cmd`); the approved build stays out. |
   | `no` | **IRREVERSIBLE** — an approved app-store release is permanent. The *phased release* can still be halted (`rollout_halt_cmd`) but the build is not recallable. Flag iOS here (default). |
-  - Any platform with `rollback_possible: no` (iOS by default) is flagged **`IRREVERSIBLE`** in bold — the GUI surfaces it as a prominent badge. Android is `limited`, not `no` — its staged-rollout halt is a real lever.
+  - Any platform with `rollback_possible: no` (iOS by default) is flagged **`IRREVERSIBLE`** in bold — the GUI surfaces it as a prominent badge.
 
 ## Step 5 — Merge on green CI + human review
 
@@ -331,7 +323,7 @@ Branch protection enforces both; merge checks them, then merges:
    git fetch origin "$PROD" --tags --quiet
    ```
    Without this, the build recompute, the provenance read and the tag all read a
-   stale prod. This fetch is the single refresh Steps 6–10 read from.
+   stale prod; this is the single refresh Steps 6–10 read from.
 
 5. **Recompute the authoritative release identity.** Re-run
    `script-release-identity.sh` (same flags) against the freshly-fetched prod:
@@ -398,7 +390,7 @@ bash "$S" INTAKE.md <ROW> --status completed            # write: that cell only
 
 `--find-row` is read-only and matches on the `prd-<n>-<slug>` token, so a bare
 id, a backticked id and a markdown link all resolve identically. `FOUND=false`
-(exit 1) → skip that PRD with a one-line note (below). The write rewrites only
+(exit 1) → skip that PRD (below). The write rewrites only
 that row's status cell, leaving every other row byte-identical.
 
 This is the terminal ledger transition (`backlog` → `in-progress` →
@@ -470,10 +462,10 @@ shipped PRD**:
 stamp in step 1 still stands). Already under `features/done/` → **no-op**, also
 noted — re-running `--production` after a partial run must never fail on it.
 
-**Only on a successful production ship.** A failed ship skips this step entirely
-— exactly as it skips Step 8's stamp and Step 9's tag — so a broken release
-neither stamps `status: done` nor files the PRD into `done/`. And **`--staging`
-never runs this step**: a PRD is not `done` until it is live in production.
+**Only on a successful production ship** — a failed ship skips this step
+entirely, stamping no `status: done` and filing nothing into `done/`. And
+**`--staging` never runs this step**: a PRD is not `done` until it is live in
+production.
 
 **Safety floor.** The stamp is a PRD-frontmatter edit (docs/metadata, the same
 category as the intake stamp); the move renames the PRD's own directory. Neither
@@ -485,7 +477,7 @@ sanctioned-writes enumeration (items 4 and 8).
 Write `report-prd-<N>-<K>.md` (`skill: merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored, its smoke check failed, or provenance mismatched.
-- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success; skipped-with-note or absent on a failed release), the bump level, per-platform provenance (`verified` / `asserted (unverified)` / `fail`). On a failed ship, also the **rollback offer outcome** (offered/executed/declined + cmd exit). A clean uncontended acquire/release adds nothing here — the lock is silent when it does its job. A **stale lock** never appears here at all: it terminates *that* run as a `release_in_flight` refusal.
+- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success; skipped-with-note or absent on a failed release), the bump level, per-platform provenance (`verified` / `asserted (unverified)` / `fail`). On a failed ship, also the **rollback offer outcome** (offered/executed/declined + cmd exit). A clean uncontended acquire/release adds nothing here; a **stale lock** never appears at all — it terminates *that* run as a `release_in_flight` refusal.
 - `## Work done` — PRDs shipped, commit count, platforms deployed; on success, note that each shipped PRD was stamped `status: done` and filed into `features/done/`. **Under `release_flow=direct`, open with one `Stages` line** so the reduced set is visible rather than invisible:
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (tooling missing) or *relaxed* (threshold lowered). In `staged` flow the line is omitted entirely.
