@@ -16,10 +16,19 @@
 #   script-branch-protection.sh --verify main               check one branch only
 #
 # Protection baseline (per current GitHub REST — branch protection API):
-#   staging → required_status_checks{strict:true, contexts:[]}, enforce_admins,
-#             restrictions:null, allow_force_pushes:false
-#   main    → the same PLUS required_pull_request_reviews with
+#   staging → required_status_checks{strict:true, contexts:[<≥1 check>]},
+#             enforce_admins, restrictions:null, allow_force_pushes:false
+#   prod    → the same PLUS required_pull_request_reviews with
 #             required_approving_review_count:1 (the human-review half of D11)
+#
+# The prod branch is resolved from devkit/policy.json via script-policy-read.py
+# (`PROD_BRANCH`, default `main`) — not hardcoded — so a repo that releases from
+# a differently-named branch still gets its required-review check.
+#
+# `strict:true` with an EMPTY contexts[] requires only that the branch be
+# up to date; no check has to pass. verify therefore reports that branch
+# `UNPROTECTED <b> no-required-contexts`. Bootstrap with `--contexts` to
+# satisfy it.
 #
 # Machine output (one line per branch):
 #   PROTECTED <branch>                     protection matches (verify)
@@ -56,10 +65,29 @@ command -v git >/dev/null 2>&1 || { echo "NO_GH"; exit 2; }
 remotes=$(git remote 2>/dev/null)
 [[ -z "$remotes" ]] && { echo "NO_REMOTE"; exit 2; }
 
+# ── Which branch is production? (A2b) ─────────────────────────────────────────
+# The required-review clause belongs to the PROD branch, which is `main` only by
+# default — a repo whose release_flow names another prod branch used to have the
+# human-approval half of D11 silently skipped. Resolve through the one policy
+# reader when it is present; fall back to the schema default `main`.
+resolve_prod_branch() {
+  local reader="" out=""
+  for cand in ".claude/scripts/script-policy-read.py" "$HOME/.claude/scripts/script-policy-read.py"; do
+    [[ -f "$cand" ]] && { reader="$cand"; break; }
+  done
+  if [[ -n "$reader" ]] && command -v python3 >/dev/null 2>&1; then
+    out=$(python3 "$reader" --file "${POLICY_FILE:-devkit/policy.json}" 2>/dev/null \
+          | sed -n 's/^PROD_BRANCH=//p' | head -1)
+  fi
+  [[ -z "$out" ]] && out="main"
+  printf '%s' "$out"
+}
+PROD_BRANCH="$(resolve_prod_branch)"
+
 if [[ -n "$ONLY_BRANCH" ]]; then
   BRANCHES=("$ONLY_BRANCH")
 else
-  BRANCHES=(staging main)
+  BRANCHES=(staging "$PROD_BRANCH")
 fi
 
 # JSON payload for a branch. main gets the required-review clause; staging does not.
@@ -67,7 +95,7 @@ fi
 # named check then hard-blocks the PR); default [] enforces only up-to-date-ness.
 payload_for() {
   local b="$1" reviews="null" ctx="[]"
-  [[ "$b" == "main" ]] && reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":false,"require_code_owner_reviews":false}'
+  [[ "$b" == "$PROD_BRANCH" ]] && reviews='{"required_approving_review_count":1,"dismiss_stale_reviews":false,"require_code_owner_reviews":false}'
   if [[ -n "$CONTEXTS" ]]; then
     ctx=$(printf '%s' "$CONTEXTS" | tr ',' '\n' | sed 's/^ *//;s/ *$//;/^$/d' | sed 's/.*/"&"/' | paste -sd, - )
     ctx="[${ctx}]"
@@ -110,18 +138,23 @@ for b in "${BRANCHES[@]}"; do
         "repos/{owner}/{repo}/branches/${b}/protection" \
         -q '[(.required_status_checks != null and .required_status_checks.strict == true),
              (.allow_force_pushes.enabled == false),
-             (.required_pull_request_reviews.required_approving_review_count // 0)] | @tsv' \
+             (.required_pull_request_reviews.required_approving_review_count // 0),
+             ((.required_status_checks.contexts // []) | length)] | @tsv' \
         2>/dev/null); then
     echo "UNPROTECTED $b no-protection"
     rc=1
     continue
   fi
 
-  IFS=$'\t' read -r has_checks no_force review_count <<<"$tsv"
+  IFS=$'\t' read -r has_checks no_force review_count ctx_count <<<"$tsv"
   missing=""
   [[ "$has_checks" == "true" ]] || missing+="status-checks,"
+  # A2a: strict:true with an empty contexts[] enforces only up-to-date-ness —
+  # nothing actually has to pass. That is an unprotected branch wearing a
+  # PROTECTED label, so name it.
+  [[ "${ctx_count:-0}" -ge 1 ]] 2>/dev/null || missing+="no-required-contexts,"
   [[ "$no_force" == "true" ]] || missing+="force-pushes,"
-  if [[ "$b" == "main" ]]; then
+  if [[ "$b" == "$PROD_BRANCH" ]]; then
     [[ "${review_count:-0}" -ge 1 ]] 2>/dev/null || missing+="required-reviews,"
   fi
 

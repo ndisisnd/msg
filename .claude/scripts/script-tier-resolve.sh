@@ -13,6 +13,7 @@
 # step 1, executor.md §3c).
 #
 # AC-TS10 — a missing/unsupplied signal ALWAYS resolves toward the LARGER tier:
+#   - base ref undiffable    -> diff surface unknown (not empty) -> tier L
 #   - ratio unresolved       -> cannot be confirmed under any bound -> tier L
 #   - fan_in_pct unresolved  -> treated as exceeding the small bound -> not tier S
 #     (may still resolve to M if modules/ratio are within the M bounds)
@@ -81,9 +82,17 @@ fi
 # Direct diff against <base-ref> per the spec; fall back to the merge-base
 # triple-dot form if the direct form resolves nothing (e.g. base is a remote-only
 # ref with no local working-tree relationship yet).
-diff_files="$(git diff --name-only "$base" -- 2>/dev/null || true)"
+#
+# A5: "the diff ran and is empty" and "both diff invocations failed" used to
+# collapse into the same empty string — an unresolvable base ref then read as a
+# zero-module diff and resolved to tier S, inverting the AC-TS10 fail-large
+# rule. Track whether either invocation actually succeeded.
+diff_ok=false
+diff_files="$(git diff --name-only "$base" -- 2>/dev/null)"
+[[ $? -eq 0 ]] && diff_ok=true
 if [[ -z "$diff_files" ]]; then
-  diff_files="$(git diff --name-only "${base}...HEAD" -- 2>/dev/null || true)"
+  diff_files="$(git diff --name-only "${base}...HEAD" -- 2>/dev/null)"
+  [[ $? -eq 0 ]] && diff_ok=true
 fi
 
 # --- policy-configured knobs (defaults per policy-schema-pre-merge.md §test_selection) ----
@@ -150,7 +159,12 @@ fi
 tier=""
 trigger=""
 
-if [[ -n "$trigger_force_full" ]]; then
+if [[ "$diff_ok" != true ]]; then
+  # A5 / AC-TS10: the base ref could not be diffed at all, so the diff surface is
+  # unknown — not empty. Unknown always degrades to the largest tier.
+  tier="L"
+  trigger="base ref unresolvable — degrades to L (AC-TS10)"
+elif [[ -n "$trigger_force_full" ]]; then
   tier="L"
   trigger="$trigger_force_full"
 elif [[ -z "$ratio" ]]; then

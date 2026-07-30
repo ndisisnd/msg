@@ -2,6 +2,16 @@
 
 ## 2026-07-30
 
+### [86] — v5.0.1-P0: Tier 1 fail-silent assertions — safety gates can no longer open quietly (A1–A7)
+
+- `script-cert-status.sh`: Changed — §7 ledger header drift now exits 2 `LEDGER_HEADER_UNRESOLVED=…` instead of reporting CERTIFIED past an open Critical (A1)
+- `script-branch-protection.sh`: Changed — verify requires ≥1 required status context (`UNPROTECTED <b> no-required-contexts` on `contexts:[]`); the prod branch (branch list + required-reviews clause) resolves from policy via script-policy-read.py, default `main` — no longer the literal string (A2)
+- `script-signoff-coverage.sh`: Changed — a failed `--fetch` exits 2 `FETCH_FAILED=<ref>` instead of grading against a possibly-stale ref (A3)
+- `script-release-identity.sh`: Changed — v* tags exist but none reachable from prod ⇒ exit 3 `NO_REACHABLE_TAG=…` instead of proposing v0.1.0 over a live release; `PROD_REF_SOURCE=remote|local-fallback` joins the key set (A4)
+- `script-tier-resolve.sh`: Changed — an undiffable base ref now degrades to tier L per AC-TS10 (was: read as an empty diff ⇒ tier S, inverting fail-large); genuinely-empty diffs unchanged (A5)
+- `script-cert-mech.py`: Changed — check 6 prints `SKIP … reason=no-prds-matched-glob` when the PRD glob matches nothing (was silent); check 4 emits a critical `features-id-column-unresolved` finding naming the headers seen instead of passing vacuously with zero F-IDs (A6/A7)
+- Every assertion fixture-proven both ways (fires on seeded drift, happy path byte-compatible); designed fail-opens untouched
+
 ### [85] — README + QUICKSTART point at the release history
 
 - `README.md`: Added — a current-release line (v5.0.0) linking `RELEASES.md` under the install section

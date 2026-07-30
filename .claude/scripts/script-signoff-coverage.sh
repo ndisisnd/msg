@@ -59,7 +59,8 @@
 #   3  VERDICT=stale_signoff  (refuse — ancestry broken, head ahead, or no newest)
 #   4  VERDICT=unpinned       (a legacy stamp needs the human re-ask first)
 #   5  VERDICT=no_stamps      (nothing signed off — the caller refuses no_signoff)
-#   2  usage error / not a git repo / unresolvable head
+#   2  usage error / not a git repo / unresolvable head / `FETCH_FAILED=<ref>`
+#      (a requested --fetch that failed — grading would use a stale ref)
 #
 # Deterministic: identical repo state + identical stamps ⇒ byte-identical output.
 
@@ -97,10 +98,17 @@ done
 git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repository: $REPO"
 
 if [[ "$DO_FETCH" == true ]]; then
+  # A3: a swallowed fetch failure means the whole verdict is graded against a
+  # stale remote-tracking ref — `covered` while staging has moved on. The caller
+  # asked for a fresh ref; if it could not be fetched, refuse rather than grade.
   case "$HEAD_REF" in
-    */*) git -C "$REPO" fetch "${HEAD_REF%%/*}" "${HEAD_REF#*/}" --quiet 2>/dev/null || true ;;
-    *)   git -C "$REPO" fetch origin "$HEAD_REF" --quiet 2>/dev/null || true ;;
-  esac
+    */*) git -C "$REPO" fetch "${HEAD_REF%%/*}" "${HEAD_REF#*/}" --quiet 2>/dev/null ;;
+    *)   git -C "$REPO" fetch origin "$HEAD_REF" --quiet 2>/dev/null ;;
+  esac || {
+    echo "FETCH_FAILED=$HEAD_REF"
+    echo "$SELF: --fetch failed for $HEAD_REF — refusing to grade against a possibly stale ref." >&2
+    exit 2
+  }
 fi
 
 emit() {

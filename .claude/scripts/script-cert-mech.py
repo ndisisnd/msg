@@ -25,6 +25,8 @@ Output (stdout, one record per line, machine-readable):
 
 Finding codes:
   check 4  uncovered-fid (critical) · file-collision (critical) · empty-files (major)
+           features-id-column-unresolved (critical — features table has rows but
+           no id column, so F-ID coverage is unverifiable)
   check 5  unknown-ticket-id (critical) · ticket-cycle (critical) · missing-done-when (major)
   check 6  frontmatter-cycle (critical) · missing-edge-target (major) · missing-bucket-coverage (major)
 
@@ -179,7 +181,16 @@ def check4(lines, body_start, prd_path):
             exec_block = block
         elif low.startswith("feature") or "acceptance cri" in low:
             headers, rows = md_table(block)
-            feature_ids += [v.upper() for v in col(headers, rows, "id", "feature id") if v]
+            ids = col(headers, rows, "id", "feature id")
+            # A7: a features table with rows but no resolvable id column yields
+            # zero F-IDs, so the uncovered-fid loop below iterates over nothing
+            # and check 4 passes vacuously. Name the drift instead.
+            if rows and not ids:
+                emit(4, "critical", "features-id-column-unresolved", title.strip(),
+                     f"features table has {len(rows)} row(s) but no 'id'/'feature id' "
+                     f"column — headers seen: {', '.join(headers or []) or '(none)'}; "
+                     "F-ID coverage cannot be checked")
+            feature_ids += [v.upper() for v in ids if v]
         elif low.startswith("engineering"):
             for st, ss, se, sb in sections(lines, s, 3):
                 if "scope mapping" in st.lower():
@@ -335,6 +346,11 @@ def check6(fm, lines, prd_path, features_root, platforms_path):
         if cyc and self_id in cyc:
             emit(6, "critical", "frontmatter-cycle", self_id,
                  "depends_on cycle: " + " -> ".join(cyc))
+    elif root.is_dir():
+        # A6: the features root exists but the prd-*/prd-*.md glob matched
+        # nothing — the edge-target and cycle facets are skipped just as they are
+        # when the root is missing, so say so rather than pass silently.
+        print("SKIP check=6 facet=edge-targets reason=no-prds-matched-glob")
 
     # Bucket coverage — the buckets pre-merge will require for each shipping platform.
     pf = Path(platforms_path)
