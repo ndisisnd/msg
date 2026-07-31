@@ -1,0 +1,18 @@
+# A17 — the --git ladder's release-branch names must come from
+# script-policy-read.py, not an ad-hoc grep. This policy.json is valid JSON whose
+# values sit on the next line, so the old grep missed and silently used
+# main/staging. The names are observable only in the `gh pr list --base <b>`
+# calls, so a stub `gh` logs them.
+# HOME is repointed at a symlink to the repo's own scripts dir — the real reader
+# runs, nothing is vendored into the fixture, and no global install can interfere.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+$G init -q -b master .
+$G remote add origin https://example.invalid/x.git
+$G add -A; $G commit -qm init
+$G branch feat/prd-9-sample
+mkdir -p home/.claude
+ln -s "$REPO/.claude/scripts" home/.claude/scripts
+export GH_LOG="$PWD/gh.log"; : > "$GH_LOG"
+HOME="$PWD/home" PATH="$PWD/bin:$PATH" "$REPO/.claude/scripts/script-prd-scan.sh" --git >/dev/null
+sed -n 's/.*--base \([^ ]*\).*/base=\1/p' "$GH_LOG" | sort -u

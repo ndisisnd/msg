@@ -1,0 +1,6 @@
+# A19 — PLATFORMS.md invites custom rows, but the resolver's known-platform set
+# is hardcoded: a `desktop` row schedules no checks AND raises no coverage gap.
+# The warn is the only new signal (the plan JSON is unchanged), so stdout is
+# dropped and stderr is the assertion.
+python3 "$REPO/.claude/scripts/script-pipeline-resolve.py" --policy policy.json \
+  --catalog "$REPO/.claude/skills/shared/refs/component-catalog.md" --platforms-file PLATFORMS.md 2>&1 >/dev/null

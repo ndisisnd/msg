@@ -1,0 +1,3 @@
+SKIP check=4 facet=collisions reason=no-files-column
+FINDING check=4 sev=major code=files-column-unresolved ref=execution-table detail=the execution table has no 'Files' column — headers seen: row, feature, agent, paths, execution steps; parallel-safety cannot be checked and eng --build has no file scope per row
+SUMMARY checks=4 findings=1 critical=0 major=1

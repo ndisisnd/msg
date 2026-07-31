@@ -1,0 +1,9 @@
+{
+  "tier": "L",
+  "signals": {
+    "modules": 0,
+    "ratio": 0.01,
+    "fan_in_pct": 0.1
+  },
+  "trigger": "base ref unresolvable — degrades to L (AC-TS10)"
+}

@@ -1,0 +1,3 @@
+# A10 — the §7 ledger has rows but not one `#` cell parses; renumbering from 1
+# on top of them would corrupt the ledger.
+printf '%s' '[{"severity":"Major","what":"§5 error handling omits the offline case","fix":"add an offline branch","why":"pre-merge PRD-consistency gate"}]' | python3 "$REPO/.claude/scripts/script-ledger.py" prd.md --auditor P --date 2026-01-15

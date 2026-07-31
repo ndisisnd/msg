@@ -1,0 +1,3 @@
+# A13 — the §3 table mentions dependencies but no header cell resolves a
+# Dependencies column; mirroring zero ids silently is the fail-silent shape.
+"$REPO/.claude/scripts/script-prd-deps-mirror.sh" prd.md

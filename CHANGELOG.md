@@ -2,6 +2,11 @@
 
 ## 2026-07-31
 
+### [101] — Promote the 25 v5.0.1 fail-silent assertions into regression evals (v5.1 P1)
+
+- `evals/cases/`: Added — 34 cases (`a01`–`a25` families) promoted from the v5.0.1 assertion fixtures, one per shipped loud-exit contract (drift direction always; happy path where it guards distinct behaviour, e.g. `a16` title-anchored scan, `a18` shifted-ledger tally); all hermetic — throwaway `git init` repos, committed `gh` stubs, sandboxed `$HOME`, pinned dates/identities; suite now 40 cases, 40/40 green in ~2.8 s
+- Q3 verified: no contract drift since v5.0.1 — every assertion still emits its documented token and exit code; zero fixtures patched, zero assertions dropped
+
 ### [100] — Document the self-healing loop and gate releases on it (v5.1 P5)
 
 - `ARCHITECTURE.md`: Changed — new "Self-healing loop" section (detect → log → diagnose → fix → gate, with real paths, deferred-diagnosis and mechanistic-grading principles) and a "Releasing" note: `bash evals/run.sh` before tagging, any FAIL blocks on the exit code

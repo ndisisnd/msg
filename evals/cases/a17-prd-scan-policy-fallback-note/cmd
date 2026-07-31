@@ -1,0 +1,10 @@
+# A17 (fallback half) — no reader anywhere (HOME is empty, the repo copy is out
+# of reach) and a policy.json the grep cannot read: the scan must say so instead
+# of silently defaulting to main/staging. stderr is folded into stdout because
+# the note is the assertion.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+$G init -q -b master .
+$G add -A; $G commit -qm init
+mkdir -p home
+HOME="$PWD/home" PATH="$PWD/bin:$PATH" "$REPO/.claude/scripts/script-prd-scan.sh" --git 2>&1 >/dev/null

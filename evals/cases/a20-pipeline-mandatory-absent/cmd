@@ -1,0 +1,5 @@
+# A20 — `migration` is mandatory in the catalog but absent from components[].
+# The old resolver recorded a pruned[] row and resolved the plan anyway; the
+# safety floor is not a prunable step.
+python3 "$REPO/.claude/scripts/script-pipeline-resolve.py" --policy policy.json \
+  --catalog "$REPO/.claude/skills/shared/refs/component-catalog.md" --platforms-file PLATFORMS.md

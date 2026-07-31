@@ -1,0 +1,4 @@
+# A8 — a second --write pass over an exec table with populated Execution
+# steps/Files must refuse instead of wiping engineering work. The expected/files
+# golden is the fixture byte-for-byte: the PRD must be untouched.
+printf '%s' '[{"fid":"F1","concern":"API contract","agent":"backend-eng"},{"fid":"F2","concern":"cookie policy","agent":"backend-eng"}]' | python3 "$REPO/.claude/scripts/script-em-exec-skeleton.py" --write prd.md

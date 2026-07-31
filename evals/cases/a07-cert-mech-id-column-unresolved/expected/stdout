@@ -1,0 +1,2 @@
+FINDING check=4 sev=critical code=features-id-column-unresolved ref=3. Features & acceptance criteria detail=features table has 1 row(s) but no 'id'/'feature id' column — headers seen: f-id, feature, acceptance criteria; F-ID coverage cannot be checked
+SUMMARY checks=4 findings=1 critical=1 major=0

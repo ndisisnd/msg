@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stub `gh`: auth succeeds; every other call logs its argv and answers [].
+if [[ "$1" == "auth" ]]; then exit 0; fi
+echo "gh $*" >> "$GH_LOG"
+echo "[]"

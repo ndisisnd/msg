@@ -1,0 +1,6 @@
+# A19 — an existing-but-unreadable PLATFORMS.md (here: a directory, the same
+# OSError class as mode 000) used to return [] — indistinguishable from "this
+# repo ships nothing", which silently voided the whole coverage-gap check.
+mkdir -p adir
+python3 "$REPO/.claude/scripts/script-pipeline-resolve.py" --policy policy.json \
+  --catalog "$REPO/.claude/skills/shared/refs/component-catalog.md" --platforms-file adir 2>&1 >/dev/null

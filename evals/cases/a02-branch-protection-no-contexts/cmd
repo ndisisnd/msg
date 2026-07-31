@@ -1,0 +1,7 @@
+# A2 — protection reports strict:true with contexts:[] (zero required checks).
+# Hermetic: a throwaway git repo with a fake origin, a stub `gh` on PATH, and
+# HOME repointed so no global policy reader can influence the prod-branch default.
+git init -q -b main .
+git remote add origin https://example.invalid/x/y.git
+mkdir -p home
+HOME="$PWD/home" PATH="$PWD/bin:$PATH" "$REPO/.claude/scripts/script-branch-protection.sh" --verify main

@@ -1,0 +1,3 @@
+# A22 — the exec table's Agent/Execution-steps headers drifted, so no row can be
+# read. Check 6 used to blame the tickets; it now names the cause first.
+python3 "$REPO/.claude/scripts/script-eng-plan-shape.py" plan.md --checks 1,2,3,4,5,6

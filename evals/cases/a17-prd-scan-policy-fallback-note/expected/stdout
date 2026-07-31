@@ -1,0 +1,2 @@
+script-prd-scan: script-policy-read.py unavailable and no prod_branch/staging_branch grepped out of devkit/policy.json — falling back to main/staging, which may be wrong for this repo
+script-prd-scan: gh unavailable/unauthenticated — completion refined from git branches only

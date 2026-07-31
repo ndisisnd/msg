@@ -1,0 +1,37 @@
+# A25 — the feature branch merged upstream but the developer has not pulled, so
+# `git branch --merged main` (the LOCAL main) reads it as unmerged and the
+# resolver answers ACTION=checkout — the double-merge that fresh-cut exists to
+# prevent. The verdict deliberately does not move; the stale-ref risk is now
+# reported as MAIN_BEHIND_REMOTE=true.
+# Self-contained: a bare origin, an upstream clone that performs the merge, and a
+# dev clone rewound to before it. No network, no remote host.
+export GIT_AUTHOR_NAME=fixture GIT_AUTHOR_EMAIL=fixture@example.invalid
+export GIT_COMMITTER_NAME=fixture GIT_COMMITTER_EMAIL=fixture@example.invalid
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c commit.gpgsign=false"
+W="$PWD"
+PRD_REL=features/wip/prd-9-stale-main/prd-9-stale-main.md
+
+$G init -q --bare "$W/origin.git" --initial-branch=main
+$G init -q "$W/up" --initial-branch=main
+cd "$W/up"
+mkdir -p "$(dirname "$PRD_REL")"
+cp "$W/prd-9-stale-main.md" "$PRD_REL"
+$G add -A && $G commit -q -m seed
+$G remote add origin "$W/origin.git" && $G push -q origin main
+$G checkout -q -b feat/prd-9-stale-main
+echo shipped > shipped.txt && $G add -A && $G commit -q -m "feature work"
+$G push -q origin feat/prd-9-stale-main
+$G checkout -q main && $G merge -q --no-ff -m "merge the feature" feat/prd-9-stale-main
+$G push -q origin main
+
+$G clone -q "$W/origin.git" "$W/dev"
+cd "$W/dev"
+$G checkout -q -b feat/prd-9-stale-main origin/feat/prd-9-stale-main
+$G checkout -q main
+# Rewind the local main to before the merge and re-fetch: origin/main is now
+# strictly ahead — the everyday "I haven't pulled today" state.
+$G reset -q --hard "$($G rev-list --max-parents=0 HEAD)"
+$G fetch -q origin
+
+"$REPO/.claude/scripts/script-em-branch-resolve.sh" "$PRD_REL"

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "components": [
+    { "id": "mechanical", "present": true, "run": "npm run lint" },
+    { "id": "unit", "present": true, "run": "npm test" },
+    { "id": "integration", "present": true, "run": "npm run test:int" },
+    { "id": "regression", "present": true, "run": "npm run test:reg" },
+    { "id": "security", "present": true, "run": "npm audit" },
+    { "id": "coverage", "present": true, "run": "npm run cov" },
+    { "id": "prd-consistency", "present": true },
+    { "id": "e2e", "present": true, "run": "npx playwright test" },
+    { "id": "a11y", "present": true, "run": "npx axe" },
+    { "id": "smoke", "present": true, "run": "npm run smoke" }
+  ]
+}

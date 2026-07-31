@@ -1,0 +1,13 @@
+# A23 — the repo under test (`bare/`) has no .claude/scripts, so the policy
+# reader is taken from the global install. That fallback used to be silent: a
+# stale ~/.claude copy could grade a repo it predates. The process cwd is
+# deliberately NOT a repo, which is also the --repo resolution fix.
+# NORMALIZATION: the announced path is absolute (it lives inside the runner's
+# temp dir), so the temp prefix is rewritten to WORK/. Nothing else is touched.
+W="$PWD"
+export HOME="$W/home"
+cd "$W/elsewhere"
+python3 "$REPO/.claude/scripts/script-ci-status.py" --input "$W/no-checks.json" --repo "$W/bare" \
+  >/dev/null 2>"$W/err.txt"; rc=$?
+sed "s|$W/|WORK/|g" "$W/err.txt"
+exit $rc

@@ -1,0 +1,2 @@
+ERROR=no-files-column
+script-em-exec-collision: the table has no `Files` column (headers seen: Feature, Agent, Paths, Execution steps) — every row's Files set would be empty, so a zero-collision result would be meaningless; populate the Files column before the build wave

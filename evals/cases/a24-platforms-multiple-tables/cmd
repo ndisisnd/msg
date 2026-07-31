@@ -1,0 +1,4 @@
+# A24 — two `platform`-headed tables in one file. Last-header-wins is a real
+# accommodation (Q3, verified), so the parse is unchanged — but the rows under
+# the earlier table vanish, and that must be said out loud.
+python3 "$REPO/.claude/scripts/script-platforms-parse.py" --file PLATFORMS.md 2>&1

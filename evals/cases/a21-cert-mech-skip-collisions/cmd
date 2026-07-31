@@ -1,0 +1,4 @@
+# A21 (consumer half) — cert-mech used to capture and discard the collision
+# script's warning. It now renders the SKIP line and a major finding naming the
+# unresolved Files column.
+python3 "$REPO/.claude/scripts/script-cert-mech.py" prd.md --checks 4 --features-root none

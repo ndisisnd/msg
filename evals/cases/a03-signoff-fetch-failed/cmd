@@ -1,0 +1,13 @@
+# A3 — `--fetch` fails (broken remote URL) ⇒ refuse rather than grade a stale ref.
+# Self-contained: a local `origin` repo plus a clone of it, no network.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+$G init -q -b staging origin
+echo one > origin/f.txt
+$G -C origin add -A
+$G -C origin commit -qm seed
+$G clone -q origin work
+cd work
+SHA="$(git rev-parse origin/staging)"
+git remote set-url origin "$PWD/../does-not-exist"
+"$REPO/.claude/scripts/script-signoff-coverage.sh" --stamp "prd-1=$SHA" --head origin/staging --fetch
