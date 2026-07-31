@@ -2,6 +2,11 @@
 
 ## 2026-07-31
 
+### [99] — Graduation now mints a regression eval (v5.1 P4)
+
+- `.claude/skills/msg/refs/protocol-doctor.md`: Changed — Step 2 and the graduated-issue block gain a required `**Regression eval**:` line (the doctor names the case; still writes no code); the 🟡 fix-session step's definition of done now includes landing that eval red → green; References gains `evals/run.sh`
+- `.claude/skills/shared/refs/doctor-logging.md`: Changed — documents the eval runner as a Channel-1 caller (`validator-fail:eval-<case-slug>`, same appender, same exit-3 skip) and the division of labour: eval failures block on the runner's exit code immediately, the 3-occurrence threshold governs live incidents only
+
 ### [98] — Close the eval loop into the incident ledger (v5.1 P3)
 
 - `evals/run.sh`: Changed — a FAIL now appends one row to `devkit/DOCTOR.md` via `script-doctor-log.sh` (`--skill evals`, signature `validator-fail:eval-<slug>`, context = cmd + one-line reason); best-effort, absent-ledger skip, diagnosis stays deferred to `/msg --doctor`
