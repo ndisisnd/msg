@@ -1,0 +1,2 @@
+# v5.4 P3 — an invented shape fails loud: missing core sections + a stray section.
+python3 "$REPO/.claude/scripts/script-eng-plan-shape.py" plan.md --agent assertions --checks 8

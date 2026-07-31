@@ -1,0 +1,2 @@
+# v5.4 P3 — read-tolerance: a pre-v5.4 13-section plan (incl. Branching and CI) still passes.
+python3 "$REPO/.claude/scripts/script-eng-plan-shape.py" plan.md --agent assertions --checks 8

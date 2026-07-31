@@ -2,6 +2,22 @@
 
 ## 2026-08-01
 
+### [120] — the engineering plan is sized to the PRD: 12 sections become 4 (v5.4 P3)
+
+An eng agent used to write the same twelve-section essay whether the PRD was a one-file tweak or a multi-stack rewrite. Most of it had no reader: build agents execute the `## Todos` tickets and never open plan prose, so Summary, PRD reference, Alternatives considered, Phases and dependencies, Developer experience, Migration and breaking changes and Risks and mitigations were written, paid for in Opus tokens, and consumed by nobody.
+
+The default is now four sections — **Design decisions, Integration contracts, Scope mapping, Open questions** — chosen because each carries something a ticket structurally cannot: a rationale that outlives the diff, a cross-agent contract, the feature-to-agent map, and a question only a human can answer. The old Findings — PRD gaps section folds into Open questions; both resolve the same way, so they were one list split across two headings.
+
+The full twelve-section shape survives for genuinely large work, **tiered on the intake grade**: a PRD whose `INTAKE.md` row grades `C:` ≥ 8 gets the long form, everything else gets the short one. That threshold is not new — it is the same band that already triggers intake's split gate. An unresolvable grade defaults to medium, deliberately: writing the long shape defensively would give back the entire saving.
+
+Read-tolerance runs both ways. `script-eng-plan-shape.py` gains an eighth check that accepts either shape, including the legacy 13-section variant carrying "Branching and CI strategy" that the `features/planned/` sample PRDs still use — those parse untouched. A section with no `###` subheadings at all is skipped rather than failed, so prose-only engineering sections written before the shape was numbered do not start erroring.
+
+- `.claude/skills/eng/refs/plan/template-eng-plan.md` — rewritten around the two shapes: the tier table and grade-resolution rule up front, then the medium four and the large twelve, each with its own quality-gate table
+- `.claude/skills/eng/refs/plan/protocol.md` — the shape-selection rule at the output contract; every `§11 (Findings)` gap-reporting pointer now names **Open questions** (medium §4 / large §11), since a medium plan has no §11
+- `.claude/scripts/script-eng-plan-shape.py` — **check 8**: the `## Engineering — <Agent>` section must be one of the two sanctioned shapes. Titles are prefix-matched after normalising ordinals, emphasis and dash style, so numbering drift and em-dash style cannot cause a false failure. Codes `missing-plan-section` / `unknown-plan-section`
+- `.claude/skills/eng/SKILL.md` — the reference entries for the template and the validator
+- `evals/cases/plan-shape-v54-medium` · `plan-shape-v54-large-legacy` · `plan-shape-v54-unknown-section` · `plan-shape-v54-shape-skip` — new; both accepted shapes, the fail-loud direction (missing core + invented section in one case), and the no-sections SKIP
+
 ### [119] — plan-review findings move to an external report (v5.4 P2)
 
 The certification ledger left the PRD. Findings now accumulate in one growing table at `<prd-dir>/reports/review-prd-[n]-[slug].md`, created on the first run and appended to thereafter. The reasoning: a findings table is append-only and grows without bound, while the PRD is a contract every downstream stage re-reads on every run — keeping them in one file made every reader pay for the audit history. The `reviewed:` frontmatter stamp stays the gate signal; the report is the evidence trail behind it, and gates nothing on its own.

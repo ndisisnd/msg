@@ -1,6 +1,6 @@
 ---
 name: Engineering Execution Plan Template
-description: Plan-mode output format for eng agents — sections are returned as markdown and appended to the PRD by plan-em; no standalone file is created
+description: Plan-mode output format for eng agents — two shapes tiered on the PRD's intake grade (4 sections for medium PRDs, 12 for large); sections are returned as markdown and appended to the PRD by plan-em, no standalone file is created
 type: reference
 ---
 
@@ -8,52 +8,36 @@ type: reference
 
 This is the output format for an eng agent running in **plan mode**. The agent writes a structured markdown section directly to the PRD file, appended under `## Engineering — <Agent Name>`. No standalone file is created.
 
-Populate every section. This is an execution document, not a status update. It must answer "what are we building, what did we consider and reject, who builds what, and what blocks shipping?" without further conversation.
-
-## Required sections
-
-### 1. Summary
-
-Two to three sentences. State what is being built, the agent's owned stack (from the PRD frontmatter `platform` and its Features & acceptance criteria table), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own engineering plan.
-
-**Worked example:**
-> Ship a habit-tracking core flow on iOS only. Backend introduces one new service (`streak-service`) and extends the existing user profile schema. Android and web are out of scope for this plan.
+This is an execution document, not a status update.
 
 ---
 
-### 2. PRD reference
+## Which shape to write — tier on the intake grade
 
-Bullet list. Cite the PRD path, the version hash or date, and any tune audit applied.
+The plan's length is proportional to the PRD's size, not fixed. Two shapes:
 
-- **PRD:** `features/prd-[n]/prd-[n].md`
-- **PRD version:** date or git SHA
-- **Tune audit:** `features/prd-[n]/tune-[n].md` (if applicable) — list which findings were resolved before engineering plan drafting
+| Shape | Sections | When |
+|-------|----------|------|
+| **Medium (default)** | 4 — Design decisions · Integration contracts · Scope mapping · Open questions | Every PRD whose intake complexity grade is `C:` **< 8**, and every PRD whose grade cannot be resolved |
+| **Large** | 12 — the medium four plus Summary, PRD reference, Alternatives considered, Phases and dependencies, Developer experience, Migration and breaking changes, Risks and mitigations, Findings — PRD gaps | Only when the intake complexity grade is `C:` **≥ 8** |
 
----
+**Resolving the grade.** The PRD's frontmatter carries `intake: #<n>`. That number is the row id in the root `INTAKE.md` ledger; the row's **grade** cell reads `C:<band> T:<band> S:<sequencing>` (`.claude/skills/intake/refs/rubric.md`). Read the `C:` band from that row. `plan-em` normally resolves the grade once and injects it with the scoped context — use the injected value when it is present rather than re-reading the ledger.
 
-### 3. Alternatives considered
+**Default to medium when in doubt.** No `intake:` key, no matching row, an unparseable grade cell, or no `INTAKE.md` at all → write the medium shape. The medium shape is never wrong for a large PRD; it is only thinner than it could be. Never write the large shape "to be safe" — the cut sections have no downstream consumer, and the tokens are the whole point of the tier.
 
-Document the approaches that were genuinely evaluated and rejected — as many as are real, and no invented ones. This is the most important section for future readers who wonder "why not just do X?" If no alternative was seriously considered, write a single sentence explaining why the chosen approach is obviously correct — do not write `None.`
+**Why these four survive and the other eight do not.** The `## Todos — <Agent>` tickets are the build spec (`refs/build/protocol.md` § Spec source) — a build agent never reads plan prose. So a plan section earns its place only if it carries something a ticket structurally cannot: a cross-agent contract, a design rationale that outlives the diff, the feature-to-agent map, or an unresolved question that needs a human. Summary, PRD reference, Alternatives considered, Phases, Developer experience, Migration and Risks all restate the PRD, restate the tickets, or address a reader who never arrives.
 
-| Option | Description | Rejected because |
-|--------|-------------|-----------------|
-| Option A | What it would involve | Why it was ruled out |
-| Option B | What it would involve | Why it was ruled out |
-| **Chosen** | What we are actually doing | Why this wins |
-
-**Worked example:**
-
-| Option | Description | Rejected because |
-|--------|-------------|-----------------|
-| Keep user-defined entities | Require devs to copy-paste auth entities | Fragile, auth details leak into business logic |
-| Code-generate entities into Wasp file | Generate entities into AppSpec | Pollutes user's Wasp file, breaks on re-run |
-| **Inject into Prisma schema directly** | Append auth entities during Prisma codegen | Auth entities stay hidden; minimal user-facing churn |
+Both shapes are read-tolerated everywhere downstream — `script-eng-plan-shape.py` check 8 accepts either, and PRDs written before v5.4 (including the legacy 13-section shape with a "Branching and CI strategy" section) keep validating unchanged.
 
 ---
 
-### 4. Design decisions
+# Medium shape (default) — 4 sections
 
-One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. If a decision is still open, mark it **OPEN** and move it to §12.
+Write these four, numbered 1–4, and nothing else. Write `None.` only when a section genuinely does not apply.
+
+### 1. Design decisions
+
+One subsection per non-obvious implementation choice. Each decision must name the competing options, show trade-offs, and state the resolution. A decision that is still open is marked **OPEN** and repeated in §4.
 
 **Format per decision:**
 
@@ -79,7 +63,35 @@ One subsection per non-obvious implementation choice. Each decision must name th
 
 ---
 
-### 5. Scope mapping
+### 2. Integration contracts
+
+Cover the cross-service and cross-layer contracts introduced or changed by this plan — the shared surfaces the tickets cannot hold: contract tables between agents and the auth-flow narrative. **Do not restate per-identifier detail that a ticket's `files` / `done-when` already carries** — the tickets are the build spec; this section exists for the cross-agent agreement, not a second copy of it. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply.
+
+**API contracts:** every new or changed API endpoint (REST, GraphQL, or RPC) — method, path or operation name, request shape, response shape, owning agent. Mark `NEW` or `CHANGED`.
+
+| Method | Path / Operation | Request | Response | Owner | Status |
+|--------|-----------------|---------|----------|-------|--------|
+| POST | `/api/v1/streaks` | `{ userId, date }` | `{ streakId, count }` | eng-backend | NEW |
+
+**Schema changes:** every database schema change, and whether each is additive-only or needs a migration script. Mark `ADDITIVE` or `MIGRATION REQUIRED`.
+
+| Table / Collection | Change | Type |
+|-------------------|--------|------|
+| `streaks` | New table — `id`, `user_id`, `date`, `count` | MIGRATION REQUIRED |
+| `users` | Add column `streak_id` (nullable FK) | ADDITIVE |
+
+**Authentication patterns:** which authentication mechanism this feature uses (JWT, session cookie, API key, OAuth token, …) and whether it introduces a new flow or reuses an existing one. For a new flow, describe the token lifecycle: issue, validate, refresh, revoke.
+
+**Webhooks and hooks:** every webhook emitted or consumed and every framework or platform hook invoked. Webhooks: event name, payload shape, consumer. Hooks: extension point and execution context. `None.` if there are none.
+
+| Type | Name / Event | Payload shape | Consumer / Context |
+|------|-------------|---------------|--------------------|
+| Webhook (outbound) | `streak.completed` | `{ userId, streak, timestamp }` | third-party integrations |
+| Lifecycle hook | `onSessionExpire` | `(session: Session)` | auth middleware |
+
+---
+
+### 3. Scope mapping
 
 Table form. Map every feature ID from the PRD to one or more engineering domains. Domains must stay within the agent's owned stack.
 
@@ -91,61 +103,103 @@ Table form. Map every feature ID from the PRD to one or more engineering domains
 
 ---
 
+### 4. Open questions
+
+Numbered. Two kinds of entry live here, because both resolve the same way — a human decides:
+
+- **Open decisions.** Any §1 decision still marked **OPEN**. Each must be answerable with a single choice.
+- **PRD gaps.** Anything the PRD, exec table, or codebase scan could not resolve — including an identifier that could not be confirmed against the codebase. Tag each **Critical** (engineering cannot ship without a resolution), **Major** (ships, but a PRD revision is needed mid-flight), or **Minor** (note for future PRDs). Name the required action.
+
+If there are none, write `None.`
+
+**Worked example:**
+
+1. **OPEN — Token identity:** Should the JWT contain `User.id` or `Auth.id`? Both uniquely identify a user; the choice affects middleware and client SDK surface area.
+2. **Critical — gap:** PRD §3 F2 acceptance criterion does not name a timezone reference. **Action:** PM clarifies before backend schema is frozen.
+
+---
+
+## Quality gates before save — medium shape
+
+| Gate | Rule |
+|------|------|
+| Design decisions | §1 has a subsection for every non-obvious implementation choice, each with trade-offs and a resolution or an **OPEN** mark. |
+| Integration contracts | §2 has all four subsections (API contracts, schema changes, auth patterns, webhooks/hooks), each with entries or an explicit `None.` |
+| PRD coverage | Every assigned PRD feature ID appears in §3. |
+| Open questions | Every **OPEN** §1 decision and every unresolved PRD gap appears in §4, each with a severity or a single-decision question. |
+| Exact identifiers | Every function, table, column, migration filename and API endpoint named anywhere in the section is verified against the codebase scan — no guessed names. A name that cannot be confirmed is a §4 gap, not a placeholder. |
+| No extra sections | Exactly §1–§4. A fifth section means the large shape was written for a medium PRD. |
+
+---
+
+# Large shape — 12 sections (`C:` ≥ 8 only)
+
+Write this only for a PRD whose intake complexity grade is `C:` ≥ 8. It is the medium four (renumbered) plus the eight sections a genuinely large, multi-stack change needs a written record of.
+
+### 1. Summary
+
+Two to three sentences. What is being built, the agent's owned stack (from the PRD's Features & acceptance criteria table and the detected platform), and the projected shipping shape (single release, phased rollout, dark launch). Do not describe work on other platforms — each platform has its own engineering plan.
+
+**Worked example:**
+> Ship a habit-tracking core flow on iOS only. Backend introduces one new service (`streak-service`) and extends the existing user profile schema. Android and web are out of scope for this plan.
+
+---
+
+### 2. PRD reference
+
+Bullet list. Cite the PRD path, the version hash or date, and the review pass applied.
+
+- **PRD:** `features/prd-[n]-[slug]/prd-[n]-[slug].md`
+- **PRD version:** date or git SHA
+- **Review:** `features/prd-[n]-[slug]/reports/review-prd-[n]-[slug].md` (if present) — which findings were resolved before this plan was drafted
+
+---
+
+### 3. Alternatives considered
+
+The approaches genuinely evaluated and rejected — as many as are real, and no invented ones. This is the section future readers reach for when they wonder "why not just do X?" If no alternative was seriously considered, write one sentence explaining why the chosen approach is obviously correct — never `None.`
+
+| Option | Description | Rejected because |
+|--------|-------------|-----------------|
+| Keep user-defined entities | Require devs to copy-paste auth entities | Fragile, auth details leak into business logic |
+| Code-generate entities into Wasp file | Generate entities into AppSpec | Pollutes user's Wasp file, breaks on re-run |
+| **Inject into Prisma schema directly** | Append auth entities during Prisma codegen | Auth entities stay hidden; minimal user-facing churn |
+
+---
+
+### 4. Design decisions
+
+Identical to the medium shape's §1 — same format, same worked example, same rule that an unresolved decision is marked **OPEN** and repeated in §12.
+
+---
+
+### 5. Scope mapping
+
+Identical to the medium shape's §3.
+
+---
+
 ### 6. Phases and dependencies
 
 Numbered phases. Each phase names its blocking dependency and exit criterion.
 
 **Worked example:**
 
-1. **Phase 1 — Schema and contracts.** Backend defines schema migration and OpenAPI spec for F1, F2, F3. **Blocks:** all client work. **Exit:** OpenAPI spec merged to `main`.
+1. **Phase 1 — Schema and contracts.** Backend defines schema migration and OpenAPI spec for F1, F2, F3. **Blocks:** all client work. **Exit:** OpenAPI spec merged.
 2. **Phase 2 — Parallel client + server.** Mobile and backend implement against the spec. **Blocks:** none. **Exit:** F1 + F2 + F3 acceptance criteria pass on staging.
-3. **Phase 3 — Web read-only dashboard.** Web reads from production read replica. **Blocks:** Phase 2 ship. **Exit:** dashboard live on production.
+3. **Phase 3 — Web read-only dashboard.** Web reads from the production read replica. **Blocks:** Phase 2 ship. **Exit:** dashboard live on production.
 
 ---
 
 ### 7. Integration contracts
 
-Cover the cross-service and cross-layer contracts introduced or changed by this plan — the shared surfaces the tickets cannot hold: contract tables between agents and the auth-flow narrative. **Do not restate per-identifier detail that a ticket's `files` / `done-when` already carries** — the tickets are the build spec (`refs/build/protocol.md` § Spec source); §7 exists for the cross-agent agreement, not a second copy of it. Every subsection is mandatory — write `None.` only when a subsection genuinely does not apply to this feature.
-
-**API contracts:** List every new or changed API endpoint (REST, GraphQL, or RPC). For each, state the method, path or operation name, request shape, response shape, and the owning agent. Mark `NEW` or `CHANGED`.
-
-| Method | Path / Operation | Request | Response | Owner | Status |
-|--------|-----------------|---------|----------|-------|--------|
-| POST | `/api/v1/streaks` | `{ userId, date }` | `{ streakId, count }` | eng-backend | NEW |
-
-**Schema changes:** List every database schema change. State whether each change is additive-only or requires a migration script. Mark `ADDITIVE` or `MIGRATION REQUIRED`.
-
-| Table / Collection | Change | Type |
-|-------------------|--------|------|
-| `streaks` | New table — `id`, `user_id`, `date`, `count` | MIGRATION REQUIRED |
-| `users` | Add column `streak_id` (nullable FK) | ADDITIVE |
-
-**Authentication patterns:** State which authentication mechanism this feature uses (JWT, session cookie, API key, OAuth token, etc.) and whether it introduces a new flow or reuses an existing one. If a new auth flow is introduced, describe the token lifecycle: how the token is issued, validated, refreshed, and revoked.
-
-**Webhooks and hooks:** List every webhook emitted or consumed and every framework or platform hook invoked. For webhooks: name the event, payload shape, and consumer. For hooks: name the extension point and execution context. Write `None.` if this feature introduces no webhooks or hooks.
-
-| Type | Name / Event | Payload shape | Consumer / Context |
-|------|-------------|---------------|--------------------|
-| Webhook (outbound) | `streak.completed` | `{ userId, streak, timestamp }` | third-party integrations |
-| Lifecycle hook | `onSessionExpire` | `(session: Session)` | auth middleware |
+Identical to the medium shape's §2 — all four subsections mandatory.
 
 ---
 
 ### 8. Developer experience
 
-Show what the feature looks like from the outside before and after. Use a code diff or side-by-side comparison.
-
-**Before:**
-```
-<code showing current painful state>
-```
-
-**After:**
-```
-<code showing improved state>
-```
-
-If the change is entirely internal (no user-facing API change), write `No user-facing API change — internal only.`
+Show what the feature looks like from the outside before and after — a code diff or side-by-side comparison. If the change is entirely internal, write `No user-facing API change — internal only.`
 
 ---
 
@@ -153,15 +207,10 @@ If the change is entirely internal (no user-facing API change), write `No user-f
 
 State explicitly whether this plan introduces breaking changes and what the upgrade path is. If none, write `No breaking changes.`
 
-- **Schema migrations:** Does this add, remove, or rename database columns? If yes, is the migration reversible?
-- **API changes:** Any removed or renamed fields in public APIs or SDKs?
-- **Upgrade path:** What do existing users need to do? If a migration script or command is needed, name it here.
-- **Rollback plan:** How do we revert if the release fails?
-
-**Worked example:**
-> - **Schema migrations:** Adds `Auth` and `SocialAuthProvider` tables. Removes `password`, `email`, `isEmailVerified` from `User`. Migration is reversible.
-> - **Upgrade path:** Run `wasp db migrate-auth`. This copies auth fields from `User` → `Auth` and `SocialLogin` → `SocialAuthProvider`, then users delete auth fields from their entity definition.
-> - **Rollback plan:** Restore from pre-migration DB snapshot; revert Wasp version pin.
+- **Schema migrations:** added, removed or renamed columns? Reversible?
+- **API changes:** removed or renamed fields in public APIs or SDKs?
+- **Upgrade path:** what existing users must do; name any migration script or command.
+- **Rollback plan:** how to revert if the release fails.
 
 ---
 
@@ -173,46 +222,41 @@ Table form. One row per risk that could block ship — **as many as are real**, 
 |------|-----------|--------|-----------|
 | iOS push permission denial cascades onboarding failure | Medium | High | Design fallback in-app banner; F3 graceful degrade |
 | Streak timezone bug causes user-visible regressions | Medium | High | Add timezone-stamped fixtures; staging soak with multi-TZ test accounts |
-| Mobile store review delays Android | Low | Medium | Submit Android 3 days before iOS to absorb review cycle |
 
 ---
 
 ### 11. Findings — PRD gaps
 
-Numbered findings. Each carries a severity and a required action. If `plan-em` ran clarifying questions during drafting, capture the unresolved ones here. If no findings, write `None.` and continue.
-
-**Severity tags:**
-- **Critical** — Engineering plan cannot ship without resolution. Block engineering kickoff.
-- **Major** — Engineering plan ships but a follow-up PRD revision is required mid-flight.
-- **Minor** — Note for future PRDs; no action required this cycle.
+Numbered findings, each with a severity (**Critical** / **Major** / **Minor**) and a required action. If `plan-em` ran clarifying questions during drafting, capture the unresolved ones here. If none, write `None.`
 
 **Worked example:**
-1. **Critical** — PRD §3 F2 acceptance criterion does not name timezone reference. **Action:** PM clarifies before backend schema is frozen.
-2. **Minor** — PRD §3 acceptance criterion for "notification opt-in" lacks a measurement window. **Action:** PM adds a window in next PRD revision.
+1. **Critical** — PRD §3 F2 acceptance criterion does not name a timezone reference. **Action:** PM clarifies before backend schema is frozen.
+2. **Minor** — PRD §3 acceptance criterion for "notification opt-in" lacks a measurement window. **Action:** PM adds a window in the next PRD revision.
 
 ---
 
 ### 12. Open questions for human gate
 
-Numbered. Each question must be answerable with a single decision. Mark any design decisions from §4 that remain unresolved as **OPEN** and list them here too. If none, write `None.`
+Numbered. Each question answerable with a single decision. Every §4 decision still marked **OPEN** is repeated here. If none, write `None.`
 
 1. **OPEN — Token identity:** Should the JWT contain `User.id` or `Auth.id`? Both uniquely identify a user; the choice affects middleware and client SDK surface area.
 
 ---
 
-## Quality gates before save
+## Quality gates before save — large shape
 
 | Gate | Rule |
 |------|------|
-| Summary | §1 states what is being built, the agent's owned stack, and shipping shape. |
-| Alternatives | §3 documents each alternative that was genuinely considered, with a reason for rejecting it — or one sentence why the chosen approach is obviously correct. No invented options. |
-| Design decisions | §4 has a subsection for every non-obvious implementation choice. Each has trade-offs and a resolution or is marked OPEN. |
-| PRD coverage | Every assigned PRD feature ID appears in §5 (Scope mapping). |
+| Summary | §1 states what is being built, the agent's owned stack, and the shipping shape. |
+| Alternatives | §3 documents each alternative genuinely considered with a reason for rejecting it — or one sentence why the chosen approach is obviously correct. No invented options. |
+| Design decisions | §4 has a subsection for every non-obvious implementation choice, each with trade-offs and a resolution or an **OPEN** mark. |
+| PRD coverage | Every assigned PRD feature ID appears in §5. |
 | Phases | Every phase names a blocking dependency and an exit criterion. |
-| Integration contracts | §7 has all four subsections populated (API contracts, schema changes, auth patterns, webhooks/hooks). Every subsection either has entries or explicitly states `None.` |
+| Integration contracts | §7 has all four subsections populated, each with entries or an explicit `None.` |
 | Developer experience | §8 shows a before/after or explicitly states no user-facing change. |
 | Migration | §9 explicitly states whether breaking changes exist and names the rollback plan. |
-| Risks | Every real ship-blocking risk named, each with a mitigation — as many as are real, or `None — <reason>`. |
-| Findings | If PRD gaps exist, every finding has severity and action. |
-| Open questions | Any OPEN design decision in §4 appears in §12. |
-| Exact identifiers | Every function name, table name, column name, migration filename, and API endpoint is verified against the codebase scan — no guessed or approximate names. Any name that cannot be confirmed is a gap in §11, not a placeholder. |
+| Risks | Every real ship-blocking risk named with a mitigation — as many as are real, or `None — <reason>`. |
+| Findings | Every PRD gap has a severity and an action. |
+| Open questions | Every **OPEN** §4 decision appears in §12. |
+| Exact identifiers | Every function, table, column, migration filename and API endpoint is verified against the codebase scan. A name that cannot be confirmed is a §11 gap, not a placeholder. |
+| Grade justifies it | This shape was written because the intake grade reads `C:` ≥ 8. If it does not, the medium shape was required. |
