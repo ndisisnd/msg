@@ -20,6 +20,16 @@ Per `refs/protection.md` + `../shared/refs/policy-schema-merge.md` §2. Resolve
 `UNPROTECTED` **warns + proceeds** (one `low` note); `skip` → don't verify. `NO_GH` /
 `NO_REMOTE` **refuse regardless of mode**.
 
+Open the run's heartbeat here (`../../shared/refs/status-heartbeat.md`) —
+`--run-id` is fixed once and reused verbatim by every call below:
+
+```bash
+S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+RUN_ID="merge-$(date +%s)"
+"$S" --start --phase "merge --staging" --run-id "$RUN_ID"
+"$S" --tick  --run-id "$RUN_ID" --note "branch protection verified" --step "staging-readiness guard"
+```
+
 ## Staging-readiness guard (pre-flight, after Step 1)
 
 Before locating the PR, read the `staging_ready` record `--init` wrote
@@ -77,6 +87,10 @@ coverage immediately after acquire*).
 the long-lived production ship is the only acquirer. A staging merge (a single
 `gh pr merge`) is near-atomic — the reverse window (a production ship starting
 mid-staging-merge) is sub-second and not worth the machinery or the friction.
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "staging-readiness + in-flight-production checks passed" --step "locate PR + verify CI"
+```
 
 ## Step 2 — Locate the PR + verify green CI
 
@@ -183,6 +197,10 @@ and points at `force_full_paths`
 around it; `FORCE_FULL_CANDIDATES` names the escapees' components and the model
 names the specific test **file**.
 
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "CI green" --step "merge into staging"
+```
+
 ## Step 3 — Merge into staging
 
 This is merge's sanctioned merge power (the pre-merge floor forbids it for
@@ -206,23 +224,44 @@ git fetch origin staging --quiet
 CERTIFIED_SHA=$(git rev-parse origin/staging)   # == the merge commit just created
 ```
 
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "merged $CERTIFIED_SHA into staging" \
+     --step "deploy staging" --next "staging deploy — duration is platform-declared, see devkit/PLATFORMS.md"
+```
+
 ## Step 4 — Deploy staging
 
 Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`).
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "staging deploy complete" \
+     --step "verify the deploy" --next "smoke verification — watch_window/poll loops may re-check for several minutes"
+```
 
 ## Step 5 — Verify the deploy
 
 Per `refs/verify-deploy.md`: run each platform's smoke against the deployed staging
 target under the **v2 smoke contract** (`smoke: {cmd, watch_window?, poll?}`).
+Each `watch_window`/`poll` iteration re-enters this orchestrator, which is a
+legitimate checkpoint — tick there too, carrying the real attempt
+(`--step "smoke poll — attempt <n>/<max>"`), never a fabricated percentage
+(`../../shared/refs/status-heartbeat.md` § *Long blocking steps*).
 Verified (or skipped-with-note) → continue. **Any smoke failure** — a plain
 non-zero, a poll timeout (`smoke-never-live`), or a watch-window degrade —
 emits the finding, sets verdict `fail`, and **stops here** — skip Steps 6–7.
+That stop is an exit like any other, so it closes the heartbeat on its way out
+(`"$S" --end --run-id "$RUN_ID" --outcome "smoke failed — staging not handed off"`).
 Never hand a human a test
 script for an environment that is already failing its own health check; the report
 points at fixing forward via `/pre-merge` (the merge stands). For a macOS platform,
 the config-gated notarization / signing / appcast checks (`refs/verify-deploy.md`
 § *macOS release checks*) run here too — each a distinct finding, silent when
 undeclared.
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "deploy verified" --step "human test hand-off"
+"$S" --end  --run-id "$RUN_ID" --outcome "staging verified — awaiting human test"
+```
 
 ## Step 6 — Human test script + STOP
 

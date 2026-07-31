@@ -49,6 +49,13 @@ S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts
 - **Quote the script's output; never re-render it.** A `--tick` printing `QUIET` produces no chat output at all. A `--tick` printing `REPORT` is followed by the rendered block — emit it as-is.
 - `--now <epoch>` exists for the eval harness's fixed clock. Never pass it from a protocol.
 
+**`--end` fires on every exit from the phase — not just the happy one.** A refusal,
+a mid-run stop, a failed check, a failed ship: each still closes the heartbeat, with
+`--outcome` naming what actually happened. Two reasons. The moment a run ends badly
+is the moment a watching human most wants a closing summary, and `--end` is what
+removes the state file — a phase that only closes on success leaks one file per bad
+run. Where a protocol has several exits, close at each of them.
+
 ## The report shape
 
 Rendered by the script so the wording cannot drift between skills. Reference only —

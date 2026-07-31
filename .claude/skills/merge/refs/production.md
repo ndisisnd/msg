@@ -47,6 +47,15 @@ merge **never writes a VERSION file or a bump commit** — the only new write
 is the git tag at Step 9, which changes no tracked file. Full contract:
 `refs/release-identity.md`.
 
+Open the run's heartbeat here (`../../shared/refs/status-heartbeat.md`) —
+`--run-id` is fixed once and reused verbatim by every call below:
+
+```bash
+S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+RUN_ID="merge-$(date +%s)"
+"$S" --start --phase "merge --production" --run-id "$RUN_ID"
+```
+
 ## Step 1 — Preconditions (refuse without all three)
 
 For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
@@ -123,6 +132,10 @@ A `submission`-model platform under `direct` flow still runs the full submission
 lifecycle on the single feature→`prod` ship (`refs/submission.md`) —
 `release_model` is orthogonal to `release_flow`.
 
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "preconditions satisfied" --step "branch protection"
+```
+
 ## Step 2 — Branch protection (policy-conditional)
 
 Per `refs/protection.md` + `../shared/refs/policy-schema-merge.md` §2:
@@ -130,6 +143,10 @@ resolve `mode_main`, run `script-branch-protection.sh --verify main`, and read t
 outcome against that mode (`enforced` refuses `unprotected`; `optional` warns +
 proceeds; `skip` doesn't verify; `NO_GH`/`NO_REMOTE` refuse regardless). Under
 `enforced`, `main` protection additionally requires ≥1 approving review.
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "branch protection verified" --step "double-confirmation"
+```
 
 ## Step 3 — Double-confirmation (two separate asks)
 
@@ -196,6 +213,13 @@ Ask exactly once:
   and **no lock was acquired** — the gate sits before acquisition, so there is
   nothing to release. Under an autonomy contract with no human present, default
   to **Cancel** (do not ship an untested build unattended).
+
+Both human gates above have now resolved (an affirmative on every ask, plus the
+inline attestation under `direct` flow) — the heartbeat may speak again:
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "release confirmed by human" --step "acquire release lock"
+```
 
 ## Release lock (acquire before Step 4, release on every exit)
 
@@ -273,6 +297,10 @@ and a failed delete is a `low` note, never a hard stop — the TTL reclaims it.
 Record `{ref, acquired, acquired_at, released, released_at}` — straight off the
 script's keys — into the run report's `release_lock` block.
 
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "release lock acquired" --step "open release PR"
+```
+
 ## Step 4 — Open the release PR (`<head>` → prod)
 
 The PR head is **flow-dependent**, never hardcoded to `staging`: `$STG` in
@@ -299,6 +327,10 @@ Release-style body (what the GUI production report and the PR render from):
   | `limited` | Partial rollback — a lever exists but does not fully un-ship: `deploy` (macOS direct download) → re-publish the prior build; `submission` (Android, Mac App Store) → **halt the staged/phased rollout** (`rollout_halt_cmd`); the approved build stays out. |
   | `no` | **IRREVERSIBLE** — an approved app-store release is permanent. The *phased release* can still be halted (`rollout_halt_cmd`) but the build is not recallable. Flag iOS here (default). |
   - Any platform with `rollback_possible: no` (iOS by default) is flagged **`IRREVERSIBLE`** in bold — the GUI surfaces it as a prominent badge.
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "release PR opened" --step "merge on green CI + review"
+```
 
 ## Step 5 — Merge on green CI + human review
 
@@ -333,6 +365,11 @@ Branch protection enforces both; merge checks them, then merges:
    that did **not** advance prod recomputes the same build, which Step 6
    correctly refuses.
 
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "release PR merged; prod fetched + identity recomputed" \
+     --step "production deploy" --next "production deploy — duration is platform-declared, see devkit/PLATFORMS.md"
+```
+
 ## Step 6 — Production deploy
 
 **Build-number monotonicity — `submission` platforms, checked BEFORE submit.**
@@ -347,12 +384,21 @@ capture logs. A deploy failure emits a `merge` finding
 (`refs/output-schema.md`) and runs the **failed-ship loop** — the merge already
 happened, so this is surfaced, not swallowed.
 
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "production deploy complete" \
+     --step "verify deploy + provenance" --next "smoke + provenance verification — watch_window/poll loops may re-check for several minutes"
+```
+
 ## Step 7 — Verify the deploy + provenance
 
 Per `refs/verify-deploy.md`: verification is per `release_model` — smoke the live
 target for `deploy` platforms (the v2 contract: one-shot / `watch_window` /
 `poll`, plus the config-gated macOS notarization / signing / appcast checks), and
-submission-accepted + backend-health for `submission` platforms.
+submission-accepted + backend-health for `submission` platforms. Each
+`watch_window`/`poll` iteration re-enters this orchestrator, which is a
+legitimate checkpoint — tick there too, carrying the real attempt
+(`--step "smoke poll — attempt <n>/<max>"`), never a fabricated percentage
+(`../../shared/refs/status-heartbeat.md` § *Long blocking steps*).
 
 **Provenance.** For each platform with a declared `version_probe`, read the
 deployed artifact's source commit and pass it to the identity script:
@@ -375,7 +421,14 @@ provenance — sets verdict `fail` and **skips Steps 8–10**: a release that is
 verifiably live doesn't close its PRD's intake row, earn a tag, or move to
 `done/`. The failed-ship loop then runs, and its **first action is the
 rollback/rollout-halt offer** (`SKILL.md` § *Failed-ship loop*), always-ask,
-never auto. The merge stands — never pretend to un-ship.
+never auto. The merge stands — never pretend to un-ship. That path exits the phase
+too, so it closes the heartbeat before the rollback offer is put to the human
+(`"$S" --end --run-id "$RUN_ID" --outcome "ship failed — <what failed>"`) — never
+between the offer and the answer.
+
+```bash
+"$S" --tick --run-id "$RUN_ID" --note "deploy verified; provenance checked" --step "stamp intake ledger"
+```
 
 ## Step 8 — Stamp the intake ledger `completed`
 
@@ -402,6 +455,10 @@ one-line note**; an unmapped PRD is not an error.
 
 - **`deploy`** — only on a verified (or verify-skipped-with-note) deploy; a smoke failure skips the stamp, because the live target is genuinely unverified.
 - **`submission`** — on **submit-accepted**, regardless of the backend-smoke verdict. Once the submit is accepted the artifact is out and cannot be un-submitted by a backend blip, so a *backend* smoke failure must not withhold the stamp. The backend failure still stands as a finding (verdict `fail`, still driving the rollback/halt offer) and Step 9 still withholds the tag. Only a failure of *submission acceptance itself* — rejected-at-upload, or a provenance `fail` — skips the stamp. The report carries the note that live-to-users is downstream and out-of-band, pointing at the monitor-handoff (`refs/submission.md`).
+
+```bash
+"$S" --end --run-id "$RUN_ID" --outcome "release verified — tagging"
+```
 
 ## Step 9 — Tag the release
 

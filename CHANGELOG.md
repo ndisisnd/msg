@@ -2,6 +2,13 @@
 
 ## 2026-08-01
 
+### [109] — Heartbeat checkpoints in the ship gate (v5.2 P4)
+
+- `.claude/skills/merge/refs/staging.md` and `refs/production.md`: Changed — `--start` after the policy pre-flight, a tick at each numbered step boundary (protection → readiness → CI → merge → deploy → verify, and production's longer chain through the lock, release PR and tag), and a tick inside the smoke v2 `watch_window`/`poll` loops, which already re-enter the orchestrator per iteration
+- **The human gates are byte-identical.** No tick sits between a gate's question and its answer: the staging human-test STOP, the production double-confirmation and the `direct`-flow inline attestation are untouched, and production's post-gate tick fires only once every ask has resolved. Ticks sit around the release lock and the rollback offer, never inside them
+- Pre-announce durations stay qualitative ("platform-declared, see `devkit/PLATFORMS.md`") rather than invented minute counts — a fabricated progress number is worse than silence
+- `.claude/skills/shared/refs/status-heartbeat.md`: Changed — `--end` now explicitly fires on **every** exit, not just the happy one. A phase closing only on success both withholds the summary at the moment a human most wants it and leaks one state file per bad run. Wired into staging's smoke-failure stop and production's failed-ship path
+
 ### [108] — Heartbeat checkpoints in eng --build and the team orchestrator (v5.2 P3)
 
 - `.claude/skills/eng/refs/build/protocol.md`: Changed — a **standalone** build opens the heartbeat at the top of the work steps (`--total` = ticket count), ticks per ticket whose `done-when` just passed, pre-announces the two long steps that have no checkpoint inside them (the full-suite gate and the Step-5a review spawn) and ticks on each one's return, then closes at the build summary. Steps 1–4 are input validation and human-facing gates — fast, so they get nothing
