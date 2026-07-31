@@ -2,6 +2,28 @@
 
 ## 2026-08-01
 
+### [124] — mechanical packets are reviewed per wave, not per leaf (v5.4 P7)
+
+v5.3 made review coverage provable: every packet's reviewer writes an evidence artifact, and the orchestrator checks the filesystem for one after every wave. That is the right floor, but it was buying the same thing at very different prices — a reviewer spawn per leaf costs the same whether the leaf wrote an auth migration or wired four CRUD forms.
+
+Review **granularity** now follows the packet's model tier, which is a judgment the orchestrator already made and recorded:
+
+- **Sonnet / mechanical packets** — no per-leaf reviewer. The orchestrator spawns **one** `eng --review` over the wave's accumulated diff once the wave lands, and that review writes **one** artifact, `review-prd-<N>-W<w>.json`, carrying a `packets` list of every key it covered and a `built_by` list of those packets' agents.
+- **Opus / load-bearing packets** — unchanged, a reviewer per packet, exactly as v5.3 wrote it.
+
+**Coverage did not become weaker, only cheaper.** The orchestrator still passes *every* packet key in the wave to `script-eng-review-check.sh`, which now resolves a key against a wave artifact's `packets` list when no per-packet artifact exists. A key the wave artifact does not list still reads `MISSING`, still gets one reviewer re-spawned, and still escalates on a second miss. The self-review rule tightened rather than loosened: `reviewed_by` matching **any** builder in a batched `built_by` list is self-review, because a reviewer that built one packet of the wave it is reviewing is the exact conflict the rule exists to prevent. Severities from a wave artifact are counted once, not once per key it covers, so the aggregate finding counts stay honest.
+
+Leaves are told which regime they are in via an injected `review=self|batched` field rather than inferring it — a leaf never decides its own review. A batched leaf skips its reviewer spawn and says so on its Review line, which stays a required element of the return.
+
+**Commits batch with the review.** A mechanical packet may land as one commit when it reads as one coherent unit, instead of one per ticket; a load-bearing packet keeps per-ticket commits, where a reviewable history earns its cost. Both commit gates — the comment scan and the size/trailer cap — run on **every** commit regardless; batching commits never batches the gates.
+
+- `.claude/scripts/script-eng-review-check.sh` — a key resolves to a per-packet artifact first, then to a batched wave artifact whose `packets` names it; `built_by` accepts a list and self-review becomes a membership test; severity counts deduped per artifact
+- `.claude/skills/eng/refs/review/protocol.md` — new § Batched wave reviews; the artifact schema gains the optional `packets` field
+- `.claude/skills/plan-em/refs/protocol-team.md` — § Build wave step 4 routes review by packet tier; § Subagent contract gains the `review=` field and the batched-wave reviewer row
+- `.claude/skills/eng/refs/build/protocol-packet.md` — Step 5 branches on `review=`; Step 7 states the commit-granularity rule and that the gates do not batch
+- `evals/cases/review-check-wave-batched`, `review-check-wave-unlisted`, `review-check-wave-self-reviewed` — **new**: the batch covers its listed keys and counts once; an unlisted key is still MISSING; a batched builder reviewing its own wave is still SELF-REVIEWED
+- `ARCHITECTURE.md` — the review-evidence section states that granularity varies and coverage does not
+
 ### [123] — medium PRDs plan and build in one run (v5.4 P5)
 
 A PRD used to cost two `/plan-em` invocations no matter how big it was: plan wave, stop, human re-invokes, build wave. Each invocation repaid the same fixed ceremony — pre-flight scan, cross-PRD check, roster gate — and a full certification round-trip sat between the two halves. For a small feature that overhead is most of the run.

@@ -10,7 +10,7 @@ You are **one packet** of a parallel build coordinated by an orchestrator. This 
 
 ## What is already true (do not re-derive)
 
-The orchestrator guarantees all of this before you start: the feature **branch exists and is checked out**; the stack's **`standards payload` is injected**; **scoped context** (your rows, the mapped PRD feature sections, a devkit digest) is injected, with the PRD path as an escape hatch for anything an excerpt cannot resolve; every **approval gate is pre-approved**; and the **status heartbeat is ticked for you** from your returned `status:` line.
+The orchestrator guarantees all of this before you start: the feature **branch exists and is checked out**; the stack's **`standards payload` is injected**; **scoped context** (your rows, the mapped PRD feature sections, a devkit digest) is injected, with the PRD path as an escape hatch for anything an excerpt cannot resolve; every **approval gate is pre-approved**; the **review regime is decided for you** (`review=self` or `review=batched` — Step 5); and the **status heartbeat is ticked for you** from your returned `status:` line.
 
 Two things are **not** pre-approved and never can be: the **db-touch pause** (Step 6) and a genuine blocker — if you are blocked by information you cannot derive, return the blocker rather than guessing.
 
@@ -52,7 +52,16 @@ After all groups are green, run the project's **unit + integration** suite and l
 
 ## Step 5 — Whole-change review, and its artifact
 
-Once the suite has passed (or been suppressed) and **before** any commit, spawn **one** reviewer subagent over your whole change. It runs on **every** build that produced a diff — no size threshold, no skip, no fast path. `refs/review/protocol.md` owns its protocol, severity discipline, return contract and spawn rules.
+**The orchestrator decides who reviews you, via the injected `review=` field. You never decide it.**
+
+| `review=` | What you do |
+|-----------|-------------|
+| `self` (default, and the value assumed if the field is absent) | Spawn your own reviewer, as below. |
+| `batched` | **Do not spawn a reviewer.** The orchestrator reviews the whole wave's diff after your packet lands, and its artifact records your packet key. Skip to Step 6, and say `batched — covered by the wave review` on your Review line. |
+
+`batched` is not permission to go unreviewed: your code is reviewed either way, and the orchestrator's coverage check verifies it from the filesystem for every packet key in the wave, yours included. What changes is only that one reviewer reads the whole wave instead of one reading your slice.
+
+**When `review=self`:** once the suite has passed (or been suppressed) and **before** any commit, spawn **one** reviewer subagent over your whole change. It runs on **every** build that produced a diff — no size threshold, no skip, no fast path. `refs/review/protocol.md` owns its protocol, severity discipline, return contract and spawn rules.
 
 Inject the change set, the worked tickets' `done-when`, the digest's acceptance criteria, and **the identity fields: `built_by` (your agent name) and `<K>` (the packet key the orchestrator gave you — pass it through unchanged, never derive your own)**.
 
@@ -72,7 +81,9 @@ If it flags database, data or production-config files — or your change removes
 
 ## Step 7 — Commit to the branch
 
-Commit directly onto the checked-out branch. **One commit per ticket, or per coherent group that reads as one reviewable unit** — a packet may be committed as a single unit when that is what it is. No per-commit approval prompt. For **each** commit, run both gates on the **staged** diff:
+Commit directly onto the checked-out branch. **One commit per ticket, or per coherent group that reads as one reviewable unit.** With `review=batched` — a mechanical packet, well-scoped and fully specified — **commit the packet as one commit** whenever it reads as one unit; per-ticket commits buy granularity that nothing downstream consumes on work of that shape. With `review=self`, prefer per-ticket commits: a load-bearing change is where a reviewable commit history earns its cost.
+
+Whatever the granularity, **both gates run on every commit** — batching commits never batches the gates. No per-commit approval prompt. For **each** commit, run both gates on the **staged** diff:
 
 ```bash
 C=.claude/scripts/script-eng-comment-scan.sh; [ -f "$C" ] || C="$HOME/.claude/scripts/script-eng-comment-scan.sh"; "$C" --staged
@@ -119,7 +130,7 @@ bash "$Q" devkit/OPEN-QUESTIONS.md --title "<one-line title>" --question "<what 
 
 **Branch:** <the branch the commits landed on>
 **Full-suite gate:** <pass / fail summary, "suppressed by caller", or "no test/lint command">
-**Review:** <reviewer one-liner> · `<verdict>` · evidence: `<reports/review-prd-<N>-<K>.json>`
+**Review:** <reviewer one-liner> · `<verdict>` · evidence: `<reports/review-prd-<N>-<K>.json>`   ← or, with `review=batched`: `batched — covered by the wave review`
 **Warnings:** <groups shipped without a test ticket, or "None">
 **Blocked rows:** <any row not completed, and why>
 **AHA entries:** <entries written, or "None">

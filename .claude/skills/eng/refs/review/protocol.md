@@ -61,6 +61,7 @@ One JSON object — the schema's § Subagent return contract:
   "reviewed": {"files": <n>, "basis": "working-diff" | "branch-base"},
   "reviewed_by": "<this reviewer's agent identity>",
   "built_by": "<the packet key or agent that wrote the code under review>",
+  "packets": ["<packet key>", …],   // batched wave review only — see § Batched wave reviews
   "fixed": [{"file": "<path>", "why": "<one line>"}],
   "questions": ["<behaviour call the reviewer refused to make>"],
   "comments_added": <n>,
@@ -88,6 +89,15 @@ bash "$R" --reports-dir "<prd-dir>/reports" --expect "<k1,k2,…>"
 ```
 
 Exit 0 = every expected key covered, with a one-line coverage summary; exit 1 = one `MISSING <k>` / `SELF-REVIEWED <k>` line per gap; 2 = usage; 3 = expectation underivable. An artifact that does not parse counts as **missing**, never as covered.
+
+## Batched wave reviews (`packets`)
+
+One reviewer may cover **several mechanical packets at once** — the orchestrator's batched wave review (`plan-em/refs/protocol-team.md` § Build wave step 4). Nothing about the review itself changes; only the artifact's identity does:
+
+- `<K>` is the **wave key** the orchestrator injects (`W1`, `W2`, …), so the file is `review-prd-<N>-W<w>.json` and cannot collide with a per-packet artifact.
+- **`packets` is required on a batched artifact** and lists every packet key the review covered. This is what makes the batch checkable: the coverage check accepts the wave artifact as satisfying each of those member keys, so `--expect P2,P3` passes on a single `review-prd-12-W1.json` carrying `"packets": ["P2","P3"]`. Omit the field and the batch proves nothing — each member key reads as `MISSING` and gets a reviewer re-spawned.
+- `built_by` becomes the **list** of the covered packets' builders (a single string stays legal for a single-packet review). The self-review rule tightens accordingly: the artifact fails if `reviewed_by` matches *any* builder in that list, because a reviewer that built one of the packets it is reviewing is exactly the conflict the rule exists to prevent.
+- A per-packet review never carries `packets`. Coverage granularity is a property of who spawned the reviewer, never something the reviewer decides for itself.
 
 ## Spawning
 

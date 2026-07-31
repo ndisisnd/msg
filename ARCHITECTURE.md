@@ -212,6 +212,14 @@ A missing artifact is repaired by spawning a reviewer over that packet's diff, n
 by re-running the builder; a second miss escalates to the user and logs a DOCTOR row.
 `pre-merge` backstops the whole thing by reporting coverage for the branch it grades.
 
+v5.4 lets the **granularity** vary without letting the coverage vary. Mechanical
+(Sonnet-tier) packets are reviewed **per wave** rather than per leaf: one reviewer
+reads the wave's accumulated diff and writes one artifact carrying a `packets` list,
+which the coverage check accepts as satisfying each member key. Load-bearing
+(Opus-tier) packets keep their own reviewer. Either way every packet key is passed to
+the check and proven from the filesystem — batching removes reviewer spawns, never the
+proof that the code was reviewed.
+
 The reason for the artifact is that a skipped review and a clean review look
 identical from the outside: both return silence. Presence therefore has to be a
 filesystem fact rather than a claim in a summary — anything that must happen needs a

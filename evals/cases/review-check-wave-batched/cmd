@@ -1,0 +1,7 @@
+# R7 — one batched wave review (P7) covers several mechanical packets: its
+# `packets` list satisfies each member key, so --expect passes with no
+# per-packet artifact for P2/P3. Its severities are counted ONCE, not once per
+# key it covers — the coverage line must read 1 high (from P1) + 1 medium (from
+# the wave), never 2 medium.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2,P3

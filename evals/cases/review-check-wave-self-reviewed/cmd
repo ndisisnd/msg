@@ -1,0 +1,6 @@
+# R9 — the batched artifact tightens the self-review rule rather than loosening
+# it: `reviewed_by` matching ANY builder in the covered list is self-review, so
+# every member key it covers is flagged. A reviewer that built one packet of the
+# wave it reviews is the exact conflict the rule exists to prevent.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2
