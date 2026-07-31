@@ -2,6 +2,12 @@
 
 ## 2026-07-31
 
+### [97] — Stand up the regression-eval suite (v5.1 P0)
+
+- `evals/run.sh`: Added — the mechanistic eval runner: case = `fixture/` + `cmd` + `expected/{exit,stdout,files/}`, run in a temp copy with `TZ=UTC`, golden-diff grading, `--only <slug>`, exit 0 iff all pass
+- `evals/cases/`: Added — six pilot cases covering the doctor appender (append, enum refusal), the doctor tally (triage threshold, unparsed-header refusal) and the intake stamp (status flip, absent-column refusal); all goldens captured from real script runs
+- `.gitignore`: Changed — root `evals/` un-ignored (the ignore was for the May-era scratch suite, which moved to `update/[deprecated]/evals-v2/`)
+
 ### [96] — Make the repo readable to strangers and to agents
 
 - `README.md`: Changed — figlet header, badges and nav added; the two skill tables rewritten from dense implementation prose into one-or-two-sentence rows split per mode; the run-report, closing-message and safety-floor blocks condensed from 470 to 180 words; new Install-verify, How-to-update, FAQ and Documentation sections
