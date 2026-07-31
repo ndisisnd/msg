@@ -2,6 +2,14 @@
 
 ## 2026-08-01
 
+### [110] — Per-run heartbeat flags, policy key and docs (v5.2 P5)
+
+- `.claude/skills/{eng,merge,plan-em,pre-merge}/SKILL.md`: Added — `[--quiet | --status <n>m]` in each `argument-hint`, a Usage line in each skill's existing style, and a References pointer to `../shared/refs/status-heartbeat.md`. eng's is scoped `(--build only)`; pre-merge is the single place that states the 2-minute floor. No SKILL.md restates the report shape or the checkpoint rule — the contract stays the one source
+- `.claude/skills/shared/refs/status-heartbeat.md`: Changed — states the flag→env mapping explicitly (`--quiet` → `MSG_STATUS_INTERVAL=0`, `--status <n>m` → `=<n>`, neither → policy decides), so the four SKILL.md flags have exactly one documented path into the script
+- `.claude/skills/shared/refs/policy-schema.md`: Added — `policies.status_cadence` (`{enabled, interval_minutes}`, default on/5). Read only by `script-status-tick.sh` at `--start`, **not** by `script-policy-read.py`, so no skill plumbs the key itself; malformed falls through silently
+- `README.md`: Added — "Why did the run go quiet for eight minutes?" answered in the FAQ voice: one long step with no natural pause inside it, pre-announced rather than unexplained
+- `ARCHITECTURE.md`: Added — a **Run visibility** section stating the cadence-checked-checkpoint stance and that the heartbeat is purely observational — it never moves a verdict, a refusal or a gate
+
 ### [109] — Heartbeat checkpoints in the ship gate (v5.2 P4)
 
 - `.claude/skills/merge/refs/staging.md` and `refs/production.md`: Changed — `--start` after the policy pre-flight, a tick at each numbered step boundary (protection → readiness → CI → merge → deploy → verify, and production's longer chain through the lock, release PR and tag), and a tick inside the smoke v2 `watch_window`/`poll` loops, which already re-enter the orchestrator per iteration

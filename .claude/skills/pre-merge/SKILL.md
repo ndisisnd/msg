@@ -8,7 +8,7 @@ description: >
   security/migration → PRD-consistency → open PR.
   Emits a severity-graded verdict JSON. Absorbs the old /review and /test.
   Activates on /pre-merge after eng --build.
-argument-hint: "[--init | --update | --update-criticality] [--prd <path>] [--flaky <n>] [--minified | --full]"
+argument-hint: "[--init | --update | --update-criticality] [--prd <path>] [--flaky <n>] [--minified | --full] [--quiet | --status <n>m]"
 allowed_tools:
   - Bash
   - Read
@@ -43,6 +43,8 @@ eng --build  →  /pre-merge  →  (fail → eng --build report=…, repeat)  �
 - `/pre-merge --changed-only` — skip platform components whose surface the diff doesn't touch (`refs/_common.md`)
 - `/pre-merge --minified` — force **test selection** on for this run even when `policies.test_selection` is off (a trial); nothing is written (`refs/executor.md` §3c)
 - `/pre-merge --full` — force the **full** suites — the kill switch. Flag beats policy: `--full` > `--minified` > `policies.test_selection`
+- `/pre-merge --quiet` — suppress this run's status heartbeat
+- `/pre-merge --status <n>m` — override the heartbeat interval for this run; flag beats policy beats default, floor 2 minutes (`../shared/refs/status-heartbeat.md`)
 
 Natural language: "run pre-merge", "gate this before merge", "open the PR against staging", "run the CI gate".
 
@@ -169,7 +171,7 @@ branch comes back through the gate.
 - `../shared/refs/component-catalog.md` — the component metadata the manifest + executor key off
 - `../shared/refs/check-report-schema.md` — the `detect` + `result` sections the executor writes per check and aggregates
 - `../shared/refs/env-contract.md` — the `devkit/ENV.md` `provision`/`seed`/`reset`/`teardown` block read at executor §3b (gate runs never write it)
-- `../shared/refs/fix-loop.md` · `../shared/refs/closing-message.md` · `../shared/refs/doctor-logging.md` · `../shared/refs/safety-floor.md` · `../shared/refs/finding-schema.md` · `../shared/refs/report-schema.md` · `../shared/refs/verify-prelude.md`
+- `../shared/refs/fix-loop.md` · `../shared/refs/closing-message.md` · `../shared/refs/doctor-logging.md` · `../shared/refs/safety-floor.md` · `../shared/refs/finding-schema.md` · `../shared/refs/report-schema.md` · `../shared/refs/verify-prelude.md` · `../shared/refs/status-heartbeat.md`
 - `.claude/scripts/script-preflight-*.sh` — the per-check detect+normalize family (C4), ingested into `components[]` by `--init`/`--update`. **These + the manifest are the detector now (v3 P3)**
 - `.claude/scripts/script-pipeline-resolve.py` — **the pipeline resolver**: join → prune → C12 coverage-gap correlation → topo-sorted waves → plan JSON; `--check-complete` verifies every planned component reported
 - `.claude/scripts/script-aggregate-verdict.sh` — the aggregation half: collect → dedup → downgrades → verdict + summary + `checks[]` + critical-abort signal

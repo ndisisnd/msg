@@ -110,6 +110,11 @@ already-open report window:
 | `policies.status_cadence` in `devkit/policy.json` | `{enabled, interval_minutes}`; absent, unreadable or malformed falls through silently |
 | default | enabled, 5 minutes |
 
+The per-run flags are how a human reaches the env var. Before the `--start` call,
+the orchestrator exports it once: `--quiet` → `MSG_STATUS_INTERVAL=0`,
+`--status <n>m` → `MSG_STATUS_INTERVAL=<n>`. Neither flag given, nothing is
+exported and policy decides. No skill parses the interval further than that.
+
 Any resolved interval below **2 minutes** is clamped to 2 with one stderr note — a
 30-second heartbeat on a 40-minute gate is spam, not visibility. `0` is a distinct
 state and is never clamped.

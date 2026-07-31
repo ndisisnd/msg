@@ -10,7 +10,7 @@ description: >
   engineer decomposes each wave into file-disjoint, model-tiered packets fanned out to
   leaf eng subagents) or --solo (one leaf subagent per roster stack). Refuses without a
   referenced PRD .md path.
-argument-hint: "<prd-path> [--team | --solo]"
+argument-hint: "<prd-path> [--team | --solo] [--quiet | --status <n>m]"
 allowed_tools:
   - Agent
   - AskUserQuestion
@@ -33,6 +33,8 @@ team-lane fan-out in `refs/protocol-team.md` — neither is restated here.
 - Slash command: `/plan-em`
 - Natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents"
 - Context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-review`
+- `/plan-em <prd-path> --quiet` — suppress this run's status heartbeat
+- `/plan-em <prd-path> --status <n>m` — override the heartbeat interval for this run; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.
@@ -97,3 +99,4 @@ plan-em recommends the next command, it never invokes the next stage itself.
 - `../shared/refs/doctor-logging.md` — the harness-incident ledger contract (shared)
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
 - `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` and consumed by build agents
+- `../shared/refs/status-heartbeat.md` — the `--quiet`/`--status` heartbeat contract
