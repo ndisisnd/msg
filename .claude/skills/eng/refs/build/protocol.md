@@ -133,6 +133,14 @@ A repeated identical flag set is a cook **cache hit**. Read the result fully. If
 
 **`report=` source.** The numbered steps below still run, with source-specific deltas (Item 0 skipped, Item 2 reads each issue, Item 4 collapses to reproduce→fix→verify, plus flaky handling, `Issue`-keyed summary and loop-closing) — **see `fix-build.md`**.
 
+**Status heartbeat (standalone runs only).** Step 4's `standards payload` signal already tells this build whether it is standalone or orchestrated (see Coding-standards flags above); an **orchestrated** build never opens its own heartbeat — the team orchestrator (`plan-em`'s `refs/protocol-team.md`) ticks on its behalf from the returned `status:` line. A **standalone** build opens the heartbeat at the top of this step and closes it at the build summary, per `../../../shared/refs/status-heartbeat.md`:
+
+```bash
+S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+RUN_ID=build-$(date +%s)
+"$S" --start --phase eng-build --run-id "$RUN_ID" --total <ticket count>
+```
+
 0. **Cross-check the pointers resolve.** Before reading any file: every assigned row's Execution steps cell names at least one ticket id, **every named id resolves** to a real ticket under `## Todos — <Agent Name>`, and the `## Engineering — <Agent Name>` section references each assigned row (row label or feature ID). A missing row, an empty or unresolvable pointer cell, or a row absent from §Engineering is a blocking gap — surface via `AskUserQuestion` and do not proceed until resolved. Do not guess intent; `plan-review --eng` may have edited the table after the section was written.
 
 1. **Check out the work branch (per `commit_mode`).** `branch` already exists — the orchestrator (`plan-em`/`ship`) creates it once before build agents start; never create it yourself. If it does not exist: emit `Hard failure: target branch '<branch>' does not exist — the orchestrator must create it before build agents run` and stop. Then:
@@ -166,12 +174,14 @@ A repeated identical flag set is a cook **cache hit**. Read the result fully. If
 
    **Plain-English comments (A4).** Every new or modified function, module, class and exported symbol gets a comment on the line above stating in plain English **what** it does (not how). Enforced mechanically once: `script-eng-comment-scan.sh` greps the staged diff at the commit gate (Step 7) for *presence*. It cannot read a comment, so what-versus-how is judged by the reviewer at Step 5a (`refs/review/protocol.md`).
 
-   **d. Verify green.** Re-run this group's test files and check each ticket's `done-when`. All pass → next group. Any failure → Debug mode (`protocol-build-debug.md`). Do not move on until the group is green.
+   **d. Verify green.** Re-run this group's test files and check each ticket's `done-when`. All pass → next group. Any failure → Debug mode (`protocol-build-debug.md`). Do not move on until the group is green. Standalone runs only: for each ticket whose `done-when` just passed, `"$S" --tick --run-id "$RUN_ID" --done <n> --note "<F-ID>-T<k> done"`.
 
 5. **Full-suite gate (unit + integration).** After all feature groups are green, run the project's **unit + integration** suite and lint/typecheck once (discover the commands from `CLAUDE.md`, `devkit/ARCHITECTURE.md`, or the package manifest — e.g. `npm test`/`npm run lint`, `pytest`, `flutter test`). Unit + integration only — e2e / visual / perf / a11y / coverage belong to pre-merge. This catches breakage in sibling code the per-group runs never touched. Any new failure introduced by this agent's changes goes to Debug mode (`protocol-build-debug.md`, max 3 cycles) before committing. A pre-existing failure unrelated to the assigned rows is noted in the build summary, not fixed. No test or lint command → state that in the summary and continue.
+   *Standalone runs only: this step can outlast the heartbeat interval with no checkpoint inside it, so pre-announce it before starting — `"$S" --tick --run-id "$RUN_ID" --next "full-suite gate — unit+integration suite, ~<Xm>"` — and tick once on completion: `"$S" --tick --run-id "$RUN_ID" --note "full-suite gate: <pass|fail>"`.*
    *Caller override: orchestrators (e.g. `ship`) may suppress this gate and run a dedicated test stage instead. When suppressed, skip to step 5a.*
 
    **5a. Whole-change review (spawned by default).** Once the full-suite gate has passed and **before** the human confirmation at Step 6, spawn **one** reviewer subagent over the whole change — `refs/review/protocol.md` owns the protocol, inputs, severity discipline, return contract and spawn rules; do not restate them here. It runs on **every** build that produced a diff — no size threshold, no skip condition, no fast path — so nothing reaches the human unreviewed. Inject the change set, the worked tickets' `done-when`, and the PRD digest's acceptance criteria. On return: resolve every `blocker` and `high` (apply the reviewer's fix, or put its question to the human at Step 6) before proceeding; record `medium`/`low` findings and the one-line verdict in the build summary's **Review** line, ungating. A re-review after fixes is a judgment call, not a required round.
+   *Standalone runs only: another long step with no checkpoint inside it — pre-announce before spawning (`"$S" --tick --run-id "$RUN_ID" --next "whole-change review — reviewer subagent, ~<Xm>"`) and tick on return with the reviewer's one-liner (`"$S" --tick --run-id "$RUN_ID" --note "review: <the one-liner>"`).*
 
 6. **Confirm before commit.** First, the **production guardrail (never skipped under any autonomy contract — `shared/refs/safety-floor.md`):** run `.claude/scripts/script-eng-db-touch.sh` (fall back to `$HOME/.claude/scripts/script-eng-db-touch.sh`) against the working diff. If it flags database/data/production-config files, or the change introduces a breaking change (removed/renamed public API, changed contract or schema), pause via `AskUserQuestion` and require explicit sign-off before committing — the caller-override pre-approval below does **not** cover this pause. Then emit a one-line change summary (files touched, tests added, full-suite result) and ask via `AskUserQuestion` whether to commit and open the PR. Proceed only on an explicit "Yes". This is the single human gate between writing code and publishing it.
    *Caller override: under an autonomy contract (e.g. `ship`) this gate is pre-approved; proceed without prompting — except the production guardrail, which always pauses when tripped.*
@@ -248,6 +258,8 @@ Reference any entries written during the run in the build summary.
 ---
 
 ## Output contract (Step 5)
+
+Standalone runs only: close the heartbeat before emitting the summary — `"$S" --end --run-id "$RUN_ID" --outcome "<pass/fail summary>"`.
 
 Emit after all rows are complete:
 

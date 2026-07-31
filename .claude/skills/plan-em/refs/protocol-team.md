@@ -142,12 +142,25 @@ each), and every planner runs on **Opus** per the model policy. plan-em has alre
 appended the `## Todos` umbrella heading once (race-safe), so planners only add their own
 `### F<n>` blocks under it.
 
+Before dispatching, open the heartbeat (`../../shared/refs/status-heartbeat.md` owns the
+call surface, report shape and only-the-orchestrator-speaks rule) and pre-announce the
+fan-out:
+
+```bash
+S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+RUN_ID=em-$(date +%s)
+"$S" --start --phase plan-em-team --run-id "$RUN_ID" --total <planner count>
+"$S" --tick  --run-id "$RUN_ID" --next "plan wave — <planner count> stack planners, ~<Xm>"
+```
+
 Fan out all stack planners in one message (parallel — distinct sections, no file overlap),
 each a leaf `eng --plan` subagent per the § Subagent contract. Collect each planner's
-completion. When every stack's `## Engineering —` + `## Todos —` blocks exist and its
-`Files` column is filled, the plan wave is done — return the consolidated summary to
-plan-em. (The finer file-disjoint packet decomposition has no teeth until the `Files`
-column exists; it is the **build** wave that reaps it.)
+completion, ticking once per returning leaf and folding its `status:` line in as `--note`
+(`"$S" --tick --run-id "$RUN_ID" --done <n> --note "<the leaf's status line>"`). When every
+stack's `## Engineering —` + `## Todos —` blocks exist and its `Files` column is filled, the
+plan wave is done — close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"`)
+and return the consolidated summary to plan-em. (The finer file-disjoint packet decomposition
+has no teeth until the `Files` column exists; it is the **build** wave that reaps it.)
 
 ## Build wave (`$MODE = build`)
 
@@ -171,11 +184,22 @@ waves, then:
    columns come **straight from the script's `PACKET` / `WAVE` lines** (plus any explicit
    `depends_on` sub-wave split); only the `model (+reason)` column is yours (§ Model policy).
    This is the plan; emit it before spawning any leaf.
-2. **Fan out wave by wave.** For each wave, spawn one leaf `eng --build` subagent per
-   packet **in a single message** (parallel), each on its assigned model, with
-   `commit_mode=direct`, `branch=$BRANCH`, the packet's rows, the stack's **standards
-   payload**, and the scoped context — per the § Subagent contract. Await the wave, then
-   proceed to the next.
+2. **Fan out wave by wave.** Before the first wave, open the heartbeat — `--total` is the
+   total packet count across every wave (§ Parallelism model's decomposition), `--run-id` is
+   `em-<epoch>` fixed once:
+   ```bash
+   S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+   RUN_ID=em-$(date +%s)
+   "$S" --start --phase plan-em-team --run-id "$RUN_ID" --total <total packet count>
+   ```
+   For each wave, pre-announce it before dispatch — the orchestrator is blocked while its
+   leaves run — `"$S" --tick --run-id "$RUN_ID" --next "wave <w> — <packet count> packets, ~<Xm>"`,
+   then spawn one leaf `eng --build` subagent per packet **in a single message** (parallel),
+   each on its assigned model, with `commit_mode=direct`, `branch=$BRANCH`, the packet's rows,
+   the stack's **standards payload**, and the scoped context — per the § Subagent contract.
+   Await the wave, ticking once per returning leaf and folding its `status:` line in as
+   `--note` (`"$S" --tick --run-id "$RUN_ID" --done <n> --note "<the leaf's status line>"`),
+   then proceed to the next.
 3. **DB / data guard after every wave.** Run the touch check on the accumulated diff:
    ```bash
    S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" main
@@ -185,7 +209,8 @@ waves, then:
    schema/model, seed/fixture, `.env`, or production-config change needs sign-off.
 4. **Consolidate.** When the last wave lands, merge the leaf build summaries into one
    report (packets built, models used, files touched, any packet that failed or was
-   capped) and return it to plan-em for Step 5 synthesis.
+   capped), close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"`), and
+   return it to plan-em for Step 5 synthesis.
 
 ## Subagent contract
 
@@ -211,8 +236,15 @@ Scope-enforcement and the branch contract are unchanged — a leaf touches only 
 files and commits only to `$BRANCH`.
 
 **Return contract.** Each leaf returns its structured summary (plan: section-written
-confirmation; build: build summary) — never free-form prose. A leaf that dies or returns
-unparseable output is a failed packet: re-spawn it once; a second failure escalates to
+confirmation; build: build summary) plus **one added line** for the heartbeat —
+`status: <packet-or-ticket-id> <done|blocked> — <≤8-word summary>` — never free-form prose
+otherwise. That line is the **only** sanctioned path from a leaf into the heartbeat: a leaf
+never calls the tick script and never emits status itself, including a leaf `eng --build`
+running under this protocol, which must not open its own heartbeat even though a standalone
+`eng --build` would (`refs/build/protocol.md` Step 4's `standards payload` signal is what
+tells a build invocation it is orchestrated here). The orchestrator ticks once per returning
+leaf, folding this line in as `--note` (§ Plan wave / § Build wave above). A leaf that dies or
+returns unparseable output is a failed packet: re-spawn it once; a second failure escalates to
 the user via the orchestrator's summary (do not silently drop a packet). **Log both arms
 to `devkit/DOCTOR.md`** per `../../shared/refs/doctor-logging.md` — a `retry:packet-<p>` row
 when the re-spawn fires and a `tool-error:packet-<p>` row when the second attempt also

@@ -2,6 +2,13 @@
 
 ## 2026-08-01
 
+### [108] — Heartbeat checkpoints in eng --build and the team orchestrator (v5.2 P3)
+
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — a **standalone** build opens the heartbeat at the top of the work steps (`--total` = ticket count), ticks per ticket whose `done-when` just passed, pre-announces the two long steps that have no checkpoint inside them (the full-suite gate and the Step-5a review spawn) and ticks on each one's return, then closes at the build summary. Steps 1–4 are input validation and human-facing gates — fast, so they get nothing
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the team orchestrator owns the heartbeat for both waves: opens at dispatch with the packet count as `--total`, pre-announces each wave before spawning (it is blocked while leaves run), ticks once per returning leaf, closes at consolidation
+- The two contracts cannot blur: an **orchestrated** build never opens its own heartbeat, and the `standards payload` signal the protocol already uses to tell orchestrated from standalone is what decides it. Stated once on each side, cross-referenced, so the files cannot drift
+- Subagent return contract gains exactly one line — `status: <packet-or-ticket-id> <done|blocked> — <≤8-word summary>` — the only sanctioned path from a leaf into the heartbeat. Leaves never call the tick script and never emit status themselves
+
 ### [107] — Heartbeat checkpoints in the pre-merge executor (v5.2 P2)
 
 - `.claude/skills/pre-merge/refs/executor.md`: Changed — five checkpoint sites woven into the existing spine: `--start` once the pipeline plan is written (§1), a tick at each wave boundary (§3), the three sandbox lifecycle transitions (§3b), a tick at each per-component result-report write (§4 — already one-per-component, so no step was added to create a checkpoint), and `--end` at the terminal (§6). The verdict JSON stays stdout's final machine emission, byte-identical whether the heartbeat ran or was disabled
