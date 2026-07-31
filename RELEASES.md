@@ -2,6 +2,22 @@
 
 What's new for you, release by release.
 
+## v5.1.0 — 2026-07-31
+
+> The framework now heals itself. Every failure it hits gets written down; anything that keeps recurring graduates into a diagnosis with a fix brief; and every fix has to leave behind a permanent automated check — 48 of which now run, in about three seconds, before any release can ship. A fault that slipped through once can't slip through twice.
+
+### ✨ New
+- A self-checking release gate: one command runs the framework's full regression suite before a release is tagged, and any failure blocks the release outright. The suite already covers all twenty-five loud-failure guarantees from v5.0.1, so none of them can silently regress.
+- Harness failures now feed the same ledger whether they happen in a live run or in the check suite, so the doctor sees your project's incidents and the framework's own regressions in one triage.
+- Every graduated issue now names the permanent check its fix must leave behind — one that fails before the fix and passes after — so a repair is only "done" when the fault can never return quietly.
+- The core writers (ledgers, stamps, backlog rows) are now held to standing guarantees: running the same write twice changes nothing, a refused write leaves your file untouched, and pasted text with odd characters can never corrupt a table.
+
+### 📈 Improved
+- The README and docs were rewritten for people seeing the project for the first time — plainer skill descriptions, an install-verify step, an FAQ, and a guide for AI agents landing in the repo.
+
+### 🔒 Security
+- There's now a private channel for reporting vulnerabilities, with a clear statement of what's in scope and how fixes land.
+
 ## v5.0.1 — 2026-07-31
 
 > v5.0.1 is the hardening patch behind v5: twenty-five places where the framework could go wrong *silently* — report a pass it hadn't earned, drop a value, hand out a duplicate number, quietly skip a safety check — now stop and tell you exactly what's wrong instead. Nothing about a correct project behaves differently; only the failure modes got louder. Four remaining wordy corners also received v5's slim treatment.

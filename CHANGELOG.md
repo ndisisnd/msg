@@ -2,6 +2,10 @@
 
 ## 2026-07-31
 
+### [103] — Publish the v5.1.0 user-facing release notes
+
+- `RELEASES.md`: Added — the v5.1.0 section covering [95]–[102]: the self-healing eval loop (48-case regression suite as the release gate, one-ledger incident logging, graduation-mints-an-eval contract, writer guarantees) plus the public-docs rewrite and the security-reporting channel
+
 ### [102] — Writer property harness + verb gap-fill (v5.1 P2)
 
 - `evals/lib/properties.sh`: Added — three sourced property checks for writer cases (`prop_idempotent`, `prop_preserves`, `prop_refuses`), each emitting a stable token the case's stdout golden pins; violations surface through the case's own exit code, runner untouched
