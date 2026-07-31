@@ -77,7 +77,7 @@ one copy:
 1. the **two PR merges** (`--staging` feature→`stg`; `--production` `<head>`→`prod`);
 2. the **`staging-signoff:` frontmatter stamp** — written by `--staging` on approval, re-stamped by `--production` Step 1 when an unpinned legacy stamp is confirmed;
 3. the **`INTAKE.md` `status: completed` stamp** on each shipped PRD's mapped row (`--production`);
-4. the **`status: done` frontmatter stamp** on each shipped PRD (`--production`, on a successful ship) — the terminal `eng → done` transition; the existing `reviewed:` / `staging-signoff:` stamps stay intact;
+4. the **terminal `status` frontmatter stamp** on each shipped PRD (`--production`, on a successful ship) — the `wip → complete` transition, or `eng → done` on a PRD written before v5.4; the existing `reviewed:` / `staging-signoff:` stamps stay intact;
 5. the **run report** (`report-prd-<N>-<K>.md`) and, on a failed ship, the colocated **issues file** (`report-prd-<N>-<K>.json`) that `eng --build report=` consumes;
 6. the release **git tag** `v<x.y.z>+<build>` on prod at a successful `--production`;
 7. the transient **release-lock tag** `release-lock-<prod>` around a `--production` ship;

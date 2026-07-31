@@ -1,0 +1,5 @@
+# The other direction — a v5.4 frontmatter must not carry the retired findings
+# section. §7 Plan review findings is no longer canonical (it moved to
+# reports/review-prd-<n>-<slug>.md) and Todos is §7 now, so a v5.4 PRD that keeps
+# the old body fails on both counts rather than silently validating.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md

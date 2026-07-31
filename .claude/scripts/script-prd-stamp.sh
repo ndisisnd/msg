@@ -10,8 +10,18 @@
 #   script-prd-stamp.sh <prd.md> <field> <value>
 #
 # Allowed fields (scalar lifecycle stamps only — arrays are owned by
-# script-prd-deps-mirror.sh): status, product-tuned, eng-tuned, reviewed,
-# completion, module, staging-signoff.
+# script-prd-deps-mirror.sh): status, reviewed, completion, staging-signoff,
+# plus the v5 fields product-tuned, eng-tuned and module, which stay allowed so
+# a PRD written before v5.4 can still be stamped where it sits.
+#
+# `status` values are the v5.4 lifecycle enum — backlog (plan-pm, at draft) ->
+# specced (plan-em, eng sections landed) -> wip (plan-em, at branch cut) ->
+# complete (merge --production). The v5 enum (product|eng|done|retired) is not
+# validated here either way: this script writes the value it is given, and
+# script-prd-shape.py is what holds the enum to the shape of the file.
+#
+# `reviewed: yes` is plan-review's single certification stamp; it replaced the
+# product-tuned/eng-tuned pair when the tune waves fused.
 #
 # `staging-signoff` is merge's ship-gate stamp — `<YYYY-MM-DD>@<certified
 # sha>`, written by `--staging` on approval and re-written by `--production`

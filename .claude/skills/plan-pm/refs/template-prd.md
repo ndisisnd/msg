@@ -1,21 +1,23 @@
 ---
 name: PRD Template
-description: Structured PRD format for plan-pm to populate — eight sections in four categories, with the drafting rules that bind each one
+description: Structured PRD format for plan-pm to populate — seven sections in four categories, with the drafting rules that bind each one
 type: reference
 ---
 
 # PRD Template
 
-Populate every section. Do not delete a section — if a section does not apply, write `N/A` with a one-sentence reason. Emit each section as an **H2** heading in the exact numbered order below (`## 1. …` through `## 8. …`). Do not emit the scaffolding headings on this page (`## File header`) into the PRD — only the eight numbered sections.
+Populate every section. Do not delete a section — if a section does not apply, write `N/A` with a one-sentence reason. Emit each section as an **H2** heading in the exact numbered order below (`## 1. …` through `## 7. …`). Do not emit the scaffolding headings on this page (`## File header`) into the PRD — only the seven numbered sections.
 
-The eight sections fall into four categories:
+The seven sections fall into four categories:
 
 | Category | Sections | Who writes them |
 |---|---|---|
 | **A · Intent** — why this exists and where it stops | §1 Product objective, §2 Out-of-scope | `plan-pm` |
 | **B · Contract** — what ships and what "done" means | §3 Features & acceptance criteria, §4 Error cases | `plan-pm` (the pipeline's load-bearing part) |
 | **C · Unresolved** | §5 Open questions | `plan-pm` authors; others amend |
-| **D · Reserved** — written downstream, never by `plan-pm` | §6 Feature execution table, §7 Plan review findings, §8 Todos | `plan-em`, `plan-review`, `eng --plan` |
+| **D · Reserved** — written downstream, never by `plan-pm` | §6 Feature execution table, §7 Todos | `plan-em`, `eng --plan` |
+
+**Certification findings do not live in the PRD.** `plan-review` writes its audit ledger to `<prd-dir>/reports/review-prd-[n]-[slug].md` and stamps `reviewed: yes` in the frontmatter — the stamp is the gate signal the pipeline reads, the report is the evidence trail. PRDs written before v5.4 carry the findings inline as a `## 7. Plan review findings` section; that stays where it is and is still read, but nothing new is written there.
 
 **Undetermined facts use a `[USER: …]` placeholder.** When a value the PRD needs is genuinely not decidable from the intake row, the devkit context, or the codebase, write it inline as `[USER: what you need decided]` and raise the same question as a §5 Open questions row. Never invent the value, and never leave the slot silently blank — the placeholder is what makes the gap visible to the reader and to `plan-review`.
 
@@ -27,30 +29,47 @@ name: prd-[n]-[feature_slug]
 feature: <short feature name>
 summary: <2–3 sentence plain-prose gist on a single line — the core product objective plus the headline features. Shown under the PRD title on the /msg --gui detail page. Derive from §1 Product objective + §3 feature list; no markdown, no line breaks.>
 # parent: prd-[n]-[parent_slug]   # sub-PRDs only — omit for top-level PRDs. Resolves the shared feature branch; a sub-PRD never gets its own branch.
-module: <primary module or domain this PRD touches, e.g. auth | payments | notifications>
-affects: []   # prd-[n]-[feature_slug] IDs whose scope this PRD overlaps or may break
-depends_on: []  # prd-[n]-[feature_slug] IDs that must ship before this one
-platform: <detected platform, e.g. mobile | web | backend>
-status: product
-product-tuned: no
-eng-tuned: no
+deps: []        # prd-[n]-[feature_slug] IDs that must ship before this one
+status: backlog # backlog → specced → wip → complete
 reviewed: no
 created: YYYY-MM-DD
+intake: #<n>
 ---
 
 # PRD-[n]: <Feature Name>
 ```
 
-`platform` stays in the frontmatter as routing metadata (branch, module inheritance, eng targeting). There is no "Target platform" body section.
+**`status` is the lifecycle truth; the lane directory is the location truth.** They answer different questions and neither derives from the other:
 
-**Emit these eight sections, in this order, each as an H2 `## N. Title` heading:**
+| `status` | Meaning | Stamped by |
+|---|---|---|
+| `backlog` | Drafted, no execution table yet | `plan-pm` at draft time |
+| `specced` | Execution table + todos written | `plan-em` once the eng sections land |
+| `wip` | Feature branch cut, build under way | `plan-em` at branch cut |
+| `complete` | Shipped to production | `merge --production` |
+
+`reviewed: no|yes` is the single certification stamp — `plan-review` sets it to `yes` on a successful run. It replaced the separate `product-tuned` / `eng-tuned` pair when the tune waves fused.
+
+**Platform is not a frontmatter field.** Downstream stages that need it detect it from `devkit/ARCHITECTURE.md` at run time. There is no "Target platform" body section either.
+
+**Overlap between PRDs is read from `deps` + the §3 Dependencies column** — those two are the whole dependency graph. There is no `module` or `affects` field.
+
+**Emit these seven sections, in this order, each as an H2 `## N. Title` heading:**
 
 ## 1. Product objective
 
-One paragraph stating the user or business goal this feature serves — the outcome that defines success. No feature list, no implementation. Answer: *who is this for, and what changes for them when it ships?*
+**Terse bullets — three of them, one line each.** This is the product spec, not an essay and not engineering:
+
+- **Who** — the user or segment this serves.
+- **What changes** — what they can do after this ships that they could not before.
+- **Success signal** — the observable measure that says it worked.
+
+No feature list, no implementation, no prose paragraph.
 
 **Worked example:**
-> Users who track daily habits abandon the app when they lose a streak by accident. This feature lets them retroactively mark a missed day as complete within a 24-hour grace window, so an honest lapse does not erase weeks of progress — increasing 30-day retention among active streak-holders.
+> - **Who** — active streak-holders who lose a streak to an accidental miss.
+> - **What changes** — they can retroactively mark a missed day complete within a 24-hour grace window.
+> - **Success signal** — 30-day retention among active streak-holders rises.
 
 ## 2. Out-of-scope
 
@@ -66,11 +85,11 @@ Every drafted feature gets one row. Every row must have a concrete, verifiable a
 
 **F-IDs are sequential and permanent.** `F1`, `F2`, … in order, assigned once and never renumbered — `plan-em` keys its §6 execution table on them, so a renumber silently breaks the pipeline downstream.
 
-**Exactly one acceptance criterion per feature**, and it must be *observable by the user*. "The list loads" is not one; "the habit row appears on the Home screen within 200ms of saving" is. This is the single contract every downstream stage reads — regression authoring, `plan-review --product`, and `pre-merge`'s PRD-consistency gate all key off it.
+**Exactly one acceptance criterion per feature**, and it must be *observable by the user*. "The list loads" is not one; "the habit row appears on the Home screen within 200ms of saving" is. This is the single contract every downstream stage reads — regression authoring, `plan-review`, and `pre-merge`'s PRD-consistency gate all key off it.
 
 **Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §6 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built. The product/engineering boundary is a msg convention: §1–§5 stay user-facing.
 
-This table is the canonical feature list for the pipeline: `plan-em` keys its execution table (§6) on these F-IDs, and `plan-review --product` audits the acceptance-criterion column.
+This table is the canonical feature list for the pipeline: `plan-em` keys its execution table (§6) on these F-IDs, and `plan-review` audits the acceptance-criterion column. The PRD-id entries in this column are also the source `script-prd-deps-mirror.sh` unions into the frontmatter `deps` array.
 
 | ID | Feature | Acceptance criterion | Dependencies |
 |----|---------|----------------------|--------------|
@@ -94,7 +113,7 @@ Table form, drafted **per feature** from the §3 feature set. One row per error 
 - Trigger is a concrete condition, not a category. "Network timeout on save" not "network error."
 - User-visible behavior names the exact UI element (toast, banner, inline error) and the copy.
 - Never "gracefully handle" — name the specific behavior.
-- At least two rows. Drafted autonomously per feature (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries).
+- Write the error cases the §3 features actually have. There is no row quota: a one-feature PRD with a single real failure mode gets one row, and padding it to hit a count is worse than the short table.
 
 **Worked example:**
 
@@ -133,17 +152,7 @@ Skeleton the eng stage will fill:
 | Feature | Execution steps | Files | Todos | Agent |
 |---------|----------------|-------|-------|-------|
 
-## 7. Plan review findings
-
-**Reserved for `plan-review`.** Each tune run (`--product` or `--eng`) writes its audit findings here as one growing table — created on the first run, appended to thereafter (never a second section). Columns: `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`.
-
-Until the first tune run, leave exactly:
-
-```
-_Populated by plan-review (/plan-review) — audit findings table._
-```
-
-## 8. Todos
+## 7. Todos
 
 **Reserved for `eng --plan`.** Holds the implementation tickets generated for this PRD, grouped by feature as `### F<n>` subsections — the anchor target for `plan-em`'s `[F<n>](#todos-f<n>)` links in §6.
 

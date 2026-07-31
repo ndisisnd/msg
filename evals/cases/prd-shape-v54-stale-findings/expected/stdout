@@ -1,0 +1,3 @@
+FAIL check=1 code=bad-number ref=line 49 detail='## 8. Todos' is numbered 8 but is section 7
+FAIL check=1 code=unknown-section ref=line 45 detail='## 7. Plan review findings' is not one of the 7 canonical v5.4 sections
+SUMMARY shape=v5.4 checks=1,2,3,4,5 failures=2

@@ -341,9 +341,10 @@ def infer_completion(fm, num, slug, lane=None):
     if branch:
         return "building", "branch %s exists" % branch
 
-    # Rungs 6-7 — frontmatter fallback.
+    # Rungs 6-7 — frontmatter fallback. `specced`/`wip` are the v5.4 lifecycle
+    # names for what v5 called `eng`; both spellings mean "past product spec".
     status = (fm.get("status") or "").strip().lower()
-    if status in ("eng", "engineering"):
+    if status in ("eng", "engineering", "specced", "wip"):
         return "planned", "frontmatter status: %s" % status
     return "product", "frontmatter status: %s" % (status or "absent")
 
@@ -376,12 +377,20 @@ def parse_prd_dir(d):
     feats, order = parse_features(body)
     has_todos = parse_todos(body, feats, order)
     completion, source = infer_completion(fm, num, slug, lane)
+    # v5.4 dropped module/platform/affects and fused the two tune stamps into one
+    # `reviewed`. A PRD carrying any of the dropped keys is v5-shape and keeps its
+    # three badges; a v5.4 PRD has one, and the board is told which so it does not
+    # render two permanently-blank pills.
+    shape = "v5" if any(k in fm for k in
+                        ("module", "platform", "affects", "depends_on",
+                         "product-tuned", "eng-tuned")) else "v5.4"
     badges = {
         "productTuned": as_badge(fm.get("product-tuned", fm.get("tuned"))),
         "engTuned": as_badge(fm.get("eng-tuned")),
         "reviewed": as_badge(fm.get("reviewed")),
     }
     return {
+        "shape": shape,
         "num": num,
         "id": base,
         "path": rel + "/",
@@ -394,7 +403,10 @@ def parse_prd_dir(d):
         "status": fm.get("status"),
         "created": fm.get("created"),
         "affects": fm.get("affects") or [],
-        "depends_on": fm.get("depends_on") or [],
+        # `deps` is the v5.4 name for `depends_on`; both keys carry the array so
+        # the board reads one field regardless of which shape wrote the file.
+        "deps": fm.get("deps") or fm.get("depends_on") or [],
+        "depends_on": fm.get("deps") or fm.get("depends_on") or [],
         "badges": badges,
         "completion": completion,
         "completionSource": source,

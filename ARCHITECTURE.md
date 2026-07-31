@@ -40,11 +40,11 @@ There are ~58 scripts. Grouped by what they own:
 | Script | Purpose |
 |--------|---------|
 | `script-prd-number` | Assigns the next available PRD (or sub-PRD) number |
-| `script-prd-shape.py` | Mechanical PRD shape validator — the eight canonical sections, the §3 features table, F-ID sequencing, reserved placeholders, frontmatter keys |
+| `script-prd-shape.py` | Mechanical PRD shape validator — the seven canonical sections, the §3 features table, F-ID sequencing, reserved placeholders, frontmatter keys. Auto-detects and still validates the eight-section v5 shape |
 | `script-prd-digest.py` | Deterministic PRD → JSON digest with per-stage slices (`plan`/`build`/`synth`); carries `engineering_agents` for plan-em's wave-mode detection |
 | `script-prd-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2 and plan-em Step 1c |
-| `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, tune stamps, reviewed, completion, module); single-line edit, idempotent |
-| `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `depends_on` union writeback (`ADDED <id>` lines, idempotent) |
+| `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, reviewed, completion, staging-signoff, plus the retired v5 tune stamps); single-line edit, idempotent |
+| `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `deps` union writeback (`ADDED <id>` lines, idempotent); rewrites `depends_on` instead on a v5-shape PRD |
 | `script-intake-stamp.sh` | The `INTAKE.md` ledger writer — `--append-row`, `--set-cell`, `--remove-row`, `--find-row`, `--log-append`, plus the `status`/`prd` stamps. Header-derived columns, escaped pipes, temp-file writes; never renumbers |
 
 **Certification (plan-review)**

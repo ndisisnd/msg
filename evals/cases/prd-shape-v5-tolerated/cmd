@@ -1,0 +1,5 @@
+# READ TOLERANCE — a PRD written before v5.4 (eight sections incl. §7 Plan review
+# findings, depends_on/affects/module/platform, product-tuned + eng-tuned) still
+# certifies clean and is detected as v5. Nothing on disk is ever migrated, exactly
+# as the pre-v5 `## Execution Table` heading is still read.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md

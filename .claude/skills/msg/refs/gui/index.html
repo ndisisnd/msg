@@ -382,11 +382,15 @@ function requestStatusChange(p, bucket, onCancel) {
 }
 function badgePills(p) {
   var b = p.badges || {};
+  var shape = p.shape || "v5";
   function one(label, v) {
     if (v == null) return '<span class="pill unset">' + esc(label) + " —</span>";
     return '<span class="pill ' + (v ? "set" : "unset") + '">' + esc(label) + (v ? " ✓" : " ✕") + "</span>";
   }
-  return one("product-tuned", b.productTuned) + one("eng-tuned", b.engTuned) + one("reviewed", b.reviewed);
+  // v5.4 PRDs carry a single `reviewed` stamp; the two tune pills are rendered
+  // only for the v5-shape PRDs that still have those fields.
+  if (shape === "v5") return one("product-tuned", b.productTuned) + one("eng-tuned", b.engTuned) + one("reviewed", b.reviewed);
+  return one("reviewed", b.reviewed);
 }
 function progressFrag(p) {
   if (!p.hasTodos) return "";

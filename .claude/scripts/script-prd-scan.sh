@@ -4,7 +4,15 @@
 # Emits one JSON object per line (JSONL) for every PRD under features/, including
 # nested sub-PRDs. Fields: id, feature, module, platform, status, product_tuned,
 # eng_tuned, reviewed, complete, completion (override or derived bucket),
-# depends_on[], affects[], parent, created, path, full, missing[].
+# deps[], depends_on[], affects[], parent, created, path, full, missing[].
+#
+# Frontmatter scalars are emitted VERBATIM (`status`, `reviewed`, `product_tuned`,
+# `eng_tuned`, `module`, `platform` are whatever the file says, empty when the key
+# is absent) — consumers that want the raw file get the raw file. The DERIVED
+# fields (`complete`, `completion`) are computed from a v5/v5.4 normalisation so a
+# PRD of either shape lands in the same bucket. v5.4 dropped module/platform/
+# affects, so those emit empty for a new-shape PRD; `deps` and `depends_on` always
+# carry the same array, read from whichever name the file uses.
 #
 #   full     — true iff the PRD is roadmap-ready: pipeline stamps complete AND a
 #              real acceptance-criteria table AND a real execution table. Both
@@ -41,7 +49,7 @@
 #     feature->staging PR for feat/<id> merged  -> staged
 #     feature->staging PR for feat/<id> open    -> gated
 #     branch feat/prd-<n>-* exists              -> building
-#     status: eng                               -> planned
+#     status: specced|wip (v5 `eng`)            -> planned
 #     else                                      -> product
 # (`retired` status is preserved ahead of the ladder so the roadmap keeps it in
 # Phase 0.) gh rungs fire only when gh is installed, authenticated and a remote
@@ -264,25 +272,45 @@ emit_prd() {
     END {
       if (!seen) { print "script-prd-scan: no frontmatter in " file > "/dev/stderr"; exit 0 }
 
-      status       = ("status"        in fm) ? fm["status"]        : "product"
+      status       = ("status"        in fm) ? fm["status"]        : "backlog"
       reviewed     = ("reviewed"      in fm) ? fm["reviewed"]      : "no"
       completion   = ("completion"    in fm) ? fm["completion"]    : ""
       ptuned       = ("product-tuned" in fm) ? fm["product-tuned"] : "no"
       etuned       = ("eng-tuned"     in fm) ? fm["eng-tuned"]     : "no"
 
-      # Frontmatter-derived "planning pipeline finished" signal: a full PRD has been
-      # through product spec + both tunes + eng planning. (status: retired can never
-      # satisfy status == "eng", so retired PRDs are complete == false by construction.)
-      complete = (status == "eng" && ptuned == "yes" && etuned == "yes") ? "true" : "false"
+      # --- v5 -> v5.4 read tolerance -------------------------------------------
+      # v5.4 renamed the lifecycle enum and fused the two tune stamps into one
+      # `reviewed`. Both shapes are normalised here, once, and every derivation
+      # below reads the normalised values — so a PRD written before v5.4 buckets
+      # exactly as it always did without any of it being rewritten on disk.
+      #   status:  product -> backlog · eng -> specced · done -> complete
+      #            (retired has no v5.4 successor and passes through)
+      #   review:  a v5-shape PRD is certified when BOTH tune stamps are yes
+      legacy = (("product-tuned" in fm) || ("eng-tuned" in fm))
+      sn = status
+      if      (sn == "product") sn = "backlog"
+      else if (sn == "eng")     sn = "specced"
+      else if (sn == "done")    sn = "complete"
+      if (legacy) rn = ((ptuned == "yes" && etuned == "yes") || reviewed == "yes") ? "yes" : "no"
+      else        rn = reviewed
+
+      # `deps` is the v5.4 name for what v5 called `depends_on`. One array, read
+      # under whichever name the file uses, emitted under both.
+      depsraw = ("deps" in fm) ? fm["deps"] : (("depends_on" in fm) ? fm["depends_on"] : "[]")
+
+      # Frontmatter-derived "planning pipeline finished" signal: the PRD has been
+      # specced AND certified, and has not yet shipped. (retired/complete can never
+      # satisfy the specced|wip test, so they are complete == false by construction.)
+      complete = ((sn == "specced" || sn == "wip") && rn == "yes") ? "true" : "false"
 
       # Derive a bucket when no explicit completion override is present.
       # Branch/PR signals are added only under --git below; this is the cheap fallback.
       bucket = completion
       if (bucket == "") {
-        if (status == "retired")      bucket = "retired"
-        else if (reviewed == "yes")   bucket = "review"
-        else if (status == "eng")     bucket = "eng"
-        else                          bucket = "product"
+        if (status == "retired")                   bucket = "retired"
+        else if (reviewed == "yes")                bucket = "review"
+        else if (sn == "specced" || sn == "wip")   bucket = "eng"
+        else                                       bucket = "product"
       }
 
       # --git: refine the bucket via the ladder mirrored from server.py. Rung 1
@@ -295,7 +323,7 @@ emit_prd() {
         else if (g_staged == 1)        bucket = "staged"
         else if (g_gated == 1)         bucket = "gated"
         else if (g_building == 1)      bucket = "building"
-        else if (status == "eng")      bucket = "planned"
+        else if (sn == "specced" || sn == "wip") bucket = "planned"
         else                           bucket = "product"
       }
 
@@ -319,7 +347,8 @@ emit_prd() {
       printf "\"reviewed\":\"%s\",",   json_escape(reviewed)
       printf "\"complete\":%s,",       complete
       printf "\"completion\":\"%s\",", json_escape(bucket)
-      printf "\"depends_on\":%s,",     json_list(("depends_on" in fm) ? fm["depends_on"] : "[]")
+      printf "\"deps\":%s,",           json_list(depsraw)
+      printf "\"depends_on\":%s,",     json_list(depsraw)
       printf "\"affects\":%s,",        json_list(("affects" in fm) ? fm["affects"] : "[]")
       printf "\"parent\":\"%s\",",     json_escape(parent)
       printf "\"created\":\"%s\",",    json_escape(("created" in fm) ? fm["created"] : "")

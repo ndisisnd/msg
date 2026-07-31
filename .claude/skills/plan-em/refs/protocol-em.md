@@ -63,7 +63,7 @@ same way, so the persisted pref carries the choice across waves without re-passi
 G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
 ```
 
-The `plan` slice returns `frontmatter` (incl. `platform`, `module`, `affects`, `depends_on`), `summary`, `features` (F-IDs + acceptance criteria verbatim), and `exec_table` — the inputs the roster and exec-table build consume (Steps 3–4). The generator re-parses the current PRD on every call → the slice is never stale and PRD prose stays canonical (see `.claude/skills/shared/refs/session-cache.md`). **Escape hatch:** if a pre-flight check needs prose the slice omits — User-flow narrative for a terminology/architecture-conflict finding, or a heading under the digest's `unparsed_sections` — read only that section's `prose_lines` range. Do **not** default to the whole PRD.
+The `plan` slice returns `frontmatter` (incl. `deps` — plus the v5 keys `platform`/`module`/`affects`/`depends_on` when the PRD predates v5.4, `null` otherwise), `summary`, `features` (F-IDs + acceptance criteria verbatim), and `exec_table` — the inputs the roster and exec-table build consume (Steps 3–4). The generator re-parses the current PRD on every call → the slice is never stale and PRD prose stays canonical (see `.claude/skills/shared/refs/session-cache.md`). **Escape hatch:** if a pre-flight check needs prose the slice omits — User-flow narrative for a terminology/architecture-conflict finding, or a heading under the digest's `unparsed_sections` — read only that section's `prose_lines` range. Do **not** default to the whole PRD.
 
 **Absent-file rule.**
 - No `devkit/` → emit `devkit/ not found — run /msg --init to initialise the project first.` and **stop** (do not proceed to Step 2).
@@ -73,7 +73,7 @@ The `plan` slice returns `frontmatter` (incl. `platform`, `module`, `affects`, `
 
 By the time plan-em runs, the PRD's cross-PRD graph is **already established** by two upstream mechanisms plan-em consumes silently — it does **not** re-ask what they already answered:
 - **intake** graded sequencing into the `S:` cell (`S:now/next/later/blocked-by-#n`), positioning this PRD against the rest of the backlog.
-- **plan-review** verified the frontmatter graph in certification check 6 (`depends_on`/`affects` correctness + acyclicity) — a precondition already enforced by Step 2 for the product wave (and Step 4 for the build wave).
+- **plan-review** verified the frontmatter graph in certification check 6 (`deps` correctness + acyclicity) — a precondition already enforced by Step 2 for the product wave (and Step 4 for the build wave).
 
 So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change / Overlap, three questions) is **deleted**. Instead:
 
@@ -85,14 +85,16 @@ So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change 
 
    A non-zero exit from the scanner is not an expected outcome — log one DOCTOR row (`tool-error:script-prd-scan`) per § Harness incidents, then continue with an empty prior-PRD inventory rather than blocking the run.
 
-   Read each prior PRD's `module`, `affects`, `depends_on` from the JSONL (no file open). Cross-check against the input's certified `depends_on`/`affects` and its codebase/feature scan.
+   Read each prior PRD's `deps` from the JSONL (no file open) — the scanner emits that field for a PRD of either shape. Cross-check against the input's certified `deps` and its codebase/feature scan.
+
+   **This is a deps-only conflict check.** v5.4 removed `module` and `affects`, so the dependency array plus the §3 Dependencies column it mirrors are the entire cross-PRD graph. There is no domain-match shortcut and no reverse "who does this break" edge to consult.
 2. **Ask only on a genuine conflict** — one `AskUserQuestion` fires **only** when the certified graph contradicts what the codebase/feature scan implies, e.g.:
-   - the certified `depends_on` names a PRD whose surface this PRD's features plainly do **not** touch (a spurious edge), or
-   - the feature scan reveals an **undeclared** overlap/breaking touch on a prior PRD not in `affects` (a missing edge the certifier didn't catch because it never touched an executable field).
+   - the certified `deps` names a PRD whose surface this PRD's features plainly do **not** touch (a spurious edge), or
+   - the feature scan reveals an **undeclared** dependency on a prior PRD absent from `deps` (a missing edge the certifier didn't catch because it never touched an executable field).
    Options for a conflict: **Trust the certified graph** / **Amend the graph** (add/remove the edge — then apply the frontmatter writeback below) / **Stop and reconcile**.
 3. **Expected on a clean run: zero relationship questions.** A PRD whose certified graph matches its scan proceeds silently.
 
-**Frontmatter writeback (only when Step 2 above amended an edge, or `module` is blank):** `Edit` the input PRD's YAML frontmatter — add/remove the reconciled `depends_on`/`affects` IDs (merge, no duplicates); infer and set `module` if blank/placeholder; mirror an added breaking/overlap edge into the prior PRD's `affects`. On a clean run (no amendment) this is a no-op.
+**Frontmatter writeback (only when Step 2 above amended an edge):** add or remove the reconciled ids in the input PRD's `deps` array (merge, no duplicates) — and add the corresponding id to the §3 Dependencies cell it mirrors, so the two cannot drift. Prefer `script-prd-deps-mirror.sh` over a hand `Edit`: it targets whichever array name the file carries, so a PRD written before v5.4 keeps its `depends_on` line. On a clean run (no amendment) this is a no-op.
 
 **1d. Write pre-flight report** to `$PRD_DIR/preflight.md` (create or overwrite), containing all findings in full:
 - **Terminology deviations** — PRD terms not matching GLOSSARY.md
@@ -115,14 +117,14 @@ plan-em Step 2: certify product  →  plan wave (agents write eng + tickets)
 plan-em Step 4 (build mode): certify eng  →  build wave
 ```
 
-Run the certification gate checker on the input PRD (`product-tuned:` stamp + §7 Critical-open scan, two-path resolution):
+Run the certification gate checker on the input PRD (certification stamp + open-Critical scan of the findings ledger, two-path resolution). On a v5.4 PRD the stamp it reads is the single `reviewed:` field and the ledger is `reports/review-prd-[n]-[slug].md`; on a PRD written before v5.4 it reads that file's `product-tuned:` stamp and its inline §7 section instead — the flag name is unchanged either way:
 
 ```bash
 S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --product
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed straight to agent identification.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --product` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `product-tuned: yes`, and terminates recommend-only. When it returns, **re-run the checker**:
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --product` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `reviewed: yes` (`product-tuned: yes` on a pre-v5.4 PRD), and terminates recommend-only. When it returns, **re-run the checker**:
   - `CERTIFIED` → proceed to agent identification.
   - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD — and log one DOCTOR row (`validator-fail:script-cert-status-product`) per § Harness incidents. The *first* `UNCERTIFIED` is expected (it is what triggers the inline certify) and is never logged; only the repair-once loop's still-failing arm is.
 
@@ -236,21 +238,23 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete — stamp the PRD's lifecycle field (the § PRD status lifecycle trigger "eng sections written to PRD"):
 
 ```bash
-S=.claude/scripts/script-prd-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-stamp.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status eng
+S=.claude/scripts/script-prd-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-stamp.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status specced
 ```
+
+`specced` is the v5.4 lifecycle value for "execution table + todos written" — the rung that used to be called `eng`. On a PRD written before v5.4 the frontmatter still reads `status: eng`; leave it, every consumer normalises the two to the same rung.
 
 The next `plan-em` invocation then detects `$MODE = build`.
 
 **Build mode (`$MODE = build`).**
 
-**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (`eng-tuned:` stamp + §7 Critical-open scan, two-path resolution):
+**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (certification stamp + open-Critical scan of the findings ledger — `reviewed:` on a v5.4 PRD, that file's `eng-tuned:` stamp on an older one, two-path resolution):
 
 ```bash
 S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --eng
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed to branch resolution.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --eng` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `eng-tuned: yes`, terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:script-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --eng` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `reviewed: yes` (`eng-tuned: yes` on a pre-v5.4 PRD), terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:script-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
 
 Then, resolve and create the feature branch **once**.
 
@@ -268,7 +272,15 @@ It emits three `key=value` lines. Set `$BRANCH` from `BRANCH=`, then act on `ACT
 | `checkout` | branch exists, not yet merged (common for a sub-PRD whose parent branch is still in flight) | `git checkout $BRANCH` — do **not** re-create or reset |
 | `fresh-cut` | branch exists but already merged to `main` | same as `create` with the emitted `$BRANCH` |
 
-Then run the emitted `LANE_MOVE=` verbatim **unless** it is `none` (it carries `reports/`, `preflight.md`, and `test/` for free — they live inside the folder; the move relocates only the folder, `status:` stays `eng`).
+Then run the emitted `LANE_MOVE=` verbatim **unless** it is `none` (it carries `reports/`, `preflight.md`, and `test/` for free — they live inside the folder; the move relocates only the folder).
+
+**Stamp `status: wip` once the branch exists** — the lifecycle trigger is the branch cut, and it is stamped whether or not a lane move was emitted (a sub-PRD cuts no branch of its own and never moves lane, but the work is under way all the same, so the parent's stamp covers it — do not stamp a sub-PRD):
+
+```bash
+S=.claude/scripts/script-prd-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-stamp.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status wip
+```
+
+The lane and the status answer different questions and are both written here: the lane says the folder now lives in `wip/`, the status says the work reached the `wip` rung. On a PRD written before v5.4 the enum has no `wip` value — leave `status: eng` as it is rather than stamping a value that shape does not define.
 
 Rationale the resolver bakes in (the decision ladder itself now lives in the script): a branch **already merged to `main`** is never reused — committing new work onto a shipped branch would merge it a second time, so the resolver returns a fresh, non-colliding name (a sub-PRD uses its **own** id, e.g. `feat/prd-2.1-streak-freeze`; a top-level whose own name collides with the shipped branch gets the next free `-N` suffix). Branch naming is `feat/<prd-id>` (the PRD folder basename), matching `plan-pm` § Sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`). A **sub-PRD** rides the parent's feature branch and never gets its own (so `/pre-merge` sees its changes in the parent's existing run directory) and never moves lane — it already lives inside the parent folder, which relaned when the parent's branch was cut. `LANE_MOVE` is emitted only on a fresh cut (`create`/`fresh-cut`) of a top-level PRD not already under `features/wip/`; a re-checkout is a no-op move.
 

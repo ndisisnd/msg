@@ -483,16 +483,21 @@ terminal PRD transition: the folder lane and the `status:` frontmatter both move
 to `done` so the physical location and the logical state agree. For **each
 shipped PRD**:
 
-1. **Stamp `status: done`** via the shared scalar writer — the `eng → done`
-   transition owned here (plan-em set it to `eng` at the branch cut):
+1. **Stamp `status: complete`** via the shared scalar writer — the `wip →
+   complete` transition owned here (plan-em set it to `wip` at the branch cut):
    ```bash
-   S=.claude/scripts/script-prd-stamp.sh; bash "$S" <prd-path> status done
+   S=.claude/scripts/script-prd-stamp.sh; bash "$S" <prd-path> status complete
    ```
+   On a PRD written before v5.4 the enum's terminal value is `done`, not
+   `complete` — read the current value first and stamp the terminal value of the
+   enum that file already uses, rather than mixing the two vocabularies in one
+   frontmatter.
+
    Distinct from the Step-8 write: `status:` lives in the PRD frontmatter, the
    intake row is a separate file. The **`reviewed:` and `staging-signoff:` stamps
-   are left intact** — `reviewed` records that a gate ran, `staging-signoff`
-   records the human staging test, `status: done` records that the feature
-   shipped; the three are orthogonal.
+   are left intact** — `reviewed` records that the PRD was certified,
+   `staging-signoff` records the human staging test, and the terminal `status`
+   records that the feature shipped; the three are orthogonal.
 2. **Move the folder to `done/`** — a whole-directory rename that carries the
    PRD and its colocated `reports/`, `preflight.md` and `test/` with no path
    rewriting. **Resolve the source lane first — never assume `wip/`:**

@@ -2,6 +2,27 @@
 
 ## 2026-08-01
 
+### [118] — PRD template slim: seven sections, one review stamp (v5.4 P1)
+
+The PRD shrank. Frontmatter dropped `module`, `platform` and `affects`, renamed `depends_on` to `deps`, and fused the `product-tuned`/`eng-tuned` pair into a single `reviewed` stamp. The lifecycle enum is now `backlog → specced → wip → complete`, where `status` is the lifecycle truth and the lane directory stays the location truth — the two answer different questions and neither derives from the other. §1 Product objective became three terse bullets (who / what changes / success signal) instead of a paragraph, §4 Error cases lost its ≥2-row quota, and the old §7 Plan review findings section is gone, which renumbers Todos to §7.
+
+**Every parser keeps reading v5-shape PRDs**, exactly as they already tolerate the pre-v5 `## Execution Table` heading. Shape is detected from the frontmatter alone — any of the six dropped/renamed keys means v5 — so section expectations and key expectations can never disagree about which shape a file is. Nothing on disk is migrated: writers emit v5.4 only, and the sample PRDs under `features/planned/` are regenerated in a later packet.
+
+- `.claude/skills/plan-pm/refs/template-prd.md` — rewritten to seven sections; new frontmatter block; the status/lane table; the platform-detection and overlap-scan fallbacks for the removed fields
+- `.claude/scripts/script-prd-shape.py` — one validator, two shapes: `Shape` bundles the canonical sections, reserved placeholders, owners and frontmatter keys per shape, and `detect_shape()` picks from the frontmatter. `SUMMARY` now carries `shape=`
+- `.claude/scripts/script-prd-scan.sh` — normalises both shapes once, then derives `complete`/`completion` from the normalised values, so a v5 PRD buckets byte-identically. Emits `deps` alongside `depends_on`; frontmatter scalars stay verbatim passthrough
+- `.claude/scripts/script-prd-deps-mirror.sh` — writes back under whichever array name the file carries, so a v5 PRD keeps `depends_on` and is never migrated; a file with neither gets `deps`
+- `.claude/scripts/script-prd-digest.py` — the frontmatter slice carries both shapes' keys; whichever the file lacks reads back `None`
+- `.claude/scripts/script-cert-mech.py` — check 6 walks whichever edge keys the PRD actually has, so a v5 PRD still gets both its edge kinds checked and a v5.4 PRD gets one
+- `.claude/scripts/script-prd-stamp.sh` — documents the new enum and the single `reviewed` stamp; keeps the v5 fields allowed so an older PRD can still be stamped where it sits
+- `.claude/skills/msg/refs/gui/server.py` · `index.html` — `specced`/`wip` join the planned rung; `deps` alias; the board is told each PRD's shape so it stops rendering two permanently-blank tune pills on a v5.4 PRD
+- `.claude/skills/plan-pm/refs/protocol-pm.md` · `protocol-sub.md` · `SKILL.md` — deps-only overlap scan, run-time platform detection, terse §1, no row quota, the new stamp table
+- `.claude/skills/plan-em/refs/protocol-em.md` — Step 1c is a deps-only conflict check; stamps `specced` after the plan wave and `wip` at the branch cut
+- `.claude/skills/merge/refs/production.md` · `SKILL.md` — the terminal stamp is `complete`, or `done` on a PRD that predates v5.4
+- `.claude/skills/plan-review/refs/certification.md` — check 6 reads `deps`; notes that cert-mech covers both shapes
+- `evals/cases/prd-shape-v54-clean` · `prd-shape-v5-tolerated` · `prd-shape-v54-stale-findings` · `deps-mirror-v54-deps-key` — new; the first cases to cover `script-prd-shape.py` at all, pinning both shapes and the "v5.4 PRD must not keep the findings section" direction
+- `evals/cases/a16-prd-scan-title-anchored/expected/stdout` — regenerated for the additive `deps` key; every other field byte-identical
+
 ### [117] — The pre-merge backstop, plus docs and the incident learning (v5.3 P5)
 
 - `.claude/skills/pre-merge/refs/executor.md`: Added — §5a.1, review coverage for the branch under grade. The gate did not run the wave and holds no packet list, so it uses `--expect-from-builds`: for every `report-prd-<N>-<K>` on disk there should be a `review-prd-<N>-<K>`. Missing coverage is **one `medium` finding** (`rule: review-coverage`), authored the same way §5a authors its `missing-result-report` finding
