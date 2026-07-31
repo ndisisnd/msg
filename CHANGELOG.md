@@ -2,6 +2,13 @@
 
 ## 2026-08-01
 
+### [112] — Review evidence artifact and its presence check (v5.3 P0)
+
+- `.claude/scripts/script-eng-review-check.sh`: Added — the mechanical control behind "review cannot be skipped". `--reports-dir <d> --expect <k1,k2,…>` exits 1 listing `MISSING <k>` for every packet key with no review artifact and 0 with a one-line coverage summary (`reviewed 9/9 — 0 blocker, 1 high, 2 medium`). An artifact that does not parse, or that lacks `verdict`/`findings`, is counted **missing** — never counted as covered, because an unreadable artifact proves nothing
+- `reviewed_by` / `built_by` make the review protocol's "an agent that did not write the code" rule checkable rather than aspirational: an artifact whose two identities match prints `SELF-REVIEWED <k>` and fails the check
+- `--expect-from-builds` derives the expected key set from the build run reports already in the folder (`report-prd-<N>-<K>.json|.md`, fix plans excluded), for a caller that did not run the wave and has no packet list of its own. No build reports at all exits **3** — expectation unknown, reported as unknown, never as covered
+- Artifact location is the PRD's existing `reports/` folder as `review-prd-<N>-<K>.json`, alongside the `report-prd-<N>-<K>.json` issues file — no new location, no new schema. Coreutils plus a `python3` stdlib JSON read; no `jq`
+
 ### [111] — Publish the v5.2.0 user-facing release notes
 
 - `RELEASES.md`: Added — the v5.2.0 section covering [104]–[110]: the status heartbeat across builds, gate runs, ships and planning waves, the pre-announcement of long steps, the per-run `--quiet`/`--status` controls and project-level cadence, and the every-exit close. States the checkpoint trade-off in user terms — a run may report slightly later than the interval, but is never interrupted or reshaped to hit it
