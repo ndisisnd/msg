@@ -2,6 +2,21 @@
 
 ## 2026-08-01
 
+### [122] — orchestrated build leaves get a fast-path protocol (v5.4 P6)
+
+Every leaf in a parallel build wave was reading `eng/SKILL.md` plus `refs/build/protocol.md` — about 48KB — to do a job that needs a fraction of it. Most of what it read described situations that cannot arise inside an orchestrated run: how to create a branch (the orchestrator already did), how to call `/cook` (the standards payload is injected), how to open a sub-branch PR (leaves commit direct), how to run a status heartbeat (the orchestrator ticks for it), and how to build from a `report=` issues file (a different entry point entirely). With N leaves per wave, that read is paid N times.
+
+`eng/refs/build/protocol-packet.md` is the leaf's whole contract instead: what it may assume, tickets and their ordering, the red/green TDD loop, the full-suite gate and the note that a caller may suppress it, the Step-5 review artifact, the db-touch pause, the commit gates, scope enforcement, the AHA / OPEN-QUESTIONS writers, and the output contract. It opens by stating what the orchestrator guarantees — branch checked out, standards payload injected, scoped context injected, gates pre-approved — because a document that omits the branch-creation path has to say *why* it is safe to omit it.
+
+The two things that stay non-negotiable are called out as such. The **db-touch pause** is the one gate the autonomy contract does not reach, and the **v5.3 review artifact** (`reports/review-prd-<N>-<K>.json`) plus the summary's Review line are required elements of the return, not optional — with the reminder that the orchestrator's coverage check reads the filesystem regardless of what a leaf claims.
+
+**Only build leaves are rerouted.** Plan leaves have no branch, no standards payload and no commit gates, so `protocol-team.md` now names the protocol file per wave rather than once for both. Standalone human `eng --build` runs are untouched — the packet doc's assumptions are false outside an orchestrated run, so `SKILL.md` routes there only when a leaf was spawned.
+
+- `.claude/skills/eng/refs/build/protocol-packet.md` — **new**, ~11KB replacing ~48KB per leaf
+- `.claude/skills/plan-em/refs/protocol-team.md` — the leaf-spawn prompt's read target becomes a per-wave table (build → packet doc, plan → `SKILL.md`), with the standalone case stated explicitly
+- `.claude/skills/plan-em/refs/protocol-em.md` — the solo lane's build fan-out points at the packet doc; its plan fan-out is unchanged
+- `.claude/skills/eng/SKILL.md` — Step 0's `--build` row and the References entry note the orchestrated fast path
+
 ### [121] — the exec table drops to three columns and the Files column is derived (v5.4 P4)
 
 The execution table went from five columns to three — `Feature — concern | Files | Agent` — and the one column that remains contentful is no longer written by an agent at all.

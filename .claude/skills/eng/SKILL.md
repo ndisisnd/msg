@@ -27,7 +27,7 @@ Read the invocation flag and load exactly one mode protocol:
 |------|------|
 | `--plan` | `refs/plan/protocol.md` |
 | `--plan report=<path>` | `refs/plan/fix-plan.md` (instead of `protocol.md`) |
-| `--build` | `refs/build/protocol.md` |
+| `--build` | `refs/build/protocol.md` — **unless an orchestrator spawned you as a build packet**, in which case read `refs/build/protocol-packet.md` instead and stop here; it is the whole leaf contract and deliberately omits the standalone-only paths. |
 | `--build report=<path>` | `refs/build/fix-build.md` (instead of `protocol.md`) |
 | `--review` | `refs/review/protocol.md` |
 
@@ -167,7 +167,7 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 
 - `refs/plan/protocol.md` — `--plan`: summary content, output contract, exact-identifier rule, **the `## Todos — <Agent>` ticket-writing spec** run in the same pass, and the mechanical closing check (`script-eng-plan-shape.py`). `refs/plan/template-todo.md` — the ticket schema (`F<n>-T<k>` ids, the seven fields, rendering, rules, empty-block sentinel, the ticket-sizing rule) that `--build` reads mechanically. `refs/plan/template-eng-plan.md` — the two output shapes and the rule that picks between them: 4 sections for a medium PRD (the default), 12 only when the intake grade reads `C:` ≥ 8.
 - `refs/plan/fix-plan.md` — `--plan`'s `report` source: required fields, rejections, and the fix-plan output contract for planning the fixes to a failed run's issues file.
-- `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, the Step-5a whole-change review spawn, commit/PR contract. `refs/build/fix-build.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
+- `refs/build/protocol.md` — `--build`: branch contract, `report` source, coding-standards flag table, work steps, the Step-5a whole-change review spawn, commit/PR contract. `refs/build/protocol-packet.md` — the **orchestrated build leaf's** self-contained fast path, read *instead of* this file and `SKILL.md` when a leaf is spawned by `plan-em`; it assumes the branch, standards payload, scoped context and pre-approved gates the orchestrator supplies, and keeps the db-touch pause and the v5.3 review artifact as required elements. `refs/build/fix-build.md` — `report` source + the finding→issue-ticket projection and `kind` discriminator.
 - `refs/review/protocol.md` — `--review`: change-set resolution, reviewer inputs (diff + `done-when` + digest acceptance criteria), the adversarial charter and its exclusion list, the A4 what-vs-how exception, severity discipline against `shared/refs/finding-schema.md` (`source: eng:review`), the blocker/high-before-commit-confirm rule, the JSON return contract, and the subagent spawn rules. Replaces the retired per-ticket pair review — one review, whole-change, run by an agent that did not write the code.
 - `.claude/scripts/script-eng-db-touch.sh` — production/data guardrail; a tripped check pauses for sign-off.
 - `.claude/scripts/script-eng-comment-scan.sh` — deterministic A4 comment scan; flags added symbol declarations with no plain-English comment above them (`--staged` or a diff range).

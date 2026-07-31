@@ -260,7 +260,18 @@ general-purpose**, and gets a prompt prefixed with the autonomy paragraph:
 > engineer. When the skill's protocol reaches an approval gate (`AskUserQuestion`), treat
 > it as pre-approved and proceed. Only stop if genuinely blocked by missing information
 > you cannot derive — if so, return the blocker instead of guessing. Read
-> `.claude/skills/eng/SKILL.md` fully and follow its protocol.
+> `<protocol file for this wave>` fully and follow it.
+
+**The protocol file differs by wave**, because a build leaf and a plan leaf need different
+things:
+
+| Wave | Leaf reads | Why |
+|------|-----------|-----|
+| **Build** | `.claude/skills/eng/refs/build/protocol-packet.md` | The orchestrated build leaf's fast path — tickets, TDD loop, full-suite gate (may be caller-suppressed), the Step-5 review artifact, commit gates, db-touch pause, output contract. It **assumes** precisely what this protocol guarantees: branch already created and checked out, standards payload injected, scoped context injected, every gate pre-approved except the db-touch safety floor. ~11KB instead of ~48KB. |
+| **Plan** | `.claude/skills/eng/SKILL.md` | Unchanged. A plan leaf has no branch, no standards payload and no commit gates, so the packet doc does not apply to it. |
+
+A **standalone** human `eng --build` also keeps reading `SKILL.md` — the packet doc's
+assumptions are false outside an orchestrated run.
 
 Then the leaf's fields, by wave:
 
