@@ -1,0 +1,3 @@
+# v5.4 P4 — the collision checker reads the new 3-column table: the Feature
+# header resolves by prefix, so collisions name the feature, not row<N>.
+python3 "$REPO/.claude/scripts/script-em-exec-collision.py" exec.md --waves 2>/dev/null

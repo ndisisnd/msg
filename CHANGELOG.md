@@ -2,6 +2,28 @@
 
 ## 2026-08-01
 
+### [121] — the exec table drops to three columns and the Files column is derived (v5.4 P4)
+
+The execution table went from five columns to three — `Feature — concern | Files | Agent` — and the one column that remains contentful is no longer written by an agent at all.
+
+**Two columns were carrying nothing.** The **Todos** anchor (`[F1](#todos-f1)`) was human navigation; nothing mechanical ever read it. The **Execution steps** pointer (`→ F2-T1, F2-T2`) was a second index over the tickets, and a second index is only ever something to disagree with the first. Build agents now locate their tickets exactly one way: take the assigned rows' F-IDs, read `### F<n>` under `## Todos — <Agent>`. That deletes a whole failure class — `unresolved-pointer`, `unpointed-ticket`, and the build protocol's Step 0 pointer cross-check — without weakening the tickets-are-the-spec contract, which is untouched.
+
+**Files is now mechanised.** `script-em-exec-skeleton.py --fill-files` reads the tickets and writes every Files cell as the union of that row's F-ID's ticket `files` for that row's agent. The collision graph therefore becomes derivable from the tickets at any moment, rather than being an assertion a planner agent typed and could get wrong. Rows sharing an (F-ID, agent) pair get the same set — deliberately, since two concerns of one feature built by one agent genuinely are not file-disjoint, and splitting the set would claim a safety the build does not have. An F-ID with no ticket block is a hard failure (`MISSING_TICKETS`, exit 1, nothing written); the empty-work sentinel is not (`EMPTY_FILES`, exit 0, cell left blank) — the distinction is exactly why that sentinel exists.
+
+**Read-tolerance, verified.** Every reader resolves columns by name, so the legacy 5-column table keeps working: the same rows in either shape produce a **byte-identical** wave decomposition, and `script-eng-plan-shape.py` on the untouched `features/planned/` sample PRDs produces byte-identical output before and after this change. Check 6 keeps its full pointer validation for legacy tables and reports `SKIP … reason=no-pointer-column` for 3-column ones. The A22 drift guard was at risk here — a table whose `Execution steps` header had drifted would have read as "the new shape" — so a pointerless table only counts as v5.4 when Feature, **Files** and Agent all resolve; anything else is still drift and still fails.
+
+- `.claude/scripts/script-em-exec-skeleton.py` — renders 3 columns; new `--fill-files [--agent <name>]` derivation mode with `FILLED` / `EMPTY_FILES` / `MISSING_TICKETS` / `NO_FILES_COLUMN` records; the atomic write is now shared by both write paths
+- `.claude/scripts/script-em-exec-collision.py` — columns resolve exact-then-prefix, which is what lets `Feature — concern` resolve and keeps collisions named by feature rather than `row<N>`; the exit-3 and `MISSING_FILES` arms stay for legacy tables, with the message redirected to the derivation
+- `.claude/scripts/script-eng-plan-shape.py` — check 6's pointer arm is legacy-only; `pointer_mode` tri-state distinguishes the new shape from header drift
+- `.claude/skills/eng/refs/build/protocol-exec.md` — **deleted**, with every reference to it; the Files-fill instruction it carried is now a script
+- `.claude/skills/eng/refs/build/protocol.md` — Step 0 cross-checks that the ticket blocks exist rather than that pointers resolve; Spec source and step 2 locate tickets by F-ID alone
+- `.claude/skills/eng/refs/plan/protocol.md` · `template-todo.md` · `SKILL.md` — the plan pass writes two artifacts, not three, and touches no exec-table cell
+- `.claude/skills/plan-em/refs/template-exec-table.md` — rewritten around the 3-column shape, the derivation call and its two failure lines
+- `.claude/skills/plan-em/refs/protocol-em.md` · `protocol-team.md` — the derivation step after the plan wave; every "the plan wave must populate Files" hard-failure text now says "run the Files derivation"
+- `.claude/skills/plan-pm/refs/template-prd.md` · `.claude/skills/plan-review/refs/certification.md` · `ARCHITECTURE.md` — the 3-column skeleton and the derived-not-typed reading of an empty cell
+- `evals/cases/exec-skeleton-v54-3col` · `exec-files-derive` · `exec-files-derive-missing-tickets` · `exec-collision-v54-3col` · `exec-collision-legacy-5col` — new; the 3-column render, both derivation directions (including the PRD being left byte-identical on failure), and the two table shapes producing identical decompositions
+- `evals/cases/a21-exec-collision-no-files-column` — golden refreshed for the redirected message
+
 ### [120] — the engineering plan is sized to the PRD: 12 sections become 4 (v5.4 P3)
 
 An eng agent used to write the same twelve-section essay whether the PRD was a one-file tweak or a multi-stack rewrite. Most of it had no reader: build agents execute the `## Todos` tickets and never open plan prose, so Summary, PRD reference, Alternatives considered, Phases and dependencies, Developer experience, Migration and breaking changes and Risks and mitigations were written, paid for in Opus tokens, and consumed by nobody.

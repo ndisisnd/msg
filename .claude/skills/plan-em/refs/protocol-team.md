@@ -98,9 +98,15 @@ After the `COLLISION` / `MISSING_FILES` lines the script emits the decomposition
   into different waves).
 
 **Exit 3** (`ERROR=no-files-column` on stderr, no decomposition emitted) — the exec table has
-no `Files` column at all, so there is nothing to decompose. Same hard failure as an
-`UNPACKETED` row: stop, have the plan wave populate the column, and re-run. `--waves` exits 0
-on collisions but **not** on this.
+no `Files` column at all, so there is nothing to decompose. Both the v5.4 3-column shape and
+the legacy 5-column shape carry `Files`, so this table is malformed: restore the column from
+`refs/template-exec-table.md`, **run the Files derivation**, and re-run. `--waves` exits 0 on
+collisions but **not** on this.
+
+The checker resolves columns by name, so it reads **both** shapes — v5.4's
+`Feature — concern | Files | Agent` and the legacy
+`Feature | Execution steps | Files | Todos | Agent` — and produces a byte-identical
+decomposition for the same rows either way.
 
 The script's `PACKET` / `WAVE` lines **ARE** the decomposition — any hand-derived packet or
 wave that contradicts them is wrong; the script wins. Your **residual judgment is exactly
@@ -164,17 +170,19 @@ has no teeth until the `Files` column exists; it is the **build** wave that reap
 
 ## Build wave (`$MODE = build`)
 
-The `Files` column is populated now (the plan wave wrote it), so the collision graph is
-real. Decompose per § Parallelism model into file-disjoint, model-tiered packets and
-waves, then:
+The `Files` column is populated now — **derived from the tickets** by
+`script-em-exec-skeleton.py --fill-files` after the plan wave, not typed by a planner agent
+— so the collision graph is real and can be regenerated at any time from the tickets alone.
+Decompose per § Parallelism model into file-disjoint, model-tiered packets and waves, then:
 
 0. **Run the collision checker first (before emitting the decomposition).** Run
    `script-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
    model) on the in-scope exec-table rows. Two consequences gate the decomposition:
    - A `MISSING_FILES row<N> <feature>` line (equivalently an `UNPACKETED` id) on any
      **in-scope** row is a **hard failure**, equivalent to the empty-`Files`-column hard
-     failure in § Hard failures (*"Files column empty — the plan wave must run before the
-     build wave."*) — stop; the plan wave must populate `Files` first.
+     failure in § Hard failures — stop and **run the Files derivation**
+     (`script-em-exec-skeleton.py --fill-files <prd>`) before decomposing. If that reports
+     `MISSING_TICKETS`, the plan wave is what is incomplete, not the table.
    - The script's `PACKET` / `WAVE` lines **are** the packets and waves — consume them
      directly (every `COLLISION` pair already shares a packet, run serially). Do not
      re-derive them; your only wave edit is the optional `depends_on` sub-split of § Parallelism

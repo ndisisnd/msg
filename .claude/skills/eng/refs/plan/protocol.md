@@ -1,6 +1,6 @@
 # eng — Mode: --plan
 
-Reads the assigned PRD exec-table rows and, in a **single pass**, produces (1) a structured `## Engineering — <Agent>` section, (2) the `## Todos — <Agent>` tickets that decompose each owned F-ID into build-ready units — **the single and final build spec** — and (3) the exec-table cells that index them (Execution steps = ticket-id pointer, Files = the tickets' file set). **No implementation code is written.**
+Reads the assigned PRD exec-table rows and, in a **single pass**, produces (1) a structured `## Engineering — <Agent>` section and (2) the `## Todos — <Agent>` tickets that decompose each owned F-ID into build-ready units — **the single and final build spec**. The exec table is not written to: its Files column is derived from these tickets by script afterwards. **No implementation code is written.**
 
 This file defines the plan-mode specifics only. The shared protocol — input validation, PRD + devkit read, summary + approval gate mechanics, codebase scan, platform + coding standards, scope enforcement, user interview — lives in `SKILL.md`. Read SKILL.md's numbered steps as the spine; the sections below slot into the points it marks as mode-specific.
 
@@ -50,7 +50,7 @@ The engineering section has **two shapes**, and the PRD's size picks one. The te
 
 Both shapes validate. `script-eng-plan-shape.py` check 8 accepts either, and PRDs already carrying the older 12- or 13-section shape keep passing untouched.
 
-Also fill in the **Execution steps** and **Files** columns for every row in the PRD's execution table where the Agent column matches this invocation — after the tickets are written, since Execution steps is a pointer to their ids (`→ F2-T1, F2-T2`) and Files is the union of their `files`. Format and rules: `refs/build/protocol-exec.md`.
+**Do not fill any exec-table cell by hand.** As of v5.4 the table has three columns — `Feature — concern | Files | Agent` — and Files is *derived* from the tickets by `script-em-exec-skeleton.py --fill-files`, run once over the PRD after the plan wave. The Execution-steps pointer column is gone entirely: a build agent finds its tickets from `## Todos — <Agent>` / `### F<n>` for its assigned F-IDs, so a second index would only be something to drift. Write the tickets accurately and the table follows.
 
 **Exact identifier requirement (hard):** Every proposed change must name the precise artifact to be modified or created, verified against the codebase scan:
 
@@ -76,7 +76,7 @@ After the engineering section is written, decompose every owned F-ID into `F<n>-
 - Use this agent's own `## Engineering — <Agent Name>` section (integration contracts, exact identifiers) as the authority on *how*, and the PRD's Features & acceptance criteria F-ID table as the authority on *which* F-IDs are in scope and *why*. Do not re-interpret the features section independently of the engineering section you just wrote.
 - Append the agent's `## Todos — <Agent Name>` block under the `## Todos` umbrella heading (created by `plan-em` before the plan wave — do **not** create the umbrella yourself), one `### F<n>` block per owned feature in F-ID order. A feature with no discrete work still gets an explicit `_No discrete work for this feature._` block.
 - Every exact identifier this agent owns in Integration contracts (endpoint, table, column, migration filename, test file, webhook/hook) must surface in some ticket's `files` + `done-when`.
-- **Then fill the exec-table cells** (§ Output contract above): each owned row's Execution steps pointer and Files set, derived from the tickets just written.
+- **Do not touch the exec table.** The Files column is derived from these tickets by script after the wave (§ Output contract above); a hand-typed cell can disagree with the tickets, and the collision graph is only as true as that column.
 
 Extend the write confirmation to note the tickets (e.g. `Written to features/prd-4/prd-4.md → ## Engineering — eng-backend + ## Todos — eng-backend (F2: 3 tickets)`).
 
@@ -86,12 +86,12 @@ Ambiguity that cannot be resolved from the PRD, exec-table, or codebase scan is 
 
 ## Closing check — validate the plan's shape mechanically
 
-The plan's three outputs (engineering section, tickets, exec-table cells) are bound together by contracts that all fail **silently** — a dangling ticket pointer, a cyclic `depends-on`, or a guessed file path produce a plausible-looking plan that only explodes during the build wave. Do not grade them by eye. After the write confirmation, run:
+The plan's two outputs (engineering section, tickets) are bound to the exec table by contracts that fail **silently** — a feature with no ticket block, a cyclic `depends-on`, or a guessed file path produce a plausible-looking plan that only explodes during the build wave. Do not grade them by eye. After the write confirmation, run:
 
 ```bash
 V=.claude/scripts/script-eng-plan-shape.py; [ -f "$V" ] || V="$HOME/.claude/scripts/script-eng-plan-shape.py"; python3 "$V" "<prd-path>" --agent "<Agent Name>"
 ```
 
-Exit 0 (`SUMMARY … failures=0`) means the pass is shape-clean. Exit 1 prints one `FAIL check=<n> code=<slug> ref=<locator> detail=…` line per defect; **fix every one and re-run** — the pass is not done while any FAIL stands. The eight checks: both contract headings byte-exact · the ticket schema · `### F<n>` blocks ↔ the exec-table F-IDs this agent owns · `depends-on` resolves and is acyclic · the empty-feature sentinel · every Execution-steps pointer resolves and every ticket is pointed at · **files-vs-reality** (`(edit)`/`(remove)` paths must exist, `(add)` paths must not — this is what catches a guessed or stale identifier) · **the engineering section's shape** is one of the two sanctioned ones (check 8: the medium four, or the large twelve — a missing core section or an invented heading fails; a section with no `###` subheadings at all is skipped, not failed).
+Exit 0 (`SUMMARY … failures=0`) means the pass is shape-clean. Exit 1 prints one `FAIL check=<n> code=<slug> ref=<locator> detail=…` line per defect; **fix every one and re-run** — the pass is not done while any FAIL stands. The eight checks: both contract headings byte-exact · the ticket schema · `### F<n>` blocks ↔ the exec-table F-IDs this agent owns · `depends-on` resolves and is acyclic · the empty-feature sentinel · the exec-table pointers (legacy 5-column tables only — a v5.4 3-column table has no pointer column, so check 6 reports `SKIP … reason=no-pointer-column`) · **files-vs-reality** (`(edit)`/`(remove)` paths must exist, `(add)` paths must not — this is what catches a guessed or stale identifier) · **the engineering section's shape** is one of the two sanctioned ones (check 8: the medium four, or the large twelve — a missing core section or an invented heading fails; a section with no `###` subheadings at all is skipped, not failed).
 
 A defect the script cannot fix — a genuinely unresolvable path or F-ID — is surfaced as a named gap in **Open questions** (medium §4 / large §11), never left as a silent FAIL.

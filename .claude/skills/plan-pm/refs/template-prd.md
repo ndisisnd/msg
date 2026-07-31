@@ -149,12 +149,12 @@ _To be populated by plan-em — engineering breakdown of the §3 features._
 
 Skeleton the eng stage will fill:
 
-| Feature | Execution steps | Files | Todos | Agent |
+| Feature — concern | Files | Agent |
 |---------|----------------|-------|-------|-------|
 
 ## 7. Todos
 
-**Reserved for `eng --plan`.** Holds the implementation tickets generated for this PRD, grouped by feature as `### F<n>` subsections — the anchor target for `plan-em`'s `[F<n>](#todos-f<n>)` links in §6.
+**Reserved for `eng --plan`.** Holds the implementation tickets generated for this PRD, grouped by feature as `### F<n>` subsections under one `## Todos — <Agent>` block per agent. These blocks are the build spec **and** the only index to it: a build agent finds its tickets by F-ID here, and §6's Files column is derived from their `files` fields.
 
 Until populated, leave exactly:
 

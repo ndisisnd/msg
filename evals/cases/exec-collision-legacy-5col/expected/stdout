@@ -1,0 +1,5 @@
+COLLISION row1 row2 src/api/login.ts src/api/router.ts
+PACKET 1 agent=backend-eng rows=1,2
+PACKET 2 agent=backend-eng rows=3
+PACKET 3 agent=mobile-eng-ios rows=4
+WAVE 1 packets=1,2,3

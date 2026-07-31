@@ -40,9 +40,14 @@ The eight checks:
                dependency graph is acyclic.
   5 sentinel   a feature with no tickets carries the byte-exact
                `_No discrete work for this feature._` line, and never both.
-  6 pointers   every owned exec row's Execution-steps cell is a `→ <ids>`
-               pointer whose ids all resolve; every ticket is pointed at by
-               some row.
+  6 pointers   LEGACY TABLES ONLY. Every owned exec row's Execution-steps cell
+               is a `→ <ids>` pointer whose ids all resolve, and every ticket is
+               pointed at by some row. v5.4 cut that column: a 3-column
+               `Feature — concern | Files | Agent` table has no pointer to
+               resolve, so the check reports `SKIP check=6 facet=pointers
+               reason=no-pointer-column` instead. A table that resolves neither
+               the pointer column NOR a Files column is drift, not the new
+               shape, and still fails `exec-columns-unresolved`.
   7 files      files-vs-reality: `(edit)`/`(remove)` paths must exist in the
                repo, `(add)` paths must not — this is what mechanically catches
                a guessed or stale identifier, the exact failure the
@@ -344,11 +349,18 @@ def check5(features, agent):
 
 # ── check 6 — exec-table pointer cells ────────────────────────────────────────
 
-def check6(exec_rows, features, all_ticket_ids, agent, saw_table):
+def check6(exec_rows, features, all_ticket_ids, agent, saw_table, pointer_mode):
     if not saw_table:
         fail(6, "missing-exec-table", "execution-table",
              "no '## N. Feature execution table' section (legacy '## Execution "
              "Table' also read) — the plan has no row to point from")
+        return
+    if pointer_mode == "v54":
+        # v5.4 cut the Execution-steps pointer column: tickets are located by
+        # `## Todos — <Agent>` / `### F<n>` alone, so there is no pointer left to
+        # resolve and no such thing as an unpointed ticket. Legacy 5-column
+        # tables still carry the column and still get the full check below.
+        print("SKIP check=6 facet=pointers reason=no-pointer-column")
         return
     pointed = set()
     for fid, steps, owner, ref in exec_rows:
@@ -494,7 +506,16 @@ def main():
     # back `unmapped-feature` / every ticket `unpointed-ticket`, which sends the
     # author to the wrong file. A dropped short row was invisible altogether.
     # Both are recorded and reported as check-6 failures naming the real cause.
-    exec_rows, saw_table, exec_shape = [], False, []
+    # v5.4 read-tolerance: the Execution-steps column is OPTIONAL. The 3-column
+    # `Feature — concern | Files | Agent` table has none — tickets are found via
+    # `## Todos — <Agent>` / `### F<n>` — so its absence is a shape signal, not a
+    # defect. Feature and Agent stay mandatory: without them no row can be read
+    # at all, and check 3's F-ID coverage becomes unverifiable.
+    # `pointer_mode`: "" (no table read) · "legacy" (5-column, Execution steps
+    # present — full pointer check) · "v54" (3-column, pointers legitimately
+    # absent — check 6 SKIPs). Anything that is neither shape stays "" and is
+    # reported as column drift, so A22's guard keeps its teeth.
+    exec_rows, saw_table, exec_shape, pointer_mode = [], False, [], ""
     for title, lineno, body in blocks:
         low = re.sub(r"^\d+\.\s*", "", title).strip().lower()
         if not low.startswith(("execution table", "feature execution table")):
@@ -504,18 +525,25 @@ def main():
         fi = col_index(headers, "feature")
         si = col_index(headers, "execution steps", "execution")
         ai = col_index(headers, "agent")
-        if fi is None or si is None or ai is None:
-            unresolved = [n for n, i in (("Feature", fi),
-                                         ("Execution steps", si),
-                                         ("Agent", ai)) if i is None]
+        # A pointerless table is the v5.4 shape ONLY if it is otherwise complete
+        # — Feature, Files and Agent all resolve. A table missing both the
+        # pointer column and Files is a drifted header, not a new shape.
+        v54 = si is None and col_index(headers, "files", "file") is not None \
+            and fi is not None and ai is not None
+        if fi is None or ai is None or (si is None and not v54):
+            unresolved = [n for n, ok in (("Feature", fi is not None),
+                                          ("Execution steps", si is not None or v54),
+                                          ("Agent", ai is not None)) if not ok]
             exec_shape.append((
                 "exec-columns-unresolved", f"line {lineno}:{title.strip()}",
                 f"the execution table's {', '.join(unresolved)} column(s) do not "
                 f"resolve — headers seen: {', '.join(headers or []) or '(none)'}; "
                 f"no row can be read, so ticket coverage is unverifiable"))
             continue
+        pointer_mode = "legacy" if si is not None else "v54"
+        widest = max(fi, ai) if si is None else max(fi, si, ai)
         for cells, off in rows:
-            if len(cells) <= max(fi, si, ai):
+            if len(cells) <= widest:
                 exec_shape.append((
                     "short-exec-row", f"row {lineno + off + 1}",
                     f"the row has {len(cells)} cell(s) but the header has "
@@ -525,7 +553,8 @@ def main():
             feat = cells[fi]
             m = re.match(r"^\**\s*(F\d+(?:\.\d+)?)\b", feat.strip())
             fid = m.group(1).upper() if m else ""
-            exec_rows.append((fid, cells[si], cells[ai].strip(),
+            exec_rows.append((fid, cells[si] if si is not None else "",
+                              cells[ai].strip(),
                               f"row {lineno + off + 1}:{fid or feat[:24]}"))
 
     # Todo blocks, keyed by agent.
@@ -572,7 +601,8 @@ def main():
         if "5" in wanted:
             check5(features, agent)
         if "6" in wanted:
-            check6(exec_rows, features, all_ticket_ids, agent, saw_table)
+            check6(exec_rows, features, all_ticket_ids, agent, saw_table,
+                   pointer_mode)
         if "7" in wanted:
             check7(features, repo_root, agent)
         if "8" in wanted:

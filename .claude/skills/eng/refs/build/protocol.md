@@ -122,12 +122,12 @@ A repeated identical flag set is a cook **cache hit**. Read the result fully. If
 
 ## Work steps (Step 5)
 
-**Spec source — the todo tickets, and nothing else.** `eng --plan` writes them in the same pass as the engineering section, so every owned F-ID has a `### F<n>` block under this agent's `## Todos — <Agent Name>` section. There is no second spec: the exec-table row's Execution steps cell is a **pointer** to the ticket ids that deliver it (`→ F2-T1, F2-T2`), not a work description.
+**Spec source — the todo tickets, and nothing else.** `eng --plan` writes them in the same pass as the engineering section, so every owned F-ID has a `### F<n>` block under this agent's `## Todos — <Agent Name>` section. **Tickets are located purely from `## Todos`:** take the F-IDs of the assigned rows, and read `### F<n>` under `## Todos — <Agent Name>` for each. There is no index to follow and no second spec — v5.4 removed the exec table's Execution-steps pointer column precisely because a second index can disagree with the first. The exec table now carries only `Feature — concern | Files | Agent`: it says *which rows are yours* and *what files they touch*, never *what to build*.
 
 - Work the `### F<n>` block's **tickets** directly (schema: `refs/plan/template-todo.md`). Each carries `id`, `title`, `objective`, `type`, `files` (path + `add|edit|remove`), `depends-on`, `done-when`. To execute: make the `files` changes to deliver the `objective`, then satisfy `done-when`. A mechanical checklist — never re-derive tasks from engineering prose. **Sentinel:** an explicitly empty block (`_No discrete work for this feature._`) means nothing to build for that feature.
 - **Ordering (`depends-on`, then ticket-id order).** A ticket runs only after every id in its `depends-on` is complete; among unblocked tickets take ticket-id order (`F1-T1` → `F1-T2` → `F2-T1`). A `depends-on` naming an id absent from this PRD's `## Todos`, or a dependency cycle, is a blocking gap → surface via `AskUserQuestion`, never guess an order.
 - **`objective` keeps scope honest.** Implement exactly what serves it; anything beyond is out of scope (Step 6).
-- **Missing tickets are a plan failure, not a fallback.** No `### F<n>` block for an assigned F-ID, or a pointer id resolving to no ticket, means the plan pass was incomplete: emit `Hard failure: no todos for '<F-ID>' — plan pass incomplete, re-run eng --plan` and stop. Never reconstruct a spec from exec-table prose or engineering-section narrative.
+- **Missing tickets are a plan failure, not a fallback.** No `### F<n>` block for an assigned F-ID means the plan pass was incomplete: emit `Hard failure: no todos for '<F-ID>' — plan pass incomplete, re-run eng --plan` and stop. Never reconstruct a spec from exec-table prose or engineering-section narrative.
 
 `## Engineering — <Agent Name>` remains the authority on the surrounding design decisions and cross-agent contracts; the tickets are the work. Do not re-interpret the PRD features section directly.
 
@@ -141,7 +141,8 @@ RUN_ID=build-$(date +%s)
 "$S" --start --phase eng-build --run-id "$RUN_ID" --total <ticket count>
 ```
 
-0. **Cross-check the pointers resolve.** Before reading any file: every assigned row's Execution steps cell names at least one ticket id, **every named id resolves** to a real ticket under `## Todos — <Agent Name>`, and the `## Engineering — <Agent Name>` section references each assigned row (row label or feature ID). A missing row, an empty or unresolvable pointer cell, or a row absent from §Engineering is a blocking gap — surface via `AskUserQuestion` and do not proceed until resolved. Do not guess intent; `plan-review --eng` may have edited the table after the section was written.
+0. **Cross-check the tickets exist.** Before reading any file: every assigned row resolves to an F-ID, and each of those F-IDs has a `### F<n>` block under `## Todos — <Agent Name>` (tickets, or the explicit empty-work sentinel). A missing row or a missing ticket block is a blocking gap — surface via `AskUserQuestion` and do not proceed until resolved. Do not guess intent; `plan-review` may have edited the table after the tickets were written.
+   *(The pointer cross-check this step used to run is retired with v5.4's Execution-steps column. Tickets are found by F-ID under `## Todos` and nowhere else — there is no pointer left to disagree with them.)*
 
 1. **Check out the work branch (per `commit_mode`).** `branch` already exists — the orchestrator (`plan-em`/`ship`) creates it once before build agents start; never create it yourself. If it does not exist: emit `Hard failure: target branch '<branch>' does not exist — the orchestrator must create it before build agents run` and stop. Then:
    - **`commit_mode: direct` (default):** check out `branch` and work on it. Touch only the files your assigned rows specify (Step 6) so parallel agents stay file-disjoint.
@@ -150,7 +151,7 @@ RUN_ID=build-$(date +%s)
      ROW_SLUG=$(printf '%s' "<first assigned row>" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]\+/-/g; s/^-//; s/-$//')
      ```
    Do not push until the commit step.
-2. **Read the tickets.** For each assigned F-ID, read its `### F<n>` todo block per **Spec source** above, following each row's Execution steps pointer to the ticket ids it owns. An unresolvable pointer or a missing block is the hard failure named there.
+2. **Read the tickets.** For each assigned F-ID, read its `### F<n>` todo block under `## Todos — <Agent Name>` per **Spec source** above — every ticket in the block is yours. A missing block is the hard failure named there.
 3. **Discover testing tools.** Before writing any test file, scan existing test files in the feature area for:
    - Test runner and framework (e.g. `pytest`, `jest`, `go test`, `flutter_test`)
    - Assertion libraries and matchers in use

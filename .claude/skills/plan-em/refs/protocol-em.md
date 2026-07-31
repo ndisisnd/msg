@@ -164,7 +164,7 @@ Do not activate any agent without explicit approval.
 **Execution table skeleton.** Once the roster is approved, **decide** the exec-table rows but **render** them with the skeleton script — anchor typos and row-text drift are then impossible (`refs/template-exec-table.md` is the guide for the table shape and the concern checklist):
 - Enumerate features from the PRD's Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the key for every exec-table row.
 - For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests — the checklist in `refs/template-exec-table.md`) and decide the `(feature, concern, agent)` tuple for each row. **This judgment stays with the LLM.**
-- Emit those tuples as a JSON spec — one `{"fid","concern","agent"}` object per row, in row order — and pipe it through the renderer (two-path resolution). It reads §3 to resolve each `fid → <name>`, builds each Feature cell as `<F-ID>: <name> — <concern>`, fills the **Todos** anchor (`[F<n>](#todos-f<n>)`; all rows sharing an F-ID point to the same `### F<n>` subsection under `## Todos`, written later by the plan wave — a forward pointer), and leaves Execution steps + Files blank:
+- Emit those tuples as a JSON spec — one `{"fid","concern","agent"}` object per row, in row order — and pipe it through the renderer (two-path resolution). It reads §3 to resolve each `fid → <name>`, builds each `Feature — concern` cell as `<F-ID>: <name> — <concern>`, sets Agent, and leaves **Files** blank — the table is three columns as of v5.4 (`Feature — concern | Files | Agent`), and Files is filled later by derivation, never by an agent:
 
 ```bash
 S=.claude/scripts/script-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-skeleton.py"
@@ -174,6 +174,17 @@ echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}, …]' | pyth
 A spec `fid` absent from §3 is a hard error (exit 1, named on stderr) — fix the spec, never edit the PRD to match. `--write` puts the rendered table in the PRD's **reserved `## 6. Feature execution table` section** — the exec table's one home — replacing its `_To be populated by plan-em …_` placeholder. Never append a second `## Execution Table` heading; that legacy name is read-tolerated by the parsers for pre-v5 PRDs and is written by nothing. A missing reserved section is a hard error (exit 1) — restore it from `template-prd.md`, do not invent a heading.
 
 Either exit-1 path is an undocumented-failure exit: log one DOCTOR row (`write-miss:script-em-exec-skeleton`) per § Harness incidents, then handle it exactly as stated above.
+
+**Files derivation (after the plan wave, before anything reads the table).** The Files column is **derived from the tickets, never typed** — planner agents write tickets and stop. Once the plan wave has returned and every `## Todos — <Agent>` block exists, run the derivation once over the PRD:
+
+```bash
+S=.claude/scripts/script-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-skeleton.py"
+python3 "$S" --fill-files "$PRD_DIR/prd-[n]-[slug].md"
+```
+
+`FILLED <prd> rows=<n> paths=<m>` means the collision graph is now derivable. `EMPTY_FILES row=…` is informational — that row's feature carries the empty-work sentinel, so a blank cell is correct. **`MISSING_TICKETS row=<n> fid=<F> agent=<a>` (exit 1, nothing written) is a hard failure:** an exec row names an F-ID that agent never wrote tickets for, so the plan wave is incomplete — re-dispatch that agent's plan pass and log one DOCTOR row (`validator-fail:script-em-exec-skeleton`) per § Harness incidents. Never hand-fill the cell to move past it; a typed cell that disagrees with the tickets makes every downstream collision result a lie.
+
+The derivation is **idempotent and re-runnable** — re-run it after any ticket edit, including one made by `plan-review`.
 
 **AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, append one entry under `## Entries` (most recent first) of `devkit/AHA.md`:
 
@@ -227,7 +238,7 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 - **One innovation token per plan, max.** If the plan introduces more than one unfamiliar technology, split it or pick one.
 - **Extract on the third occurrence, not the second.** Duplication is cheaper than premature abstraction.
 
-**Plan mode (`$MODE = plan`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — the anchor namespace the exec-table Todos column points into (`#todos-f<n>`). Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
+**Plan mode (`$MODE = plan`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — since v5.4 it is the only index to the tickets, so every agent's block must hang off one shared heading. Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
@@ -291,7 +302,9 @@ S=.claude/scripts/script-em-exec-collision.py; [ -f "$S" ] || S="$HOME/.claude/s
 awk 'tolower($0) ~ /^## ([0-9]+\. )?(feature execution table|execution table)[[:space:]]*$/{f=1;next} f&&/^## /{exit} f' "$PRD_DIR/prd-[n]-[slug].md" | python3 "$S"
 ```
 
-Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). **Exit 3** (`ERROR=no-files-column` on stderr) → the exec table has no `Files` column *at all*, so nothing was checked — treat it exactly like the `MISSING_FILES` hard failure below (stop, populate the column, log the DOCTOR row); never read it as "no collisions". A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and surface that the plan wave must populate the `Files` column before the build wave can run, and log one DOCTOR row (`validator-fail:script-em-exec-collision`) per § Harness incidents. A collision-only exit 1 is a documented outcome and is **not** an incident — serialise and carry on without logging. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
+The checker reads **both** table shapes — v5.4's 3-column `Feature — concern | Files | Agent` and the legacy 5-column table of an older PRD — so an existing PRD schedules exactly as it always did.
+
+Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). **Exit 3** (`ERROR=no-files-column` on stderr) → the exec table has no `Files` column *at all*, so nothing was checked; both shapes carry Files, so the table is malformed — restore the column from `refs/template-exec-table.md`, re-run the Files derivation, log the DOCTOR row, and never read exit 3 as "no collisions". A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and **run the Files derivation** (`script-em-exec-skeleton.py --fill-files`, § Execution table skeleton above) before the build wave, and log one DOCTOR row (`validator-fail:script-em-exec-collision`) per § Harness incidents. If the derivation itself then reports `MISSING_TICKETS`, the plan wave — not the table — is what is incomplete. A collision-only exit 1 is a documented outcome and is **not** an incident — serialise and carry on without logging. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
 
 Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."

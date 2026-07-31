@@ -1,0 +1,3 @@
+# v5.4 P4 — a row whose F-ID has no ticket block under its agent's ## Todos is a
+# plan failure: exit 1, MISSING_TICKETS, and the PRD is left byte-identical.
+python3 "$REPO/.claude/scripts/script-em-exec-skeleton.py" --fill-files prd.md

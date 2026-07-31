@@ -60,8 +60,8 @@ There are ~58 scripts. Grouped by what they own:
 
 | Script | Purpose |
 |--------|---------|
-| `script-em-exec-skeleton.py` | Renders the §6 exec-table skeleton (exact row text + todo anchors) from plan-em's JSON `(fid, concern, agent)` spec |
-| `script-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet decomposition consumed by the team orchestrator |
+| `script-em-exec-skeleton.py` | Renders the §6 exec-table skeleton (3 columns: `Feature — concern \| Files \| Agent`) from plan-em's JSON `(fid, concern, agent)` spec; `--fill-files` then derives every Files cell from the tickets' `files` fields |
+| `script-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet decomposition consumed by the team orchestrator; reads both the 3-column and the legacy 5-column table |
 | `script-em-branch-resolve.sh` | Read-only parent-aware branch resolver — emits `BRANCH`/`ACTION`/`LANE_MOVE` for the build wave (reusing a merged branch is impossible) |
 | `script-eng-plan-shape.py` | Mechanical validator for an `eng --plan` pass — the three coupled artifacts it writes must agree |
 | `script-eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |

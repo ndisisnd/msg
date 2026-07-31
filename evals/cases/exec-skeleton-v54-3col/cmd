@@ -1,0 +1,3 @@
+# v5.4 P4 — the skeleton renders three columns: Feature — concern | Files | Agent.
+# The Execution-steps pointer and the Todos anchor columns are gone.
+echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"},{"fid":"F2","concern":"cookie policy","agent":"backend-eng"}]' | python3 "$REPO/.claude/scripts/script-em-exec-skeleton.py" prd.md

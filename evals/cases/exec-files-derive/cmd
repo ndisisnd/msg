@@ -1,0 +1,3 @@
+# v5.4 P4 — the Files column is derived from the tickets, not typed by an agent.
+# Rows sharing an (F-ID, agent) share a Files set; the sentinel row stays blank.
+python3 "$REPO/.claude/scripts/script-em-exec-skeleton.py" --fill-files prd.md
