@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-08-01
+
+### [104] — The status heartbeat's cadence engine (v5.2 P0)
+
+- `.claude/scripts/script-status-tick.sh`: Added — the sole owner of the "has the status interval elapsed?" arithmetic behind the 5-minute run heartbeat. Three verbs: `--start` opens a phase and resolves the cadence once, `--tick` is the checkpoint call that either prints `QUIET` or fires `REPORT` plus the rendered status block, `--end` closes with a summary and removes the state. Skills call it at checkpoints; no skill ever does elapsed-time math itself
+- State lives at `.claude/msg/cache/status/<run-id>.state` as flat `KEY=VALUE` lines (deviation from the plan's JSON — the eval suite's zero-dependency property would otherwise force `jq` or a hand-rolled parser); the path is already gitignored, so no `.gitignore` change. Notes bank across silent ticks and drain into the next report exactly once
+- Cadence resolves `MSG_STATUS_INTERVAL` (minutes; `0` disables) over `policies.status_cadence` in `devkit/policy.json` over a 5-minute default, clamped to a 2-minute floor. Observational by construction: a missing or corrupt state file degrades to `QUIET` at exit 0, and the only non-zero exit is `2` for a caller usage error — the heartbeat can never break a run
+- `--now <epoch>` injects a fixed clock so eval goldens stay stable
+
 ## 2026-07-31
 
 ### [103] — Publish the v5.1.0 user-facing release notes
