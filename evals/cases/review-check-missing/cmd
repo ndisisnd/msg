@@ -1,0 +1,5 @@
+# R2 — one expected key has no artifact: exit 1 naming exactly that key, and
+# nothing else. The coverage line still prints, so the caller can report the
+# gap (8/9-style) instead of only knowing that something failed.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2,P3

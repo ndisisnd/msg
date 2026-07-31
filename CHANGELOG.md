@@ -2,6 +2,16 @@
 
 ## 2026-08-01
 
+### [113] — Regression evals for the review-coverage check (v5.3 P1)
+
+- `evals/cases/review-check-complete`: Added — every expected key covered exits 0 with the single coverage line an orchestrator quotes; severity counts aggregate across artifacts
+- `evals/cases/review-check-missing`: Added — one absent key exits 1 naming exactly that key and nothing else, with the coverage line still printed so the caller can report the gap rather than only knowing something failed
+- `evals/cases/review-check-corrupt`: Added — an artifact that does not parse, and one that parses without a `verdict`, are both counted missing. A reviewer that died mid-write must never read as a clean review
+- `evals/cases/review-check-self-reviewed`: Added — `reviewed_by` equal to `built_by` fails the check; presence alone is not coverage
+- `evals/cases/review-check-empty-dir`: Added — the incident's own shape (nine packets built, zero reviewers spawned, no artifacts at all). Exits 1 naming every key and never reports clean. The most important case in the set
+- `evals/cases/review-check-expect-from-builds`: Added — the derivation direction of the same contract: keys taken from the build reports on disk, counted once across the `.md`/`.json` pair, fix plans excluded
+- Suite: 64/64 green in ~3.9 s (58 cases in ~3.6 s before), so the new coverage costs roughly a quarter-second
+
 ### [112] — Review evidence artifact and its presence check (v5.3 P0)
 
 - `.claude/scripts/script-eng-review-check.sh`: Added — the mechanical control behind "review cannot be skipped". `--reports-dir <d> --expect <k1,k2,…>` exits 1 listing `MISSING <k>` for every packet key with no review artifact and 0 with a one-line coverage summary (`reviewed 9/9 — 0 blocker, 1 high, 2 medium`). An artifact that does not parse, or that lacks `verdict`/`findings`, is counted **missing** — never counted as covered, because an unreadable artifact proves nothing

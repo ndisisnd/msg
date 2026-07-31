@@ -1,0 +1,6 @@
+# R9 — a caller that did not run the wave (pre-merge) derives the expected keys
+# from the build reports already on disk: P1 and P2, counted once each across
+# the .md/.json pair, with the fix plan excluded. P2 built but was never
+# reviewed, so the gate can report the gap without being handed a packet list.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect-from-builds

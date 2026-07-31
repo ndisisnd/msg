@@ -1,0 +1,6 @@
+# R2 — an artifact that does not parse (P2) and one that parses but carries no
+# `verdict` (P3) are both counted MISSING, never counted as covered. A reviewer
+# that died mid-write must never read as a clean review. stderr carries the
+# reason and is discarded here; the caller-visible fact is the MISSING line.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2,P3 2>/dev/null

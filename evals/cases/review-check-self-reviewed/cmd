@@ -1,0 +1,5 @@
+# R3 — the artifact records who reviewed and who built. When they are the same
+# agent the review protocol's "an agent that did not write the code" rule was
+# broken, so the check fails: presence alone is not coverage.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2

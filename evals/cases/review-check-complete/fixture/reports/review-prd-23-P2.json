@@ -1,0 +1,1 @@
+{"verdict":"warn","reviewed":{"files":4,"basis":"branch-base"},"fixed":[],"questions":[],"comments_added":2,"findings":[{"severity":"high"},{"severity":"medium"},{"severity":"medium"}],"reviewed_by":"eng-review-2","built_by":"backend-eng"}
