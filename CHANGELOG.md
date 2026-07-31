@@ -2,6 +2,19 @@
 
 ## 2026-08-01
 
+### [125] — plan-em stops writing things nobody reads (v5.4 P8)
+
+Three writes in a `plan-em` run were unconditional and mostly empty of information.
+
+**`preflight.md` is now written only when the scan found something.** A clean pre-flight used to produce a file of six headings with nothing under them — a write, a read on every later visit, and one more artifact to keep in sync, all to say "nothing to report". A clean run now emits one line instead (`Pre-flight clean — devkit + PRD scanned, no findings.`), and the *absence* of the file means exactly that. A stale `preflight.md` from an earlier run is deleted on a clean run rather than left behind describing a PRD state that no longer holds.
+
+**Step 5's synthesis is one combined summary on a fused run.** The per-agent paragraph made sense when the plan wave ended a sitting and a human read it before deciding to start the build wave — that is still what a large two-wave run gets, unchanged. A fused run has no such handover, and by the time it synthesises it has already returned a build summary per packet and a consolidated orchestrator report; a paragraph per agent is a third telling of the same events, generated at the most expensive point in the run. Fused runs emit ~5 lines: what was planned and built, which stacks took part, the branch, and review coverage.
+
+**Step 1c is a deps-only conflict check**, and the text now says so plainly. `module` and `affects` left the frontmatter in v5.4 P1, so the `deps` array plus the §3 Dependencies column it mirrors are the entire cross-PRD graph — there is no domain-match shortcut and no reverse "who does this break" edge left to consult.
+
+- `.claude/skills/plan-em/refs/protocol-em.md` — 1d branches on whether findings exist (and deletes a stale report on a clean run); Step 5's summary element is selected by `$MODE`
+- `.claude/skills/plan-em/SKILL.md` — the Outputs table states the pre-flight report is conditional
+
 ### [124] — mechanical packets are reviewed per wave, not per leaf (v5.4 P7)
 
 v5.3 made review coverage provable: every packet's reviewer writes an evidence artifact, and the orchestrator checks the filesystem for one after every wave. That is the right floor, but it was buying the same thing at very different prices — a reviewer spawn per leaf costs the same whether the leaf wrote an auth migration or wired four CRUD forms.

@@ -82,7 +82,7 @@ the written engineering sections and completes the build half. No flag, no state
 
 | Name | Format | Destination |
 |------|--------|-------------|
-| Pre-flight report | Markdown findings file | `features/prd-[n]-[slug]/preflight.md` |
+| Pre-flight report | Markdown findings file — **written only when the scan found something**; a clean run emits one inline line and no file | `features/prd-[n]-[slug]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 

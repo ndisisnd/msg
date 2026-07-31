@@ -96,15 +96,20 @@ So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change 
 
 **Frontmatter writeback (only when Step 2 above amended an edge):** add or remove the reconciled ids in the input PRD's `deps` array (merge, no duplicates) — and add the corresponding id to the §3 Dependencies cell it mirrors, so the two cannot drift. Prefer `script-prd-deps-mirror.sh` over a hand `Edit`: it targets whichever array name the file carries, so a PRD written before v5.4 keeps its `depends_on` line. On a clean run (no amendment) this is a no-op.
 
-**1d. Write pre-flight report** to `$PRD_DIR/preflight.md` (create or overwrite), containing all findings in full:
+**1d. Pre-flight findings — written only when there are findings.** Collect what 1b and 1c turned up across six categories:
 - **Terminology deviations** — PRD terms not matching GLOSSARY.md
 - **Architecture conflicts** — features contradicting/ignoring ARCHITECTURE.md
 - **AHA.md warnings** — applicable past learnings
 - **Design system impact** — components impacted, data-ingestion needs, new components required (from DESIGN-SYSTEM.md scan)
-- **Multi-PRD findings** — dependencies, breaking changes, overlaps, each classified and actioned
+- **Multi-PRD findings** — a deps-vs-scan conflict and how it was resolved (per 1c; a clean graph produces no finding)
 - **PRD gaps** — sections too ambiguous/incomplete to map domains
 
-Do not hold the full report in context. After writing, emit inline **only actionable findings** (those needing a decision before proceeding: blocking PRD gaps, architecture conflicts, multi-PRD questions). Suppress informational findings (AHA.md warnings, terminology notes, design-system observations) inline — they live in `preflight.md`, available on request.
+Then branch on whether there is anything to say:
+
+- **At least one finding → write `$PRD_DIR/preflight.md`** (create or overwrite) with every finding in full. Do not hold the full report in context. Emit inline **only actionable findings** — those needing a decision before proceeding (blocking PRD gaps, architecture conflicts, multi-PRD questions). Informational findings (AHA warnings, terminology notes, design-system observations) stay in the file, available on request.
+- **No findings → write no file.** Emit one line instead: `Pre-flight clean — devkit + PRD scanned, no findings.` A file whose content is six empty headings is not evidence of a clean scan; it is a write, a read on every later visit, and a thing to keep in sync. The inline line carries the same information at a fraction of the cost, and the *absence* of `preflight.md` means exactly one thing — the scan found nothing.
+
+**A stale `preflight.md` from an earlier run is deleted, not left.** If the file exists and this run is clean, remove it: a clean run that leaves last run's findings in place is worse than one that never wrote them, because the file now describes a PRD state that no longer holds.
 
 **1e. Resolve the size tier (`$SIZE`) — the one input that shapes the whole run.** v5.4 sizes the ceremony to the PRD instead of paying the large-PRD cost every time, and **intake's complexity grade is the measure**. Resolve it once here; every later step consumes the answer and never re-derives it.
 
@@ -417,8 +422,11 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
 
 **Step 5/5 — Synthesise and next steps**
 
-**Synthesise.** Read the engineering sections + feature coverage via the digest **synth** slice — `python3 .claude/scripts/script-prd-digest.py <prd-path> --slice synth` (frontmatter + `features` + `exec_table` + every agent's `engineering` block + `open_questions` — everything this synthesis summarizes). **Escape hatch:** for a cross-section conflict that needs product prose (a user-flow or design-system detail), read only that section's `prose_lines` range; do **not** default to reading the whole PRD. Produce a synthesis report inline:
-1. **Per-agent summary** — per engineering section: one paragraph on what was written, decided, and left open.
+**Synthesise.** Read the engineering sections + feature coverage via the digest **synth** slice — `python3 .claude/scripts/script-prd-digest.py <prd-path> --slice synth` (frontmatter + `features` + `exec_table` + every agent's `engineering` block + `open_questions` — everything this synthesis summarizes). **Escape hatch:** for a cross-section conflict that needs product prose (a user-flow or design-system detail), read only that section's `prose_lines` range; do **not** default to reading the whole PRD. Produce a synthesis report inline. **Its first element is sized to the wave** — the findings list and branch line below are identical either way:
+
+1. **The summary — one combined, or one per agent, by `$MODE`:**
+   - **`fused`** → **one combined summary**, ~5 lines for the whole run: what was planned and built, which stacks took part, the branch, and the review coverage line. **Do not write a paragraph per agent.** A fused run already returned a build summary per packet and a consolidated orchestrator report; a per-agent synthesis paragraph is a third telling of the same events, generated at the most expensive point in the run and read by no one.
+   - **`plan` / `build`** (the large two-wave path) → today's shape, unchanged: one paragraph per engineering section on what was written, decided, and left open. A two-wave run has a genuine handover between sittings, and that paragraph is what the human reads before deciding to start the build wave.
 2. **Numbered findings list** — every gap/conflict/open question across all sections, each with:
    - Severity: **Critical** (blocks engineering kickoff) / **Major** (requires mid-flight PRD revision) / **Minor** (note for future cycles)
    - Location: PRD section and owning agent
