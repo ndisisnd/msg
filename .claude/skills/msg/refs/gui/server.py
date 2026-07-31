@@ -389,6 +389,23 @@ def parse_prd_dir(d):
         "engTuned": as_badge(fm.get("eng-tuned")),
         "reviewed": as_badge(fm.get("reviewed")),
     }
+    # v5.4 moved plan-review's findings out of the PRD into a growing ledger beside
+    # it, so the board can no longer find them by parsing the PRD body. Ship the
+    # ledger's text alongside the body and let the client prefer it; a PRD written
+    # before v5.4 has no ledger, and its inline findings section is still parsed.
+    review_findings = None
+    review_findings_path = None
+    ledgers = sorted(glob.glob(os.path.join(d, "reports", "review-prd-*.md")))
+    preferred = os.path.join(d, "reports", "review-%s.md" % base)
+    if preferred in ledgers:
+        ledgers = [preferred]
+    if ledgers:
+        try:
+            review_findings = open(ledgers[0], encoding="utf-8", errors="replace").read()
+            review_findings_path = os.path.relpath(ledgers[0], root_path())
+        except OSError:
+            review_findings = None
+
     return {
         "shape": shape,
         "num": num,
@@ -411,6 +428,9 @@ def parse_prd_dir(d):
         "completion": completion,
         "completionSource": source,
         "detail": body.strip(),
+        # None on a pre-v5.4 PRD — which is the signal to fall back to the body.
+        "reviewFindings": review_findings,
+        "reviewFindingsPath": review_findings_path,
         "hasTodos": has_todos,
         "features": [feats[k] for k in order],
     }, None

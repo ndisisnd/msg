@@ -2,6 +2,18 @@
 
 ## 2026-08-01
 
+### [127] — the GUI reads findings from the external ledger (v5.4 leftover)
+
+v5.4 moved `plan-review`'s findings out of the PRD and into a growing ledger beside it (entry [120]), which quietly broke the board: it parsed findings out of the PRD body, so a v5.4 PRD rendered no findings at all.
+
+`server.py` now reads `<prd-dir>/reports/review-prd-<n>-<slug>.md` when it exists and ships its text with the PRD payload as `reviewFindings` (plus `reviewFindingsPath`). The client prefers that ledger and parses its table directly — the ledger's heading is a plain `## Findings` and its table has no Auditor column, so pointing the existing table parser at the file is simpler and more tolerant than teaching the heading matcher a new name.
+
+**`reviewFindings` is `null` on a PRD written before v5.4, and that is the fallback signal**: those PRDs keep their findings in the body, the body parser still reads them, and nothing is migrated. A board showing both PRD generations therefore reads each one where it actually keeps its findings. The eng `### 12. Findings` list keeps feeding the same table from the body in both cases.
+
+- `.claude/skills/msg/refs/gui/server.py` — loads the ledger beside the PRD, preferring the exactly-named file
+- `.claude/skills/msg/refs/gui/index.html` — new `parseLedgerFindings`; the accordion prefers the ledger and falls back to the body
+- `.claude/skills/msg/refs/protocol-gui.md` — documents the two homes and which wins
+
 ### [126] — plan-em runs leave a timeline (v5.4 P0)
 
 Every saving in this release is a structural argument: fewer invocations, fewer certifications, fewer reviewer spawns, less prose. None of them is a measurement. `script-em-timing.sh` is the measurement — one appended line per stage boundary of a `plan-em` run, so a finished run leaves a readable answer to "where did the hour go?".
