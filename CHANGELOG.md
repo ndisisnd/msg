@@ -2,6 +2,15 @@
 
 ## 2026-08-01
 
+### [117] — The pre-merge backstop, plus docs and the incident learning (v5.3 P5)
+
+- `.claude/skills/pre-merge/refs/executor.md`: Added — §5a.1, review coverage for the branch under grade. The gate did not run the wave and holds no packet list, so it uses `--expect-from-builds`: for every `report-prd-<N>-<K>` on disk there should be a `review-prd-<N>-<K>`. Missing coverage is **one `medium` finding** (`rule: review-coverage`), authored the same way §5a authors its `missing-result-report` finding
+- **`medium` is deliberate and non-blocking.** Review coverage can never produce `fail` — a merge is gated by pre-merge's own green run, never by review. `medium` was chosen over `low` because it survives a skim of the report and `low` does not. The value is not enforcement; it is that an unreviewed branch can no longer reach a human silently
+- `.claude/skills/shared/refs/finding-schema.md`: Added — the review artifact documented alongside the issues file it sits beside. The two answer different questions: the issues file is *what a failed run found*, the review artifact is *that a review happened at all*
+- `ARCHITECTURE.md`: Added — a **Review evidence** section stating the mechanism and, more importantly, why review's authority is unchanged: presence is now provable, gating is not
+- `README.md`: Added — "How do I know the review actually ran?" in the FAQ voice: because it leaves a file behind, and a missing one is repaired by re-reviewing rather than re-building
+- `devkit/AHA.md`: Added — the incident and its lesson under `harness:prose-without-a-check`, so future protocol work does not try to re-solve a skipped rule by rewording the instruction. That file is gitignored working state, so the durable statement of the same lesson lives in ARCHITECTURE.md
+
 ### [116] — Every build-spawning orchestrator checks coverage (v5.3 P4)
 
 - The gap was never specific to team mode. The audit rule is now uniform: **every site that spawns `eng --build` and consolidates the result runs the coverage check before consolidating.** A grep over `.claude/skills` finds exactly three such sites, and all three are wired

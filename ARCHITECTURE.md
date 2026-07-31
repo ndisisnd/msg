@@ -200,6 +200,27 @@ verdict, a refusal, or a gate. `--quiet` and `--status <n>m` tune it per run;
 `policies.status_cadence` tunes it per project. Contract:
 `shared/refs/status-heartbeat.md`.
 
+## Review evidence
+
+Every build that produces a diff is reviewed by an agent that did not write the
+code. That was already the rule; what v5.3 adds is that it is now **provable**.
+The reviewer writes one artifact per packet —
+`features/prd-<n>-<slug>/reports/review-prd-<N>-<K>.json`, its whole return object
+plus `reviewed_by` and `built_by` — and every orchestrator that spawns builds asks
+`script-eng-review-check.sh` whether each packet has one **before** it consolidates.
+A missing artifact is repaired by spawning a reviewer over that packet's diff, never
+by re-running the builder; a second miss escalates to the user and logs a DOCTOR row.
+`pre-merge` backstops the whole thing by reporting coverage for the branch it grades.
+
+The reason for the artifact is that a skipped review and a clean review look
+identical from the outside: both return silence. Presence therefore has to be a
+filesystem fact rather than a claim in a summary — anything that must happen needs a
+check that can fail, not a sentence that must be obeyed. Review's **authority** is
+unchanged and deliberately narrow: nothing below `high` blocks, nothing here blocks a
+merge, and coverage is reported rather than enforced. `pre-merge`'s green run remains
+the safety floor. Contracts: `eng/refs/review/protocol.md` § Artifact and
+`shared/refs/finding-schema.md`.
+
 ## Safety floor
 
 Write powers are scoped per skill rather than blanket-forbidden: eng commits to `feat/prd-<n>-*` feature branches only; pre-merge opens exactly one feature→staging PR (+ the D7 sync-merge commit) and never merges; **merge is the only merger** — staging via a green-CI PR merge, production via the double-confirmed staging→main release — and nothing reaches `main` any other way. Merge's two release tags — the `v<x.y.z>+<build>` version tag and the in-flight release lock — are commit **metadata**, not source writes, and are its only writes beyond the merges, stamps, and reports. DB/data/prod-config pauses, breaking-change pauses, branch isolation, secret scan, frontmatter stamps, F-ID stability, PRD §7 ledger, gate-fail ticket, pre-merge refusals, and the human gates (staging sign-off — pinned to the tested commit, the direct-flow inline human-test, the always-ask rollback offer, production double-confirm) are **never relaxed** (`shared/refs/safety-floor.md`).

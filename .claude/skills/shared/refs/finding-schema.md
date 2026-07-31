@@ -73,6 +73,12 @@ in some and absent in others).
 Both keys depend on `rule` being present and stable on every finding — this is
 why `rule` is required, not optional.
 
+## The review evidence artifact
+
+`eng --review` writes its whole return object — the § Subagent return contract shape below, plus `reviewed_by` and `built_by` — to `review-prd-<N>-<K>.json` in the **same** PRD `reports/` folder as the `report-prd-<N>-<K>.json` issues file. Same folder, same `<K>` (the orchestrator's packet key), same canonical `findings[]` carrying `source: eng:review` — no second schema and no second location.
+
+The two files answer different questions: the issues file is *what a failed run found*, the review artifact is *that a review happened at all*. The second exists because a skipped review is otherwise indistinguishable from a clean one — presence has to be a filesystem fact rather than a claim in a returned summary. `.claude/scripts/script-eng-review-check.sh` is the only reader of that fact; `../../eng/refs/review/protocol.md` § Artifact owns the write.
+
 ## Legacy wire values
 
 Reports already written to disk carry the `source` value that was canonical the
