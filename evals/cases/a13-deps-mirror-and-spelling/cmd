@@ -1,0 +1,3 @@
+# A13 HAPPY — the "Features and acceptance criteria" spelling now resolves the
+# section and mirrors real edges (it used to be a silent no-op).
+"$REPO/.claude/scripts/script-prd-deps-mirror.sh" prd.md

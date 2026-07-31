@@ -90,6 +90,9 @@ context text, then write:
   this keep happening. Not what the user did; not what the code under test did.
 - **Recommended fix path** — the concrete change and where it lives (script, protocol step,
   ref, template), phrased as a brief for a later session.
+- **Regression eval** — name the case the fix session must land under `evals/cases/`: slug,
+  fixture shape, and the refusal it must assert. Naming only — this mode writes no code and
+  no eval.
 
 Anti-fabrication: diagnose from the rows in front of you. If the context lines do not
 support a cause, say so — `Cause not determinable from the logged context; add detail to
@@ -106,6 +109,7 @@ Two edits to `devkit/DOCTOR.md` per flagged signature, and nothing else:
 **Occurrences**: <count> (first <first-date>, latest <last-date>)
 **Diagnosis**: <2–3 lines from Step 2>
 **Recommended fix**: <fix path from Step 2>
+**Regression eval**: evals/cases/<signature-slug> — <one line: the fixture that reproduces this, and the loud exit it must assert>
 ```
 
 2. Flip that signature's `logged` rows to `graduated` in the `## Incidents` table. Change
@@ -128,12 +132,14 @@ as the last chat output. Protocol: 🟢 when nothing reached the threshold · �
 signatures graduated (they need the human's judgment) · 🔴 only when the run could not
 read the ledger. On 🟡, **step 1 is always: start a new session to fix the graduated
 issue(s), quoting the block(s) from `devkit/DOCTOR.md`** — this mode does not offer to do
-it, and does not do it if asked mid-run.
+it, and does not do it if asked mid-run. That session is done only when the named eval case
+lands red → green: failing before the fix, passing after.
 
 ## References
 
 - `../../shared/refs/doctor-logging.md` — the two logging channels, the signature-class enum, and the appender every skill writes rows through
 - `.claude/scripts/script-doctor-tally.sh` — the tally: groups rows by skill + signature, flags every group at 3+ occurrences with at least one row still `logged`
 - `.claude/scripts/script-doctor-log.sh` — the appender (write path; this mode never calls it)
+- `evals/run.sh` — the regression-eval runner; a failing case logs `validator-fail:eval-<slug>` to this ledger
 - `refs/init/templates/template-DOCTOR.md` — the scaffold `/msg --init` writes to `devkit/DOCTOR.md`
 - `../../shared/refs/closing-message.md` — the closing message every run ends with

@@ -1,0 +1,10 @@
+# A2b — the required-reviews check used to be keyed on the literal `main`, so a
+# repo whose release_flow names another prod branch had the human-approval half
+# of D11 silently skipped. The prod branch now comes from policy.json.
+# HOME is repointed at a symlink to the repo's own scripts dir, so the real
+# policy reader runs without anything being vendored into the fixture.
+git init -q -b production .
+git remote add origin https://example.invalid/x/y.git
+mkdir -p home/.claude
+ln -s "$REPO/.claude/scripts" home/.claude/scripts
+HOME="$PWD/home" PATH="$PWD/bin:$PATH" "$REPO/.claude/scripts/script-branch-protection.sh" --verify production

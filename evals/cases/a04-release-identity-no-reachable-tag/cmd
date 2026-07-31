@@ -1,0 +1,12 @@
+# A4 — a v* tag exists but is not reachable from the prod ref ⇒ refuse instead of
+# numbering the next release from 0.0.0. Self-contained throwaway repo, no remote.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+$G init -q -b main .
+echo a > f.txt; $G add -A; $G commit -qm c1
+$G checkout -q -b side
+echo b > f.txt; $G add -A; $G commit -qm c2
+$G tag v4.0.0
+$G checkout -q main
+echo c > g.txt; $G add -A; $G commit -qm c3
+"$REPO/.claude/scripts/script-release-identity.sh" --prod main --bump minor

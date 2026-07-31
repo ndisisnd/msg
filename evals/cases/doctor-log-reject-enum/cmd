@@ -1,0 +1,1 @@
+"$REPO/.claude/scripts/script-doctor-log.sh" DOCTOR.md --skill pre-merge --signature bogus:thing --context "demo row" --date 2026-01-15

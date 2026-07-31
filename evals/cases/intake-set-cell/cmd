@@ -1,0 +1,4 @@
+# E4 — --set-cell rewrites exactly one cell of one row and prints the OLD value on
+# stdout (the /intake --update protocol reads it for its old → new echo). The
+# other cells, rows and the header are untouched (file golden).
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md 3 --set-cell goal "catch second-run damage in writers"

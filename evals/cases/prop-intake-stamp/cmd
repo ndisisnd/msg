@@ -1,0 +1,12 @@
+# E3 — script-intake-stamp.sh: a status stamp is idempotent (same value twice =
+# same bytes), and --append-row must fold hostile --idea text (pipes + newlines)
+# into one row without disturbing the header.
+set -e
+. "$REPO/evals/lib/properties.sh"
+S="$REPO/.claude/scripts/script-intake-stamp.sh"
+
+prop_idempotent INTAKE.md -- "$S" INTAKE.md 1 --status in-progress
+
+"$S" INTAKE.md 3 --append-row --type feature \
+  --idea "$(printf 'pipe | inside idea\nand a second line')" \
+  --goal "keep | the table well-formed" --grade "C:4 T:3 S:now" --date 2026-01-15

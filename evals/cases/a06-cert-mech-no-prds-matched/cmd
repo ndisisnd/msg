@@ -1,0 +1,1 @@
+python3 "$REPO/.claude/scripts/script-cert-mech.py" prd.md --checks 6 --features-root features-empty --platforms NOPE.md

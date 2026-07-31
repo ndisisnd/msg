@@ -1,0 +1,4 @@
+# A21 — with no Files column every row's file set is empty, so "zero collisions"
+# is meaningless rather than safe. stdout is empty on this path; the refusal is
+# on stderr, folded in here.
+python3 "$REPO/.claude/scripts/script-em-exec-collision.py" exec.md 2>&1

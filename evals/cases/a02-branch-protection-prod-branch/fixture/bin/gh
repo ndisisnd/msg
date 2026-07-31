@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Stub `gh` — prints the four @tsv fields the verify query asks for:
+#   strict_checks · no_force_pushes · review_count · contexts_length
+# Here: protected and with required contexts, but ZERO required reviews.
+printf 'true\ttrue\t0\t2\n'

@@ -1,0 +1,9 @@
+{
+  "tier": "S",
+  "signals": {
+    "modules": 0,
+    "ratio": 0.01,
+    "fan_in_pct": 0.1
+  },
+  "trigger": "modules=0<=2, ratio=0.01<=0.10, fan_in_pct=0.1<0.90"
+}

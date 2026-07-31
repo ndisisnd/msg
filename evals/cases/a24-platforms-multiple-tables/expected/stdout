@@ -1,0 +1,22 @@
+script-platforms-parse: WARN=multiple-platform-tables lines=16,5 — 2 rows in PLATFORMS.md name a `platform` column; the LAST (line 16) is used and every row under the earlier one(s) is invisible to this parse
+PLATFORMS_FILE=PLATFORMS.md
+PLATFORM_COUNT=1
+PLATFORMS=macos
+macos.release_model=deploy
+macos.release_model_source=declared
+macos.rollback_possible=limited
+macos.rollback_lever_key=rollback_cmd
+macos.rollback_lever=make rollback
+macos.tolerance=standard
+macos.staging_deploy_cmd=make staging
+macos.production_deploy_cmd=make release
+macos.staging_config=
+macos.smoke_cmd=make smoke
+macos.smoke_watch_window=
+macos.smoke_poll=
+macos.smoke_mode=one_shot
+macos.notarize_status_cmd=
+macos.signing_smoke_cmd=
+macos.appcast_url=
+macos.version_probe=
+macos.required_buckets=e2e, smoke

@@ -1,0 +1,3 @@
+SKIP check=6 facet=edge-targets reason=no-prds-matched-glob
+SKIP check=6 facet=buckets reason=no-platforms-file
+SUMMARY checks=6 findings=0 critical=0 major=0

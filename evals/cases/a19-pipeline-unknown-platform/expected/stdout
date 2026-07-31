@@ -1,0 +1,1 @@
+script-pipeline-resolve: WARN=unknown-platform detail=PLATFORMS.md line 23: `desktop` is not one of android,backend,ios,macos,server,web — no component's applicability covers it, so none of its checks are scheduled and it raises no coverage gap

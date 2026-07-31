@@ -25,11 +25,13 @@ al-*.jsonl
 # ── Local config ──────────────────────────────────────────────────────────────
 settings.local.json
 
-# ── Working dirs (plans, features, evals) ─────────────────────────────────────
+# ── Working dirs (plans, features) ────────────────────────────────────────────
+# Root evals/ is the committed regression-eval suite (v5.1) — deliberately NOT
+# ignored; the legacy scratch suite lives under update/, which is.
 plans/
 features/
 roadmap/
-evals/
+devkit/
 eval-msg-workflow*
 handoff/
 update/

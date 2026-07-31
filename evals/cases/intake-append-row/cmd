@@ -1,0 +1,6 @@
+# E4 — --append-row writes a full 8-cell row (#, date, type, idea, goal, grade,
+# status, prd) after the last ledger row. Columns come from the header, not fixed
+# indexes; --date is pinned so the golden holds. Nothing is printed on stdout.
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md 4 --append-row \
+  --type feature --idea "gap-fill cases" --goal "cover every writer verb" \
+  --grade "C:2 T:2 S:now" --date 2026-01-15 --status in-progress --prd prd-4-gap-fill

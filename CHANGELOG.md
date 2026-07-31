@@ -2,6 +2,37 @@
 
 ## 2026-07-31
 
+### [102] — Writer property harness + verb gap-fill (v5.1 P2)
+
+- `evals/lib/properties.sh`: Added — three sourced property checks for writer cases (`prop_idempotent`, `prop_preserves`, `prop_refuses`), each emitting a stable token the case's stdout golden pins; violations surface through the case's own exit code, runner untouched
+- `evals/cases/`: Added — eight cases: four `prop-*` (doctor-log append-only + injection folding, prd-stamp idempotence/preservation/refusal, intake-stamp idempotence + folded append, aha/openq placement + resolved-rejection) and four verb gap-fills (intake append-row/remove-row/set-cell, deps-mirror idempotence); suite now 48 cases, 48/48 green in ~3.3 s
+
+### [101] — Promote the 25 v5.0.1 fail-silent assertions into regression evals (v5.1 P1)
+
+- `evals/cases/`: Added — 34 cases (`a01`–`a25` families) promoted from the v5.0.1 assertion fixtures, one per shipped loud-exit contract (drift direction always; happy path where it guards distinct behaviour, e.g. `a16` title-anchored scan, `a18` shifted-ledger tally); all hermetic — throwaway `git init` repos, committed `gh` stubs, sandboxed `$HOME`, pinned dates/identities; suite now 40 cases, 40/40 green in ~2.8 s
+- Q3 verified: no contract drift since v5.0.1 — every assertion still emits its documented token and exit code; zero fixtures patched, zero assertions dropped
+
+### [100] — Document the self-healing loop and gate releases on it (v5.1 P5)
+
+- `ARCHITECTURE.md`: Changed — new "Self-healing loop" section (detect → log → diagnose → fix → gate, with real paths, deferred-diagnosis and mechanistic-grading principles) and a "Releasing" note: `bash evals/run.sh` before tagging, any FAIL blocks on the exit code
+- `README.md`: Changed — FAQ entry "What happens when the harness itself misbehaves?" (conceptual: log, batch-triage, graduate, every fix leaves a permanent pre-release check)
+
+### [99] — Graduation now mints a regression eval (v5.1 P4)
+
+- `.claude/skills/msg/refs/protocol-doctor.md`: Changed — Step 2 and the graduated-issue block gain a required `**Regression eval**:` line (the doctor names the case; still writes no code); the 🟡 fix-session step's definition of done now includes landing that eval red → green; References gains `evals/run.sh`
+- `.claude/skills/shared/refs/doctor-logging.md`: Changed — documents the eval runner as a Channel-1 caller (`validator-fail:eval-<case-slug>`, same appender, same exit-3 skip) and the division of labour: eval failures block on the runner's exit code immediately, the 3-occurrence threshold governs live incidents only
+
+### [98] — Close the eval loop into the incident ledger (v5.1 P3)
+
+- `evals/run.sh`: Changed — a FAIL now appends one row to `devkit/DOCTOR.md` via `script-doctor-log.sh` (`--skill evals`, signature `validator-fail:eval-<slug>`, context = cmd + one-line reason); best-effort, absent-ledger skip, diagnosis stays deferred to `/msg --doctor`
+- `.gitignore`: Changed — ignore `devkit/` (the harness's own ledger is local telemetry, per template-DOCTOR.md's never-committed contract)
+
+### [97] — Stand up the regression-eval suite (v5.1 P0)
+
+- `evals/run.sh`: Added — the mechanistic eval runner: case = `fixture/` + `cmd` + `expected/{exit,stdout,files/}`, run in a temp copy with `TZ=UTC`, golden-diff grading, `--only <slug>`, exit 0 iff all pass
+- `evals/cases/`: Added — six pilot cases covering the doctor appender (append, enum refusal), the doctor tally (triage threshold, unparsed-header refusal) and the intake stamp (status flip, absent-column refusal); all goldens captured from real script runs
+- `.gitignore`: Changed — root `evals/` un-ignored (the ignore was for the May-era scratch suite, which moved to `update/[deprecated]/evals-v2/`)
+
 ### [96] — Make the repo readable to strangers and to agents
 
 - `README.md`: Changed — figlet header, badges and nav added; the two skill tables rewritten from dense implementation prose into one-or-two-sentence rows split per mode; the run-report, closing-message and safety-floor blocks condensed from 470 to 180 words; new Install-verify, How-to-update, FAQ and Documentation sections

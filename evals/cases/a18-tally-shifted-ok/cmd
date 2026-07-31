@@ -1,0 +1,5 @@
+# A18 HAPPY — the same ledger with a `#` column inserted in front of date. Under
+# the old fixed `$2..$6` parse nothing matched and the tally reported
+# DOCTOR_ROWS=0 at exit 0; columns are now resolved by header name, so the
+# shifted ledger tallies correctly and still flags its group at threshold.
+"$REPO/.claude/scripts/script-doctor-tally.sh" DOCTOR-shifted.md

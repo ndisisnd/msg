@@ -1,0 +1,15 @@
+# E3 — script-doctor-log.sh is append-only BY DESIGN, so prop_idempotent does not
+# apply: two appends must produce two rows (DOCTOR_ROWS 3 then 4). What must hold
+# is the refusal (bad signature class leaves the file untouched) and the folding
+# of hostile --context text into exactly one well-formed row.
+set -e
+. "$REPO/evals/lib/properties.sh"
+S="$REPO/.claude/scripts/script-doctor-log.sh"
+
+"$S" DOCTOR.md --skill pre-merge --signature retry:demo --context "row A" --date 2026-01-15
+"$S" DOCTOR.md --skill pre-merge --signature retry:demo --context "row B" --date 2026-01-15
+
+prop_refuses 2 DOCTOR.md -- "$S" DOCTOR.md --skill pre-merge --signature bogus-class:x --context "must not land" --date 2026-01-15
+
+"$S" DOCTOR.md --skill evals --mode --doctor --signature validator-fail:inject \
+  --context "$(printf 'cell | break\nnewline row | **bold** `code` [link](x)')" --date 2026-01-15

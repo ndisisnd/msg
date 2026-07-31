@@ -1,0 +1,4 @@
+# A15 — exec rows are rendered `F1 — name`, so the strict `--feature` filter
+# empties a previously non-empty exec_table. Refuse rather than hand back an
+# empty-but-well-formed slice.
+python3 "$REPO/.claude/scripts/script-prd-digest.py" prd.md --slice build --feature F1

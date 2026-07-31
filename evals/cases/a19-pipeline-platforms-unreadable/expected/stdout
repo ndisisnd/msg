@@ -1,0 +1,1 @@
+script-pipeline-resolve: ERROR=platforms-unreadable detail=adir exists but cannot be read ([Errno 21] Is a directory: 'adir') — refusing to resolve a plan whose platform coverage-gap check silently saw no targets

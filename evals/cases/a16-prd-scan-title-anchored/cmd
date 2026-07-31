@@ -1,0 +1,8 @@
+# A16 — fullness is anchored on section TITLE, not on hardcoded section numbers,
+# and a heading that exists but parses no rows is distinguishable from one that
+# was never written.
+#   prd-1-renumbered  §4/§7 headings      → full=true   (was: both "missing")
+#   prd-2-decorated   **F1** / `F1` ids   → full=true   (was: both "missing")
+#   prd-3-emptytable  headings, no rows   → *-unparsed  (the new vocabulary)
+#   prd-4-nosections  no headings at all  → acceptance-criteria / exec-table
+"$REPO/.claude/scripts/script-prd-scan.sh"

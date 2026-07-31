@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# Stub `gh`: always unauthenticated, so the --git ladder's gh rung is pinned
+# regardless of whether the developer running the evals has gh installed.
+exit 1

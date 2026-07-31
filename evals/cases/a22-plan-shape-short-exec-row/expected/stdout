@@ -1,0 +1,4 @@
+FAIL check=3 code=unmapped-feature ref=assertions/F2 detail='### F2' exists under '## Todos — assertions' but no exec-table row owned by assertions carries F2
+FAIL check=6 code=short-exec-row ref=row 12 detail=the row has 2 cell(s) but the header has 3 — it is dropped, so any ticket it points at looks unpointed (row: F2: Session cookie | assertions)
+FAIL check=6 code=unpointed-ticket ref=assertions/F2-T1 detail=line 33: no exec-table row points at this ticket — it is invisible to a row-scoped build
+SUMMARY checks=1,2,3,4,5,6 agents=assertions failures=3

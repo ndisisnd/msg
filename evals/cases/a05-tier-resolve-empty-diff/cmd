@@ -1,0 +1,9 @@
+# A5 — throwaway two-commit repo; no remote, no network.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+$G init -q -b main .
+mkdir -p src; echo a > src/a.txt; $G add -A; $G commit -qm c1
+echo b > src/a.txt; $G add -A; $G commit -qm c2
+# A5 HAPPY — the diff ran and is genuinely empty (base == HEAD) ⇒ tier S, the
+# narrowing that keeps "undiffable" distinct from "nothing changed".
+"$REPO/.claude/scripts/script-tier-resolve.sh" HEAD --affected-ratio 0.01 --fan-in-pct 0.1

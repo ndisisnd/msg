@@ -1,0 +1,3 @@
+# A9 — prd-7 is parked in features/archive/, outside the four scanned lanes.
+# Handing out 4 would mint a number that already exists.
+"$REPO/.claude/scripts/script-prd-number" prd

@@ -1,0 +1,4 @@
+BRANCH=feat/prd-9-stale-main
+ACTION=checkout
+LANE_MOVE=none
+MAIN_BEHIND_REMOTE=true

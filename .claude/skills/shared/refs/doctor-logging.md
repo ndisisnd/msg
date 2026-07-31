@@ -46,6 +46,13 @@ nothing about control flow.
 - Class: `validator-fail` for a checker/validator, `write-miss` for a writer that
   did not write, `tool-error` for anything else.
 - Step after the colon: the script's name or the artifact it failed on.
+- **The eval runner is a caller too:** a failing case in `evals/run.sh` appends one row —
+  skill `evals`, signature `validator-fail:eval-<case-slug>`, context = the case's cmd plus
+  a one-line diff summary. Same appender, same exit-3 skip when the ledger is absent.
+- **Blocking is not the threshold's job:** a failed eval blocks the release immediately, on
+  the runner's bare exit code, without waiting for 3 occurrences. The threshold governs live
+  incidents; the row exists so `/msg --doctor` sees eval regressions and live incidents in
+  one tally.
 - **Exempt:** documented "nothing to do" codes — e.g. the `exit 3` that the shared
   appenders (`script-aha.sh`, `script-openq.sh`, `script-doctor-log.sh`) return when
   the target file is absent. A designed skip is not an incident.
