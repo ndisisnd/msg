@@ -82,6 +82,12 @@ coverage-gap findings, and the run proceeds).
 
 Write the plan to `.pre-merge/<ts>/plan.json` so §5's completeness check can read it.
 
+**Heartbeat starts here** (`../../shared/refs/status-heartbeat.md`). Once the plan
+is written, call `--start --phase pre-merge --run-id premerge-<epoch> --total <len(run[])> --label "<resolved pipeline>"` —
+`--total` is the plan's `run[]` count, `--label` the resolved pipeline already
+quoted verbatim above. `<epoch>` is fixed once, at this call, and every later
+`--tick`/`--end` in the run reuses `premerge-<epoch>` verbatim.
+
 ### What the script implements (reference — do not re-execute by hand)
 
 1. **Presence.** Include a component iff `present:true` **or** `mandatory:true`.
@@ -205,6 +211,13 @@ A starts — true under every flag combination. Within a wave:
 - **Dependent components never run concurrently** — a dependent waits for its
   whole `depends_on` set.
 
+**Heartbeat tick at each wave boundary.** After every wave completes, tick
+(`--tick --run-id premerge-<epoch> --step "wave <n> done" --done <n components complete>`)
+— the natural point where control returns between Kahn levels. When the next
+wave carries a known-long component (catalog `cost: expensive` — `e2e`, `perf`,
+`load`, `regression`'s accumulated run), that tick's `--next` names it and its
+expected duration, so the silence is bounded rather than mysterious.
+
 **Only-on-green tier.** `regression`'s test-authoring sub-step **and the C23 sandbox
 provisioning (§3b)** run only after the correctness
 components are green — never author or provision onto a red branch (catalog
@@ -249,13 +262,15 @@ stacks together — provisioned together, torn down together, never partially.
    `critical`) never provisions — zero env cost on a fail-fast. Run
    `ENV.md`'s `provision`, then its `seed` (migrate-from-zero + the
    committed seed fixture; `scale_factor` dataset for `perf`/`load` when declared).
+   Tick once provisioning completes (`--tick --run-id premerge-<epoch> --note "sandbox provisioned"`).
 2. **Run the env wave.** All present `needs_env:true` components execute inside the
    sandbox, concurrency rules unchanged (§3 — `load`/`perf` still run isolated), with
    `smoke` scheduled first so a dead app short-circuits the expensive ones (§2). Each
    writes its normal result report (§4); findings aggregate normally (§5). **No second
    environment is ever provisioned** — every env-needing component shares this one.
+   Once the wave's results are promoted into the aggregate, tick (`--note "env wave complete"`).
 3. **Teardown — always.** Run `ENV.md`'s `teardown` after **every** run,
-   pass or fail.
+   pass or fail. Tick once teardown completes (`--note "sandbox torn down"`).
 
 **Fix-loop warm reuse (S-Q2).** Within one fix-loop, the stack stays warm between
 iterations: run `ENV.md`'s `reset` (drop → remigrate → re-seed — seconds) instead of
@@ -446,6 +461,11 @@ runtime artifact. This is the `result` section of the one check-report schema (`
   "the environment hiccuped on something we didn't change" and "nothing has verified
   the thing we are shipping".
 - Mandatory-component reports are always written even when they degrade (`security` with no scanner → its `/cook` pass result).
+- **Heartbeat tick at each report write.** Immediately after this write, tick
+  (`--tick --run-id premerge-<epoch> --note "<check> <verdict>" --done <n components complete>`)
+  — the write is already one-per-component, making it the tick's natural site,
+  no step added to create it. When the report's `findings[]` graded this check
+  `blocker` or `high`, add `--finding <severity>` once per such finding.
 
 These per-check result reports are the executor's **single uniform aggregation
 input** — the verdict and the universal report are both *derived* from them, never
@@ -550,6 +570,11 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
   selection-capable check's line also carries `selected/total`, the tier, and any
   `fallback_reason` (§3c.3); on a full or selection-off run the lines are
   unchanged.
+- **Heartbeat ends here.** After the terminal issue summary and run report are
+  written, call `--end --run-id premerge-<epoch> --outcome "<verdict>"` —
+  before the verdict JSON is emitted. The verdict JSON (§5b) remains stdout's
+  final machine emission, byte-identical whether the heartbeat ran or was
+  disabled/quiet.
 
 ## Contract stability (load-bearing)
 

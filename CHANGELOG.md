@@ -2,6 +2,12 @@
 
 ## 2026-08-01
 
+### [107] — Heartbeat checkpoints in the pre-merge executor (v5.2 P2)
+
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — five checkpoint sites woven into the existing spine: `--start` once the pipeline plan is written (§1), a tick at each wave boundary (§3), the three sandbox lifecycle transitions (§3b), a tick at each per-component result-report write (§4 — already one-per-component, so no step was added to create a checkpoint), and `--end` at the terminal (§6). The verdict JSON stays stdout's final machine emission, byte-identical whether the heartbeat ran or was disabled
+- Long-component silence is handled by pre-announce only: when the next wave carries an `expensive` component (`e2e`, `perf`, `load`, `regression`), the preceding tick names it and its expected duration in `--next`
+- Plan Q2 resolved **against** backgrounding `unit`/`integration` with log polling: those components execute as opaque `Agent` subagent calls that return atomically, so the orchestrator never regains control mid-run to poll. Implementing it would mean changing the execution mechanism itself, putting the wave concurrency and fail-fast model at risk for a visibility gain — gate correctness outranks visibility
+
 ### [106] — The heartbeat contract, pulled ahead of the protocol edits (v5.2 P2a)
 
 - `.claude/skills/shared/refs/status-heartbeat.md`: Added — the one home for the cross-skill heartbeat contract: the checkpoint rule (and why a real timer is not expressible in a skill), the call surface, the report shape, the only-the-orchestrator-speaks rule for subagents, the two mitigations for long blocking steps, cadence resolution, and the degradation rule
