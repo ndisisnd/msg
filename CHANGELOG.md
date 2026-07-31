@@ -2,6 +2,13 @@
 
 ## 2026-08-01
 
+### [114] — The reviewer leaves a trace (v5.3 P2)
+
+- `.claude/skills/eng/refs/review/protocol.md`: Added — a § Artifact section. The reviewer writes its returned JSON object to `<prd-dir>/reports/review-prd-<N>-<K>.json` **before** returning it, temp-file-then-`mv`, so a reviewer that dies mid-run leaves no half-written file for a checker to read as a completed review. `<K>` is the spawner's packet key, never invented: no key, or a failed write, means say so in the one-liner and log a `write-miss` DOCTOR row, then let the caller's coverage check read the gap and re-spawn
+- `.claude/skills/eng/refs/review/protocol.md`: Changed — the return contract gains `reviewed_by` and `built_by`. This is what turns the file's own opening rule — *an agent that did not write the code* — from an aspiration into a checkable fact
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — Step 5a injects `built_by` and the artifact key alongside the existing inputs, reusing the build's own run-report `<K>` so a build and its review sit under one key; an orchestrated run passes the orchestrator's packet key through unchanged. The build summary's existing **Review** line now carries the verdict and the artifact path, so the evidence is quotable without opening the file
+- Step 5a's unconditional-review wording is untouched. v5.3 changes only whether a review leaves a trace, never what its findings gate — nothing below `high` blocks, and nothing here blocks a merge
+
 ### [113] — Regression evals for the review-coverage check (v5.3 P1)
 
 - `evals/cases/review-check-complete`: Added — every expected key covered exits 0 with the single coverage line an orchestrator quotes; severity counts aggregate across artifacts

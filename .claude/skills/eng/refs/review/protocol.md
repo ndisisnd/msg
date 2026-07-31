@@ -59,6 +59,8 @@ One JSON object — the schema's § Subagent return contract:
 {
   "verdict": "pass" | "warn" | "block",
   "reviewed": {"files": <n>, "basis": "working-diff" | "branch-base"},
+  "reviewed_by": "<this reviewer's agent identity>",
+  "built_by": "<the packet key or agent that wrote the code under review>",
   "fixed": [{"file": "<path>", "why": "<one line>"}],
   "questions": ["<behaviour call the reviewer refused to make>"],
   "comments_added": <n>,
@@ -67,6 +69,25 @@ One JSON object — the schema's § Subagent return contract:
 ```
 
 `verdict` is `block` while any `blocker`/`high` is unresolved, `warn` for medium/low only, `pass` when clean; `findings` always an array. One-liner: `reviewed <n> files — <k> fixed, <q> questions, <c> comments added`, or `— clean`.
+
+`reviewed_by` and `built_by` are what make this file's opening rule — *an agent that did not write the code* — a checkable fact rather than an aspiration: the coverage check (§ Artifact) fails an artifact whose two identities match. Both come from the spawner's injected context; a reviewer never invents them.
+
+## Artifact — the proof the review ran
+
+**Write the same object to `<prd-dir>/reports/review-prd-<N>-<K>.json` before returning it.** A self-reported review is exactly what a skipped review looks like from the outside, so presence must be a filesystem fact. The folder is the PRD's existing `reports/`, alongside the `report-prd-<N>-<K>.json` issues file (`../../../shared/refs/finding-schema.md`) — no new location, no new schema; the findings inside are byte-identical to the ones returned.
+
+- `<N>` is the PRD number; `<K>` is the **packet/agent key the spawner injected** — the orchestrator's packet key (`P1`, `P2`, …), which is the same key the coverage check is handed as `--expect` and the same one that appears in the decomposition table. A standalone build injects the `<K>` of its own run report.
+- **Write-then-return.** Write to a temp file in the same folder and `mv` it into place, so a reviewer that dies mid-run leaves no half-written artifact for a checker to read as a completed review.
+- No injected `<K>`, or the write fails: say so in the returned one-liner and log one `write-miss:review-prd-<N>-<K>.json` row per `../../../shared/refs/doctor-logging.md`. Do **not** invent a key — the caller's coverage check will read the gap as a miss and re-spawn a reviewer, which is the cheap and correct repair.
+
+Presence is verified mechanically by the caller, never by reading a summary:
+
+```bash
+R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/scripts/script-eng-review-check.sh"
+bash "$R" --reports-dir "<prd-dir>/reports" --expect "<k1,k2,…>"
+```
+
+Exit 0 = every expected key covered, with a one-line coverage summary; exit 1 = one `MISSING <k>` / `SELF-REVIEWED <k>` line per gap; 2 = usage; 3 = expectation underivable. An artifact that does not parse counts as **missing**, never as covered.
 
 ## Spawning
 
