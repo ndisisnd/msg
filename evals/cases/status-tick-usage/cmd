@@ -1,0 +1,5 @@
+# S11 — the only non-zero exit is 2, for a genuine caller usage error. An
+# unknown flag must hit that path and produce no stdout (the usage text goes
+# to stderr, which is discarded here since only the exit code is pinned).
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --tick --run-id u1 --bogus-flag 2>/dev/null

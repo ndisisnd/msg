@@ -2,6 +2,12 @@
 
 ## 2026-08-01
 
+### [105] — Regression evals for the cadence engine (v5.2 P1)
+
+- `evals/cases/status-tick-*`: Added — nine cases pinning the heartbeat's observable contract: `quiet` (silent before the interval), `report` (the full five-line block, glyphs included), `drain` (notes banked across silent ticks surface exactly once, then are gone), `minimal` (a report with nothing set renders two lines — the guard against the empty `now:` line fixed during P0), `disabled`, `corrupt` (garbage state degrades to `QUIET` at exit 0), `clamp` (the 2-minute floor and its stderr note), and two `usage` cases for distinct exit-2 paths
+- `evals/cases/prop-status-tick`: Added — the writer property run over the state file: idempotency, byte-preservation outside the keys a tick owns, refusal correctness (exit 2 leaves the file untouched), and injection folding (a note carrying `|`, `=` and a newline lands as one clean `EVENT=` line)
+- Every case pins the clock through `--now`, so no golden can carry a real date. Suite now 58 cases, 58/58 green in ~3.8 s. Red-tested by perturbing the script (clamp floor, drain, unconditional `now:` line, header label) and confirming each case goes red before restoring
+
 ### [104] — The status heartbeat's cadence engine (v5.2 P0)
 
 - `.claude/scripts/script-status-tick.sh`: Added — the sole owner of the "has the status interval elapsed?" arithmetic behind the 5-minute run heartbeat. Three verbs: `--start` opens a phase and resolves the cadence once, `--tick` is the checkpoint call that either prints `QUIET` or fires `REPORT` plus the rendered status block, `--end` closes with a summary and removes the state. Skills call it at checkpoints; no skill ever does elapsed-time math itself

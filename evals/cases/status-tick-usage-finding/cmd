@@ -1,0 +1,5 @@
+# S11 — a --finding value outside the blocker/high/medium/low enum is a
+# distinct usage-error code path from an unknown flag (arg-parsing branch vs
+# enum-validation branch); both must exit 2 with no stdout.
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --tick --run-id u2 --finding critical 2>/dev/null

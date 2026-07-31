@@ -1,0 +1,12 @@
+# S11 — notes banked across several intervening QUIET ticks must all surface,
+# each exactly once, on the next REPORT's `done:` line, then be gone from the
+# REPORT after that (the event list drains on report). Two REPORTs appear in
+# this case's stdout so the drain is actually proven, not just asserted.
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase build --run-id d1 --now 1754000000 >/dev/null
+"$S" --tick --run-id d1 --note "n1" --now 1754000050
+"$S" --tick --run-id d1 --note "n2" --now 1754000100
+"$S" --tick --run-id d1 --note "n3" --now 1754000150
+"$S" --tick --run-id d1 --now 1754000300
+"$S" --tick --run-id d1 --note "n4" --now 1754000350
+"$S" --tick --run-id d1 --now 1754000600

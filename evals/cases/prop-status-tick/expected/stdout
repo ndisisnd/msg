@@ -1,0 +1,8 @@
+PROP_IDEMPOTENT=.claude/msg/cache/status/p1.state
+PROP_PRESERVES=.claude/msg/cache/status/p1.state
+PROP_REFUSES=2
+INJECTION_FOLDED=1
+REPORT
+⏱ 5m · build
+done: row weird stuff second line
+now: compiling2

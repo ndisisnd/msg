@@ -1,0 +1,10 @@
+# S11 — MSG_STATUS_INTERVAL=1 (below the 2-minute floor) clamps to 2 minutes
+# and prints one STATUS_CLAMPED note to stderr at --start. The note is folded
+# into stdout here (2>&1 before the >/dev/null) so it's pinned in the golden;
+# --start's own normal output is discarded. A tick at +1m is still QUIET
+# (clamped interval not yet elapsed); a tick at +2m is REPORT.
+export MSG_STATUS_INTERVAL=1
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase build --run-id cl1 --now 1754000000 2>&1 >/dev/null
+"$S" --tick --run-id cl1 --now 1754000060
+"$S" --tick --run-id cl1 --now 1754000120

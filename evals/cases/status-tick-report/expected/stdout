@@ -1,0 +1,6 @@
+REPORT
+⏱ 6m · build · 3/10 · batch A
+done: wrote foo
+now: compiling
+issues: 0 blocker / 1 high / 0 medium
+next: run tests
