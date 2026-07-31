@@ -2,7 +2,7 @@
 name: eng
 description: >
   Platform-agnostic engineering agent with three modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec), --review (one adversarial whole-change review of the working diff, run by a separate reviewer subagent — spawned by --build automatically, and available standalone on any branch at any time). Use --review when the user says "review this change", "review my diff", "code review this branch", or invokes /eng --review. Invoked by plan-em or directly by the user.
-argument-hint: "<--plan | --build | --review> [report=<path>]"
+argument-hint: "<--plan | --build | --review> [report=<path>] [--quiet | --status <n>m]"
 allowed_tools:
   - Bash
   - Read
@@ -32,6 +32,8 @@ Read the invocation flag and load exactly one mode protocol:
 | `--review` | `refs/review/protocol.md` |
 
 **Natural-language triggers for `--review`.** "review this change", "review my diff", "code review this branch", "adversarial review", "look for bugs in what I just wrote" → route to `--review`. Anything asking for *style, naming or standards* is `/cook`, not this mode.
+
+**`--quiet` / `--status <n>m`** (`--build` only) — suppress or override this run's status heartbeat; flag beats policy beats default (`../shared/refs/status-heartbeat.md`).
 
 Exactly one mode flag must be present (`--plan` | `--build` | `--review`). If zero or more than one is given, emit:
 
@@ -174,4 +176,5 @@ Throughout Steps 2–5, enforce strict scope: act only on what the assigned exec
 - `.claude/scripts/script-project-findings.py` — the ONE finding→issue-ticket projection, and the issues-file validator that replaces the prose not-found/unparseable/empty/malformed checks. Read-only; the `--gui` board loads the same file, so the two consumers cannot drift.
 - `.claude/scripts/script-eng-fix-grade.py` — the executable simple/complex fix-complexity rubric + tier→model mapping. Both the fix plan and the orchestrated fix build call it; a caller may escalate `simple`→`complex`, never downgrade.
 - `.claude/scripts/script-eng-close-loop.py` — the only sanctioned write to an issues file: sets `followUp.status` and proves every other byte is unchanged before replacing the file atomically.
+- `../shared/refs/status-heartbeat.md` — the `--quiet`/`--status` heartbeat contract
 - **Contract:** the `## Engineering — <Agent>` and `## Todos — <Agent>` headings written by `--plan` (same pass) are how `plan-em` detects the section is ready and how `--build` locates its spec. Do not rename them.

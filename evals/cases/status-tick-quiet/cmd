@@ -1,0 +1,6 @@
+# S11 — a tick before the cadence interval (default 5m/300s) has elapsed must
+# stay silent: exactly QUIET on stdout, exit 0. --start's own output is
+# discarded so only the tick under test lands in the golden.
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase build --run-id q1 --now 1754000000 >/dev/null
+"$S" --tick --run-id q1 --now 1754000100

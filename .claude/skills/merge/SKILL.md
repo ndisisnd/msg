@@ -7,7 +7,7 @@ description: >
   double-confirmed release to `main` and deploys production. Never
   self-certifies staging; nothing reaches `main` any other way. Activates on
   /merge after pre-merge's PR exists.
-argument-hint: "<--staging | --production> [--prd <path>] [--bump <major|minor|patch>] [--version <x.y.z>]"
+argument-hint: "<--staging | --production> [--prd <path>] [--bump <major|minor|patch>] [--version <x.y.z>] [--quiet | --status <n>m]"
 allowed_tools:
   - Bash
   - Read
@@ -36,6 +36,8 @@ pre-merge (PR feature→staging)  →  merge --staging  →  (human tests stagin
 - `/merge --production --prd <path>` (repeatable) — the PRD(s) this release ships; used for the release body + the sign-off precondition
 - `/merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod). The resolved `v<x.y.z>+<build>` is shown in the confirm before it is cut (`refs/release-identity.md`)
 - `/merge --init` — detect ship tooling (branch protection, deploy/smoke CLIs, staging readiness), interview about the gaps, write `devkit/policy.json`. Performs **no** merge, PR, or deploy (`refs/protocol-init.md`)
+- `/merge --quiet` — suppress this run's status heartbeat
+- `/merge --status <n>m` — override the heartbeat interval for this run; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
 
 Natural language: "ship this to staging", "merge the staging PR", "promote to production", "release to production", "ship it live".
 
@@ -291,6 +293,6 @@ chat output after the mode's own emissions.
 - `refs/output-schema.md` — finding/verdict emission
 - `../shared/refs/policy-schema.md` — the shared core of `devkit/policy.json` (§0 `init`, §1 `release_flow`, §2b `github_actions`)
 - `../shared/refs/policy-schema-merge.md` — merge's half: §2 `branch_protection`, `steps.<key>` + §3, §4 `release_model`, §5 `staging_ready`, §6 the release lock
-- `../shared/refs/fix-loop.md`, `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`
+- `../shared/refs/fix-loop.md`, `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`, `../shared/refs/status-heartbeat.md`
 - `.claude/scripts/` — `script-branch-protection.sh` · `script-signoff-coverage.sh` · `script-release-lock.sh` · `script-release-identity.sh` · `script-prd-stamp.sh` · `script-intake-stamp.sh` (incl. `--find-row`, PRD id → ledger row)
 - `.claude/scripts/` — the resolvers: `script-policy-read.py` (every policy mode + its `?? default`) · `script-ci-status.py` (PR resolution + the one CI verdict) · `script-platforms-parse.py` (the one `PLATFORMS.md` parse) · `script-smoke-run.sh` (the v2 smoke loops + the macOS checks) · `script-ts-miss.py` (test-selection-miss, CI-backstop half)

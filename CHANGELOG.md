@@ -1,5 +1,53 @@
 # Changelog
 
+## 2026-08-01
+
+### [110] — Per-run heartbeat flags, policy key and docs (v5.2 P5)
+
+- `.claude/skills/{eng,merge,plan-em,pre-merge}/SKILL.md`: Added — `[--quiet | --status <n>m]` in each `argument-hint`, a Usage line in each skill's existing style, and a References pointer to `../shared/refs/status-heartbeat.md`. eng's is scoped `(--build only)`; pre-merge is the single place that states the 2-minute floor. No SKILL.md restates the report shape or the checkpoint rule — the contract stays the one source
+- `.claude/skills/shared/refs/status-heartbeat.md`: Changed — states the flag→env mapping explicitly (`--quiet` → `MSG_STATUS_INTERVAL=0`, `--status <n>m` → `=<n>`, neither → policy decides), so the four SKILL.md flags have exactly one documented path into the script
+- `.claude/skills/shared/refs/policy-schema.md`: Added — `policies.status_cadence` (`{enabled, interval_minutes}`, default on/5). Read only by `script-status-tick.sh` at `--start`, **not** by `script-policy-read.py`, so no skill plumbs the key itself; malformed falls through silently
+- `README.md`: Added — "Why did the run go quiet for eight minutes?" answered in the FAQ voice: one long step with no natural pause inside it, pre-announced rather than unexplained
+- `ARCHITECTURE.md`: Added — a **Run visibility** section stating the cadence-checked-checkpoint stance and that the heartbeat is purely observational — it never moves a verdict, a refusal or a gate
+
+### [109] — Heartbeat checkpoints in the ship gate (v5.2 P4)
+
+- `.claude/skills/merge/refs/staging.md` and `refs/production.md`: Changed — `--start` after the policy pre-flight, a tick at each numbered step boundary (protection → readiness → CI → merge → deploy → verify, and production's longer chain through the lock, release PR and tag), and a tick inside the smoke v2 `watch_window`/`poll` loops, which already re-enter the orchestrator per iteration
+- **The human gates are byte-identical.** No tick sits between a gate's question and its answer: the staging human-test STOP, the production double-confirmation and the `direct`-flow inline attestation are untouched, and production's post-gate tick fires only once every ask has resolved. Ticks sit around the release lock and the rollback offer, never inside them
+- Pre-announce durations stay qualitative ("platform-declared, see `devkit/PLATFORMS.md`") rather than invented minute counts — a fabricated progress number is worse than silence
+- `.claude/skills/shared/refs/status-heartbeat.md`: Changed — `--end` now explicitly fires on **every** exit, not just the happy one. A phase closing only on success both withholds the summary at the moment a human most wants it and leaks one state file per bad run. Wired into staging's smoke-failure stop and production's failed-ship path
+
+### [108] — Heartbeat checkpoints in eng --build and the team orchestrator (v5.2 P3)
+
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — a **standalone** build opens the heartbeat at the top of the work steps (`--total` = ticket count), ticks per ticket whose `done-when` just passed, pre-announces the two long steps that have no checkpoint inside them (the full-suite gate and the Step-5a review spawn) and ticks on each one's return, then closes at the build summary. Steps 1–4 are input validation and human-facing gates — fast, so they get nothing
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the team orchestrator owns the heartbeat for both waves: opens at dispatch with the packet count as `--total`, pre-announces each wave before spawning (it is blocked while leaves run), ticks once per returning leaf, closes at consolidation
+- The two contracts cannot blur: an **orchestrated** build never opens its own heartbeat, and the `standards payload` signal the protocol already uses to tell orchestrated from standalone is what decides it. Stated once on each side, cross-referenced, so the files cannot drift
+- Subagent return contract gains exactly one line — `status: <packet-or-ticket-id> <done|blocked> — <≤8-word summary>` — the only sanctioned path from a leaf into the heartbeat. Leaves never call the tick script and never emit status themselves
+
+### [107] — Heartbeat checkpoints in the pre-merge executor (v5.2 P2)
+
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — five checkpoint sites woven into the existing spine: `--start` once the pipeline plan is written (§1), a tick at each wave boundary (§3), the three sandbox lifecycle transitions (§3b), a tick at each per-component result-report write (§4 — already one-per-component, so no step was added to create a checkpoint), and `--end` at the terminal (§6). The verdict JSON stays stdout's final machine emission, byte-identical whether the heartbeat ran or was disabled
+- Long-component silence is handled by pre-announce only: when the next wave carries an `expensive` component (`e2e`, `perf`, `load`, `regression`), the preceding tick names it and its expected duration in `--next`
+- Plan Q2 resolved **against** backgrounding `unit`/`integration` with log polling: those components execute as opaque `Agent` subagent calls that return atomically, so the orchestrator never regains control mid-run to poll. Implementing it would mean changing the execution mechanism itself, putting the wave concurrency and fail-fast model at risk for a visibility gain — gate correctness outranks visibility
+
+### [106] — The heartbeat contract, pulled ahead of the protocol edits (v5.2 P2a)
+
+- `.claude/skills/shared/refs/status-heartbeat.md`: Added — the one home for the cross-skill heartbeat contract: the checkpoint rule (and why a real timer is not expressible in a skill), the call surface, the report shape, the only-the-orchestrator-speaks rule for subagents, the two mitigations for long blocking steps, cadence resolution, and the degradation rule
+- Sequencing deviation from the plan: S9 was queued in P5, but the P2–P4 protocol edits all cite it, so it lands first. P5 keeps the flags and the docs
+
+### [105] — Regression evals for the cadence engine (v5.2 P1)
+
+- `evals/cases/status-tick-*`: Added — nine cases pinning the heartbeat's observable contract: `quiet` (silent before the interval), `report` (the full five-line block, glyphs included), `drain` (notes banked across silent ticks surface exactly once, then are gone), `minimal` (a report with nothing set renders two lines — the guard against the empty `now:` line fixed during P0), `disabled`, `corrupt` (garbage state degrades to `QUIET` at exit 0), `clamp` (the 2-minute floor and its stderr note), and two `usage` cases for distinct exit-2 paths
+- `evals/cases/prop-status-tick`: Added — the writer property run over the state file: idempotency, byte-preservation outside the keys a tick owns, refusal correctness (exit 2 leaves the file untouched), and injection folding (a note carrying `|`, `=` and a newline lands as one clean `EVENT=` line)
+- Every case pins the clock through `--now`, so no golden can carry a real date. Suite now 58 cases, 58/58 green in ~3.8 s. Red-tested by perturbing the script (clamp floor, drain, unconditional `now:` line, header label) and confirming each case goes red before restoring
+
+### [104] — The status heartbeat's cadence engine (v5.2 P0)
+
+- `.claude/scripts/script-status-tick.sh`: Added — the sole owner of the "has the status interval elapsed?" arithmetic behind the 5-minute run heartbeat. Three verbs: `--start` opens a phase and resolves the cadence once, `--tick` is the checkpoint call that either prints `QUIET` or fires `REPORT` plus the rendered status block, `--end` closes with a summary and removes the state. Skills call it at checkpoints; no skill ever does elapsed-time math itself
+- State lives at `.claude/msg/cache/status/<run-id>.state` as flat `KEY=VALUE` lines (deviation from the plan's JSON — the eval suite's zero-dependency property would otherwise force `jq` or a hand-rolled parser); the path is already gitignored, so no `.gitignore` change. Notes bank across silent ticks and drain into the next report exactly once
+- Cadence resolves `MSG_STATUS_INTERVAL` (minutes; `0` disables) over `policies.status_cadence` in `devkit/policy.json` over a 5-minute default, clamped to a 2-minute floor. Observational by construction: a missing or corrupt state file degrades to `QUIET` at exit 0, and the only non-zero exit is `2` for a caller usage error — the heartbeat can never break a run
+- `--now <epoch>` injects a fixed clock so eval goldens stay stable
+
 ## 2026-07-31
 
 ### [103] — Publish the v5.1.0 user-facing release notes

@@ -1,0 +1,34 @@
+# S12 — property harness over script-status-tick.sh's state writer.
+#   idempotency     — two identical QUIET ticks at the same pinned --now
+#                      leave the state file byte-identical to one.
+#   byte-preservation — a tick that only sets --step must not touch any other
+#                      key; prop_preserves strips the step= line before
+#                      comparing.
+#   refusal         — a --finding outside the enum is a usage error: exit 2,
+#                      state file untouched.
+#   injection folding — a --note containing `|`, `=` and an embedded newline
+#                      must land as exactly one clean EVENT= line, and the
+#                      later REPORT block must render without breaking.
+set -e
+. "$REPO/evals/lib/properties.sh"
+S="$REPO/.claude/scripts/script-status-tick.sh"
+RUN=p1
+
+"$S" --start --phase build --run-id "$RUN" --now 1754000000 >/dev/null
+STATE=".claude/msg/cache/status/$RUN.state"
+
+prop_idempotent "$STATE" -- "$S" --tick --run-id "$RUN" --now 1754000010
+
+prop_preserves "$STATE" '^step=' -- "$S" --tick --run-id "$RUN" --step "compiling2" --now 1754000020
+
+prop_refuses 2 "$STATE" -- "$S" --tick --run-id "$RUN" --finding bogus --now 1754000030
+
+note=$'row|weird=stuff\nsecond line'
+"$S" --tick --run-id "$RUN" --note "$note" --now 1754000040 >/dev/null
+
+n="$(grep -c '^EVENT=' "$STATE")"
+[[ "$n" == "1" ]] || { echo "expected exactly one EVENT= line, got $n" >&2; exit 1; }
+grep -qE '^EVENT=[^=|]*$' "$STATE" || { echo "EVENT= line still carries an injected | or =" >&2; exit 1; }
+echo "INJECTION_FOLDED=1"
+
+"$S" --tick --run-id "$RUN" --now 1754000300

@@ -184,6 +184,22 @@ Run `bash evals/run.sh` before tagging a release. Any FAIL blocks the release on
 
 Every pipeline skill run ends with a standardised chat closing message (`shared/refs/closing-message.md`, alongside `report-schema.md` and `fix-loop.md` in the shared contract layer): a 🟢/🟡/🔴 protocol headline mapped deterministically from the run's verdict, a one-line plain-language summary, a what-happened table (max 1–2 lines per row), and a **Next steps** section whose entries come from a fixed skill × mode × protocol registry — never composed ad hoc, byte-consistent with `fix-loop.md` on fail paths. It is the last chat output of a run and supplements each skill's existing output contract (pre-merge's verdict JSON stays the final machine emission). Chat-only: the GUI never renders it; the run report remains the GUI's source. Out of scope: `improve` and msg's pure-emission modes (default picker, `--gui`, `--help`).
 
+## Run visibility
+
+The long phases — `eng --build`, `pre-merge`, `merge`, and `plan-em`'s waves — can
+run for tens of minutes with nothing shown on screen. A short status line appears
+roughly every five minutes so a person watching always knows what phase is
+running, what just finished since the last update, and whether anything is
+blocking.
+
+This is a **cadence-checked checkpoint, not a timer**: the run can only speak
+when it naturally regains control — between steps, waves, or checks — never by
+interrupting a running command just to post an update. That is also why it is
+purely observational: it reports what is already true and never changes a
+verdict, a refusal, or a gate. `--quiet` and `--status <n>m` tune it per run;
+`policies.status_cadence` tunes it per project. Contract:
+`shared/refs/status-heartbeat.md`.
+
 ## Safety floor
 
 Write powers are scoped per skill rather than blanket-forbidden: eng commits to `feat/prd-<n>-*` feature branches only; pre-merge opens exactly one feature→staging PR (+ the D7 sync-merge commit) and never merges; **merge is the only merger** — staging via a green-CI PR merge, production via the double-confirmed staging→main release — and nothing reaches `main` any other way. Merge's two release tags — the `v<x.y.z>+<build>` version tag and the in-flight release lock — are commit **metadata**, not source writes, and are its only writes beyond the merges, stamps, and reports. DB/data/prod-config pauses, breaking-change pauses, branch isolation, secret scan, frontmatter stamps, F-ID stability, PRD §7 ledger, gate-fail ticket, pre-merge refusals, and the human gates (staging sign-off — pinned to the tested commit, the direct-flow inline human-test, the always-ask rollback offer, production double-confirm) are **never relaxed** (`shared/refs/safety-floor.md`).

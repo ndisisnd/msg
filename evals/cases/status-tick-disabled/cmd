@@ -1,0 +1,8 @@
+# S11 — MSG_STATUS_INTERVAL=0 disables the heartbeat entirely: --start writes
+# no state and prints nothing, and every later --tick against that run-id
+# prints QUIET and exits 0 regardless of elapsed time.
+export MSG_STATUS_INTERVAL=0
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase build --run-id e1 --now 1754000000
+"$S" --tick --run-id e1 --now 1754000100
+"$S" --tick --run-id e1 --now 1754001000

@@ -67,6 +67,7 @@ read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that s
     }
     // branch_protection, staging_readiness → policy-schema-merge.md
     // test_selection                     → policy-schema-pre-merge.md
+    // status_cadence                     → below, § policies.status_cadence
   }
   // components[], source_signature, criticality_review → policy-schema-pre-merge.md
   // steps{}, staging_ready               → policy-schema-merge.md
@@ -148,6 +149,18 @@ committed file, instead of every gate run rediscovering the absence and nagging.
 setup decision, not a detection result. No gate run ever writes it (AC-OW1).
 Absent object ⇒ `enabled: true` ⇒ pre-key behaviour, so existing `policy.json`
 files need no migration.
+
+### `policies.status_cadence` — the status-heartbeat interval
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `enabled` | bool | ✖ | `true` | `false` disables the status heartbeat project-wide, absent a per-run override |
+| `interval_minutes` | int | ✖ | `5` | minutes between heartbeat reports |
+
+Read only by `.claude/scripts/script-status-tick.sh`, once, at `--start` — absent,
+unreadable or malformed falls through silently to the built-in default. **Not**
+read by `script-policy-read.py`, so no skill plumbs this key itself. Per-run
+override, precedence and the 2-minute clamp: `status-heartbeat.md`.
 
 ## Validation rules
 

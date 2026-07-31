@@ -1,0 +1,7 @@
+# S11 — observational-degradation contract: a state file overwritten with
+# garbage must not break the run. --tick against it prints QUIET at exit 0.
+# stderr is redirected away so the diagnostic note doesn't pollute the golden.
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase build --run-id c1 --now 1754000000 >/dev/null
+printf 'not a state file, just noise\n###garbage###\n' > "$PWD/.claude/msg/cache/status/c1.state"
+"$S" --tick --run-id c1 --now 1754000400 2>/dev/null

@@ -192,6 +192,16 @@ It writes the failure down rather than stopping to reason about it. Every skill 
 
 A private repo on a Free plan can't, and msg doesn't treat that as a failure. Branch protection is policy-conditional (`enforced` / `optional` / `skip`), so the stance is recorded as `optional` and the gate isn't blocked. Every human gate still stands — protection is the machine enforcement on top of them, not a replacement for them.
 
+**Why did the run go quiet for eight minutes?**
+
+Most likely it hit one long step — a full test suite, a deploy — with no natural
+pause inside it to report from. Rather than go silent and unexplained, the run
+announces the step and how long it's expected to take right before starting it,
+so the quiet stretch is expected, not worrying. Outside of steps like that,
+you'll see a short status line roughly every five minutes on any long-running
+phase. Turn it off for one run with `--quiet`, or change how often it reports
+with `--status <n>m`.
+
 ## Documentation
 
 - [QUICKSTART.md](./QUICKSTART.md) — install to first shipped feature, with a verify check per step
