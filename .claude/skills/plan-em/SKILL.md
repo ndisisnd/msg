@@ -85,6 +85,7 @@ the written engineering sections and completes the build half. No flag, no state
 | Pre-flight report | Markdown findings file — **written only when the scan found something**; a clean run emits one inline line and no file | `features/prd-[n]-[slug]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
+| Stage timing log | Append-only TSV, one line per stage boundary | `features/prd-[n]-[slug]/reports/timings-<date>.log` |
 
 **No separate engineering plan files — all output lives in the PRD.** The pre-flight report
 is the one exception, and it sits inside the PRD's own folder.

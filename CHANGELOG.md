@@ -2,6 +2,20 @@
 
 ## 2026-08-01
 
+### [126] — plan-em runs leave a timeline (v5.4 P0)
+
+Every saving in this release is a structural argument: fewer invocations, fewer certifications, fewer reviewer spawns, less prose. None of them is a measurement. `script-em-timing.sh` is the measurement — one appended line per stage boundary of a `plan-em` run, so a finished run leaves a readable answer to "where did the hour go?".
+
+The log is `features/prd-<n>-<slug>/reports/timings-<date>.log`, tab-separated and append-only: `<iso> <epoch> <run-id> <stage> +<delta>s <note>`. The delta is measured against **that run id's own** previous line, so two runs sharing a log never report each other's gaps as their own, and reading the file top to bottom needs no arithmetic. Boundaries marked: pre-flight, certification, exec-table skeleton, plan half, files+collision, branch, each build wave, the review-coverage check, and synthesis. The skeleton boundary deliberately sits *after* the roster gate, so the human wait is isolated in its own segment rather than smeared across the run.
+
+**It is best-effort by contract.** Every call site appends `|| true`, no step may branch on the exit code, and the script never reads a PRD or decides anything. A stage name is validated as a column value — lowercase, digits and hyphens — because a name with a space would produce a line that cannot be read back; that is a usage error and nothing is written. In team mode the orchestrator marks the boundaries inside its own spawn using the run id plan-em injected, so one run reads as one timeline instead of two.
+
+- `.claude/scripts/script-em-timing.sh` — **new**
+- `.claude/skills/plan-em/refs/protocol-em.md` — new § Stage timing with the boundary table; `$TIMING_RUN_ID` joins the orchestrator spawn's injected contract
+- `.claude/skills/plan-em/refs/protocol-team.md` — new § Stage timing for the boundaries inside the orchestrator's spawn; `$TIMING_RUN_ID` in the input contract
+- `.claude/skills/plan-em/SKILL.md`, `ARCHITECTURE.md` — the log and the script are listed as outputs
+- `evals/cases/em-timing-first-line`, `em-timing-delta-per-run`, `em-timing-bad-stage` — **new**: the log and its parent are created with +0s; elapsed is per run id and existing lines are never rewritten; a malformed stage name is refused and writes nothing
+
 ### [125] — plan-em stops writing things nobody reads (v5.4 P8)
 
 Three writes in a `plan-em` run were unconditional and mostly empty of information.

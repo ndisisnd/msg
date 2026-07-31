@@ -10,6 +10,27 @@ The five-step protocol plan-em runs end-to-end. Ref paths (`refs/template-exec-t
 
 **Harness incidents.** Any script this protocol runs that exits non-zero on an outcome the step's own text does not document appends a `devkit/DOCTOR.md` row via the shared appender, per `../../shared/refs/doctor-logging.md`. Logging never changes control flow — the step's own rule (continue, stop, repair-once) still decides. The individual call sites below name their signature.
 
+**Stage timing.** Every structural saving in v5.4 is an *estimate* until a real run says where its hour went, so this protocol marks each stage boundary it crosses. Fix one `$TIMING_RUN_ID` per run (`em-$(date +%s)` — reuse the heartbeat's `RUN_ID` when there is one) and append one line at each boundary below:
+
+```bash
+T=.claude/scripts/script-em-timing.sh; [ -f "$T" ] || T="$HOME/.claude/scripts/script-em-timing.sh"
+bash "$T" --stage <stage> --reports-dir "$PRD_DIR/reports" --run-id "$TIMING_RUN_ID" --note "<optional>" || true
+```
+
+| Stage name | Fires when |
+|------------|-----------|
+| `pre-flight-done` | Step 1 finishes (1a–1e complete, size resolved) |
+| `cert-done` | Step 2's certification returns `CERTIFIED` |
+| `skeleton-done` | Step 3's exec-table skeleton is rendered (after the roster gate — this boundary therefore contains the human wait, which is exactly what makes it worth separating) |
+| `plan-half-done` | every agent's `## Engineering —` + `## Todos —` blocks exist |
+| `files-collision-done` | `--fill-files` and the collision decomposition have both returned |
+| `branch-done` | the branch is created/checked out and the lane move (if any) has run |
+| `build-wave-<n>-done` | build wave `<n>` has returned — one line per wave |
+| `review-check-done` | the review-coverage check has returned (after any repair spawn) |
+| `synthesis-done` | Step 5's synthesis is emitted — the run's last line |
+
+**Best-effort, always.** The `|| true` is part of the contract: a timing append that fails changes nothing about what the run does next, and no step may branch on its exit code. The log is append-only at `$PRD_DIR/reports/timings-<date>.log`, so nothing a previous run wrote is ever rewritten. In `--team` mode the orchestrator marks the boundaries that happen inside its own spawn (`refs/protocol-team.md` § Stage timing) using the **same run id**, so one run reads as one timeline.
+
 ## Step-by-step protocol
 
 ---
@@ -396,7 +417,7 @@ engineer agent** to own the fan-out:
   (`plan` / `build` / `fused` from mode detection), `prd-path`, the approved `roster`, the
   `exec_table` rows (with the `Files` column on the build wave), `$BRANCH` **and** the
   compiled per-stack `standards payloads` (build wave only), the devkit digest, the
-  resolved `$SIZE` + intake `C:` band, and the PRD-path escape hatch.
+  resolved `$SIZE` + intake `C:` band, `$TIMING_RUN_ID`, and the PRD-path escape hatch.
 - The orchestrator decomposes the wave into file-disjoint, model-tiered packets and fans
   out leaf `eng` subagents (`--plan` planners on Opus; `--build` packets on Opus or Sonnet
   per complexity), respecting the `Files`-disjoint collision rule and committing all build

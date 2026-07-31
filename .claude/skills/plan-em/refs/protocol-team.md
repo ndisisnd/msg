@@ -43,6 +43,7 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 | `$BRANCH` | resolved feature branch (**`$MODE = build` only** — the orchestrator never resolves or creates it). **Absent on a fused wave**, which cuts it itself at § Fused wave step 4. |
 | `$SIZE` + `C:` band | the size tier plan-em resolved once at Step 1e (`medium` / `large`) and the intake complexity band behind it. Pass the band into every `--plan` leaf's scoped context — it selects the eng-section shape, and a leaf must never re-resolve it. |
 | `standards payloads` | the compiled `/cook` output **per stack** (**build and fused waves**), retained from plan-em Step 3a |
+| `$TIMING_RUN_ID` | the run id plan-em fixed for its stage-timing log (§ Stage timing) — reuse it verbatim; never mint a second one |
 | `devkit digest` | canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows (from plan-em's Step 1 pre-flight) |
 | `house rules` | **plan wave and the plan half of a fused wave** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
 
@@ -50,6 +51,26 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve
 a row."* The orchestrator injects the same escape hatch it received — siblings never
 re-read the whole PRD or every devkit file.
+
+## Stage timing
+
+plan-em marks the boundaries it owns; you mark the ones that happen inside your spawn, with
+the **same `$TIMING_RUN_ID` plan-em injected** (the heartbeat's `RUN_ID`) so the run reads as
+one timeline rather than two. The stage vocabulary and the best-effort rule are
+`refs/protocol-em.md` § Stage timing — this is the same script and the same log:
+
+```bash
+T=.claude/scripts/script-em-timing.sh; [ -f "$T" ] || T="$HOME/.claude/scripts/script-em-timing.sh"
+bash "$T" --stage <stage> --reports-dir "<prd-dir>/reports" --run-id "$TIMING_RUN_ID" --note "<optional>" || true
+```
+
+Mark: `plan-half-done` when every stack's sections and tickets exist · `files-collision-done`
+after `--fill-files` and the `--waves` decomposition · `branch-done` after a fused wave's
+branch cut · `build-wave-<n>-done` per wave · `review-check-done` after each wave's coverage
+check. A `--note` carrying the packet count or the model split is worth writing — the
+question the log answers is *which* stage ate the run, and "wave 2, 5 packets, 4 Sonnet"
+answers it far better than a bare timestamp. **Never branch on the script's exit code**: it
+appends `|| true` and control flow is unaffected either way.
 
 ## Persona — orchestrator engineer
 

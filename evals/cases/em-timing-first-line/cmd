@@ -1,0 +1,6 @@
+# T1 — the first stage boundary of a run: the log and its parent are created,
+# and the delta is +0s because this run id has no earlier line. The date is
+# pinned so the file name and the timestamp are both assertable.
+S="$REPO/.claude/scripts/script-em-timing.sh"
+bash "$S" --stage pre-flight-done --reports-dir reports --run-id em-7 \
+  --date 2026-08-01T10:00:00Z --note "6 devkit files"
