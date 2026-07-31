@@ -336,6 +336,25 @@ def check3(secs):
 
 # ── check 4 — reserved placeholders byte-exact ────────────────────────────────
 
+def continued_by(secs, title):
+    """True when a reserved section is populated by named continuation H2s.
+
+    `## 7. Todos` is an umbrella: plan-em appends the heading once (race-safe),
+    then each planner adds its own `## Todos — <Agent>` block beside it. Those
+    blocks are H2s, so the umbrella legitimately has no body of its own — the
+    tickets live in its siblings. Reading that as an empty section would fail
+    every PRD the pipeline actually writes.
+    """
+    want = canon(title)
+    for raw, _, block in secs:
+        t = canon(raw)
+        if not (t.startswith(want + " —") or t.startswith(want + " -")):
+            continue
+        if any(l.strip() for l in block):   # a titled but empty block proves nothing
+            return True
+    return False
+
+
 def check4(secs, shape):
     titles = dict(shape.canonical)
     for n, text in shape.reserved.items():
@@ -343,6 +362,8 @@ def check4(secs, shape):
         if block is None:
             continue                       # already a check-1 failure
         body = [l.rstrip() for l in block if l.strip() and not l.strip().startswith("```")]
+        if continued_by(secs, titles[n]):
+            continue                       # populated by its `— <Agent>` siblings
         if not body:
             fail(4, "placeholder-drift", f"§{n}",
                  f"section is empty — it must carry the exact reserved placeholder "

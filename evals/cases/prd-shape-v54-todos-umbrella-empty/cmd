@@ -1,0 +1,5 @@
+# S2 — the other direction: a `## Todos — <Agent>` heading with nothing under it
+# proves nothing was written, so the umbrella is still an unpopulated reserved
+# section and still fails placeholder-drift. The sibling rule accepts populated
+# continuations, never the mere presence of a continuation heading.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md

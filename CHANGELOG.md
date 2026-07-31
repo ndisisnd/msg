@@ -2,6 +2,15 @@
 
 ## 2026-08-01
 
+### [128] — the PRD shape validator rejected the Todos shape the pipeline writes (v5.4 fix)
+
+`script-prd-shape.py` check 4 failed `§7 Todos` as an empty reserved section on **every PRD the pipeline actually produces** after a plan wave. The section splitter cuts on H2 headings, and the umbrella `## 7. Todos` is immediately followed by each planner's `## Todos — <Agent>` block — also an H2 — so the umbrella's own body is empty by construction. That is the correct shape: plan-em appends the umbrella once so parallel planners do not race on a shared heading, and each planner adds its own sibling block. Found while regenerating the sample PRDs, where every fixture hit it.
+
+A reserved section is now also satisfied by **populated named continuation sections** — an H2 whose title is the reserved title plus `— <name>`. The rule is deliberately narrow in one respect: a continuation heading with nothing under it does not count, so a titled-but-empty `## Todos — <Agent>` still fails placeholder-drift. Presence of a heading was never the thing being checked; presence of tickets is.
+
+- `.claude/scripts/script-prd-shape.py` — new `continued_by()`; check 4 consults it before the empty/drift arms
+- `evals/cases/prd-shape-v54-todos-umbrella`, `prd-shape-v54-todos-umbrella-empty` — **new**, both directions: the umbrella with populated agent blocks certifies clean; the umbrella with an empty agent block still fails
+
 ### [127] — the GUI reads findings from the external ledger (v5.4 leftover)
 
 v5.4 moved `plan-review`'s findings out of the PRD and into a growing ledger beside it (entry [120]), which quietly broke the board: it parsed findings out of the PRD body, so a v5.4 PRD rendered no findings at all.
