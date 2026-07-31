@@ -184,6 +184,10 @@ Yes. `/msg --init` asks for your release flow, and `direct` is a supported answe
 
 PRDs, the `INTAKE.md` backlog, and `devkit/DOCTOR.md` are per-project working state, and the shared ledger table was a standing source of merge conflicts. They're local by design. What ships in this repo is the harness, not one project's plans.
 
+**What happens when the harness itself misbehaves?**
+
+It writes the failure down rather than stopping to reason about it. Every skill logs harness incidents to a local ledger, and `/msg --doctor` triages that ledger in one batch on demand — anything that keeps recurring graduates into a fix brief. Each fix has to leave behind a permanent automated check, and those checks run before every release, so the same fault can't come back quietly.
+
 **What if my repo can't set branch protection?**
 
 A private repo on a Free plan can't, and msg doesn't treat that as a failure. Branch protection is policy-conditional (`enforced` / `optional` / `skip`), so the stance is recorded as `optional` and the gate isn't blocked. Every human gate still stands — protection is the machine enforcement on top of them, not a replacement for them.

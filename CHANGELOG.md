@@ -2,6 +2,11 @@
 
 ## 2026-07-31
 
+### [100] — Document the self-healing loop and gate releases on it (v5.1 P5)
+
+- `ARCHITECTURE.md`: Changed — new "Self-healing loop" section (detect → log → diagnose → fix → gate, with real paths, deferred-diagnosis and mechanistic-grading principles) and a "Releasing" note: `bash evals/run.sh` before tagging, any FAIL blocks on the exit code
+- `README.md`: Changed — FAQ entry "What happens when the harness itself misbehaves?" (conceptual: log, batch-triage, graduate, every fix leaves a permanent pre-release check)
+
 ### [99] — Graduation now mints a regression eval (v5.1 P4)
 
 - `.claude/skills/msg/refs/protocol-doctor.md`: Changed — Step 2 and the graduated-issue block gain a required `**Regression eval**:` line (the doctor names the case; still writes no code); the 🟡 fix-session step's definition of done now includes landing that eval red → green; References gains `evals/run.sh`

@@ -146,6 +146,22 @@ Every skill is invoked directly and standalone; a skill's end-of-run gate recomm
 
 Parallelism lives *inside* a wave, not across skills. In `--team` mode (the default) an Opus orchestrator engineer decomposes the wave into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents; `--solo` runs one leaf subagent per roster stack. Either way the guardrails hold: all work on `feat/prd-<n>-*` branches, a sign-off pause on any database/data/production-config touch (`script-eng-db-touch.sh`), no skill merges with its own hands, and production is always a human release.
 
+## Self-healing loop
+
+The harness watches itself, and every fix it earns leaves a permanent check behind.
+
+- **Detect** — two sources feed it: live incidents a skill hits mid-run, and failing cases in the regression-eval runner `evals/run.sh`.
+- **Log** — one ledger, `devkit/DOCTOR.md`, appended through `script-doctor-log.sh`. A dumb append of a fixed signature; nothing reads it at run time, which is what keeps logging nearly free (`shared/refs/doctor-logging.md`).
+- **Diagnose** — diagnosis is deferred: no skill diagnoses its own incident mid-run. `/msg --doctor` is invoked on demand and triages the whole ledger in one batch, graduating any signature that reaches 3 occurrences into an issue with a diagnosis, a fix path, and a named regression eval (`msg/refs/protocol-doctor.md`). It never fixes.
+- **Fix** — a separate session the human starts with the graduated issue as its brief, done only once the named `evals/cases/<slug>` lands red → green.
+- **Gate** — `evals/run.sh` before each release; the exit code is the whole gate.
+
+Grading is mechanistic: a case passes when its command's output matches the committed golden files, so no LLM judges an eval and a pass means the same thing on every run.
+
+## Releasing
+
+Run `bash evals/run.sh` before tagging a release. Any FAIL blocks the release on the runner's exit code — no threshold, no judgment call. A failing case also appends a `validator-fail:eval-<slug>` row to `devkit/DOCTOR.md`, so the regression lands in the next `/msg --doctor` tally next to the live incidents.
+
 ## Skill inventory
 
 | Skill | Standalone |
