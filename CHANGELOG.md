@@ -2,6 +2,10 @@
 
 ## 2026-08-01
 
+### [111] — Publish the v5.2.0 user-facing release notes
+
+- `RELEASES.md`: Added — the v5.2.0 section covering [104]–[110]: the status heartbeat across builds, gate runs, ships and planning waves, the pre-announcement of long steps, the per-run `--quiet`/`--status` controls and project-level cadence, and the every-exit close. States the checkpoint trade-off in user terms — a run may report slightly later than the interval, but is never interrupted or reshaped to hit it
+
 ### [110] — Per-run heartbeat flags, policy key and docs (v5.2 P5)
 
 - `.claude/skills/{eng,merge,plan-em,pre-merge}/SKILL.md`: Added — `[--quiet | --status <n>m]` in each `argument-hint`, a Usage line in each skill's existing style, and a References pointer to `../shared/refs/status-heartbeat.md`. eng's is scoped `(--build only)`; pre-merge is the single place that states the 2-minute floor. No SKILL.md restates the report shape or the checkpoint rule — the contract stays the one source

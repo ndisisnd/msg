@@ -2,6 +2,20 @@
 
 What's new for you, release by release.
 
+## v5.2.0 — 2026-08-01
+
+> Long runs stop going quiet on you. While a build, a gate run, or a ship is working — often for tens of minutes with nothing on screen — you now get a short status line roughly every five minutes: which phase is running, what finished since the last one, and whether anything is blocking. Nothing about what a run *decides* has changed; the update only reports.
+
+### ✨ New
+- Builds, gate runs, ship runs, and multi-agent planning waves now tell you where they are about every five minutes — the phase, how many items are done out of how many, what just finished, what's running now, and any blockers found so far. You no longer have to guess whether a long run is progressing or stuck.
+- Steps that are known to take a while — a full test suite, a deploy, a review pass — now announce themselves and their expected duration *before* they start. A quiet stretch becomes an expected one instead of a worrying one.
+- You can tune the updates per run: `--quiet` turns them off entirely, and `--status <n>m` sets how often they arrive. For a project-wide default, set the cadence once in your policy file and every run picks it up.
+- A run that ends **badly** now closes with a summary too — a refusal, a failed check, a failed ship. The moment a run goes wrong is exactly when a closing summary is worth most, so it's no longer reserved for the runs that succeed.
+
+### 📈 Improved
+- The updates never interrupt work to speak. A run reports only at points where it naturally comes up for air — between checks, waves, or steps — so nothing is slowed down or reshaped just to produce an update. The trade-off is deliberate: you may occasionally wait slightly longer than the interval, but a run is never made worse to hit it.
+- Every human decision point is untouched. No status update is inserted between a question and your answer, and an update that fails to render is simply dropped — it can't stall or alter the run around it.
+
 ## v5.1.0 — 2026-07-31
 
 > The framework now heals itself. Every failure it hits gets written down; anything that keeps recurring graduates into a diagnosis with a fix brief; and every fix has to leave behind a permanent automated check — 48 of which now run, in about three seconds, before any release can ship. A fault that slipped through once can't slip through twice.
