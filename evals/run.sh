@@ -83,6 +83,14 @@ for case_dir in "$CASES_DIR"/*/; do
   else
     echo "FAIL $slug — $reason"
     failed=$((failed + 1))
+    # E5: log the failure to the harness-incident ledger (doctor-logging.md,
+    # Channel 1). Best-effort — absent ledger exits 3 and is skipped; a log
+    # failure never changes the run's own outcome. Diagnosis stays deferred
+    # to /msg --doctor; this row is the only analysis done at fail time.
+    "$REPO/.claude/scripts/script-doctor-log.sh" "$REPO/devkit/DOCTOR.md" \
+      --skill evals --signature "validator-fail:eval-$slug" \
+      --context "$(head -c 120 "$case_dir/cmd" 2>/dev/null) — $reason" \
+      >/dev/null 2>&1 || true
   fi
 done
 

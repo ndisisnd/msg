@@ -2,6 +2,11 @@
 
 ## 2026-07-31
 
+### [98] — Close the eval loop into the incident ledger (v5.1 P3)
+
+- `evals/run.sh`: Changed — a FAIL now appends one row to `devkit/DOCTOR.md` via `script-doctor-log.sh` (`--skill evals`, signature `validator-fail:eval-<slug>`, context = cmd + one-line reason); best-effort, absent-ledger skip, diagnosis stays deferred to `/msg --doctor`
+- `.gitignore`: Changed — ignore `devkit/` (the harness's own ledger is local telemetry, per template-DOCTOR.md's never-committed contract)
+
 ### [97] — Stand up the regression-eval suite (v5.1 P0)
 
 - `evals/run.sh`: Added — the mechanistic eval runner: case = `fixture/` + `cmd` + `expected/{exit,stdout,files/}`, run in a temp copy with `TZ=UTC`, golden-diff grading, `--only <slug>`, exit 0 iff all pass

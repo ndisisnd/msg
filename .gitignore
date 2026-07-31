@@ -31,6 +31,7 @@ settings.local.json
 plans/
 features/
 roadmap/
+devkit/
 eval-msg-workflow*
 handoff/
 update/
