@@ -1,0 +1,18 @@
+# E3 — script-aha.sh: an entry lands and --count reports it. script-openq.sh:
+# --status resolved is a documented rejection (exit 2, file untouched), and a
+# real entry appends at the END of the Open Questions section — immediately
+# before the next `##` heading, never inside Resolved (see the file golden).
+set -e
+. "$REPO/evals/lib/properties.sh"
+AHA="$REPO/.claude/scripts/script-aha.sh"
+OQ="$REPO/.claude/scripts/script-openq.sh"
+
+"$AHA" AHA.md --tag "eval:property" --summary "Writers need property cases" \
+  --why "Golden-only cases miss second-run damage" --note "Assert idempotence explicitly" --date 2026-01-15
+"$AHA" AHA.md --count "eval:property"
+
+prop_refuses 2 OPEN-QUESTIONS.md -- "$OQ" OPEN-QUESTIONS.md --title "Bad status" \
+  --question "Should this land?" --raised-by evals --status resolved --date 2026-01-15
+
+"$OQ" OPEN-QUESTIONS.md --title "Placement check" --question "Does it land before Resolved?" \
+  --raised-by evals --severity high --date 2026-01-15

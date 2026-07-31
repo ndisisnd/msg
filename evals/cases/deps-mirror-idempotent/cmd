@@ -1,0 +1,7 @@
+# E4 — A13 covered the deps-mirror REFUSALS; this covers its documented
+# idempotence. Run 1 unions the §3 ids into depends_on and prints ADDED lines;
+# run 2 must add nothing and leave the file byte-identical (PROP_IDEMPOTENT),
+# with no duplicate ids in the array (file golden).
+set -e
+. "$REPO/evals/lib/properties.sh"
+prop_idempotent prd.md -- "$REPO/.claude/scripts/script-prd-deps-mirror.sh" prd.md

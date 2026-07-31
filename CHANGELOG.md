@@ -2,6 +2,11 @@
 
 ## 2026-07-31
 
+### [102] — Writer property harness + verb gap-fill (v5.1 P2)
+
+- `evals/lib/properties.sh`: Added — three sourced property checks for writer cases (`prop_idempotent`, `prop_preserves`, `prop_refuses`), each emitting a stable token the case's stdout golden pins; violations surface through the case's own exit code, runner untouched
+- `evals/cases/`: Added — eight cases: four `prop-*` (doctor-log append-only + injection folding, prd-stamp idempotence/preservation/refusal, intake-stamp idempotence + folded append, aha/openq placement + resolved-rejection) and four verb gap-fills (intake append-row/remove-row/set-cell, deps-mirror idempotence); suite now 48 cases, 48/48 green in ~3.3 s
+
 ### [101] — Promote the 25 v5.0.1 fail-silent assertions into regression evals (v5.1 P1)
 
 - `evals/cases/`: Added — 34 cases (`a01`–`a25` families) promoted from the v5.0.1 assertion fixtures, one per shipped loud-exit contract (drift direction always; happy path where it guards distinct behaviour, e.g. `a16` title-anchored scan, `a18` shifted-ledger tally); all hermetic — throwaway `git init` repos, committed `gh` stubs, sandboxed `$HOME`, pinned dates/identities; suite now 40 cases, 40/40 green in ~2.8 s

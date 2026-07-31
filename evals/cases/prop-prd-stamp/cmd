@@ -1,0 +1,11 @@
+# E3 — script-prd-stamp.sh: stamping the same value twice must not touch the file
+# (documented idempotent path, exit 0 no-write), a stamp must change only its own
+# frontmatter line, and a field outside the allow-list must be refused (exit 2)
+# with the PRD byte-identical.
+set -e
+. "$REPO/evals/lib/properties.sh"
+S="$REPO/.claude/scripts/script-prd-stamp.sh"
+
+prop_idempotent prd.md -- "$S" prd.md status planned
+prop_preserves prd.md '^status:' -- "$S" prd.md status approved
+prop_refuses 2 prd.md -- "$S" prd.md owner alice
