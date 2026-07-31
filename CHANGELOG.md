@@ -2,6 +2,11 @@
 
 ## 2026-08-01
 
+### [106] — The heartbeat contract, pulled ahead of the protocol edits (v5.2 P2a)
+
+- `.claude/skills/shared/refs/status-heartbeat.md`: Added — the one home for the cross-skill heartbeat contract: the checkpoint rule (and why a real timer is not expressible in a skill), the call surface, the report shape, the only-the-orchestrator-speaks rule for subagents, the two mitigations for long blocking steps, cadence resolution, and the degradation rule
+- Sequencing deviation from the plan: S9 was queued in P5, but the P2–P4 protocol edits all cite it, so it lands first. P5 keeps the flags and the docs
+
 ### [105] — Regression evals for the cadence engine (v5.2 P1)
 
 - `evals/cases/status-tick-*`: Added — nine cases pinning the heartbeat's observable contract: `quiet` (silent before the interval), `report` (the full five-line block, glyphs included), `drain` (notes banked across silent ticks surface exactly once, then are gone), `minimal` (a report with nothing set renders two lines — the guard against the empty `now:` line fixed during P0), `disabled`, `corrupt` (garbage state degrades to `QUIET` at exit 0), `clamp` (the 2-minute floor and its stderr note), and two `usage` cases for distinct exit-2 paths

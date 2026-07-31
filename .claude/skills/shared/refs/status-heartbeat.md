@@ -1,0 +1,117 @@
+---
+name: status-heartbeat
+description: Cross-skill contract for the ~5-minute status heartbeat emitted during the long phases — the checkpoint rule, the report shape, who may speak, and how it degrades
+type: reference
+---
+
+# Status heartbeat — the run says where it is, every ~5 minutes
+
+The long phases (`eng --build`, `/pre-merge`, `/merge`, and `plan-em`'s waves) can
+run for tens of minutes with nothing on screen. This contract makes them speak: a
+short, fixed-shape status block roughly every five minutes, so a watching human
+always knows the phase, what finished since the last update, what is running now,
+and whether anything is blocking.
+
+It is **observational**. It never changes a verdict, a refusal, a gate, or what a
+run does next, and it never substitutes for a human gate — a `STOP` still stops.
+
+## The checkpoint rule (why this is not a timer)
+
+A skill can only speak when it holds the turn. Nothing interrupts a running `Bash`
+call or a spawned subagent to inject a line, and the model cannot read a clock
+between turns. So the heartbeat is a **cadence-checked checkpoint**: at every point
+where the orchestrator naturally regains control it calls the tick script, which
+answers `REPORT` or `QUIET`. The guarantee is therefore:
+
+> at most one report per interval, emitted at the first checkpoint after the
+> interval expires — never more often, never later than the next checkpoint.
+
+Checkpoints belong wherever control returns anyway: a wave boundary, a per-check
+result-report write, a completed ticket, a numbered protocol step, a returning
+subagent, a poll iteration. **Never insert a step, a command, or a delay solely to
+create a checkpoint** — a heartbeat that changes the shape of the run has cost more
+than it bought.
+
+## The call surface
+
+The script owns every elapsed-time and interval decision. No skill does that
+arithmetic in prose.
+
+```bash
+S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase <name> --run-id <id> [--total <n>] [--label <text>]
+"$S" --tick  --run-id <id> [--step "<running now>"] [--done <n>] [--note "<event>"] [--finding <blocker|high|medium|low>] [--next "<text>"]
+"$S" --end   --run-id <id> [--outcome "<text>"]
+```
+
+- **`--run-id`** is chosen once at `--start` — `<skill>-<epoch seconds>` — and reused verbatim by every later call in the run.
+- **`--tick` always records, and only sometimes reports.** Notes bank across silent ticks and drain into the next report exactly once, which is what makes "what happened since the last update" possible without the model remembering anything.
+- **Quote the script's output; never re-render it.** A `--tick` printing `QUIET` produces no chat output at all. A `--tick` printing `REPORT` is followed by the rendered block — emit it as-is.
+- `--now <epoch>` exists for the eval harness's fixed clock. Never pass it from a protocol.
+
+## The report shape
+
+Rendered by the script so the wording cannot drift between skills. Reference only —
+the script is the source of truth:
+
+```
+⏱ <elapsed> · <phase> · <done>/<total> · <label>
+done: <events banked since the last report, joined by "; ">
+now: <what is running>
+issues: <n blocker / n high / n medium>
+next: <what the run reaches next>
+```
+
+Every line below the header is omitted when it has nothing to say, so a minimal
+report is two lines. Elapsed renders `Nm` under an hour, `Hh Mm` beyond it.
+
+## Only the orchestrator speaks
+
+Leaf subagents never call the tick script and never emit status. Their output is
+not user-visible, and a second speaker would interleave into nonsense. Instead a
+leaf returns **one line** in its return payload:
+
+```
+status: <ticket-or-packet-id> <done|blocked> — <≤8-word summary>
+```
+
+The orchestrator ticks once per returning leaf and folds that line in as a
+`--note`. This is the only sanctioned path from a subagent into the heartbeat.
+
+## Long blocking steps
+
+A single component — a full test suite, an e2e run, a deploy — can outlast the
+interval with no checkpoint inside it. Two mitigations, in order of preference:
+
+1. **Pre-announce.** The tick immediately *before* a known-long step names it and
+   its expected duration in `next:`, so the silence is bounded and explained rather
+   than mysterious. This applies everywhere and costs nothing.
+2. **Background and poll.** For steps that routinely exceed the interval and
+   already write a structured log, run the step backgrounded and poll its log at
+   interval — each poll is a legitimate checkpoint carrying real content
+   (`now: unit — 412/900 tests`). Use this only where the log is genuinely
+   parseable; a fabricated progress number is worse than silence.
+
+## Cadence resolution
+
+Resolved once at `--start`, highest first — a mid-run policy edit must not move an
+already-open report window:
+
+| Source | Meaning |
+|---|---|
+| `MSG_STATUS_INTERVAL` env var | minutes; `0` disables the heartbeat entirely for this run. Where the per-run `--quiet` / `--status <n>m` flags land |
+| `policies.status_cadence` in `devkit/policy.json` | `{enabled, interval_minutes}`; absent, unreadable or malformed falls through silently |
+| default | enabled, 5 minutes |
+
+Any resolved interval below **2 minutes** is clamped to 2 with one stderr note — a
+30-second heartbeat on a 40-minute gate is spam, not visibility. `0` is a distinct
+state and is never clamped.
+
+## Degradation
+
+The heartbeat can never break a run. A missing, unreadable, or corrupt state file
+makes `--tick` print `QUIET` and exit 0. The script's only non-zero exit is `2`,
+for a genuine caller usage error — an unknown flag, a missing `--run-id`, a
+severity outside the enum, a non-integer count. **A tick that fails is dropped, not
+retried, and never logged as an incident**; the phase carries on exactly as it
+would have. Skills do not branch on the script's exit code.
