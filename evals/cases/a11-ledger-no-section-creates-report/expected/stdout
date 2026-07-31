@@ -1,5 +1,6 @@
+LEDGER_TARGET=report
+LEDGER_FILE=reports/review-prd.md
 LEDGER_SECTION=created
-LEDGER_PLACEMENT=eof-fallback
 LEDGER_ROW=1 added Major
 LEDGER_ADDED=1
 LEDGER_CARRIED=0

@@ -2,6 +2,23 @@
 
 ## 2026-08-01
 
+### [119] — plan-review findings move to an external report (v5.4 P2)
+
+The certification ledger left the PRD. Findings now accumulate in one growing table at `<prd-dir>/reports/review-prd-[n]-[slug].md`, created on the first run and appended to thereafter. The reasoning: a findings table is append-only and grows without bound, while the PRD is a contract every downstream stage re-reads on every run — keeping them in one file made every reader pay for the audit history. The `reviewed:` frontmatter stamp stays the gate signal; the report is the evidence trail behind it, and gates nothing on its own.
+
+The report drops the `Auditor` column — one mode, one auditor, so it carried no information. **PRDs written before v5.4 keep their ledger exactly where it is**: `script-ledger.py` picks the home (existing report → existing in-PRD section → new report) and appends to whichever table it finds, eight-column Auditor table and all. Nothing is migrated.
+
+Two things worth flagging. First, the A11 drift guard would have silently died: a PRD whose findings heading had drifted used to be refused, but under the new selection it would have quietly got a report created beside the orphaned section, whose rows no run would ever dedup against. The guard moved into target selection and still refuses. Second, that made the in-PRD section-creation arm unreachable, so it and its `LEDGER_PLACEMENT=eof-fallback` output are gone.
+
+- `.claude/skills/plan-review/refs/template-review-report.md` — **new**: the report's location, frontmatter, column contract and status-recomputation rule, plus an explicit table distinguishing it from v5.3's `review-prd-<N>-<K>.json` eng build evidence. Different suffix shape, verified non-colliding against every existing glob
+- `.claude/scripts/script-ledger.py` — picks the ledger's home; creates the report scaffold; `created` set once and `last-run` rewritten each run; `Auditor` written only when the target table has that column; `--auditor` now optional; emits `LEDGER_TARGET=` and `LEDGER_FILE=`
+- `.claude/scripts/script-cert-status.sh` — follows the ledger to its new home and resolves Severity/Status by column *name*, which is what lets one scan read either table shape. The stamp read falls back to `reviewed:` when the PRD has no tune pair, so `--product`/`--eng` keep working unchanged at the call site
+- `.claude/skills/plan-review/SKILL.md` — the report is now the one file this skill creates; stamps `reviewed: yes`; the discriminator for a legacy PRD is the *tune pair*, not `reviewed` (both shapes have `reviewed`, so keying on it would have left older PRDs uncertified)
+- `.claude/skills/plan-review/refs/certification.md` — findings-table schema split into the v5.4 and legacy shapes
+- `ARCHITECTURE.md` — `script-ledger.py` and `script-cert-status.sh` entries rewritten
+- `evals/cases/ledger-report-append` · `ledger-legacy-section-kept` — new; the growing-table cycle (carry + append + `last-run`) and the read-tolerance direction (legacy PRD keeps §7, no report created)
+- `evals/cases/a11-ledger-eof-fallback` → `a11-ledger-no-section-creates-report` — repurposed: the same input now creates the report and leaves the PRD byte-identical
+
 ### [118] — PRD template slim: seven sections, one review stamp (v5.4 P1)
 
 The PRD shrank. Frontmatter dropped `module`, `platform` and `affects`, renamed `depends_on` to `deps`, and fused the `product-tuned`/`eng-tuned` pair into a single `reviewed` stamp. The lifecycle enum is now `backlog → specced → wip → complete`, where `status` is the lifecycle truth and the lane directory stays the location truth — the two answer different questions and neither derives from the other. §1 Product objective became three terse bullets (who / what changes / success signal) instead of a paragraph, §4 Error cases lost its ≥2-row quota, and the old §7 Plan review findings section is gone, which renumbers Todos to §7.

@@ -54,20 +54,32 @@ Match every check to a section **title**, never a number — PRD section numbers
 | **Major** | A consumer degrades: a regression test is weak, a build agent guesses a thin field, the wrong build order runs. Interpretable but high rework risk. |
 | **Minor** | Clarity/completeness gap with no blind consumer downstream. Adds friction; blocks nothing. |
 
-## Findings-table schema (unchanged — GUI + template contract)
+## Findings-table schema (GUI + template contract)
 
-Every finding is a **row** in the PRD's `## 7. Plan review findings` ledger. **This schema is consumed verbatim by `/msg --gui` (`msg/refs/protocol-gui.md`) and reserved by `plan-pm`'s `template-prd.md` — do not change its columns.**
+Every finding is a **row** in one growing table at `<prd-dir>/reports/review-prd-[n]-[slug].md` — see `template-review-report.md` for the file itself. **This schema is consumed verbatim by `/msg --gui` (`msg/refs/protocol-gui.md`) — do not change its columns.**
+
+**The v5.4 report has no `Auditor` column** (one mode, one auditor). A PRD written before v5.4 keeps its findings inline in its own `## 7. Plan review findings` section, whose table *does* carry that column; `script-ledger.py` appends to whichever table it finds and never reshapes one into the other. The `Auditor` row below therefore applies only to that legacy table.
 
 | Column | Meaning |
 |--------|---------|
 | `#` | Monotonic finding number, continued across runs — never reset to 1. |
 | `Date` | Run date, `YYYY-MM-DD`. |
-| `Auditor` | `P` (product tune) or `E` (eng tune). |
+| `Auditor` | `P` (product tune) or `E` (eng tune). **Legacy in-PRD table only** — dropped from the v5.4 report. |
 | `Severity` | Critical / Major / Minor. |
 | `What is wrong` | Terse — cite section + which of checks 1–7 fired. ≤100 chars, ≤2 lines. |
 | `Suggested fix` | Terse concrete action, applyable without further interpretation. ≤100 chars. |
 | `Why it matters` | Terse — name the consumer that breaks. ≤100 chars. |
 | `Status` | `Open` (new/unfixed), `Fixed` (applied this run), `Still open` (carried forward unchanged), `Clean` (no-findings marker row). |
+
+The v5.4 report table:
+
+```markdown
+| # | Date | Severity | What is wrong | Suggested fix | Why it matters | Status |
+|---|------|----------|---------------|---------------|----------------|--------|
+| 1 | 2026-07-14 | Critical | F2 streak "local" timezone undefined (check 1) | Define as user-profile tz, fallback device | pre-merge regression asserts against UTC; mobile is device-local | Fixed |
+```
+
+The legacy in-PRD table, for reference — appended to as-is, never migrated:
 
 ```markdown
 | # | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status |

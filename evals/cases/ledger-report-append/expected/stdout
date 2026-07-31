@@ -1,0 +1,9 @@
+LEDGER_TARGET=report
+LEDGER_FILE=reports/review-prd-9-grace.md
+LEDGER_SECTION=appended
+LEDGER_ROW=1 carried Critical
+LEDGER_ROW=2 added Minor
+LEDGER_ADDED=1
+LEDGER_CARRIED=1
+LEDGER_CLEAN=no
+LEDGER_NEXT=3

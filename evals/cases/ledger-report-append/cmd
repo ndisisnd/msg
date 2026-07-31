@@ -1,0 +1,5 @@
+# The growing-table contract: an existing report is read, the still-present
+# finding's row is recomputed in place (Status -> Still open, Date -> today)
+# rather than duplicated, the genuinely new finding gets the next monotonic #,
+# and `last-run` advances while `created` stays put. One table, never a second.
+printf '%s' '[{"severity":"Critical","what":"§3 F2 criterion is vague","fix":"name the bound","why":"regression authoring"},{"severity":"Minor","what":"§5 row 1 has no owner","fix":"assign an owner","why":"clarity"}]' | python3 "$REPO/.claude/scripts/script-ledger.py" prd-9-grace.md --date 2026-08-02

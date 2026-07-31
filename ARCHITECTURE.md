@@ -53,8 +53,8 @@ There are ~58 scripts. Grouped by what they own:
 |--------|---------|
 | `script-cert-preflight.sh` | Resolves and validates the PRD path, and detects which tune type the content calls for |
 | `script-cert-mech.py` | The mechanical half of certification — every check verdict decidable from PRD text alone, so the model only judges what needs judgment |
-| `script-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the tune stamp + the §7 ledger; gates plan-em's plan and build waves |
-| `script-ledger.py` | Writer for the PRD's §7 *Plan review findings* ledger — locate-or-create, dedup against prior rows, monotonic `#`, clean-marker row |
+| `script-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the `reviewed:` stamp + the findings ledger; gates plan-em's plan and build waves. Falls back to the v5 tune stamps and inline §7 on a PRD that has them |
+| `script-ledger.py` | Writer for the plan-review findings ledger at `<prd-dir>/reports/review-prd-<n>-<slug>.md` — pick the home, locate-or-create, dedup against prior rows, monotonic `#`, clean-marker row. Appends to a pre-v5.4 PRD's inline §7 section instead when it has one |
 
 **Engineering (plan-em, eng)**
 
