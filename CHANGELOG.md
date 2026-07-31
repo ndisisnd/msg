@@ -2,6 +2,13 @@
 
 ## 2026-08-01
 
+### [116] — Every build-spawning orchestrator checks coverage (v5.3 P4)
+
+- The gap was never specific to team mode. The audit rule is now uniform: **every site that spawns `eng --build` and consolidates the result runs the coverage check before consolidating.** A grep over `.claude/skills` finds exactly three such sites, and all three are wired
+- `.claude/skills/plan-em/refs/protocol-em.md`: Added — the `--solo` lane runs the same check before Step 5 synthesis, keyed by agent name (solo runs one leaf per stack, so the agent name *is* the packet key). Same repair: re-spawn a reviewer over that agent's diff, re-check once, escalate and log `tool-error:review-<agent>` on a second miss. The synthesis must state `reviewed n/n agents`, and one that cannot is a hard failure. Prompt field 8 injects `<K>` and `built_by` so a leaf never invents the key
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md`: Added — Step 3a, the same check before the loop-close. This orchestrator had **zero** review mentions before today, yet a fix is code like any other. Per-issue keys are `<K>-fix-<issue-id>`, which is what stops parallel fix subagents from colliding on one artifact name under the shared issues-file `<K>`
+- Sites deliberately not wired, having verified each: `merge`, `pre-merge`, `fix-loop.md` and the `--gui` board only *name* the `eng --build` command in follow-up strings and rendered panels — they spawn no builder and consolidate no wave
+
 ### [115] — The team orchestrator verifies review coverage (v5.3 P3)
 
 - `.claude/skills/plan-em/refs/protocol-team.md`: Added — § Build wave step 4, a review-coverage check after **every** wave, sitting beside the existing DB/data guard because that is the proven shape for an after-every-wave control. The orchestrator asks `script-eng-review-check.sh` whether each packet has an artifact and quotes its coverage line; it never asks the leaf, whose self-report is exactly what a skipped review looks like
