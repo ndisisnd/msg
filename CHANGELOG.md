@@ -2,6 +2,10 @@
 
 ## 2026-07-31
 
+### [95] — Keep local dev-tool caches out of version control
+
+- `.gitignore`: Added — ignore `.serena/` and label the Headroom-related ignore entries with a section header
+
 ### [94] — Publish the v5.0.1 user-facing release notes
 
 - `RELEASES.md`: Added — the v5.0.1 section, covering the 8-phase hardening build ([86]–[93]): 25 fail-silent assertions + 4 slims (release bookkeeping for the `v5.0.1` GitHub release)

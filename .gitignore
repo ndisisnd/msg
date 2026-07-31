@@ -44,5 +44,8 @@ update-plan-gui-done.md
 # …and eng's fix-plan ref is source too (renamed from report-fix.md in v5)
 !.claude/skills/eng/refs/plan/fix-plan.md
 .claude/kermit/state.json
+
+# Headroom
 .tokensave
 __pycache__/
+.serena/
