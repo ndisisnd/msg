@@ -1,65 +1,209 @@
 <div align="center">
+
+<pre>
+███╗   ███╗███████╗ ██████╗ 
+████╗ ████║██╔════╝██╔════╝ 
+██╔████╔██║███████╗██║  ███╗
+██║╚██╔╝██║╚════██║██║   ██║
+██║ ╚═╝ ██║███████║╚██████╔╝
+╚═╝     ╚═╝╚══════╝ ╚═════╝ 
+</pre>
+
 <img src="./asset/intro.jpg">
-
-# 🧂 MSG
-
-_Sh*t tastes so good, it's probably loaded with MSG._
-
-The counterpart that relies on `/cook`, it's a heavily opinionated coding agent workflow and harness that depends on human approvals more than autonomy.
-
 </div>
+<br/>
 
-## 💻 Install
+<p align="center"><strong>The harness for product-focused builders who want less reading code, and more reviewing what your code does.</strong></p>
 
-### **msg + cook (recommended)**
+<p align="center">
+  <a href="LICENSE"><img src="https://badgen.net/badge/license/MIT/blue" alt="License"></a>
+  <a href="https://github.com/ndisisnd/msg/releases"><img src="https://badgen.net/github/release/ndisisnd/msg" alt="Release"></a>
+  <a href="https://github.com/ndisisnd/msg/commits/main"><img src="https://badgen.net/github/last-commit/ndisisnd/msg" alt="Last commit"></a>
+  <img src="https://badgen.net/badge/skills/8/8B5CF6" alt="Skills">
+  <a href="https://github.com/ndisisnd/msg/stargazers"><img src="https://badgen.net/github/stars/ndisisnd/msg" alt="Stars"></a>
+</p>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#how-it-works">How it works</a> ·
+  <a href="#the-skills">Skills</a> ·
+  <a href="#how-to-update">Update</a> ·
+  <a href="#faq">FAQ</a> ·
+  <a href="llms.txt">llms.txt</a>
+</p>
+
+<p align="center"><sub>
+  <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>llms.txt</code></a>.
+</sub></p>
+
+---
+
+## What it does
+
+msg is the counterpart that relies on [`/cook`](https://github.com/ndisisnd/cook) — a heavily opinionated coding agent workflow and harness that depends on human approvals more than autonomy. You describe a feature, and msg walks it through capture, planning, engineering, building, a CI gate, a staging sign-off, and a production release. You approve at each gate; nothing ships on the agent's own judgment.
+
+It installs as eight slash commands in Claude Code. There is no server and no account — every skill runs locally against your own repository.
+
+- **Plan** — `/intake` captures and grades ideas into a backlog, `/plan-pm` writes the PRD, `/plan-review` certifies it, `/plan-em` writes the engineering sections.
+- **Build** — `/eng --plan` proposes the file changes, `/eng --build` writes the code on a feature branch, `/eng --review` runs an adversarial pass over the diff.
+- **Ship** — `/pre-merge` runs your test pipeline and opens the PR, `/merge` is the only skill that merges anything.
+- **See it** — `/msg --gui` serves a local Notion-style PRD board on `127.0.0.1`.
+
+**Run reports.** Every build, gate, and merge writes a report you can read: what was done, what you should now be able to do, and the exact steps to check it yourself. The board collects them under a Reports tab, grouped by feature.
+
+**Closing message.** Every run ends by telling you where you stand — a 🟢 / 🟡 / 🔴 headline, one line of plain English, a short table of what happened, and the concrete next thing to run. Same shape whether it passed, needs your call, or hit a blocker.
+
+**Safety floor.** No skill can quietly widen its own reach. `/eng` only commits to feature branches, `/pre-merge` opens a pull request but never merges it, and `/merge` is the only skill that merges anything — nothing reaches production except through a release you confirmed twice. The human gates don't disappear either: you sign off on staging, you're offered a rollback rather than given one, and production asks twice. See [ARCHITECTURE.md § Safety floor](ARCHITECTURE.md#safety-floor).
+
+## Install
+
+You need `git`, `curl`, Claude Code, and an authenticated [`gh` CLI](https://cli.github.com) (the gates use it to open and merge PRs).
+
+### msg + cook (recommended)
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook
 ```
 
-### **msg only**
+### msg only
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 ```
 
-New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step.
+**Verify it worked:**
 
-**Current release: v5.0.0** — see [RELEASES.md](./RELEASES.md) for what's new, release by release.
+```bash
+ls ~/.claude/skills     # msg intake plan-pm plan-review plan-em eng pre-merge merge shared
+ls ~/.claude/scripts    # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
+```
 
-## 🗂️ Skills
+Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session.
 
-Run `/msg` to browse these interactively, or invoke any skill directly. `/msg --gui` opens a local, Notion-style PRD board (Kanban/table, light + dark) where you can edit PRDs, drag statuses, tick off todos, work the `INTAKE.md` backlog on an Intake tab (grade chips, lane drag), browse project docs, read run reports, and run Claude prompts — served on `127.0.0.1` only.
+New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/pre-merge` and `/merge` each need their own one-time `--init` before the pipeline runs anything.
 
-**Run reports.** `eng --build`, `/pre-merge`, and `/merge` each end a run by writing `report-[n].md` into the PRD's `features/prd-[n]/reports/` folder (`features/reports/` when no PRD applies) — a plain-language record of the work done (features, code changes, lines added/deleted, tests passed/failed) plus what you can expect and the exact steps to verify the feature works. Merge's staging report carries the human test script; its production report renders release-style — the version it tagged, each platform's outcome per its release model (`live`, or `submitted` + where to monitor), any rollback offered, and any no-rollback platform flagged `IRREVERSIBLE`. The board renders them under a dedicated **Reports** tab, grouped by PRD. Schema: `.claude/skills/shared/refs/report-schema.md`.
+**Current release: v5.0.1** — see [RELEASES.md](./RELEASES.md) for what's new, release by release.
 
-**Closing message.** Every pipeline skill run ends with a closing message telling you exactly where you stand and what to do next: a 🟢 Success! / 🟡 Warning! / 🔴 Fail! headline, a one-line plain-language summary, a short table of what happened, and a **Next steps** list of concrete actions (e.g. "Run `/pre-merge` now") drawn from a fixed registry — same shape whether the run passed, needs your call, or stopped on a blocker. Contract: `.claude/skills/shared/refs/closing-message.md`.
+## How it works
 
-**Safety floor.** The safety floor is **never relaxed**: write powers are scoped per skill (eng commits to feature branches only; pre-merge opens exactly one feature→staging PR and never merges; merge is the only merger, and nothing reaches `main` except via its double-confirmed staging→main release), and the human gates (staging sign-off — pinned to the commit you tested, the inline human-test when shipping without staging, the always-ask rollback offer, production double-confirm) never disappear. `/merge --production` guards `main` behind branch protection (green CI + human review). See ARCHITECTURE.md § Safety floor.
+Each skill hands off to the next. Nothing runs automatically — you invoke each one, and the previous skill's closing message tells you which comes next.
 
-### 📐 Plan
+```mermaid
+flowchart TD
+    intake["<b>/intake</b><br/>capture + grade the idea"]
+    pm["<b>/plan-pm</b><br/>write the PRD"]
+    em["<b>/plan-em</b><br/>certify, then engineer the plan"]
+    plan["<b>/eng --plan</b><br/>propose changes + todos"]
+    build["<b>/eng --build</b><br/>write the code"]
+    pre["<b>/pre-merge</b><br/>run the pipeline, open the PR"]
+    stg["<b>/merge --staging</b><br/>merge, deploy, hand you a test script"]
+    prod["<b>/merge --production</b><br/>release PR, deploy, tag"]
 
-| Skill | Description |
-|-------|-------------|
-| `/msg --init` | One-time project bootstrap — batched interview (project basics, architecture, design system, **release flow**), then scaffolds `devkit/` (AHA.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, DOCTOR.md, ENV.md, GLOSSARY.md, OPEN-QUESTIONS.md, PLATFORMS.md), seeds `devkit/policy.json` (`init:false` + release flow), the root `INTAKE.md` backlog ledger, `roadmap/TEMPLATE-roadmap.md`, and root files. Idempotent. |
-| `/msg --update` | Re-scans an already-bootstrapped repo for components added since it was set up — missing `devkit/` files, template rows added later (e.g. the `devkit/DOCTOR.md` ignore line), and PRD folders not yet sorted into a lane. Additive and preview-gated; never rewrites an existing line. |
-| `/msg --init-staging` | Adds a `staging` branch to a direct-flow repo (branches off prod, offers branch protection) and flips `devkit/policy.json` release flow to `staged`. The only mode that creates a staging branch. |
-| `/msg --doctor` | Reads `devkit/DOCTOR.md` — the local ledger where every skill records a **harness incident** (a script that failed, a write that did not land, a validator that misfired). It reports which problems have recurred often enough to be worth fixing and never fixes anything itself, so a broken harness is visible instead of quietly absorbed. The ledger is gitignored: it is about your machine, not your product. |
-| `/intake` | The planning front door — captures feature ideas and bugs as graded rows in the root `INTAKE.md` ledger. Owns the requirements interview: fleshes out thin ideas, suggests adjacent ones, splits compound/hybrid asks and XL ideas into discrete rows, and grades each in a single-turn banded judgment (complexity `C:` / token-cost `T:` / sequencing `S:` — bands only, never fake-precise numbers). Feeds `plan-pm`. |
-| `/intake --delete` | Removes a row from the backlog — the only destructive intake mode. Runs a warning pass first (a PRD it would orphan, other rows graded `S:blocked-by-#n` against it, a `completed` ship record, log history), then requires an explicit confirm. **Never renumbers** — the `#` gap stays, because renumbering would silently repoint every `blocked-by` reference. Deletes ledger rows only, never a PRD folder or file. |
-| `/intake --update` | Edits a row already in the backlog. Lists every un-shipped row in full, then changes the one you pick — `idea` / `goal` / `type` on `backlog` rows only (`in-progress` rows belong to their PRD; use `/plan-review`). A **material** change re-runs the grading rubric and the same hybrid/`≥8` split gates as capture; a cosmetic one keeps the grade. Every edit lands in `INTAKE-UPDATE.md`, a sibling file to `INTAKE.md`. Never writes `status` or `prd`. |
-| `/plan-pm` | Principal PM — the **autonomous PRD writer**. Consumes a graded intake row and drafts the full PRD solo (edge cases, feature/acceptance table, user flows, error handling) to `features/prd-[n]/`, pausing only for batched open questions and breaking/critical touches. Stamps the intake row `in-progress` + its `prd` mapping. |
-| `/plan-review` | Staff PM **contract certifier** — runs a fixed seven-check certification (`--product`: checks 1/2/3/6; `--eng`: 2/4/5/6/7), each tied to a named downstream consumer ("no check without a consumer"). Auto-selects the tune type, auto-fixes every Critical + Major with a terminal `# \| Sev \| Found \| Fixed` table, asks once about Minors, pauses only on a product-decision finding. Each auto-fix writes a category-tagged learning to `devkit/AHA.md` so the next `plan-pm` draft self-heals. |
-| `/plan-em` | Engineering Manager — auto-runs `plan-review` certification before each wave (product before plan, eng before build; roster approval is the single human gate), spins up specialist agents to write engineering sections into the PRD, then synthesises the output. Runs `--team` by default (an Opus orchestrator engineer decomposes each wave into file-disjoint, model-tiered packets — Opus for load-bearing work, Sonnet for mechanical — fanned out to leaf `eng` subagents to maximise parallelism) or `--solo` (one leaf subagent per roster stack). |
+    intake --> pm --> em --> plan
+    plan -->|you approve the changes| build
+    build --> pre
+    pre -->|PR to staging| stg
+    stg -->|you sign off on the commit you tested| prod
+```
 
-### 🔨 Build
+`/plan-review` doesn't appear as a step because `/plan-em` runs it for you — once before the plan wave and once before the build wave — so a build can never start on an uncertified plan.
 
-| Skill | Description |
-|-------|-------------|
-| `/eng` | Platform-agnostic engineering agent — `--plan` proposes file changes for approval **and** writes the per-feature todo tickets in the same pass, `--build` writes code from the todos (falling back to exec-table rows) and spawns the reviewer before the commit confirm, `--review` runs one adversarial whole-change review of the working diff as a separate subagent (also available standalone on any branch). Every build pauses for sign-off before it commits, and again on any database, data, or production-config touch. |
-| `/pre-merge` | The CI gate — takes a feature branch from "eng says done" to "PR open against staging". Runs a **preflight-driven pipeline executor** over the `components[]` manifest in `devkit/policy.json`: it prunes to the components this project actually has, topo-sorts them on their dependencies, and runs independent components as parallel waves — sync → parallel correctness + security waves (with **`smoke`** first inside the ephemeral test sandbox) → coverage → regression tail → opens PR feature→staging. Pre-merge holds **no human gate**: the human look at a running build belongs to `/merge` (the staging sign-off, or the direct-flow attestation when there is no staging branch), so a feature is never human-tested twice for the same content. `smoke` is the machine stand-in — a default-liveness check plus the project's critical-path golden flows, run first so a dead build short-circuits the expensive checks; it emits a significance-rated manual-test-plan checklist that merge's staging walk-through renders. With **no manifest** it refuses `no_manifest` and points you at `/pre-merge --init`. Opt in to **minified test selection** (`policies.test_selection`) and `unit`/`integration`/`regression` narrow to *affected(diff) ∪ critical-floor* instead of the whole suite, sized by an S/M/L tier rubric measured from the diff's actual blast radius (never the PRD's prose) — any resolution failure fails open to the full suite, and the full suite still runs somewhere (a declared CI and/or merge backstop). Per-run `--minified`/`--full` override the policy for one run; `--update-criticality` keeps the critical-tag floor current as your test suite drifts. Absorbs the old `/review` and `/test`; emits a severity-graded JSON verdict. `--init` detects the pipeline — including whether a `.github/workflows/` pipeline runs the gate on PRs — offers to install/scaffold the missing (free/OSS) pieces, and writes the manifest; `--update` reconciles it as the code drifts. |
-| `/merge` | The ship gate — the only skill that merges. Every shipping platform carries a `release_model` (`deploy` vs `submission`, inferred with a warn if undeclared): `deploy` platforms (web, macOS) verify live via smoke; `submission` platforms (iOS, Android) never report `live` — a deploy is `submitted` + track, verified as submission-accepted + backend/build-health smoke, with an explicit monitor-handoff. `--staging` verifies green CI, merges the feature→staging PR, deploys + verifies staging per that model, emits a human test script, and stamps `staging-signoff: <date>@<sha>` on approval — **pinned to the commit the human actually tested**, so `--production` refuses (`stale_signoff`) if anything landed on staging afterwards. `--production` resolves **release identity** first (the next version + build off the last `v*` tag on prod — read-only, threaded through the confirm and release PR), double-confirms, opens the release PR staging→main (rollback notes per platform; iOS `IRREVERSIBLE`), acquires a **release lock** so a second concurrent `--production` refuses `release_in_flight`, merges on green CI + human review, deploys + verifies per `release_model` (checking provenance against the signed-off sha), and on success tags `v<x.y.z>+<build>`. Any deploy/smoke failure **offers an executable rollback or rollout-halt** (always-ask, never auto) before the fix loop. Branch protection (`script-branch-protection.sh`) is the machine enforcement — **policy-conditional** (`enforced`/`optional`/`skip` per `devkit/policy.json`, so private Free repos that can't set protection aren't blocked). `--init` sets up protection/deploy tooling + the release flow and verifies staging is actually ready per platform. Ship gates never collapse. |
+The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_manifest`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~58 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
 
----
+## The skills
+
+Eight slash commands. Run `/msg` to browse them interactively, or invoke any one directly. `/msg --gui` opens a local PRD board on `127.0.0.1` — Kanban and table views, PRD editing, todo toggling, the backlog, project docs, and run reports.
+
+### Plan
+
+| Skill | What it's for |
+|-------|---------------|
+| `/msg --init` | Sets a project up, once. A short interview about what you're building and how you release it, then it writes the reference docs every other skill reads. Safe to re-run. |
+| `/msg --update` | Adds anything msg gained since you set the project up. Shows you the change before making it, and never rewrites a line you already have. |
+| `/msg --init-staging` | Adds a staging branch to a project that currently ships straight to production. The only skill that creates one. |
+| `/msg --doctor` | Tells you when msg itself is misbehaving. Every skill logs its own glitches; this reads that log and reports what keeps recurring, so a broken tool is visible instead of quietly absorbed. |
+| `/intake` | Where every idea and bug starts. It interviews you, fleshes out the thin ideas, suggests ones you hadn't thought of, splits anything too big to build in one go, and grades each for complexity and cost. |
+| `/intake --update` | Changes an idea you already captured. A real change to the idea re-grades it; a wording fix doesn't. |
+| `/intake --delete` | Drops an idea from the backlog. Warns you first about anything that depends on it, then asks you to confirm. |
+| `/plan-pm` | Writes the PRD for you — user flows, edge cases, what "done" means — stopping only for the questions it genuinely can't answer itself. |
+| `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. You don't invoke this one; `/plan-em` runs it for you. |
+| `/plan-em` | Turns the PRD into an engineering plan. It proposes a roster of specialists for the work — approving that roster is your only decision here — then puts them to work. |
+
+### Build
+
+| Skill | What it's for |
+|-------|---------------|
+| `/eng --plan` | Proposes the file changes and writes the todo list. Nothing gets written until you approve it. |
+| `/eng --build` | Writes the code, on its own branch. Pauses for your sign-off before it commits, and again before touching a database, your data, or production config. |
+| `/eng --review` | A fresh agent reads the whole change looking for problems. Runs inside `--build` by default; you can also point it at any branch yourself. |
+| `/pre-merge` | Runs your project's checks — tests, lint, coverage, security, a smoke test — in a throwaway sandbox, then opens the pull request. One-time `/pre-merge --init` first, so it knows what your project actually has. |
+| `/merge --staging` | Merges once CI is green, deploys to staging, and hands you a script to test it by. Your sign-off is pinned to the exact commit you tested. |
+| `/merge --production` | The release. Double-confirms, opens the release PR, merges on green CI and human review, deploys, and tags the version. If the deploy goes wrong it offers you a rollback rather than taking one on its own. |
+
+Every flag and refusal each skill supports is in [ARCHITECTURE.md](./ARCHITECTURE.md).
+
+## How to update
+
+**Updating msg itself.** Re-run the installer. It shallow-clones `main` and copies over your existing install, sweeping the names retired in v5 (`plan-tune`, `post-merge`, and every pre-v5 script filename) so a stale copy can't shadow its replacement.
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook
+```
+
+Restart Claude Code afterwards, the same as a first install.
+
+**Updating a project msg already set up.** Three commands, each additive and preview-gated:
+
+| Command | Reconciles |
+|---------|-----------|
+| `/msg --update` | `devkit/` files and template rows added to msg after your repo was bootstrapped |
+| `/pre-merge --update` | the `components[]` manifest, as your test and lint tooling drifts |
+| `/pre-merge --update-criticality` | the critical-test floor, as your suite grows |
+
+None of them rewrite a line you already have.
+
+## FAQ
+
+**Why does `/pre-merge` refuse with `no_manifest`?**
+
+Because `/pre-merge --init` hasn't run in this repo yet. Bootstrapping with `/msg --init` isn't enough — the CI gate needs a `components[]` manifest in `devkit/policy.json` describing which checks your project actually has. Without it the gate would run zero components and report a pass it hadn't earned, so it refuses instead.
+
+**Why doesn't `/pre-merge` stop for my approval?**
+
+Deliberately. The human look at a running build belongs to `/merge --staging`, where you get a real test script against a deployed build. Putting a gate in both places would mean testing the same content twice, so pre-merge holds none.
+
+**Do I need cook?**
+
+No. cook supplies the domain-specific coding standards msg loads before generating code. Without it every skill still works — it just skips the standards-loading step. It's recommended, not required, which is why the installer makes it a flag.
+
+**Can I ship without a staging branch?**
+
+Yes. `/msg --init` asks for your release flow, and `direct` is a supported answer. The staging sign-off is replaced by an inline human test at merge time — the gate moves, it doesn't disappear. If you start direct and later want staging, `/msg --init-staging` is the only path that creates the branch.
+
+**Why is `features/` gitignored?**
+
+PRDs, the `INTAKE.md` backlog, and `devkit/DOCTOR.md` are per-project working state, and the shared ledger table was a standing source of merge conflicts. They're local by design. What ships in this repo is the harness, not one project's plans.
+
+**What if my repo can't set branch protection?**
+
+A private repo on a Free plan can't, and msg doesn't treat that as a failure. Branch protection is policy-conditional (`enforced` / `optional` / `skip`), so the stance is recorded as `optional` and the gate isn't blocked. Every human gate still stands — protection is the machine enforcement on top of them, not a replacement for them.
+
+## Documentation
+
+- [QUICKSTART.md](./QUICKSTART.md) — install to first shipped feature, with a verify check per step
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — the four layers, the script inventory, the safety floor
+- [RELEASES.md](./RELEASES.md) — what each release changed, in plain language
+- [SECURITY.md](./SECURITY.md) — how to report a vulnerability
+- [llms.txt](./llms.txt) — an index for agents landing in this repo
+
+## License
+
+[MIT](LICENSE)
+
+## Acknowledgments
 
 Credits to my dear JC who previously had her own harness with a bajillion agents. Great times.
+
+<!-- mkpub: add anyone or anything else that actually helped here — prior art, a
+     README you took the structure from, people who tested it. Delete this comment
+     when you're done, or leave the section as-is if JC is the whole list. -->

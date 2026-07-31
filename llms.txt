@@ -1,0 +1,44 @@
+# msg
+
+> A Claude Code skill harness for structured software delivery: a gated pipeline from idea to production release, where a human approves at every gate.
+
+msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt Claude Code loads when the user types `/name` — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` opens a PR but never merges, and `merge` is the only skill that merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
+
+## Docs
+
+- [README](https://raw.githubusercontent.com/ndisisnd/msg/main/README.md): what each skill does, install, the pipeline shape
+- [QUICKSTART](https://raw.githubusercontent.com/ndisisnd/msg/main/QUICKSTART.md): install → bootstrap → first shipped feature, with a verify check per step
+- [ARCHITECTURE](https://raw.githubusercontent.com/ndisisnd/msg/main/ARCHITECTURE.md): the four layers (install, skill, script, devkit), the ~58 scripts grouped by what they own
+- [install.sh](https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh): what lands in `~/.claude/skills/` and `~/.claude/scripts/`, including the stale-name sweeps
+
+## Skills
+
+Each is the router for its own behaviour — start here to change what a skill does.
+
+- [msg](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/msg/SKILL.md): skill browser, `--init` project bootstrap, `--gui` PRD board, `--doctor`
+- [intake](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/intake/SKILL.md): the backlog front door — captures and grades ideas into `INTAKE.md`
+- [plan-pm](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-pm/SKILL.md): autonomous PRD writer, consumes a graded intake row
+- [plan-review](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-review/SKILL.md): seven-check contract certifier, each check bound to a named downstream consumer
+- [plan-em](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-em/SKILL.md): engineering manager — roster approval, then fans out specialist subagents per wave
+- [eng](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/eng/SKILL.md): `--plan` / `--build` / `--review` — the only skill that writes product code
+- [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the CI gate — manifest-driven pipeline executor, opens the PR to staging
+- [merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/merge/SKILL.md): the ship gate — the only merger; `--staging` sign-off, `--production` release
+
+## Reference
+
+Shared contracts every skill inherits. Changing one of these changes several skills at once.
+
+- [safety-floor.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/safety-floor.md): the never-relaxed guarantees — read before touching any gate
+- [policy-schema.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/policy-schema.md): `devkit/policy.json` — release flow, components manifest, test selection
+- [component-catalog.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/component-catalog.md): the single source of pipeline component metadata and sequencing
+- [closing-message.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/closing-message.md): the 🟢/🟡/🔴 chat contract every run ends with
+- [report-schema.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/report-schema.md): the `report-[n].md` run report format the GUI parses
+
+## Optional
+
+- [RELEASES](https://raw.githubusercontent.com/ndisisnd/msg/main/RELEASES.md): what each release changed, in plain language
+- [CHANGELOG](https://raw.githubusercontent.com/ndisisnd/msg/main/CHANGELOG.md): the full commit-level record
+- [SECURITY](https://raw.githubusercontent.com/ndisisnd/msg/main/SECURITY.md): reporting channel and scope
+- [LICENSE](https://raw.githubusercontent.com/ndisisnd/msg/main/LICENSE): MIT
+
+Not in git: `features/`, `roadmap/`, `devkit/DOCTOR.md`, `INTAKE.md`. They're per-project working state, so don't look for them here.

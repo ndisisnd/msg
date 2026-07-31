@@ -2,6 +2,13 @@
 
 ## 2026-07-31
 
+### [96] — Make the repo readable to strangers and to agents
+
+- `README.md`: Changed — figlet header, badges and nav added; the two skill tables rewritten from dense implementation prose into one-or-two-sentence rows split per mode; the run-report, closing-message and safety-floor blocks condensed from 470 to 180 words; new Install-verify, How-to-update, FAQ and Documentation sections
+- `SECURITY.md`: Added — private-advisory reporting channel, supported-version stance (fixes land on `main`, no backports), and a scope naming the installer, the script layer, and the git/`gh` write powers
+- `llms.txt`: Added — index for agents landing in the repo: docs, the eight skills described by what changing each would change, the shared contracts, and the gitignored paths not to look for
+- `.gitignore`: Changed — ignore `AGENTS.md` and `CLAUDE.local.md`, both machine-local `headroom learn` output
+
 ### [95] — Keep local dev-tool caches out of version control
 
 - `.gitignore`: Added — ignore `.serena/` and label the Headroom-related ignore entries with a section header
