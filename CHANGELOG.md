@@ -2,6 +2,14 @@
 
 ## 2026-08-01
 
+### [115] — The team orchestrator verifies review coverage (v5.3 P3)
+
+- `.claude/skills/plan-em/refs/protocol-team.md`: Added — § Build wave step 4, a review-coverage check after **every** wave, sitting beside the existing DB/data guard because that is the proven shape for an after-every-wave control. The orchestrator asks `script-eng-review-check.sh` whether each packet has an artifact and quotes its coverage line; it never asks the leaf, whose self-report is exactly what a skipped review looks like
+- Recovery is cheap and silent at first contact: a `MISSING` key re-spawns **one** `eng --review` over that packet's diff — the builder is not re-run and its commits are untouched — then re-checks once. A second miss escalates to the user and logs a `tool-error:review-<k>` DOCTOR row, matching the failed-packet arm exactly. A usage error or absent script is a harness fault logged as `validator-fail`, never read as "reviewed"
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — consolidation must state coverage (`reviewed n/n packets` per wave plus aggregate finding counts). A consolidation that cannot state coverage is itself a hard failure, because the incident's signature was a wave that consolidated green while saying nothing about review
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the build leaf's return contract gains the `**Review:**` line as a required element alongside the v5.2 `status:` line, and the Build row of the subagent contract now injects the packet key `<K>` and `built_by`, so a leaf never invents the key the coverage check expects. A Review row documents the repair spawn
+- The line in the summary is a convenience for the human; the filesystem check is the proof, and it runs whether or not a leaf claims a review happened
+
 ### [114] — The reviewer leaves a trace (v5.3 P2)
 
 - `.claude/skills/eng/refs/review/protocol.md`: Added — a § Artifact section. The reviewer writes its returned JSON object to `<prd-dir>/reports/review-prd-<N>-<K>.json` **before** returning it, temp-file-then-`mv`, so a reviewer that dies mid-run leaves no half-written file for a checker to read as a completed review. `<K>` is the spawner's packet key, never invented: no key, or a failed write, means say so in the one-liner and log a `write-miss` DOCTOR row, then let the caller's coverage check read the gap and re-spawn
