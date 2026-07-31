@@ -3,10 +3,11 @@ name: plan-em
 description: >
   Engineering Manager skill. Reads an approved PRD, runs pre-flight checks against
   AHA.md, GLOSSARY.md and ARCHITECTURE.md, auto-runs plan-review certification inline
-  before each wave (product before the plan wave, eng before the build wave — no
-  ask), identifies specialist agents to activate (roster approval — the single human
-  gate), spins them up to write engineering sections directly into the PRD, then
-  synthesises the full output. Runs in --team mode by default (an Opus orchestrator
+  (no ask), identifies specialist agents to activate (roster approval — the single
+  human gate), spins them up to write engineering sections directly into the PRD, then
+  synthesises the full output. Sizes itself on the PRD's intake grade: a medium PRD
+  runs one fused plan+build wave behind one certification, a large PRD keeps the
+  two-wave path with a certification before each. Runs in --team mode by default (an Opus orchestrator
   engineer decomposes each wave into file-disjoint, model-tiered packets fanned out to
   leaf eng subagents) or --solo (one leaf subagent per roster stack). Refuses without a
   referenced PRD .md path.
@@ -54,6 +55,20 @@ other step is identical in both lanes.
 The mode is a **persisted preference**, not just a per-run flag. Resolution precedence and
 the flag-parse rule live in `refs/protocol-em.md` Step 0; the pref file itself lives in
 `.claude/skills/shared/refs/exec-mode-pref.md`.
+
+## How many invocations a PRD costs
+
+Independent of the lane above, the run's **size tier** decides how much ceremony the PRD
+pays. plan-em resolves it once from the intake complexity grade (`refs/protocol-em.md`
+Step 1e) — there is no flag and no question:
+
+| Intake `C:` | Size | Invocations | Certifications |
+|-------------|------|-------------|----------------|
+| **< 8**, or unresolvable (the default) | medium | **one** — a fused wave plans and builds in a single run | one (product, before the wave); a mechanical plan-shape check replaces the eng cert |
+| **≥ 8** | large | two — plan wave, then build wave | two (product before the plan wave, eng before the build wave) |
+
+An interrupted fused run is resumed by re-invoking `/plan-em` on the same PRD: it detects
+the written engineering sections and completes the build half. No flag, no state file.
 
 ## Inputs
 

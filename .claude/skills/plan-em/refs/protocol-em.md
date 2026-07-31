@@ -1,6 +1,6 @@
 ---
 name: EM Protocol
-description: End-to-end five-step execution protocol for plan-em — validate/pre-flight, product certification precondition, roster, agents write (eng cert precondition before build wave), synthesise
+description: End-to-end five-step execution protocol for plan-em — validate/pre-flight, certification precondition, roster, agents write (fused plan+build wave on a medium PRD, two waves on a large one), synthesise
 type: reference
 ---
 
@@ -106,16 +106,31 @@ So the v1 per-relationship `AskUserQuestion` gate (Dependency / Breaking change 
 
 Do not hold the full report in context. After writing, emit inline **only actionable findings** (those needing a decision before proceeding: blocking PRD gaps, architecture conflicts, multi-PRD questions). Suppress informational findings (AHA.md warnings, terminology notes, design-system observations) inline — they live in `preflight.md`, available on request.
 
+**1e. Resolve the size tier (`$SIZE`) — the one input that shapes the whole run.** v5.4 sizes the ceremony to the PRD instead of paying the large-PRD cost every time, and **intake's complexity grade is the measure**. Resolve it once here; every later step consumes the answer and never re-derives it.
+
+The Step 1b digest already returned `frontmatter`, which carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose grade cell reads `C:<band> T:<band> S:<sequencing>`. Read that row's `C:` band:
+
+| `C:` band | `$SIZE` | What it buys |
+|-----------|---------|--------------|
+| **≥ 8** | `large` | The two-wave path, unchanged: plan wave → second `/plan-em` → build wave, with a certification before each. |
+| **< 8**, or unresolvable | `medium` (**the default**) | The **fused** wave: one `/plan-em` invocation plans *and* builds, behind one certification. |
+
+**Default to medium.** No `intake:` key, no matching row, an unparseable grade cell, or no `INTAKE.md` at all → `medium`. This is the same rule and the same grade cell that `eng --plan` tiers its section shape on (`eng/refs/plan/protocol.md` § Which shape); resolving it once here and **injecting it into every leaf's scoped context** is what keeps the two decisions from disagreeing. Emit the resolution in one line — `Size: medium (intake #12, C:5) — fused plan+build wave.` — so the human can see which path the run took before it takes it.
+
 ---
 
 **Step 2/5 — Certification precondition (product wave)**
 
-Certification is a **precondition, not a choice** (D18). Before the **plan wave**, the product-side certification must have passed — plan-em runs it inline rather than asking. Without this, checks 1/2/3/6 would be advisory and an unenforced gate decays into documentation. Full sequence:
+Certification is a **precondition, not a choice** (D18). Before any agent writes anything, the product-side certification must have passed — plan-em runs it inline rather than asking. Without this, checks 1/2/3/6 would be advisory and an unenforced gate decays into documentation.
+
+**How many certifications a run pays depends on `$SIZE` (Step 1e):**
 
 ```
-plan-em Step 2: certify product  →  plan wave (agents write eng + tickets)
-plan-em Step 4 (build mode): certify eng  →  build wave
+$SIZE = medium →  Step 2: certify product  →  FUSED wave (plan half → mechanical shape check → build half)
+$SIZE = large  →  Step 2: certify product  →  plan wave  ┊  Step 4 (build mode): certify eng → build wave
 ```
+
+A **medium** run pays **one** certification, here. The between-wave eng certification is not skipped work that reappears later — it is deleted for this size, and a **mechanical** plan-shape check stands in its place immediately before the build half dispatches (§ Fused mode below). The reasoning: the eng cert's value is catching a *human-authored* plan that drifted from the PRD across a session boundary; a fused run has no session boundary, and the ticket-schema failures that actually break a build wave are exactly what `script-eng-plan-shape.py` catches mechanically, in seconds, for free. A **large** run keeps both certifications — its plan half is genuinely a separate sitting.
 
 Run the certification gate checker on the input PRD (certification stamp + open-Critical scan of the findings ledger, two-path resolution). On a v5.4 PRD the stamp it reads is the single `reviewed:` field and the ledger is `reports/review-prd-[n]-[slug].md`; on a PRD written before v5.4 it reads that file's `product-tuned:` stamp and its inline §7 section instead — the flag name is unchanged either way:
 
@@ -219,17 +234,22 @@ then take the fan-out for `$TEAM_MODE`.
 G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "<PRD path>" --slice plan
 ```
 
-Compare `engineering_agents` against the **approved roster** (Step 3b). Two modes:
+Compare `engineering_agents` against the **approved roster** (Step 3b), then cross it with `$SIZE` (Step 1e). Three modes:
 
-| Condition | `$MODE` |
-|-----------|---------|
-| some roster agent is missing from `engineering_agents` (or the list is empty) | `plan` |
-| **every** roster agent appears in `engineering_agents` | `build` |
+| `$SIZE` | `engineering_agents` vs roster | `$MODE` | Meaning |
+|---------|-------------------------------|---------|---------|
+| `medium` | some roster agent missing (or the list is empty) | **`fused`** | Nothing planned yet → plan **and** build in this one invocation (§ Fused mode). |
+| `medium` | **every** roster agent present | `build` | **The resume path.** A fused run was interrupted after its plan half landed; re-invoking `/plan-em` finds the sections written and proceeds with the build half only. |
+| `large` | some roster agent missing (or the list is empty) | `plan` | The plan wave. The run ends after it; the build wave arrives as a second `/plan-em`. |
+| `large` | **every** roster agent present | `build` | The build wave of the two-wave path. |
 
-Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--build`). The `plan` wave writes each agent's `## Engineering — <Agent>` section **and** its `## Todos — <Agent>` tickets in **one pass** — there is no separate todo wave.
+The `engineering_agents` comparison is therefore doing two jobs at once: it is the wave selector for a large PRD and the **resume detector** for a medium one. That is deliberate — an interrupted fused run leaves exactly the same on-disk evidence a completed plan wave does, so the same signal recovers it with no run-state file to keep honest.
+
+Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--build`; `fused` dispatches both, in order). The `plan` wave writes each agent's `## Engineering — <Agent>` section **and** its `## Todos — <Agent>` tickets in **one pass** — there is no separate todo wave.
 
 **Subagent context injection (compile/read once, share many).** plan-em already read the full PRD + devkit (Step 1) and compiled per-stack standards payloads (Step 3a). It passes each `eng` subagent only what it needs, so siblings do **not** each re-read the whole PRD, re-read every devkit file, or re-invoke `/cook`. Every dispatch prompt below therefore also includes:
 - **Scoped context** — this agent's exec-table rows, the PRD **feature sections** those rows map to, and a **devkit digest** (canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows — distilled from the Step 1 pre-flight). Plus the **escape hatch**: *"The full PRD is at `<prd-path>`; read it (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve a row."*
+- **The resolved size tier** *(plan dispatches only)* — `$SIZE` and the `C:` band behind it, from Step 1e, stated as `intake grade C:<band> → write the <medium|large> shape`. The planner tiers its `## Engineering — <Agent>` section on exactly this (`eng/refs/plan/protocol.md` § Which shape) and **must not re-read `INTAKE.md` itself**: one resolution per run, injected, so a sibling planner cannot reach a different answer than the run it belongs to.
 - **Standards payload** *(build mode only)* — the compiled `/cook` output for this agent's stack, retained from Step 3a. The build agent uses it and **does not call `/cook` itself**. (`--plan` agents pull no standards → no payload.)
 
 Scope-enforcement and the branch contract in the numbered fields are unchanged — each agent acts only on its assigned rows and commits only to the resolved branch.
@@ -238,7 +258,7 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 - **One innovation token per plan, max.** If the plan introduces more than one unfamiliar technology, split it or pick one.
 - **Extract on the third occurrence, not the second.** Duplication is cheaper than premature abstraction.
 
-**Plan mode (`$MODE = plan`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — since v5.4 it is the only index to the tickets, so every agent's block must hang off one shared heading. Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
+**Plan mode (`$MODE = plan`, and the plan half of `$MODE = fused`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — since v5.4 it is the only index to the tickets, so every agent's block must hang off one shared heading. Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
@@ -254,11 +274,13 @@ S=.claude/scripts/script-prd-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/s
 
 `specced` is the v5.4 lifecycle value for "execution table + todos written" — the rung that used to be called `eng`. On a PRD written before v5.4 the frontmatter still reads `status: eng`; leave it, every consumer normalises the two to the same rung.
 
-The next `plan-em` invocation then detects `$MODE = build`.
+Then, by `$MODE`:
+- `plan` (large) — the run **ends** here. Emit the branch suggestion below and go to Step 5; the next `plan-em` invocation detects `$MODE = build`.
+- `fused` (medium) — **do not return to the user.** Continue straight into § Fused mode below, which carries the run from the written tickets to the built code without a second invocation.
 
 **Build mode (`$MODE = build`).**
 
-**Eng certification precondition (D18) — runs before any build agent.** The engineering sections exist now (the plan wave wrote them), so the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (certification stamp + open-Critical scan of the findings ledger — `reviewed:` on a v5.4 PRD, that file's `eng-tuned:` stamp on an older one, two-path resolution):
+**Eng certification precondition (D18) — `$SIZE = large` only.** The engineering sections exist now (the plan wave wrote them), so on a **large** PRD the eng-side certification is a precondition to the build wave, the same way the product cert (Step 2) gated the plan wave. On a **medium** PRD — whether this is the build half of a fused run or the resume path re-entering at `$MODE = build` — this certification does not run at all; the **mechanical plan-shape check** in § Fused mode stands in its place, and Step 2's single certification is the only one the run pays. Skipping it on a medium PRD is the v5.4 decision, not a shortcut taken here: run the shape check instead, never nothing. This closes the v1 hole where synth merely *recommended* the eng tune — the build wave can no longer start on an uncertified eng plan. Run the certification gate checker (certification stamp + open-Critical scan of the findings ledger — `reviewed:` on a v5.4 PRD, that file's `eng-tuned:` stamp on an older one, two-path resolution):
 
 ```bash
 S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-cert-status.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" --eng
@@ -327,7 +349,28 @@ bash "$R" --reports-dir "$PRD_DIR/reports" --expect "<the dispatched agent names
 
 Exit 0 → quote its coverage line in the synthesis. Exit 1 → **repair, don't rebuild**: spawn one `eng --review` over that agent's rows and diff (never the agent that wrote the code), injecting `built_by=<agent>` and `<K>=<agent>`, then re-check once. Still missing → surface the uncovered agents in the synthesis and log one `tool-error:review-<agent>` DOCTOR row per § Harness incidents. Exit 2 or an absent script is a harness fault (`validator-fail:script-eng-review-check`), never coverage. **The synthesis must state coverage** — `reviewed <n>/<n> agents` — and one that cannot state it is a hard failure, not a footnote. Review findings gate nothing: presence is reported, `pre-merge` remains the safety floor.
 
-**Plan-mode branch suggestion.** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`script-em-branch-resolve.sh`) will pick:
+**Fused mode (`$MODE = fused` — the medium-PRD path).** One invocation carries the PRD from "certified product spec" to "code on a branch". It is **composed of the two halves above, not a third implementation** — every precondition, script and failure arm is the one already written; what changes is that nothing returns to the user in between, and one certification round-trip is replaced by one mechanical check. Run in this order:
+
+1. **Plan half.** Exactly § Plan mode above: `## Todos` umbrella heading, dispatch the `--plan` leaves (solo fan-out, or the orchestrator in team mode), collect their sections and tickets, stamp `status: specced`.
+2. **Files derivation.** Run `script-em-exec-skeleton.py --fill-files` per § Execution table skeleton. Its failure arms are unchanged and still hard: `MISSING_TICKETS` means the plan half is incomplete — re-dispatch that agent's plan pass, never hand-fill the cell.
+3. **Mechanical plan-shape check — the stand-in for the eng certification.** Once per planning agent, over the PRD the plan half just wrote (two-path resolution):
+
+   ```bash
+   S=.claude/scripts/script-eng-plan-shape.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-plan-shape.py"
+   python3 "$S" "$PRD_DIR/prd-[n]-[slug].md" --agent "<agent>"
+   ```
+
+   **Green (exit 0) → dispatch the build half.** Non-zero → **repair once, then escalate**: the failures it reports (a missing contract heading, a ticket violating the schema, a `### F<n>` block with no exec row, a cyclic `depends-on`, a `(edit)` path that does not exist) are all fixable by the agent that wrote them, so re-dispatch that one agent's plan pass with the reported findings and re-run the check once. Still failing → **stop before the build half** and surface it, and log one DOCTOR row (`validator-fail:script-eng-plan-shape`) per § Harness incidents. A build half must never dispatch on a plan that failed its shape check — that is the whole reason this check is allowed to replace a certification.
+4. **Branch resolution + lane move**, then **stamp `status: wip`** — § Branch resolution + lane move above, verbatim, including the sub-PRD carve-out.
+5. **Collision decomposition** — the § Collision pre-check (solo) or the orchestrator's `--waves` decomposition (team), unchanged. It works mid-run because `Files` is ticket-derived (v5.4 P4), so the collision graph exists the moment step 2 lands — it never needed a completed prior wave, only completed tickets.
+6. **Build half.** Exactly § Build mode's fan-out onward: dispatch the `--build` leaves with the packet doc, the standards payload and the review-artifact identity, then the **review-coverage check** — which is *not* relaxed for a fused run (v5.3's rule holds everywhere: coverage is verified after every wave, a `MISSING` key is repaired by re-spawning a reviewer once, and an uncovered packet is escalated, never accepted).
+7. **Step 5**, once, over the whole fused run.
+
+**Status stamps land at their real triggers, not at invocation boundaries:** `backlog → specced` when the plan half's sections and tickets exist (step 1), `→ wip` when the branch is cut (step 4). A fused run therefore writes both stamps in one invocation, in that order — the lifecycle is a property of the work, not of how many times the skill was called.
+
+**If the run dies mid-fusion**, the next `/plan-em` on the same PRD re-runs Steps 1–3 (idempotent by their own resume rules), detects every roster agent present in `engineering_agents`, resolves `$MODE = build`, and completes the build half. No state file, no `--resume` flag.
+
+**Plan-mode branch suggestion (`$MODE = plan` only).** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). A **fused** run does not emit a suggestion: it cut the branch itself at § Fused mode step 4, so it reports the branch it is on rather than one to create. This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`script-em-branch-resolve.sh`) will pick:
 
 ```
 feat/<prd-id>
@@ -337,22 +380,33 @@ Engineers should cut this branch from `main` before starting work.
 
 **§ Team lane (`$TEAM_MODE = team` — the default).** Run **all** the mode-specific
 preconditions above exactly as written — mode detection; the plan-wave `## Todos` umbrella
-heading; the build-wave eng-certification precondition; build-wave branch resolution, the
-`planned/ → wip/` lane move, and the create-or-checkout of `$BRANCH`. Then, **instead of**
-plan-em fanning out the leaf subagents itself, spawn **one orchestrator engineer agent** to
-own the fan-out:
+heading; the build-wave eng-certification precondition (large only); build-wave branch
+resolution, the `planned/ → wip/` lane move, and the create-or-checkout of `$BRANCH`. Then,
+**instead of** plan-em fanning out the leaf subagents itself, spawn **one orchestrator
+engineer agent** to own the fan-out:
 
 - Spawn it via the `Agent` tool with `model: opus`, `run_in_background: false`, and a
   prompt that (a) tells it to *"Read `.claude/skills/plan-em/refs/protocol-team.md` fully
-  and follow it"* and (b) injects the input contract that file defines: `$MODE` (plan/build
-  from mode detection), `prd-path`, the approved `roster`, the `exec_table` rows (with the
-  `Files` column on the build wave), `$BRANCH` **and** the compiled per-stack `standards
-  payloads` (build wave only), the devkit digest, and the PRD-path escape hatch.
+  and follow it"* and (b) injects the input contract that file defines: `$MODE`
+  (`plan` / `build` / `fused` from mode detection), `prd-path`, the approved `roster`, the
+  `exec_table` rows (with the `Files` column on the build wave), `$BRANCH` **and** the
+  compiled per-stack `standards payloads` (build wave only), the devkit digest, the
+  resolved `$SIZE` + intake `C:` band, and the PRD-path escape hatch.
 - The orchestrator decomposes the wave into file-disjoint, model-tiered packets and fans
   out leaf `eng` subagents (`--plan` planners on Opus; `--build` packets on Opus or Sonnet
   per complexity), respecting the `Files`-disjoint collision rule and committing all build
   work to `$BRANCH`. plan-em does **not** re-run any certification, re-resolve the branch,
   or re-invoke `/cook` — the orchestrator consumes what plan-em already produced.
+- **`$MODE = fused` — one orchestrator spawn covers both halves.** A medium PRD hands the
+  orchestrator the whole fused wave (`refs/protocol-team.md` § Fused wave): it runs the
+  stack planners, then the Files derivation, the plan-shape check, the branch cut and the
+  status stamps, then the build packets — without returning to plan-em in between. This is
+  the **one** documented exception to *"the orchestrator never resolves the branch"*, and
+  it exists because the alternative costs what the fusion was meant to save: plan-em is
+  blocked while its orchestrator runs, so keeping the branch cut on plan-em's side would
+  force a second orchestrator spawn for the build half. The invariant that actually
+  protects the tree is unchanged — **leaves never touch branches; exactly one agent cuts
+  it, once.** plan-em passes no `$BRANCH` for a fused wave and does not pre-move the lane.
 - When the orchestrator returns its consolidated summary, proceed to Step 5 with it as the
   wave's output — Step 5 synthesis reads the written engineering sections / build result
   the same way regardless of lane.
@@ -379,7 +433,7 @@ Emit a short progress note when the orchestrator is spawned and when it returns.
 
    Example: `feat/prd-3-habit-tracking`. Engineers cut this from `main` before starting work.
 
-**Next steps.** There is **no next-steps menu.** plan-em recommends the next command; it never invokes the next stage itself. The run ends with the closing message per `../../shared/refs/closing-message.md` — the last chat output, after the synthesis above — taking its next step verbatim from the registry's `plan-em` row **for the wave that just finished** — `plan-em — plan wave` when `$MODE = plan` (🟢 `Run /plan-em <prd> again to start the build wave`), `plan-em — build wave` when `$MODE = build` (🟢 `Run /pre-merge now`). Never compose the step.
+**Next steps.** There is **no next-steps menu.** plan-em recommends the next command; it never invokes the next stage itself. The run ends with the closing message per `../../shared/refs/closing-message.md` — the last chat output, after the synthesis above — taking its next step verbatim from the registry's `plan-em` row **for the wave that just finished** — `plan-em — plan wave` when `$MODE = plan` (🟢 `Run /plan-em <prd> again to start the build wave`), `plan-em — fused wave` when `$MODE = fused` and `plan-em — build wave` when `$MODE = build` (both 🟢 `Run /pre-merge now`, because both end with code on a branch). Never compose the step.
 
 The synthesis's batched-Critical `AskUserQuestion` above is untouched: that is a genuine decision point, not a do-next bounce.
 

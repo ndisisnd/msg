@@ -17,10 +17,17 @@ subagent per roster stack, whole-stack scope, on the inherited model**; team dec
 model-appropriate tier (Opus or Sonnet), to parallelise as much as the collision graph
 allows.
 
-plan-em still owns everything up to the fan-out — pre-flight, product/eng certification
-preconditions, roster approval, the exec-table skeleton, the `## Todos` umbrella heading
-(plan wave), and branch resolution + lane move (build wave). The orchestrator **consumes**
-those; it never re-runs a certification, re-resolves the branch, or re-invokes `/cook`.
+plan-em still owns everything up to the fan-out — pre-flight, certification preconditions,
+roster approval, the exec-table skeleton, the `## Todos` umbrella heading (plan wave), and
+branch resolution + lane move (build wave). The orchestrator **consumes** those; it never
+re-runs a certification, re-resolves the branch, or re-invokes `/cook`.
+
+**The one exception is `$MODE = fused`** (a medium PRD — `refs/protocol-em.md` Step 1e),
+where a single orchestrator spawn owns both halves of the run. Because plan-em is blocked
+while its orchestrator works, the mid-run steps between planning and building — the Files
+derivation, the plan-shape check, the branch cut, the lane move and the status stamps —
+belong to the orchestrator in that mode, per § Fused wave. Certifications are still never
+the orchestrator's: a fused run pays exactly one, and plan-em already ran it at Step 2.
 
 ## Input contract (what plan-em injects)
 
@@ -29,14 +36,15 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 
 | Field | Value |
 |-------|-------|
-| `$MODE` | `plan` or `build` — the active wave (from plan-em Step 4 mode detection) |
+| `$MODE` | `plan`, `build` or `fused` — the active wave (from plan-em Step 4 mode detection) |
 | `prd-path` | the input PRD `.md` path |
 | `roster` | the approved roster — each `(agent, domain, stack, rows)` tuple |
 | `exec_table` | the exec-table rows: `Feature`, `Files` (build wave — the collision key), `Todos`, `Agent` |
-| `$BRANCH` | resolved feature branch (**build wave only** — the orchestrator never resolves or creates it) |
-| `standards payloads` | the compiled `/cook` output **per stack** (**build wave only**), retained from plan-em Step 3a |
+| `$BRANCH` | resolved feature branch (**`$MODE = build` only** — the orchestrator never resolves or creates it). **Absent on a fused wave**, which cuts it itself at § Fused wave step 4. |
+| `$SIZE` + `C:` band | the size tier plan-em resolved once at Step 1e (`medium` / `large`) and the intake complexity band behind it. Pass the band into every `--plan` leaf's scoped context — it selects the eng-section shape, and a leaf must never re-resolve it. |
+| `standards payloads` | the compiled `/cook` output **per stack** (**build and fused waves**), retained from plan-em Step 3a |
 | `devkit digest` | canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows (from plan-em's Step 1 pre-flight) |
-| `house rules` | **plan wave only** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
+| `house rules` | **plan wave and the plan half of a fused wave** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
 
 **Escape hatch (pass through to every leaf):** *"The full PRD is at `<prd-path>`; read it
 (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve
@@ -167,6 +175,72 @@ stack's `## Engineering —` + `## Todos —` blocks exist and its `Files` colum
 plan wave is done — close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"`)
 and return the consolidated summary to plan-em. (The finer file-disjoint packet decomposition
 has no teeth until the `Files` column exists; it is the **build** wave that reaps it.)
+
+## Fused wave (`$MODE = fused`) — medium PRDs
+
+One spawn, both halves, no return to plan-em in between. Every step below is a step of
+§ Plan wave or § Build wave, run in order by the same agent; the only work that is *new*
+here is the middle — the four things plan-em would otherwise have done between two
+invocations. **Do not invent a third dispatch style**: planners are still one packet per
+stack on Opus, build packets are still the script's `PACKET` lines on their assigned tiers.
+
+Open **one** heartbeat for the whole fused run (`--phase plan-em-team`, `--run-id`
+`em-<epoch>` fixed once) with `--total` = planner count **+** total build packet count, so
+the human sees one progress line across both halves rather than two runs that look
+unrelated. Tick per returning leaf in both halves.
+
+1. **Plan half** — § Plan wave verbatim: fan out one `eng --plan` leaf per roster stack,
+   in one message, on Opus, with the house rules and the injected `C:` band. Collect every
+   stack's `## Engineering — <Agent>` + `## Todos — <Agent>` blocks.
+2. **Derive the `Files` column** — the planners did not fill it and must not (v5.4 P4):
+
+   ```bash
+   S=.claude/scripts/script-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-skeleton.py"
+   python3 "$S" --fill-files "<prd-path>"
+   ```
+
+   `MISSING_TICKETS row=<n> fid=<F> agent=<a>` → that stack's plan leaf returned
+   incomplete: re-spawn **that one planner** for the named F-ID and re-run. Never hand-fill
+   the cell — a typed cell that disagrees with the tickets makes the collision graph a lie.
+3. **Plan-shape check — the gate that replaces the eng certification.** Once per planning
+   agent (two-path resolution):
+
+   ```bash
+   S=.claude/scripts/script-eng-plan-shape.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-plan-shape.py"
+   python3 "$S" "<prd-path>" --agent "<agent>"
+   ```
+
+   Green → continue. Non-zero → re-dispatch that one planner with the findings and re-check
+   **once**; still failing → **stop before dispatching any build packet**, return the
+   failure to plan-em, and log one `validator-fail:script-eng-plan-shape` row to
+   `devkit/DOCTOR.md` per `../../shared/refs/doctor-logging.md`. A medium run pays no eng
+   certification, so this check is the only thing standing between a malformed plan and a
+   build wave — never proceed past a red one.
+4. **Cut the branch, move the lane, stamp the status.** Run the resolver (READ-ONLY) and
+   execute exactly what it emits, per `refs/protocol-em.md` § Branch resolution + lane move
+   — `create` / `checkout` / `fresh-cut`, then the emitted `LANE_MOVE=` unless it is `none`:
+
+   ```bash
+   S=.claude/scripts/script-em-branch-resolve.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-branch-resolve.sh"; bash "$S" "<prd-path>"
+   P=.claude/scripts/script-prd-stamp.sh; [ -f "$P" ] || P="$HOME/.claude/scripts/script-prd-stamp.sh"
+   bash "$P" "<prd-path>" status specced   # after step 1 landed
+   bash "$P" "<prd-path>" status wip       # once the branch exists
+   ```
+
+   This is the **only** mode in which the orchestrator touches git branches or PRD status,
+   and it is still the only agent in the run that may: **leaves never resolve, create or
+   switch a branch** in any mode. Do not stamp a sub-PRD (it rides its parent's branch).
+5. **Build half** — § Build wave steps 0–5 verbatim, with `$BRANCH` now set to what step 4
+   resolved: collision checker with `--waves`, emit the decomposition, fan out wave by wave,
+   the db-touch guard after every wave, and the **review-coverage check after every wave**.
+   Nothing about review coverage is relaxed for a fused run.
+6. **Consolidate once** — one report covering both halves (sections planned, packets built,
+   models used, review coverage per wave), close the heartbeat, return to plan-em for Step 5.
+
+**Interruption.** A fused run that dies leaves ordinary on-disk state, and plan-em's mode
+detection recovers it: sections written → the next `/plan-em` resolves `$MODE = build` and
+this orchestrator is spawned for the build wave alone, with plan-em owning the branch
+resolution again as usual. Keep no run-state file.
 
 ## Build wave (`$MODE = build`)
 
@@ -310,7 +384,9 @@ fails; logging never changes the escalation above.
 ## Guardrails
 
 - **Branch isolation** — build leaves commit only to `$BRANCH`; never `main`. The
-  orchestrator itself writes no code and runs no `git push` / `merge`.
+  orchestrator itself writes no code and runs no `merge`. It touches git exactly once, and
+  only on a fused wave: the resolver-emitted branch create/checkout (plus its `push -u`) at
+  § Fused wave step 4. A leaf never does, in any mode.
 - **File-disjoint concurrency only** — never place two file-overlapping packets in the
   same wave (tree corruption on the shared branch). The script's `--waves` output is the
   authority; a `depends_on` sub-split may only narrow a wave, never widen one.
@@ -326,8 +402,15 @@ fails; logging never changes the escalation above.
 
 - Missing `$MODE`, `prd-path`, `roster`, or `exec_table` → `Hard failure: team orchestrator
   requires $MODE, prd-path, roster, and exec_table.` Stop.
-- Build wave with no `$BRANCH` or a missing `standards payload` for a stack in scope →
-  `Hard failure: build wave requires $BRANCH and a standards payload per stack.` Stop —
-  plan-em must resolve the branch and compile standards before spawning the orchestrator.
-- Build wave with an empty `Files` column on a row in scope → `Hard failure: Files column
-  empty — the plan wave must run before the build wave.` Stop.
+- `$MODE = build` with no `$BRANCH`, or **any** wave missing a `standards payload` for a
+  stack in scope → `Hard failure: build wave requires $BRANCH and a standards payload per
+  stack.` Stop — plan-em must resolve the branch and compile standards before spawning the
+  orchestrator. (`$MODE = fused` is exempt from the `$BRANCH` half only: it resolves the
+  branch itself at § Fused wave step 4. It is **not** exempt from the standards payload.)
+- `$MODE = build` with an empty `Files` column on a row in scope → `Hard failure: Files
+  column empty — the plan wave must run before the build wave.` Stop. On a **fused** wave an
+  empty column before step 2 is expected, not a failure; after step 2 it is `MISSING_TICKETS`
+  and handled there.
+- `$MODE = fused` reaching the build half with a red plan-shape check → `Hard failure: plan
+  shape check failed after repair — build half not dispatched.` Stop and return it; a medium
+  run has no eng certification behind this check.

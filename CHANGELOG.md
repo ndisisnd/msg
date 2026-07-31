@@ -2,6 +2,29 @@
 
 ## 2026-08-01
 
+### [123] — medium PRDs plan and build in one run (v5.4 P5)
+
+A PRD used to cost two `/plan-em` invocations no matter how big it was: plan wave, stop, human re-invokes, build wave. Each invocation repaid the same fixed ceremony — pre-flight scan, cross-PRD check, roster gate — and a full certification round-trip sat between the two halves. For a small feature that overhead is most of the run.
+
+`plan-em` now **sizes itself on the PRD**. Step 1e resolves the intake complexity grade once (`C:` band from the `INTAKE.md` row the PRD's `intake:` key names) into `$SIZE`, and everything downstream consumes that one answer:
+
+- **Medium (`C:` < 8, and the default whenever the grade cannot be resolved)** — one `/plan-em` run does everything. Steps 1–3 are unchanged (pre-flight, one certification, roster gate, exec-table skeleton), then a single **fused** Step 4: the plan leaves write their engineering sections and tickets, `--fill-files` derives the Files column, a mechanical plan-shape check runs, the branch is cut and the lane moved, and the build leaves dispatch — without returning to the user in between. Status walks `backlog → specced` when the tickets land and `→ wip` when the branch is cut, both inside the one invocation, because the lifecycle tracks the work and not the call count.
+- **Large (`C:` ≥ 8)** — the two-wave path, byte-for-byte as before, with a certification before each wave.
+
+**One certification, not two — and the gap is filled mechanically.** A medium run pays only the product certification at Step 2. The between-wave eng certification is not deferred, it is deleted for that size, and `script-eng-plan-shape.py` runs in its place immediately before the build half dispatches. That trade is deliberate: the eng cert's real value is catching a plan that drifted across a session boundary, and a fused run has no session boundary — whereas the failures that actually break a build wave (a ticket violating the schema, a cyclic `depends-on`, a `(edit)` path that does not exist) are exactly what the shape check catches mechanically in seconds. A red check after one repair attempt **stops the run before any build packet is dispatched**; a medium run has nothing else standing there.
+
+**Resume needs no new machinery.** The existing `engineering_agents` mode detection does double duty: it is the wave selector for a large PRD and the resume detector for a medium one. An interrupted fused run leaves exactly the on-disk evidence a completed plan wave leaves, so re-invoking `/plan-em` finds every roster agent present, resolves `$MODE = build`, and finishes the build half. No `--resume` flag, no run-state file.
+
+**One orchestrator spawn covers both halves in team mode**, which is the one documented exception to "the orchestrator never resolves the branch". plan-em is blocked while its orchestrator runs, so keeping the branch cut on plan-em's side would have forced a second orchestrator spawn for the build half — the exact cost the fusion removes. The invariant that protects the shared tree is unchanged: leaves never touch branches, and exactly one agent cuts it, once.
+
+Nothing about review coverage is relaxed for a fused run — v5.3's after-every-wave check, its single reviewer re-spawn and its escalation all apply to the build half unchanged.
+
+- `.claude/skills/plan-em/refs/protocol-em.md` — new Step 1e size resolution; Step 2 states the per-size certification count; Step 4 mode detection becomes a 3-mode table (`plan` / `build` / `fused`) crossed with `$SIZE`; new § Fused mode composing the two halves by reference; the eng-cert precondition is scoped to large; the branch suggestion is scoped to `$MODE = plan`; `$SIZE` joins the injected scoped context for plan dispatches
+- `.claude/skills/plan-em/refs/protocol-team.md` — new § Fused wave (planners → `--fill-files` → shape check → branch cut + stamps → build packets → one consolidation, one heartbeat across both halves); `$MODE` gains `fused` and `$SIZE` joins the input contract; hard failures scoped per mode
+- `.claude/skills/plan-em/SKILL.md` — new § How many invocations a PRD costs
+- `.claude/skills/shared/refs/closing-message.md` — third `plan-em` row for the fused wave
+- `ARCHITECTURE.md`, `README.md` — the pipeline narrative describes size-proportional invocation counts
+
 ### [122] — orchestrated build leaves get a fast-path protocol (v5.4 P6)
 
 Every leaf in a parallel build wave was reading `eng/SKILL.md` plus `refs/build/protocol.md` — about 48KB — to do a job that needs a fraction of it. Most of what it read described situations that cannot arise inside an orchestrated run: how to create a branch (the orchestrator already did), how to call `/cook` (the standards payload is injected), how to open a sub-branch PR (leaves commit direct), how to run a status heartbeat (the orchestrator ticks for it), and how to build from a `report=` issues file (a different entry point entirely). With N leaves per wave, that read is paid N times.
