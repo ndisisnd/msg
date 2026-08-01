@@ -1,0 +1,5 @@
+# R2 — every expected packet key has a valid, independently-reviewed artifact:
+# exit 0 and exactly one coverage line, which is what an orchestrator quotes
+# rather than re-deriving. Severity counts aggregate across all artifacts.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2,P3

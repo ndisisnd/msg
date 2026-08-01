@@ -207,10 +207,41 @@ waves, then:
    Non-zero exit (it prints `category<TAB>path`) → **pause** and `AskUserQuestion`
    (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM
    schema/model, seed/fixture, `.env`, or production-config change needs sign-off.
-4. **Consolidate.** When the last wave lands, merge the leaf build summaries into one
+4. **Review coverage after every wave.** Every leaf's `eng --build` spawns a whole-change
+   reviewer that writes one evidence artifact (`../../eng/refs/review/protocol.md`
+   § Artifact). Ask the script whether every packet in the wave has one — never the leaf,
+   whose self-report is exactly what a skipped review looks like:
+   ```bash
+   R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/scripts/script-eng-review-check.sh"
+   bash "$R" --reports-dir "<prd-dir>/reports" --expect "<this wave's packet keys, comma-separated>"
+   ```
+   - **Exit 0** — quote its coverage line (`reviewed <n>/<n> — …`) in the wave note and
+     carry on. Do not re-derive or re-word the numbers.
+   - **Exit 1** — one `MISSING <k>` / `SELF-REVIEWED <k>` line per gap. **Repair it
+     yourself, silently, at first contact:** spawn **one** `eng --review` over that packet's
+     diff (§ Subagent contract — a reviewer, never the builder), injecting the packet's
+     rows, its `Files` set as the change scope, `built_by=<the packet's agent>` and
+     `<K>=<k>`. The builder is **not** re-run and its commits are not touched — a missing
+     review is repaired by reviewing, not by rebuilding. Then re-run the check **once**.
+   - **Still missing on the re-check** — escalate to the user in the consolidated summary,
+     naming each uncovered packet, and log one `tool-error:review-<k>` row to
+     `devkit/DOCTOR.md` per `../../shared/refs/doctor-logging.md` — the same shape as the
+     failed-packet arm in § Subagent contract. Do not silently proceed with an uncovered packet.
+   - **Exit 2** (usage) or a missing script — that is a harness fault, not clean coverage:
+     log `validator-fail:script-eng-review-check` and say in the summary that coverage
+     could not be established. Never read a non-zero exit as "reviewed".
+5. **Consolidate.** When the last wave lands, merge the leaf build summaries into one
    report (packets built, models used, files touched, any packet that failed or was
    capped), close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"`), and
    return it to plan-em for Step 5 synthesis.
+
+   **The consolidation must state review coverage.** One line per wave — `reviewed <n>/<n>
+   packets` — plus the aggregate finding counts across the artifacts (`<b> blocker, <h>
+   high, <x> medium`), taken from step 4's coverage lines and from any repair spawn. A
+   consolidation that cannot state coverage is **itself a hard failure**: say so explicitly
+   and escalate rather than returning a summary that reads green. Findings still gate
+   nothing here — coverage is reported, never enforced, and pre-merge remains the safety
+   floor.
 
 ## Subagent contract
 
@@ -228,7 +259,9 @@ Then the leaf's fields, by wave:
 | Wave | Invocation | Injected |
 |------|-----------|----------|
 | Plan | `eng --plan prd-path=<p> rows=<packet rows> agent=<eng-stack>` | scoped context (rows + mapped PRD feature sections + devkit digest) + escape hatch + the **house rules** verbatim. No standards payload (`--plan` pulls no standards). |
-| Build | `eng --build prd-path=<p> rows=<packet rows> branch=$BRANCH agent=<eng-stack> commit_mode=direct` | scoped context + escape hatch **+ the stack's compiled `standards payload`** (the leaf uses it and does **not** call `/cook`). |
+| Build | `eng --build prd-path=<p> rows=<packet rows> branch=$BRANCH agent=<eng-stack> commit_mode=direct` | scoped context + escape hatch **+ the stack's compiled `standards payload`** (the leaf uses it and does **not** call `/cook`) **+ the review-artifact identity: `<K>` = this packet's key (`P1`, `P2`, …) and `built_by` = `<eng-stack>`**, which the leaf passes straight through to its Step 5a reviewer. The packet key is the same key step 4 hands the coverage check as `--expect`, so a leaf never invents one. |
+
+| Review (repair only) | `eng --review` | the packet's diff scope (its rows + `Files` set), `built_by=<eng-stack>`, `<K>=<packet key>`, and the PRD path as escape hatch. Spawned only by § Build wave step 4 when a packet's artifact is missing — one reviewer, over the packet's existing commits, on the packet's own model tier. Never the agent that built the packet. |
 
 `rows` is the exact semicolon-separated `<ID>: <name> — <concern>` Feature-cell text of
 the packet's rows; `agent` is the exec-table **Agent** column value shared by those rows.
@@ -238,7 +271,12 @@ files and commits only to `$BRANCH`.
 **Return contract.** Each leaf returns its structured summary (plan: section-written
 confirmation; build: build summary) plus **one added line** for the heartbeat —
 `status: <packet-or-ticket-id> <done|blocked> — <≤8-word summary>` — never free-form prose
-otherwise. That line is the **only** sanctioned path from a leaf into the heartbeat: a leaf
+otherwise. A **build** leaf's summary must also carry its **`**Review:**` line** (verdict,
+one-liner, artifact path — `refs/build/protocol.md` § Output contract): it is a **required**
+element of the build return, exactly like the `status:` line, and a build summary without it
+is an incomplete return. The line is a convenience for the human reading the wave, not the
+proof — step 4's filesystem check is the proof, and it runs whether or not a leaf claims a
+review happened. That line is the **only** sanctioned path from a leaf into the heartbeat: a leaf
 never calls the tick script and never emits status itself, including a leaf `eng --build`
 running under this protocol, which must not open its own heartbeat even though a standalone
 `eng --build` would (`refs/build/protocol.md` Step 4's `standards payload` signal is what
@@ -259,6 +297,9 @@ fails; logging never changes the escalation above.
   authority; a `depends_on` sub-split may only narrow a wave, never widen one.
 - **DB / data pause** — the after-every-wave touch check above; pause for sign-off on any
   hit.
+- **Review coverage** — the other after-every-wave check (§ Build wave step 4). A packet
+  with no review artifact is repaired by re-spawning a reviewer, never by re-running the
+  builder, and never by accepting the leaf's word for it.
 - **Scope** — the orchestrator and its leaves touch only what the exec-table rows specify;
   no invented work, no unrelated refactors, no edits to PRD product sections.
 

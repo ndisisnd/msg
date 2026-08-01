@@ -289,8 +289,18 @@ Build agents run in parallel and must not each try to create it (concurrent crea
 5. `branch`: `$BRANCH` (resolved/created above — the parent's branch for a sub-PRD)
 6. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
 7. **Scoped context + standards payload** (per § Subagent context injection): rows, the mapped PRD feature sections, devkit digest, PRD-path escape hatch, **and** the compiled `/cook` **standards payload** for this agent's stack (retained from Step 3a). The build agent uses the injected payload and **does not call `/cook` itself**; cook is invoked at most once per distinct stack per run.
+8. **Review-artifact identity:** `<K>` = this agent's name (the solo lane runs one leaf per stack, so the agent name *is* the packet key) and `built_by` = the same name. The leaf passes both through to its Step 5a reviewer, which writes `<prd-dir>/reports/review-prd-<N>-<K>.json` (`.claude/skills/eng/refs/review/protocol.md` § Artifact). A leaf never invents the key.
 
 Emit a short progress note per completion.
+
+**Review coverage before consolidating (solo fan-out).** The solo lane has exactly the exposure the team lane does — one leaf per stack, each of which is required to spawn a reviewer and any of which can skip it silently. So when the build agents return, and **before** Step 5 synthesis, ask the script, not the agents:
+
+```bash
+R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/scripts/script-eng-review-check.sh"
+bash "$R" --reports-dir "$PRD_DIR/reports" --expect "<the dispatched agent names, comma-separated>"
+```
+
+Exit 0 → quote its coverage line in the synthesis. Exit 1 → **repair, don't rebuild**: spawn one `eng --review` over that agent's rows and diff (never the agent that wrote the code), injecting `built_by=<agent>` and `<K>=<agent>`, then re-check once. Still missing → surface the uncovered agents in the synthesis and log one `tool-error:review-<agent>` DOCTOR row per § Harness incidents. Exit 2 or an absent script is a harness fault (`validator-fail:script-eng-review-check`), never coverage. **The synthesis must state coverage** — `reviewed <n>/<n> agents` — and one that cannot state it is a hard failure, not a footnote. Review findings gate nothing: presence is reported, `pre-merge` remains the safety floor.
 
 **Plan-mode branch suggestion.** After all plan sections are appended, emit the suggested working branch as `feat/<prd-id>` — the PRD folder basename (e.g. `feat/prd-3-habit-tracking`). This matches the sub-PRD branch inference and the roadmap completion ladder (`feat/prd-<n>-*`), and is the exact branch the build wave's resolver (`script-em-branch-resolve.sh`) will pick:
 

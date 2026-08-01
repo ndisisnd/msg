@@ -490,6 +490,28 @@ report. That is a **`high` finding** (`rule: missing-result-report`,
 wrote no result report; its outcome is unknown"* — never a silently smaller
 aggregate. `EXTRA=<id>` (a report with no planned component) is one `low` note.
 
+### 5a.1 · Review coverage (the backstop — reports, never blocks)
+
+The gate is the last place an unreviewed branch can still reach a human quietly. So when the run has a resolved PRD path (the same one §5b passes as `--prd`), ask the script how much of what was built was also reviewed:
+
+```bash
+R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/scripts/script-eng-review-check.sh"
+bash "$R" --reports-dir "<prd-dir>/reports" --expect-from-builds
+```
+
+The gate did not run the wave and holds no packet list, so `--expect-from-builds` derives the expectation from the build run reports already in the folder — for every `report-prd-<N>-<K>` there should be a `review-prd-<N>-<K>`.
+
+| Exit | Meaning | What the gate records |
+|---|---|---|
+| 0 | every built packet reviewed | the coverage line in the universal report; no finding |
+| 1 | one or more `MISSING`/`SELF-REVIEWED` keys | **one `medium` finding**, `rule: review-coverage`, `source: pre-merge:executor`, naming each uncovered key — *"`<k>` was built on this branch but has no review artifact; whether it was reviewed is unknown"* |
+| 3 | no build reports, so no expectation derivable | one `low` note — an unknown reported as unknown |
+| 2 / script absent | harness fault | one `low` note plus a `validator-fail:script-eng-review-check` DOCTOR row; never recorded as coverage |
+
+**`medium` is deliberate and so is non-blocking.** Missing review coverage never produces `fail` — a merge is gated by pre-merge's own green run, never by review (`../../eng/refs/review/protocol.md`). `medium` was chosen over `low` because it survives a skim of the report, which `low` does not; its only verdict effect is the ordinary `medium` → `pass_with_warnings` one, and a run that was already failing is unaffected. The value here is not enforcement — it is that an unreviewed branch can no longer reach a human silently.
+
+The finding is authored here, exactly like §5a's `missing-result-report` finding, and flows into §5b's aggregation with the rest.
+
 ### 5b · Aggregate
 
 The mechanical half runs as one script:

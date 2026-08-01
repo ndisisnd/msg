@@ -202,6 +202,21 @@ you'll see a short status line roughly every five minutes on any long-running
 phase. Turn it off for one run with `--quiet`, or change how often it reports
 with `--status <n>m`.
 
+**How do I know the review actually ran?**
+
+Because it leaves a file behind. Every build that changes code is reviewed by a
+different agent than the one that wrote it, and that reviewer now writes its result
+to `reports/review-prd-<n>-<packet>.json` next to the run report. Before any
+orchestrator reports a wave as done, it checks that every packet it built has one of
+those files — and if one is missing it quietly spawns a reviewer over that packet's
+changes and re-checks, rather than re-running the build. Only a second miss
+interrupts you. `/pre-merge` reports the same coverage for the branch it grades.
+
+The point is that a review that was skipped and a review that found nothing look
+exactly the same from the outside, so "it ran" had to become something checkable
+rather than something claimed. Review still gates nothing on its own — the green
+`/pre-merge` run is the floor, as before.
+
 ## Documentation
 
 - [QUICKSTART.md](./QUICKSTART.md) — install to first shipped feature, with a verify check per step

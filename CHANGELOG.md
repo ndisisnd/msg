@@ -2,6 +2,54 @@
 
 ## 2026-08-01
 
+### [117] — The pre-merge backstop, plus docs and the incident learning (v5.3 P5)
+
+- `.claude/skills/pre-merge/refs/executor.md`: Added — §5a.1, review coverage for the branch under grade. The gate did not run the wave and holds no packet list, so it uses `--expect-from-builds`: for every `report-prd-<N>-<K>` on disk there should be a `review-prd-<N>-<K>`. Missing coverage is **one `medium` finding** (`rule: review-coverage`), authored the same way §5a authors its `missing-result-report` finding
+- **`medium` is deliberate and non-blocking.** Review coverage can never produce `fail` — a merge is gated by pre-merge's own green run, never by review. `medium` was chosen over `low` because it survives a skim of the report and `low` does not. The value is not enforcement; it is that an unreviewed branch can no longer reach a human silently
+- `.claude/skills/shared/refs/finding-schema.md`: Added — the review artifact documented alongside the issues file it sits beside. The two answer different questions: the issues file is *what a failed run found*, the review artifact is *that a review happened at all*
+- `ARCHITECTURE.md`: Added — a **Review evidence** section stating the mechanism and, more importantly, why review's authority is unchanged: presence is now provable, gating is not
+- `README.md`: Added — "How do I know the review actually ran?" in the FAQ voice: because it leaves a file behind, and a missing one is repaired by re-reviewing rather than re-building
+- `devkit/AHA.md`: Added — the incident and its lesson under `harness:prose-without-a-check`, so future protocol work does not try to re-solve a skipped rule by rewording the instruction. That file is gitignored working state, so the durable statement of the same lesson lives in ARCHITECTURE.md
+
+### [116] — Every build-spawning orchestrator checks coverage (v5.3 P4)
+
+- The gap was never specific to team mode. The audit rule is now uniform: **every site that spawns `eng --build` and consolidates the result runs the coverage check before consolidating.** A grep over `.claude/skills` finds exactly three such sites, and all three are wired
+- `.claude/skills/plan-em/refs/protocol-em.md`: Added — the `--solo` lane runs the same check before Step 5 synthesis, keyed by agent name (solo runs one leaf per stack, so the agent name *is* the packet key). Same repair: re-spawn a reviewer over that agent's diff, re-check once, escalate and log `tool-error:review-<agent>` on a second miss. The synthesis must state `reviewed n/n agents`, and one that cannot is a hard failure. Prompt field 8 injects `<K>` and `built_by` so a leaf never invents the key
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md`: Added — Step 3a, the same check before the loop-close. This orchestrator had **zero** review mentions before today, yet a fix is code like any other. Per-issue keys are `<K>-fix-<issue-id>`, which is what stops parallel fix subagents from colliding on one artifact name under the shared issues-file `<K>`
+- Sites deliberately not wired, having verified each: `merge`, `pre-merge`, `fix-loop.md` and the `--gui` board only *name* the `eng --build` command in follow-up strings and rendered panels — they spawn no builder and consolidate no wave
+
+### [115] — The team orchestrator verifies review coverage (v5.3 P3)
+
+- `.claude/skills/plan-em/refs/protocol-team.md`: Added — § Build wave step 4, a review-coverage check after **every** wave, sitting beside the existing DB/data guard because that is the proven shape for an after-every-wave control. The orchestrator asks `script-eng-review-check.sh` whether each packet has an artifact and quotes its coverage line; it never asks the leaf, whose self-report is exactly what a skipped review looks like
+- Recovery is cheap and silent at first contact: a `MISSING` key re-spawns **one** `eng --review` over that packet's diff — the builder is not re-run and its commits are untouched — then re-checks once. A second miss escalates to the user and logs a `tool-error:review-<k>` DOCTOR row, matching the failed-packet arm exactly. A usage error or absent script is a harness fault logged as `validator-fail`, never read as "reviewed"
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — consolidation must state coverage (`reviewed n/n packets` per wave plus aggregate finding counts). A consolidation that cannot state coverage is itself a hard failure, because the incident's signature was a wave that consolidated green while saying nothing about review
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the build leaf's return contract gains the `**Review:**` line as a required element alongside the v5.2 `status:` line, and the Build row of the subagent contract now injects the packet key `<K>` and `built_by`, so a leaf never invents the key the coverage check expects. A Review row documents the repair spawn
+- The line in the summary is a convenience for the human; the filesystem check is the proof, and it runs whether or not a leaf claims a review happened
+
+### [114] — The reviewer leaves a trace (v5.3 P2)
+
+- `.claude/skills/eng/refs/review/protocol.md`: Added — a § Artifact section. The reviewer writes its returned JSON object to `<prd-dir>/reports/review-prd-<N>-<K>.json` **before** returning it, temp-file-then-`mv`, so a reviewer that dies mid-run leaves no half-written file for a checker to read as a completed review. `<K>` is the spawner's packet key, never invented: no key, or a failed write, means say so in the one-liner and log a `write-miss` DOCTOR row, then let the caller's coverage check read the gap and re-spawn
+- `.claude/skills/eng/refs/review/protocol.md`: Changed — the return contract gains `reviewed_by` and `built_by`. This is what turns the file's own opening rule — *an agent that did not write the code* — from an aspiration into a checkable fact
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — Step 5a injects `built_by` and the artifact key alongside the existing inputs, reusing the build's own run-report `<K>` so a build and its review sit under one key; an orchestrated run passes the orchestrator's packet key through unchanged. The build summary's existing **Review** line now carries the verdict and the artifact path, so the evidence is quotable without opening the file
+- Step 5a's unconditional-review wording is untouched. v5.3 changes only whether a review leaves a trace, never what its findings gate — nothing below `high` blocks, and nothing here blocks a merge
+
+### [113] — Regression evals for the review-coverage check (v5.3 P1)
+
+- `evals/cases/review-check-complete`: Added — every expected key covered exits 0 with the single coverage line an orchestrator quotes; severity counts aggregate across artifacts
+- `evals/cases/review-check-missing`: Added — one absent key exits 1 naming exactly that key and nothing else, with the coverage line still printed so the caller can report the gap rather than only knowing something failed
+- `evals/cases/review-check-corrupt`: Added — an artifact that does not parse, and one that parses without a `verdict`, are both counted missing. A reviewer that died mid-write must never read as a clean review
+- `evals/cases/review-check-self-reviewed`: Added — `reviewed_by` equal to `built_by` fails the check; presence alone is not coverage
+- `evals/cases/review-check-empty-dir`: Added — the incident's own shape (nine packets built, zero reviewers spawned, no artifacts at all). Exits 1 naming every key and never reports clean. The most important case in the set
+- `evals/cases/review-check-expect-from-builds`: Added — the derivation direction of the same contract: keys taken from the build reports on disk, counted once across the `.md`/`.json` pair, fix plans excluded
+- Suite: 64/64 green in ~3.9 s (58 cases in ~3.6 s before), so the new coverage costs roughly a quarter-second
+
+### [112] — Review evidence artifact and its presence check (v5.3 P0)
+
+- `.claude/scripts/script-eng-review-check.sh`: Added — the mechanical control behind "review cannot be skipped". `--reports-dir <d> --expect <k1,k2,…>` exits 1 listing `MISSING <k>` for every packet key with no review artifact and 0 with a one-line coverage summary (`reviewed 9/9 — 0 blocker, 1 high, 2 medium`). An artifact that does not parse, or that lacks `verdict`/`findings`, is counted **missing** — never counted as covered, because an unreadable artifact proves nothing
+- `reviewed_by` / `built_by` make the review protocol's "an agent that did not write the code" rule checkable rather than aspirational: an artifact whose two identities match prints `SELF-REVIEWED <k>` and fails the check
+- `--expect-from-builds` derives the expected key set from the build run reports already in the folder (`report-prd-<N>-<K>.json|.md`, fix plans excluded), for a caller that did not run the wave and has no packet list of its own. No build reports at all exits **3** — expectation unknown, reported as unknown, never as covered
+- Artifact location is the PRD's existing `reports/` folder as `review-prd-<N>-<K>.json`, alongside the `report-prd-<N>-<K>.json` issues file — no new location, no new schema. Coreutils plus a `python3` stdlib JSON read; no `jq`
+
 ### [111] — Publish the v5.2.0 user-facing release notes
 
 - `RELEASES.md`: Added — the v5.2.0 section covering [104]–[110]: the status heartbeat across builds, gate runs, ships and planning waves, the pre-announcement of long steps, the per-run `--quiet`/`--status` controls and project-level cadence, and the every-exit close. States the checkpoint trade-off in user terms — a run may report slightly later than the interval, but is never interrupted or reshaped to hit it

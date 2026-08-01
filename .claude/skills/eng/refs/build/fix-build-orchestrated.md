@@ -40,6 +40,7 @@ Pipe tickets in on `-` to grade a grouped ticket carrying more than one file. **
 For each issue/ticket, spawn one fix subagent via the `Agent` tool with `model` set from the grade's tier (§ Complexity rubric — tier → model), per the § Subagent contract below. In particular:
 
 - Each subagent runs the msg skill `eng --build report=<path>` scoped to its **single** issue, with `branch` defaulted from the issues file's `context.branch` and `commit_mode=direct` (per `fix-build.md` § Branch default).
+- **Inject the review-artifact identity** with the ticket: `<K>` = `<K-of-the-issues-file>-fix-<issue-id>` and `built_by` = the subagent's assigned tier/agent. A fix build produces a diff, so its Step 5a review is unconditional (`protocol.md` Step 5a) and writes `reports/review-prd-<N>-<K>-fix-<issue-id>.json`. The per-issue suffix is what keeps parallel fix subagents from colliding on one artifact name under the shared `<K>`.
 
 Independent issues fan out in parallel (spawn in a single message). Order any issue whose fix another issue depends on first — findings carry no `depends-on`, so this only matters when two issues touch the same file; serialize those onto one subagent to avoid a race on the shared branch.
 
@@ -68,6 +69,17 @@ After a subagent returns, the **orchestrator re-runs that ticket's covering test
 - **Green** — mark the ticket done; record it in the run ledger.
 - **Still red** — re-enter the same subagent with the residual failure, **bounded**: reuse the 3-cycle debug escalation from `protocol-build-debug.md` at the orchestrator level (max 3 re-entry cycles per ticket). After the 3rd failed re-entry, stop re-spawning, mark the ticket `partially_resolved`, and carry its escalation into the loop-close below — never spin a ticket indefinitely.
 
+## Step 3a — Review coverage before closing the loop
+
+This orchestrator spawns builds and consolidates them, so it runs the same mechanical control every other spawn site runs — a fix is code, and unreviewed code is exactly what v5.3 exists to prevent. Before the loop-close below:
+
+```bash
+R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/scripts/script-eng-review-check.sh"
+bash "$R" --reports-dir "features/prd-<N>-<slug>/reports" --expect "<K>-fix-<id1>,<K>-fix-<id2>,…"
+```
+
+Exit 0 → quote the coverage line in the roll-up summary. Exit 1 → spawn **one** `eng --review` over that issue's commits (never the subagent that wrote the fix), injecting `built_by` and the same `<K>-fix-<issue-id>`, then re-check once; a second miss escalates in the roll-up and logs a `tool-error:review-<K>-fix-<id>` row per `../../../shared/refs/doctor-logging.md`. Exit 2 or an absent script is `validator-fail:script-eng-review-check`, never coverage. A re-review never re-runs a fix subagent and never touches its commits. The roll-up must state coverage (`reviewed <n>/<n> issues`); one that cannot is a hard failure, not a footnote.
+
 ## Step 4 — Close the loop
 
 Once every ticket is done or escalated, write the **single** issues-file mutation — `followUp.status` — by running `script-eng-close-loop.py` per `fix-build.md` § Closing the loop (call it, never hand-edit the JSON):
@@ -85,7 +97,8 @@ This is the **only** write to the issues file `features/prd-<N>-<slug>/reports/r
 
 - `fix-build.md` — finding→issue-ticket projection, per-issue reproduce→fix→verify-green deltas, `Issue`-keyed summary, `followUp.status` loop-close, `orchestrate=off` escape hatch
 - `.claude/scripts/script-project-findings.py` — the one projection implementation + issues-file validator · `.claude/scripts/script-eng-fix-grade.py` — the executable complexity rubric (escalate-only) · `.claude/scripts/script-eng-close-loop.py` — the one sanctioned `followUp.status` write
-- `protocol.md` Step 7 — one commit per issue-ticket + the two mechanical commit gates
+- `protocol.md` Step 5a — the unconditional whole-change review each fix subagent spawns · `protocol.md` Step 7 — one commit per issue-ticket + the two mechanical commit gates
+- `../review/protocol.md` § Artifact — the review evidence file Step 3a checks for · `.claude/scripts/script-eng-review-check.sh` — the coverage check itself
 - `protocol-build-debug.md` — the bounded 3-cycle debug escalation (reused per subagent and per orchestrator re-entry)
 - `../plan/fix-plan.md` — writes `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` with the `complexity` tags this orchestrator reads
 - `../../../shared/refs/fix-loop.md` — the post-failure offer sequence that routes here as Offer #2

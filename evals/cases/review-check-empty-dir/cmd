@@ -1,0 +1,6 @@
+# The PRD-23 incident's own shape: nine build packets ran, zero reviewers were
+# spawned, so the reports folder holds no review artifact at all. The check must
+# exit 1 naming every key — silence on an empty folder is exactly the failure
+# v5.3 exists to remove.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P1,P2,P3
