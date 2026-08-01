@@ -19,13 +19,22 @@ The five checks:
                acceptance criterion; no `supports` / `handles` / `TBD` weasel
                tokens in the criterion cell.
   3 fids       F-IDs are F1..Fn — sequential, no gaps, no duplicates.
-  4 reserved   §6/§7/§8 carry their byte-exact reserved placeholders, OR are
+  4 reserved   the reserved sections carry their byte-exact placeholders, OR are
                genuinely populated by their owning skill. Never paraphrased.
   5 frontmatter every required key present with a legal value.
 
+Two shapes, auto-detected from the frontmatter (never from the body):
+  v5.4  seven sections (findings moved to reports/review-prd-<n>-<slug>.md),
+        `deps`, one `reviewed` stamp, `status: backlog|specced|wip|complete`,
+        `intake`. This is what every writer emits.
+  v5    eight sections (§7 Plan review findings), `depends_on`, `affects`,
+        `module`, `platform`, `product-tuned` + `eng-tuned`,
+        `status: product|eng|done|retired`. Read-only tolerance for PRDs
+        already on disk — nothing is ever rewritten into the new shape.
+
 Output (stdout, one record per line, machine-readable):
   FAIL  check=<1-5> code=<slug> ref=<locator> detail=<free text to EOL>
-  SUMMARY checks=<list> failures=<n>
+  SUMMARY shape=<v5.4|v5> checks=<list> failures=<n>
 
 Failure codes:
   check 1  missing-section · section-out-of-order · unknown-section · bad-number
@@ -48,8 +57,25 @@ from pathlib import Path
 
 SELF = "script-prd-shape"
 
-# The canonical shape — order is the contract (plan-pm/refs/template-prd.md).
-CANONICAL = [
+# ── Two shapes, one validator ────────────────────────────────────────────────
+# v5.4 slimmed the PRD: seven sections (the findings ledger moved out to
+# `reports/review-prd-<n>-<slug>.md`), `depends_on` renamed to `deps`, the two
+# tune stamps fused into one `reviewed`, and `module`/`platform`/`affects`
+# dropped. Writers emit v5.4 only. This reader keeps validating v5-shape PRDs
+# already on disk exactly as it already tolerates the pre-v5 `## Execution
+# Table` heading — nothing on disk is ever rewritten to the new shape.
+
+CANONICAL_V54 = [
+    (1, "Product objective"),
+    (2, "Out-of-scope"),
+    (3, "Features & acceptance criteria"),
+    (4, "Error cases"),
+    (5, "Open questions"),
+    (6, "Feature execution table"),
+    (7, "Todos"),
+]
+
+CANONICAL_V5 = [
     (1, "Product objective"),
     (2, "Out-of-scope"),
     (3, "Features & acceptance criteria"),
@@ -65,17 +91,32 @@ CANONICAL = [
 # heading so pre-v5 PRDs keep validating (nothing on disk is ever rewritten).
 LEGACY_TITLES = {"plan tune findings": "plan review findings"}
 
-RESERVED = {
-    6: "_To be populated by plan-em — engineering breakdown of the §3 features._",
-    7: "_Populated by plan-review (/plan-review) — audit findings table._",
-    8: "_Populated by eng --plan — implementation tickets, grouped by feature._",
-}
+EXEC_PLACEHOLDER = "_To be populated by plan-em — engineering breakdown of the §3 features._"
+FINDINGS_PLACEHOLDER = "_Populated by plan-review (/plan-review) — audit findings table._"
+TODOS_PLACEHOLDER = "_Populated by eng --plan — implementation tickets, grouped by feature._"
+
+RESERVED_V54 = {6: EXEC_PLACEHOLDER, 7: TODOS_PLACEHOLDER}
+RESERVED_V5 = {6: EXEC_PLACEHOLDER, 7: FINDINGS_PLACEHOLDER, 8: TODOS_PLACEHOLDER}
+
+OWNER_V54 = {6: "plan-em", 7: "eng --plan"}
+OWNER_V5 = {6: "plan-em", 7: "plan-review", 8: "eng --plan"}
 
 FEATURE_COLUMNS = ["id", "feature", "acceptance criterion", "dependencies"]
 
 WEASEL = ("supports", "handles", "tbd", "gracefully", "as needed", "etc.")
 
-REQUIRED_KEYS = {
+REQUIRED_V54 = {
+    "name":     re.compile(r"^prd-\d+(\.\d+)?-[a-z0-9-]+$"),
+    "feature":  re.compile(r"^\S.*$"),
+    "summary":  re.compile(r"^\S.*$"),
+    "status":   re.compile(r"^(backlog|specced|wip|complete)$"),
+    "reviewed": re.compile(r"^(yes|no)$"),
+    "created":  re.compile(r"^\d{4}-\d{2}-\d{2}$"),
+    "intake":   re.compile(r"^#?\d+$"),
+}
+LIST_V54 = ("deps",)
+
+REQUIRED_V5 = {
     "name":          re.compile(r"^prd-\d+(\.\d+)?-[a-z0-9-]+$"),
     "feature":       re.compile(r"^\S.*$"),
     "summary":       re.compile(r"^\S.*$"),
@@ -87,7 +128,33 @@ REQUIRED_KEYS = {
     "reviewed":      re.compile(r"^(yes|no)$"),
     "created":       re.compile(r"^\d{4}-\d{2}-\d{2}$"),
 }
-LIST_KEYS = ("affects", "depends_on")
+LIST_V5 = ("affects", "depends_on")
+
+# A frontmatter carrying ANY key that v5.4 dropped or renamed is a v5-shape PRD.
+# Detection is frontmatter-only and never looks at the body, so the section
+# expectations and the key expectations can never disagree about which shape
+# this file is.
+V5_MARKERS = ("module", "platform", "affects", "depends_on",
+              "product-tuned", "eng-tuned")
+
+
+class Shape:
+    """The one bundle of per-shape expectations every check reads."""
+
+    def __init__(self, legacy):
+        self.legacy = legacy
+        self.canonical = CANONICAL_V5 if legacy else CANONICAL_V54
+        self.reserved = RESERVED_V5 if legacy else RESERVED_V54
+        self.owners = OWNER_V5 if legacy else OWNER_V54
+        self.required = REQUIRED_V5 if legacy else REQUIRED_V54
+        self.lists = LIST_V5 if legacy else LIST_V54
+        self.name = "v5" if legacy else "v5.4"
+        self.last = self.canonical[-1][0]
+
+
+def detect_shape(fm):
+    return Shape(any(k in fm for k in V5_MARKERS))
+
 
 FAILURES = []
 
@@ -165,8 +232,10 @@ def canon(title):
 
 # ── check 1 — sections present, numbered, ordered ─────────────────────────────
 
-def check1(secs):
-    want = {t.lower(): n for n, t in CANONICAL}
+def check1(secs, shape):
+    want = {t.lower(): n for n, t in shape.canonical}
+    titles = dict(shape.canonical)
+    count = len(shape.canonical)
     seen = {}
     for title, lineno, _ in secs:
         key = canon(title)
@@ -174,7 +243,8 @@ def check1(secs):
             m = NUMBERED.match(title)
             if m:
                 fail(1, "unknown-section", f"line {lineno}",
-                     f"'## {title}' is not one of the eight canonical sections")
+                     f"'## {title}' is not one of the {count} canonical "
+                     f"{shape.name} sections")
             continue                       # unnumbered extras (doc title) are fine
         n = want[key]
         if key in seen:
@@ -185,23 +255,23 @@ def check1(secs):
         m = NUMBERED.match(title)
         if not m:
             fail(1, "bad-number", f"line {lineno}",
-                 f"'## {title}' must be emitted as '## {n}. {dict(CANONICAL)[n]}'")
+                 f"'## {title}' must be emitted as '## {n}. {titles[n]}'")
         elif int(m.group(1)) != n:
             fail(1, "bad-number", f"line {lineno}",
                  f"'## {title}' is numbered {m.group(1)} but is section {n}")
 
-    for n, t in CANONICAL:
+    for n, t in shape.canonical:
         if t.lower() not in seen:
             fail(1, "missing-section", f"§{n}",
                  f"required section '## {n}. {t}' is absent")
 
     order = [(seen[t.lower()][0], seen[t.lower()][1], t)
-             for _, t in CANONICAL if t.lower() in seen]
+             for _, t in shape.canonical if t.lower() in seen]
     order_by_line = sorted(order, key=lambda r: r[1])
     if [r[0] for r in order_by_line] != sorted(r[0] for r in order_by_line):
         got = " → ".join(f"§{r[0]}" for r in order_by_line)
         fail(1, "section-out-of-order", "body",
-             f"sections must appear in canonical order §1…§8; found {got}")
+             f"sections must appear in canonical order §1…§{shape.last}; found {got}")
 
 
 # ── check 2 — the §3 features table ───────────────────────────────────────────
@@ -266,17 +336,38 @@ def check3(secs):
 
 # ── check 4 — reserved placeholders byte-exact ────────────────────────────────
 
-def check4(secs):
-    for n, text in RESERVED.items():
-        title = dict(CANONICAL)[n]
-        block = section_body(secs, title.lower())
+def continued_by(secs, title):
+    """True when a reserved section is populated by named continuation H2s.
+
+    `## 7. Todos` is an umbrella: plan-em appends the heading once (race-safe),
+    then each planner adds its own `## Todos — <Agent>` block beside it. Those
+    blocks are H2s, so the umbrella legitimately has no body of its own — the
+    tickets live in its siblings. Reading that as an empty section would fail
+    every PRD the pipeline actually writes.
+    """
+    want = canon(title)
+    for raw, _, block in secs:
+        t = canon(raw)
+        if not (t.startswith(want + " —") or t.startswith(want + " -")):
+            continue
+        if any(l.strip() for l in block):   # a titled but empty block proves nothing
+            return True
+    return False
+
+
+def check4(secs, shape):
+    titles = dict(shape.canonical)
+    for n, text in shape.reserved.items():
+        block = section_body(secs, titles[n].lower())
         if block is None:
             continue                       # already a check-1 failure
         body = [l.rstrip() for l in block if l.strip() and not l.strip().startswith("```")]
+        if continued_by(secs, titles[n]):
+            continue                       # populated by its `— <Agent>` siblings
         if not body:
             fail(4, "placeholder-drift", f"§{n}",
                  f"section is empty — it must carry the exact reserved placeholder "
-                 f"'{text}' until {owner(n)} fills it")
+                 f"'{text}' until {shape.owners[n]} fills it")
             continue
         if any(l.strip() == text for l in body):
             continue                       # byte-exact placeholder present
@@ -289,20 +380,16 @@ def check4(secs):
              f"'{text}' — do not paraphrase or pre-fill it")
 
 
-def owner(n):
-    return {6: "plan-em", 7: "plan-review", 8: "eng --plan"}[n]
-
-
 # ── check 5 — frontmatter ─────────────────────────────────────────────────────
 
-def check5(fm):
-    for key, pattern in REQUIRED_KEYS.items():
+def check5(fm, shape):
+    for key, pattern in shape.required.items():
         if key not in fm:
             fail(5, "missing-key", key, "required frontmatter key is absent")
         elif not pattern.match(fm[key]):
             fail(5, "bad-value", key,
                  f"value '{fm[key]}' does not match the legal form {pattern.pattern}")
-    for key in LIST_KEYS:
+    for key in shape.lists:
         if key not in fm:
             fail(5, "missing-key", key, "required frontmatter key is absent")
         elif not re.match(r"^\[.*\]$", fm[key]):
@@ -355,21 +442,22 @@ def main():
         die(f"no YAML frontmatter in {args.prd}")
 
     secs = h2_sections(lines, body_start)
+    shape = detect_shape(fm)
 
     if "1" in wanted:
-        check1(secs)
+        check1(secs, shape)
     if "2" in wanted:
         check2(secs)
     if "3" in wanted:
         check3(secs)
     if "4" in wanted:
-        check4(secs)
+        check4(secs, shape)
     if "5" in wanted:
-        check5(fm)
+        check5(fm, shape)
 
     for check, code, ref, detail in sorted(FAILURES, key=lambda f: (f[0], f[1], f[2])):
         print(f"FAIL check={check} code={code} ref={ref} detail={detail}")
-    print(f"SUMMARY checks={','.join(sorted(wanted))} failures={len(FAILURES)}")
+    print(f"SUMMARY shape={shape.name} checks={','.join(sorted(wanted))} failures={len(FAILURES)}")
     sys.exit(1 if FAILURES else 0)
 
 

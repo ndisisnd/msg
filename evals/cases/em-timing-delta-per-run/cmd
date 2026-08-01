@@ -1,0 +1,7 @@
+# T2 — elapsed is measured against THIS run id's own previous line: em-1's
+# gap is 150s from its own pre-flight line, not 90s from the em-2 line that
+# happens to sit between them. Existing lines are never rewritten — the log is
+# append-only, which is what makes it safe to write from a protocol step.
+S="$REPO/.claude/scripts/script-em-timing.sh"
+bash "$S" --stage cert-done --reports-dir reports --run-id em-1 \
+  --date 2026-08-01T10:02:30Z

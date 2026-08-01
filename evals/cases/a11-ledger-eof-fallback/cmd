@@ -1,3 +1,0 @@
-# A11 HAPPY — first-time creation with no Todos anchor: the section still lands,
-# and the EOF placement is announced rather than silently buried.
-printf '%s' '[{"severity":"Major","what":"§5 error handling omits the offline case","fix":"add an offline branch","why":"pre-merge PRD-consistency gate"}]' | python3 "$REPO/.claude/scripts/script-ledger.py" prd.md --auditor P --date 2026-01-15

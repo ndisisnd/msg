@@ -59,12 +59,15 @@ S=.claude/scripts/script-prd-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/sc
 ```
 
 If it emits nothing, emit `No prior PRDs.` and proceed. Otherwise, for each prior PRD line:
-1. Read its `module`, `affects`, `depends_on` from the JSONL first for a fast signal (no file open).
-2. If the new idea's domain matches a prior PRD's `module`, or the prior PRD's `affects`
-   references the new area, flag it and read its features section in full.
+1. Read its `deps` from the JSONL first for a fast signal (no file open). The scan emits
+   `deps` for a PRD of either shape, so this one read covers the whole inventory.
+2. **The overlap scan is `deps` + §3 Dependencies, and nothing else.** v5.4 removed the
+   `module` and `affects` fields, so there is no domain-keyword shortcut: when a prior PRD
+   is named in the new idea's dependency chain, or its own `deps` reach into the area the
+   new idea touches, flag it and read its §3 features section in full. Older PRDs may still
+   carry `module`/`affects` values — treat them as a hint, never as a required input.
 3. Classify and hold for Step 3 frontmatter:
-   - **Dependency** (`depends_on`): the new PRD requires a prior PRD's output. Record its ID.
-   - **Affects** (`affects`): the new PRD modifies scope/contracts a prior PRD also touches. Record its ID.
+   - **Dependency** (`deps`): the new PRD requires a prior PRD's output. Record its ID.
 4. **Breaking-surface flag:** if the new idea would **break a shipped PRD's contract**
    (redefine an F-ID's acceptance criterion another PRD depends on, or overlap a shipped
    feature), mark it — this arms the Step 4 safety pause.
@@ -85,7 +88,10 @@ Store as `n`. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
 bash -c '[[ -f devkit/ARCHITECTURE.md ]] || exit 0; for e in "Expo:\bExpo\b" "Flutter:\bFlutter\b" "React Native:\bReact Native\b" "iOS:\biOS\b" "Android:\bAndroid\b" "Desktop:\b(Electron|Tauri)\b" "Web:\b(web app|web application|web frontend|web client|browser|SPA|PWA)\b" "Backend:\b(REST API|GraphQL|microservice|server-side|backend|API server)\b"; do grep -qiE "${e#*:}" devkit/ARCHITECTURE.md && echo "${e%%:*}"; done'
 ```
 
-Empty output → `platform: TBD` and record it as an open question. Derive `feature_slug`:
+The detected platform is **not** written to the PRD — v5.4 removed the `platform` field, and
+every downstream stage that needs it re-runs this same grep against `devkit/ARCHITECTURE.md`.
+Use it here only to shape §2 Out-of-scope (non-targeted platforms) and to steer the draft.
+Empty output → note the undetectable platform as a §5 open question. Derive `feature_slug`:
 kebab-case, ≤6 words, lowercase + hyphens, from the intake `idea`.
 
 **Part 2 — Initialize template.** A freshly-drafted PRD always starts in the `planned/`
@@ -94,12 +100,15 @@ if absent. Write `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug]
 `refs/template-prd.md` with frontmatter:
 - `name`: `prd-[n]-[feature_slug]` · `feature`: short name from the `idea`
 - `summary`: 2–3 sentence single-line plain-prose gist (core objective + headline features), reconciled in Part 3
-- `module`: primary domain inferred from the idea · `platform`: detected above
-- `affects`: prior-PRD IDs from Step 2 (`[]` if none)
-- `depends_on`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §3 at the end of Part 3** (§ Dependency mirroring) — §3 is the source of truth for cross-PRD edges
-- `status: product` · `product-tuned: no` · `eng-tuned: no` · `reviewed: no` · `created`: today `YYYY-MM-DD`
+- `deps`: seed with the prior-PRD IDs from Step 2 (`[]` if none); it is **reconciled against §3 at the end of Part 3** (§ Dependency mirroring) — §3 is the source of truth for cross-PRD edges
+- `status: backlog` — the first rung of the lifecycle enum (`backlog` → `specced` → `wip` → `complete`). plan-pm only ever writes `backlog`; plan-em stamps `specced` and `wip`, and `merge --production` stamps `complete`
+- `reviewed: no` · `created`: today `YYYY-MM-DD`
 - **`intake: #<n>`** — the source intake row `#`. Always present; every PRD has an
   ancestor row (Step 1)
+
+There is no `module`, `platform` or `affects` field, and no `product-tuned`/`eng-tuned`
+pair — v5.4 removed all five. Never write them into a new PRD, even when a prior PRD in
+the same repo still carries them.
 
 **Part 3 — Populate every section solo.** Draft each section from the intake `idea` +
 `goal` + prior-PRD context — autonomously, no interview, no per-section gate. Two scope
@@ -115,14 +124,17 @@ Canonical order per `refs/template-prd.md`:
 
 | Section | Autonomous source |
 |---------|-------------------|
-| 1. Product objective | One paragraph from the intake `goal` — the user/business outcome that defines success. No feature list, no implementation |
+| 1. Product objective | **Three terse bullets** from the intake `goal` — who / what changes / success signal, one line each. A product spec, not an essay and not engineering: no feature list, no implementation, no paragraph |
 | 2. Out-of-scope | Boundaries the draft draws around the idea; non-targeted platforms auto-added |
 | 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
-| 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. Genuinely unresolvable ones → Step 4 open questions |
+| 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. **No row quota** — write the failure modes the §3 features actually have; padding a short table to hit a count is worse than the short table. Genuinely unresolvable ones → Step 4 open questions |
 | 5. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
 | 6. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
-| 7. Plan review findings | Leave the `_Populated by plan-review …_` placeholder — plan-review owns it |
-| 8. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |
+| 7. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |
+
+There is no `Plan review findings` section any more. `plan-review` writes its ledger to
+`<prd-dir>/reports/review-prd-[n]-[slug].md` and stamps `reviewed:` in the frontmatter —
+never create a findings section in a new PRD.
 
 New domain terms go straight into `devkit/GLOSSARY.md`, where the whole pipeline sees
 them — the PRD carries no glossary of its own.
@@ -133,11 +145,12 @@ are engineering detail → §6 (plan-em), never the product sections.
 
 **Part 4 — Dependency mirroring (mechanical, never skipped).** §3 is the source of truth
 for cross-PRD edges: **every** `prd-<n>-<slug>` id in a §3 Dependencies cell must also appear
-in frontmatter `depends_on`. Do not author the two independently — after §3 is finalized,
+in frontmatter `deps`. Do not author the two independently — after §3 is finalized,
 reconcile the frontmatter *from* §3 so the two cannot drift (`plan-review` check 6 is a backstop,
 not the primary catch). Run the deterministic mirror — it extracts every `prd-<n>-<slug>` token
 from the §3 Dependencies column (external services / data sources / intra-PRD F-IDs are **not**
-mirrored), unions it with the seeded array, and rewrites `depends_on` in place (`[]` when empty):
+mirrored), unions it with the seeded array, and rewrites `deps` in place (`[]` when empty). On a
+PRD written before v5.4 it rewrites that file's `depends_on` line instead, so nothing is migrated:
 
 ```bash
 PRD=features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md

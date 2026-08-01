@@ -1,21 +1,45 @@
 #!/usr/bin/env python3
 """
-script-ledger.py — the writer for a PRD's §7 "Plan review findings" ledger.
+script-ledger.py — the writer for a PRD's plan-review findings ledger.
 
 Owns everything about the ledger that is decidable: locating (or creating) the
-section, deduping this run's findings against prior rows, assigning the monotonic
+table, deduping this run's findings against prior rows, assigning the monotonic
 `#`, and emitting the Clean marker row when a run finds nothing. The model decides
 *what* the findings are and hands them over as JSON; it never counts rows, never
 picks a row number, and never hand-writes the table.
 
-The column set is a contract shared with `/msg --gui` and `plan-pm`'s
-`template-prd.md`. This script never changes it: an existing table whose header is
-missing a canonical column is a hard error, not something to patch around.
+WHERE THE LEDGER LIVES (two targets, auto-selected)
+
+  v5.4 and later — an external report beside the PRD:
+      <prd-dir>/reports/review-prd-<n>-<slug>.md
+  A findings table is append-only and grows without bound; a PRD is a contract
+  every downstream stage re-reads. Keeping the two in one file made every reader
+  pay for the audit history, so the ledger moved out. The PRD's `reviewed:`
+  frontmatter stamp remains the gate signal — this file is the evidence trail.
+
+  v5 and earlier — the PRD's own `## 7. Plan review findings` section.
+  A PRD that already carries that section keeps its ledger there, with its
+  eight-column (Auditor-bearing) table intact. Nothing is ever migrated: the
+  target is whichever home the PRD already has.
+
+Selection order: an existing report file wins; else an existing findings section
+in the PRD; else a new report file is created from the v5.4 scaffold.
+
+Do not confuse the report with `reports/review-prd-<N>-<K>.json` — that is eng's
+per-packet build-review evidence (v5.3), a different file with a different shape.
+This one is markdown and its suffix is the PRD slug.
+
+The column set is a contract shared with `/msg --gui` and
+`plan-review/refs/template-review-report.md`. This script never changes it: an
+existing table whose header is missing a canonical column is a hard error, not
+something to patch around.
 
 Usage:
-  script-ledger.py <prd.md> --auditor P|E [--findings <file.json>|-] [--date YYYY-MM-DD] [--dry-run]
+  script-ledger.py <prd.md> [--auditor P|E] [--findings <file.json>|-] [--date YYYY-MM-DD] [--dry-run]
 
-  --auditor    P (product tune) or E (eng tune). Written into every new row.
+  --auditor    P (product tune) or E (eng tune). Written into every new row of a
+               legacy in-PRD ledger, which has an Auditor column. Accepted and
+               ignored for the v5.4 report, whose one mode has one auditor.
   --findings   JSON array of this run's findings. Default: stdin.
   --date       defaults to today.
   --dry-run    report what would change and write nothing.
@@ -37,9 +61,9 @@ New rows are sorted Critical, Major, Minor before numbering, so `#` ascends with
 severity within a run while staying monotonic across runs.
 
 Output (KEY=VALUE lines on stdout):
+  LEDGER_TARGET=report|prd-section                which home was selected
+  LEDGER_FILE=<path>                              the file actually written
   LEDGER_SECTION=created|filled|appended
-  LEDGER_PLACEMENT=eof-fallback                  created-mode only, and only when
-                                                 no Todos anchor was found
   LEDGER_ROW=<#> <added|carried> <severity>      one per finding
   LEDGER_ADDED=<n>
   LEDGER_CARRIED=<n>
@@ -53,7 +77,7 @@ Exit codes:
      no parsable `#` (LEDGER_NUMBERING_UNPARSABLE), or a drifted findings heading
      that would get a second section appended beside it (SECTION_TITLE_DRIFT)
 
-Writes via a temp file + mv, so a crash can never truncate the PRD.
+Writes via a temp file + mv, so a crash can never truncate the target.
 """
 import argparse
 import datetime
@@ -66,13 +90,57 @@ from pathlib import Path
 
 SELF = "script-ledger"
 
+# v5.4 external report — one mode, one auditor, so no Auditor column.
+REPORT_COLUMNS = ["#", "Date", "Severity", "What is wrong",
+                  "Suggested fix", "Why it matters", "Status"]
+# v5 in-PRD ledger — kept verbatim so an existing table is appended to, not reshaped.
 COLUMNS = ["#", "Date", "Auditor", "Severity", "What is wrong",
            "Suggested fix", "Why it matters", "Status"]
 SEV_ORDER = {"critical": 0, "major": 1, "minor": 2}
 SECTION_TITLE = "Plan review findings"
+REPORT_SECTION_TITLE = "Findings"
 # Pre-v5 PRDs carry the certifier's former section heading, kept here verbatim.
 # Appends find it and leave the heading exactly as written — nothing is rewritten.
 LEGACY_SECTION_TITLES = ["plan tune findings"]
+
+
+def report_path(prd):
+    """<prd-dir>/reports/review-<prd-stem>.md — the v5.4 home for the ledger."""
+    return prd.parent / "reports" / f"review-{prd.stem}.md"
+
+
+def report_scaffold(stem, date):
+    """A fresh report, table header excluded — the 'filled' path writes that."""
+    return [
+        "---",
+        f"name: review-{stem}",
+        f"prd: {stem}",
+        f"created: {date}",
+        f"last-run: {date}",
+        "---",
+        "",
+        f"# Review findings — {stem}",
+        "",
+        "One growing table, appended across runs. Row numbers are monotonic and",
+        "never reset; an open row's `Status` is recomputed on each run.",
+        "",
+        f"## {REPORT_SECTION_TITLE}",
+        "",
+    ]
+
+
+def stamp_last_run(lines, date):
+    """Rewrite `last-run:` inside the leading frontmatter block, in place."""
+    if not lines or lines[0].strip() != "---":
+        return lines
+    out = list(lines)
+    for i in range(1, len(out)):
+        if out[i].strip() == "---":
+            break
+        if re.match(r"^last-run:", out[i]):
+            out[i] = f"last-run: {date}"
+            break
+    return out
 
 
 def die(msg):
@@ -152,7 +220,7 @@ def render(values):
 def main():
     ap = argparse.ArgumentParser(add_help=True, prog="script-ledger.py")
     ap.add_argument("prd")
-    ap.add_argument("--auditor", required=True, choices=["P", "E"])
+    ap.add_argument("--auditor", default="P", choices=["P", "E"])
     ap.add_argument("--findings", default="-")
     ap.add_argument("--date", default="")
     ap.add_argument("--dry-run", action="store_true")
@@ -166,10 +234,52 @@ def main():
     if not prd.is_file():
         die(f"no such PRD file: {args.prd}")
     try:
-        text = prd.read_text(encoding="utf-8")
+        prd_lines = prd.read_text(encoding="utf-8").split("\n")
     except OSError as exc:
         die(f"cannot read {args.prd}: {exc}")
-    lines = text.split("\n")
+
+    # ── Select the ledger's home ──────────────────────────────────────────────
+    # An existing report wins; else a findings section already in the PRD (a
+    # pre-v5.4 file keeps its ledger where it is); else a new report.
+    rpath = report_path(prd)
+    prd_has_section = find_section(prd_lines, SECTION_TITLE.lower())[0] is not None
+    if not prd_has_section:
+        prd_has_section = any(find_section(prd_lines, t)[0] is not None
+                              for t in LEGACY_SECTION_TITLES)
+
+    # A11 — a PRD whose findings heading drifted ("Review findings" instead of
+    # "Plan review findings") must not quietly get a report created beside it:
+    # the orphaned section's rows would never be deduped against, and a consumer
+    # reading the PRD would see a stale table that no run updates. Refuse, exactly
+    # as this refused to append a second section before the ledger moved out.
+    if not rpath.is_file() and not prd_has_section:
+        for ln in prd_lines:
+            t = heading_title(ln)
+            if t is not None and "findings" in t:
+                print(f"SECTION_TITLE_DRIFT={ln.strip()}")
+                die(f"a findings section already exists as {ln.strip()!r} but its title "
+                    f"does not match '{SECTION_TITLE}' (or a known legacy title) — "
+                    f"refusing to start a separate report beside it; restore the "
+                    f"canonical heading, or delete the section to move to a report")
+
+    created_report = False
+    if rpath.is_file():
+        target, kind = rpath, "report"
+        try:
+            lines = rpath.read_text(encoding="utf-8").split("\n")
+        except OSError as exc:
+            die(f"cannot read {rpath}: {exc}")
+    elif prd_has_section:
+        target, kind, lines = prd, "prd-section", prd_lines
+    else:
+        target, kind = rpath, "report"
+        lines = report_scaffold(prd.stem, date)
+        created_report = True
+
+    if kind == "report":
+        columns, section_title, legacy_titles = REPORT_COLUMNS, REPORT_SECTION_TITLE, []
+    else:
+        columns, section_title, legacy_titles = COLUMNS, SECTION_TITLE, LEGACY_SECTION_TITLES
 
     raw = sys.stdin.read() if args.findings == "-" else Path(args.findings).read_text(encoding="utf-8")
     if not raw.strip():
@@ -190,8 +300,8 @@ def main():
             die(f"finding {n}: 'what' is required and must be non-empty")
 
     # ── Locate the section and read any existing table ────────────────────────
-    hidx, hend = find_section(lines, SECTION_TITLE.lower())
-    for legacy in LEGACY_SECTION_TITLES:
+    hidx, hend = find_section(lines, section_title.lower())
+    for legacy in legacy_titles:
         if hidx is not None:
             break
         hidx, hend = find_section(lines, legacy)
@@ -218,13 +328,14 @@ def main():
     if header_cells is not None:
         lowered = [c.strip().lower() for c in header_cells]
         colmap = {}
-        for want in COLUMNS:
+        for want in columns:
             if want.lower() not in lowered:
-                die(f"§7 table header is missing the '{want}' column — the schema is a "
-                    f"GUI + template contract; fix the table rather than writing into it")
+                die(f"findings table header is missing the '{want}' column — the schema "
+                    f"is a GUI + template contract; fix the table rather than writing "
+                    f"into it")
             colmap[want] = lowered.index(want.lower())
     else:
-        colmap = {c: i for i, c in enumerate(COLUMNS)}
+        colmap = {c: i for i, c in enumerate(columns)}
 
     def get(cells, col):
         i = colmap[col]
@@ -249,7 +360,7 @@ def main():
     # rows parse) keep today's max-of-parsed behaviour.
     if existing_rows and not parsed_any:
         print(f"LEDGER_NUMBERING_UNPARSABLE={first_bad}")
-        die(f"§7 ledger has {len(existing_rows)} row(s) but no parsable '#' "
+        die(f"findings ledger has {len(existing_rows)} row(s) but no parsable '#' "
             f"(first offending cell: {first_bad!r}) — refusing to renumber from 1 "
             f"on top of them; fix the '#' column")
 
@@ -262,7 +373,7 @@ def main():
 
     edits = {}   # line index -> replacement line (carried-forward updates)
     for f, (j, cells) in carried:
-        row = list(cells) + [""] * (len(COLUMNS) - len(cells))
+        row = list(cells) + [""] * (len(columns) - len(cells))
         row[colmap["Status"]] = "Still open"
         row[colmap["Date"]] = date
         edits[j] = render(row)
@@ -275,10 +386,11 @@ def main():
 
     for f, _ in fresh:
         num += 1
-        row = [""] * len(COLUMNS)
+        row = [""] * len(columns)
         row[colmap["#"]] = str(num)
         row[colmap["Date"]] = date
-        row[colmap["Auditor"]] = args.auditor
+        if "Auditor" in colmap:
+            row[colmap["Auditor"]] = args.auditor
         row[colmap["Severity"]] = str(f["severity"]).strip().title()
         row[colmap["What is wrong"]] = cell(f.get("what"))
         row[colmap["Suggested fix"]] = cell(f.get("fix")) or "—"
@@ -290,10 +402,11 @@ def main():
     clean = not findings
     if clean:
         num += 1
-        row = [""] * len(COLUMNS)
+        row = [""] * len(columns)
         row[colmap["#"]] = str(num)
         row[colmap["Date"]] = date
-        row[colmap["Auditor"]] = args.auditor
+        if "Auditor" in colmap:
+            row[colmap["Auditor"]] = args.auditor
         row[colmap["Severity"]] = "—"
         row[colmap["What is wrong"]] = "No findings; all applicable checks certified"
         row[colmap["Suggested fix"]] = "—"
@@ -307,52 +420,30 @@ def main():
     for j, repl in edits.items():
         out[j] = repl
 
-    placement = None
-    header_line = render([c for c in header_cells] if header_cells else COLUMNS)
-    sep_line = "|" + "|".join("---" for _ in COLUMNS) + "|"
+    header_line = render([c for c in header_cells] if header_cells else columns)
+    sep_line = "|" + "|".join("---" for _ in columns) + "|"
 
+    # Only two arms remain. Target selection guarantees the section exists in
+    # whichever home was chosen — the report scaffold always carries `## Findings`,
+    # and prd-section mode is only entered when the PRD already has the heading —
+    # so there is never a section to invent here. (Before the ledger moved out, a
+    # third arm created the section inside the PRD and announced a Todos-anchor or
+    # EOF placement; that is now unreachable, and `LEDGER_PLACEMENT` with it.)
     if header_cells is not None:
         mode = "appended"
         out[tbl_end + 1:tbl_end + 1] = new_lines_rows
-    elif hidx is not None:
-        mode = "filled"
+    else:
+        mode = "created" if created_report else "filled"
         body = [header_line, sep_line] + new_lines_rows
         # Replace the section body (placeholder prose and all) with the table.
         out[hidx + 1:hend] = [""] + body + [""]
-    else:
-        # A11 — creating a second findings section is only ever right when the PRD
-        # has none. A reworded §7 heading ("Plan review findings (product)" is fine
-        # — startswith matches; "Review findings" is not) otherwise gets a duplicate
-        # section appended beside it, and consumers read the wrong table.
-        drift = None
-        for ln in lines:
-            t = heading_title(ln)
-            if t is not None and "findings" in t:
-                drift = ln.strip()
-                break
-        if drift is not None:
-            print(f"SECTION_TITLE_DRIFT={drift}")
-            die(f"a findings section already exists as {drift!r} but its title does "
-                f"not match '{SECTION_TITLE}' (or a known legacy title) — refusing to "
-                f"append a second findings section; restore the canonical heading")
 
-        mode = "created"
-        placement = "todos-anchor"
-        block = ["", f"## {SECTION_TITLE}", "", header_line, sep_line] + new_lines_rows + [""]
-        # Canonical home is the reserved section between the exec table and Todos;
-        # on a legacy PRD that lacks it, insert before Todos, else append.
-        tidx, _ = find_section(out, "todos")
-        if tidx is not None:
-            out[tidx:tidx] = block
-        else:
-            placement = "eof-fallback"
-            while out and out[-1].strip() == "":
-                out.pop()
-            out.extend(block)
+    if kind == "report":
+        out = stamp_last_run(out, date)
 
+    print(f"LEDGER_TARGET={kind}")
+    print(f"LEDGER_FILE={target}")
     print(f"LEDGER_SECTION={mode}")
-    if mode == "created" and placement == "eof-fallback":
-        print("LEDGER_PLACEMENT=eof-fallback")
     for num_s, what, sev in report:
         print(f"LEDGER_ROW={num_s} {what} {sev}")
     print(f"LEDGER_ADDED={len(new_lines_rows)}")
@@ -363,16 +454,22 @@ def main():
     if args.dry_run:
         return
 
-    fd, tmp = tempfile.mkstemp(dir=str(prd.parent), prefix=".script-ledger.")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        die(f"cannot create {target.parent}: {exc}")
+
+    fd, tmp = tempfile.mkstemp(dir=str(target.parent), prefix=".script-ledger.")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
             fh.write("\n".join(out))
-        os.chmod(tmp, os.stat(prd).st_mode & 0o777)
-        os.replace(tmp, prd)
+        # A brand-new report has no mode of its own to preserve; inherit the PRD's.
+        os.chmod(tmp, os.stat(target if target.exists() else prd).st_mode & 0o777)
+        os.replace(tmp, target)
     except OSError as exc:
         if os.path.exists(tmp):
             os.unlink(tmp)
-        die(f"cannot write {args.prd}: {exc}")
+        die(f"cannot write {target}: {exc}")
 
 
 if __name__ == "__main__":

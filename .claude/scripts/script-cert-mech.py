@@ -354,7 +354,8 @@ def check6(fm, lines, prd_path, features_root, platforms_path):
                 cfm, _ = split_frontmatter(cand.read_text(encoding="utf-8").split("\n"))
             except OSError:
                 cfm = None
-            deps = (cfm or {}).get("depends_on") or []
+            # v5.4 name first, v5 name as the read-tolerance fallback.
+            deps = (cfm or {}).get("deps") or (cfm or {}).get("depends_on") or []
             if isinstance(deps, str):
                 deps = [deps]
             graphs[cid] = [d for d in deps if d]
@@ -365,8 +366,14 @@ def check6(fm, lines, prd_path, features_root, platforms_path):
         v = fm.get(key) or []
         return [v] if isinstance(v, str) and v else (v if isinstance(v, list) else [])
 
+    # v5.4 dropped `affects` and renamed `depends_on` -> `deps`, so the edge set
+    # is whichever of those keys the PRD actually carries. A v5-shape PRD still
+    # gets both of its edge kinds checked; a v5.4 PRD has one.
+    edge_keys = [k for k in ("deps", "depends_on", "affects") if k in fm]
+    dep_keys = [k for k in ("deps", "depends_on") if k in fm]
+
     if known:
-        for key in ("depends_on", "affects"):
+        for key in edge_keys:
             for target in edges(key):
                 if target not in known:
                     emit(6, "major", "missing-edge-target", f"{key}:{target}",
@@ -374,12 +381,12 @@ def check6(fm, lines, prd_path, features_root, platforms_path):
                          f"under {features_root}/")
 
         graphs.setdefault(self_id, [])
-        graphs[self_id] = [d for d in edges("depends_on")]
+        graphs[self_id] = [d for k in dep_keys for d in edges(k)]
         reachable = {k: [d for d in v if d in graphs] for k, v in graphs.items()}
         cyc = cycle_in(reachable)
         if cyc and self_id in cyc:
             emit(6, "critical", "frontmatter-cycle", self_id,
-                 "depends_on cycle: " + " -> ".join(cyc))
+                 "deps cycle: " + " -> ".join(cyc))
     elif root.is_dir():
         # A6: the features root exists but the prd-*/prd-*.md glob matched
         # nothing — the edge-target and cycle facets are skipped just as they are

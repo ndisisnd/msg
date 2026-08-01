@@ -37,10 +37,12 @@ Match every check to a section **title**, never a number — PRD section numbers
 | 1 | **Criteria testability** — every acceptance criterion is mechanically derivable into an assertion (no vague verb, named time/count/state bound, timezone basis stated) | product | pre-merge regression authoring; pre-merge PRD-consistency (step 7) | A criterion an agent cannot turn into a pass/fail assertion → a vacuous regression test guards production forever | **Major** (Critical if the criterion is empty/placeholder, or timezone basis is undefined — backend UTC vs device-local diverge) |
 | 2 | **Breaking / DB surface labeled** — every schema/API/module-contract break and every DB-or-prod-config touch is explicitly marked | product + eng | pre-merge breaking pause; plan-pm critical pause; `script-eng-db-touch.sh` | An unlabeled breaking or DB touch silently disarms **all** downstream safety pauses | **Critical** |
 | 3 | **Intent fidelity vs the intake row** — every feature traces to the intake idea/goal; the stated goal is fully addressed; the PRD's shape is consistent with the row's grade | product | the pipeline's purpose — the only guard against autonomous drift (plan-pm now drafts solo) | plan-pm builds the wrong thing *fluently*; nobody notices until staging | **Major** (Critical if the row's core goal is entirely unaddressed). A PRD with no intake ancestor skips this check with a logged note — never a finding. |
-| 4 | **Exec-table / eng-section integrity** — every PRD F-ID appears in ≥1 engineering scope map; identifiers are exact (no guessed names); the Files column is populated | eng | `eng --build` mechanical row reads; `script-em-exec-collision.py` | Build agents block mid-build or guess a name; parallel builds collide on the same file | **Critical** (missing F-ID coverage, a guessed/approximate identifier, or a collision) / **Major** (a populated-but-thin row, e.g. empty Files) |
+| 4 | **Exec-table / eng-section integrity** — every PRD F-ID appears in ≥1 engineering scope map; identifiers are exact (no guessed names); the Files column is populated — and since v5.4 it is *derived*, so an empty cell means the derivation (`script-em-exec-skeleton.py --fill-files`) has not been run since the tickets changed, never that an agent forgot | eng | `eng --build` mechanical row reads; `script-em-exec-collision.py` | Build agents block mid-build or guess a name; parallel builds collide on the same file | **Critical** (missing F-ID coverage, a guessed/approximate identifier, or a collision) / **Major** (a populated-but-thin row, e.g. empty Files) |
 | 5 | **Graph validity** — the `depends-on` graph is acyclic; every referenced ticket id exists; every ticket has a `done-when` | eng | `eng --build` ordering logic (hard-stops on cycles / unknown ids) | Unbuildable tickets and build-time hard-stops surface at build time, not plan time | **Critical** (cycle or unknown-id — `eng --build` hard-stops) / **Major** (a ticket missing `done-when`) |
-| 6 | **Frontmatter graph** — `depends_on` / `affects` are correct and acyclic; platform-profile bucket coverage is declared | product + eng | roadmap sequencing; plan-em preflight; pre-merge bucket selection (`devkit/PLATFORMS.md`) | Wrong build order; a missed cross-PRD break; the wrong gate strictness runs | **Major** (a wrong/missing edge, or missing bucket coverage) / **Critical** (a cycle in `depends_on`) |
+| 6 | **Frontmatter graph** — `deps` is correct and acyclic; platform-profile bucket coverage is declared | product + eng | roadmap sequencing; plan-em preflight; pre-merge bucket selection (`devkit/PLATFORMS.md`) | Wrong build order; a missed cross-PRD break; the wrong gate strictness runs | **Major** (a wrong/missing edge, or missing bucket coverage) / **Critical** (a cycle in `deps`) |
 | 7 | **Cross-agent integration-contract coherence** — every identifier one agent declares in its integration contract resolves against every other agent's section/tickets that reference it | eng | parallel `eng --build` agents (row-scoped — they build against each other's contracts blindly and structurally cannot see across sections) | Two internally-consistent, mutually-**wrong** sections; the mismatch surfaces at pre-merge integration tests — the most expensive place to catch it | **Critical** |
+
+**Check 6 — the edge set:** v5.4 removed the `affects` field, so `deps` (mirrored from the §3 Dependencies column) is the entire cross-PRD graph. A PRD written before v5.4 still carries `depends_on` and `affects`; `script-cert-mech.py` checks whichever edge keys that file actually has, so both shapes are covered by the same check.
 
 **Check 6 — bucket coverage:** confirm the PRD names, per shipping platform in `devkit/PLATFORMS.md`, the buckets pre-merge will require. (Check 5 never measures ticket size — plan-time LOC is a guess, not a certifiable fact; see `eng/refs/plan/template-todo.md` rule 2.)
 
@@ -52,20 +54,32 @@ Match every check to a section **title**, never a number — PRD section numbers
 | **Major** | A consumer degrades: a regression test is weak, a build agent guesses a thin field, the wrong build order runs. Interpretable but high rework risk. |
 | **Minor** | Clarity/completeness gap with no blind consumer downstream. Adds friction; blocks nothing. |
 
-## Findings-table schema (unchanged — GUI + template contract)
+## Findings-table schema (GUI + template contract)
 
-Every finding is a **row** in the PRD's `## 7. Plan review findings` ledger. **This schema is consumed verbatim by `/msg --gui` (`msg/refs/protocol-gui.md`) and reserved by `plan-pm`'s `template-prd.md` — do not change its columns.**
+Every finding is a **row** in one growing table at `<prd-dir>/reports/review-prd-[n]-[slug].md` — see `template-review-report.md` for the file itself. **This schema is consumed verbatim by `/msg --gui` (`msg/refs/protocol-gui.md`) — do not change its columns.**
+
+**The v5.4 report has no `Auditor` column** (one mode, one auditor). A PRD written before v5.4 keeps its findings inline in its own `## 7. Plan review findings` section, whose table *does* carry that column; `script-ledger.py` appends to whichever table it finds and never reshapes one into the other. The `Auditor` row below therefore applies only to that legacy table.
 
 | Column | Meaning |
 |--------|---------|
 | `#` | Monotonic finding number, continued across runs — never reset to 1. |
 | `Date` | Run date, `YYYY-MM-DD`. |
-| `Auditor` | `P` (product tune) or `E` (eng tune). |
+| `Auditor` | `P` (product tune) or `E` (eng tune). **Legacy in-PRD table only** — dropped from the v5.4 report. |
 | `Severity` | Critical / Major / Minor. |
 | `What is wrong` | Terse — cite section + which of checks 1–7 fired. ≤100 chars, ≤2 lines. |
 | `Suggested fix` | Terse concrete action, applyable without further interpretation. ≤100 chars. |
 | `Why it matters` | Terse — name the consumer that breaks. ≤100 chars. |
 | `Status` | `Open` (new/unfixed), `Fixed` (applied this run), `Still open` (carried forward unchanged), `Clean` (no-findings marker row). |
+
+The v5.4 report table:
+
+```markdown
+| # | Date | Severity | What is wrong | Suggested fix | Why it matters | Status |
+|---|------|----------|---------------|---------------|----------------|--------|
+| 1 | 2026-07-14 | Critical | F2 streak "local" timezone undefined (check 1) | Define as user-profile tz, fallback device | pre-merge regression asserts against UTC; mobile is device-local | Fixed |
+```
+
+The legacy in-PRD table, for reference — appended to as-is, never migrated:
 
 ```markdown
 | # | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status |

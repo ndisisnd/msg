@@ -6,6 +6,190 @@
 
 - `RELEASES.md`: Added — v5.3.0 notes covering [112]–[117] (review evidence artifacts, coverage checks at every build-spawning orchestrator, pre-merge backstop). Numbered [129] deliberately: [118]–[128] are already taken by the v5.4 work on `feat/msg-v5.4.0`, which merges next.
 
+### [128] — the PRD shape validator rejected the Todos shape the pipeline writes (v5.4 fix)
+
+`script-prd-shape.py` check 4 failed `§7 Todos` as an empty reserved section on **every PRD the pipeline actually produces** after a plan wave. The section splitter cuts on H2 headings, and the umbrella `## 7. Todos` is immediately followed by each planner's `## Todos — <Agent>` block — also an H2 — so the umbrella's own body is empty by construction. That is the correct shape: plan-em appends the umbrella once so parallel planners do not race on a shared heading, and each planner adds its own sibling block. Found while regenerating the sample PRDs, where every fixture hit it.
+
+A reserved section is now also satisfied by **populated named continuation sections** — an H2 whose title is the reserved title plus `— <name>`. The rule is deliberately narrow in one respect: a continuation heading with nothing under it does not count, so a titled-but-empty `## Todos — <Agent>` still fails placeholder-drift. Presence of a heading was never the thing being checked; presence of tickets is.
+
+- `.claude/scripts/script-prd-shape.py` — new `continued_by()`; check 4 consults it before the empty/drift arms
+- `evals/cases/prd-shape-v54-todos-umbrella`, `prd-shape-v54-todos-umbrella-empty` — **new**, both directions: the umbrella with populated agent blocks certifies clean; the umbrella with an empty agent block still fails
+
+### [127] — the GUI reads findings from the external ledger (v5.4 leftover)
+
+v5.4 moved `plan-review`'s findings out of the PRD and into a growing ledger beside it (entry [120]), which quietly broke the board: it parsed findings out of the PRD body, so a v5.4 PRD rendered no findings at all.
+
+`server.py` now reads `<prd-dir>/reports/review-prd-<n>-<slug>.md` when it exists and ships its text with the PRD payload as `reviewFindings` (plus `reviewFindingsPath`). The client prefers that ledger and parses its table directly — the ledger's heading is a plain `## Findings` and its table has no Auditor column, so pointing the existing table parser at the file is simpler and more tolerant than teaching the heading matcher a new name.
+
+**`reviewFindings` is `null` on a PRD written before v5.4, and that is the fallback signal**: those PRDs keep their findings in the body, the body parser still reads them, and nothing is migrated. A board showing both PRD generations therefore reads each one where it actually keeps its findings. The eng `### 12. Findings` list keeps feeding the same table from the body in both cases.
+
+- `.claude/skills/msg/refs/gui/server.py` — loads the ledger beside the PRD, preferring the exactly-named file
+- `.claude/skills/msg/refs/gui/index.html` — new `parseLedgerFindings`; the accordion prefers the ledger and falls back to the body
+- `.claude/skills/msg/refs/protocol-gui.md` — documents the two homes and which wins
+
+### [126] — plan-em runs leave a timeline (v5.4 P0)
+
+Every saving in this release is a structural argument: fewer invocations, fewer certifications, fewer reviewer spawns, less prose. None of them is a measurement. `script-em-timing.sh` is the measurement — one appended line per stage boundary of a `plan-em` run, so a finished run leaves a readable answer to "where did the hour go?".
+
+The log is `features/prd-<n>-<slug>/reports/timings-<date>.log`, tab-separated and append-only: `<iso> <epoch> <run-id> <stage> +<delta>s <note>`. The delta is measured against **that run id's own** previous line, so two runs sharing a log never report each other's gaps as their own, and reading the file top to bottom needs no arithmetic. Boundaries marked: pre-flight, certification, exec-table skeleton, plan half, files+collision, branch, each build wave, the review-coverage check, and synthesis. The skeleton boundary deliberately sits *after* the roster gate, so the human wait is isolated in its own segment rather than smeared across the run.
+
+**It is best-effort by contract.** Every call site appends `|| true`, no step may branch on the exit code, and the script never reads a PRD or decides anything. A stage name is validated as a column value — lowercase, digits and hyphens — because a name with a space would produce a line that cannot be read back; that is a usage error and nothing is written. In team mode the orchestrator marks the boundaries inside its own spawn using the run id plan-em injected, so one run reads as one timeline instead of two.
+
+- `.claude/scripts/script-em-timing.sh` — **new**
+- `.claude/skills/plan-em/refs/protocol-em.md` — new § Stage timing with the boundary table; `$TIMING_RUN_ID` joins the orchestrator spawn's injected contract
+- `.claude/skills/plan-em/refs/protocol-team.md` — new § Stage timing for the boundaries inside the orchestrator's spawn; `$TIMING_RUN_ID` in the input contract
+- `.claude/skills/plan-em/SKILL.md`, `ARCHITECTURE.md` — the log and the script are listed as outputs
+- `evals/cases/em-timing-first-line`, `em-timing-delta-per-run`, `em-timing-bad-stage` — **new**: the log and its parent are created with +0s; elapsed is per run id and existing lines are never rewritten; a malformed stage name is refused and writes nothing
+
+### [125] — plan-em stops writing things nobody reads (v5.4 P8)
+
+Three writes in a `plan-em` run were unconditional and mostly empty of information.
+
+**`preflight.md` is now written only when the scan found something.** A clean pre-flight used to produce a file of six headings with nothing under them — a write, a read on every later visit, and one more artifact to keep in sync, all to say "nothing to report". A clean run now emits one line instead (`Pre-flight clean — devkit + PRD scanned, no findings.`), and the *absence* of the file means exactly that. A stale `preflight.md` from an earlier run is deleted on a clean run rather than left behind describing a PRD state that no longer holds.
+
+**Step 5's synthesis is one combined summary on a fused run.** The per-agent paragraph made sense when the plan wave ended a sitting and a human read it before deciding to start the build wave — that is still what a large two-wave run gets, unchanged. A fused run has no such handover, and by the time it synthesises it has already returned a build summary per packet and a consolidated orchestrator report; a paragraph per agent is a third telling of the same events, generated at the most expensive point in the run. Fused runs emit ~5 lines: what was planned and built, which stacks took part, the branch, and review coverage.
+
+**Step 1c is a deps-only conflict check**, and the text now says so plainly. `module` and `affects` left the frontmatter in v5.4 P1, so the `deps` array plus the §3 Dependencies column it mirrors are the entire cross-PRD graph — there is no domain-match shortcut and no reverse "who does this break" edge left to consult.
+
+- `.claude/skills/plan-em/refs/protocol-em.md` — 1d branches on whether findings exist (and deletes a stale report on a clean run); Step 5's summary element is selected by `$MODE`
+- `.claude/skills/plan-em/SKILL.md` — the Outputs table states the pre-flight report is conditional
+
+### [124] — mechanical packets are reviewed per wave, not per leaf (v5.4 P7)
+
+v5.3 made review coverage provable: every packet's reviewer writes an evidence artifact, and the orchestrator checks the filesystem for one after every wave. That is the right floor, but it was buying the same thing at very different prices — a reviewer spawn per leaf costs the same whether the leaf wrote an auth migration or wired four CRUD forms.
+
+Review **granularity** now follows the packet's model tier, which is a judgment the orchestrator already made and recorded:
+
+- **Sonnet / mechanical packets** — no per-leaf reviewer. The orchestrator spawns **one** `eng --review` over the wave's accumulated diff once the wave lands, and that review writes **one** artifact, `review-prd-<N>-W<w>.json`, carrying a `packets` list of every key it covered and a `built_by` list of those packets' agents.
+- **Opus / load-bearing packets** — unchanged, a reviewer per packet, exactly as v5.3 wrote it.
+
+**Coverage did not become weaker, only cheaper.** The orchestrator still passes *every* packet key in the wave to `script-eng-review-check.sh`, which now resolves a key against a wave artifact's `packets` list when no per-packet artifact exists. A key the wave artifact does not list still reads `MISSING`, still gets one reviewer re-spawned, and still escalates on a second miss. The self-review rule tightened rather than loosened: `reviewed_by` matching **any** builder in a batched `built_by` list is self-review, because a reviewer that built one packet of the wave it is reviewing is the exact conflict the rule exists to prevent. Severities from a wave artifact are counted once, not once per key it covers, so the aggregate finding counts stay honest.
+
+Leaves are told which regime they are in via an injected `review=self|batched` field rather than inferring it — a leaf never decides its own review. A batched leaf skips its reviewer spawn and says so on its Review line, which stays a required element of the return.
+
+**Commits batch with the review.** A mechanical packet may land as one commit when it reads as one coherent unit, instead of one per ticket; a load-bearing packet keeps per-ticket commits, where a reviewable history earns its cost. Both commit gates — the comment scan and the size/trailer cap — run on **every** commit regardless; batching commits never batches the gates.
+
+- `.claude/scripts/script-eng-review-check.sh` — a key resolves to a per-packet artifact first, then to a batched wave artifact whose `packets` names it; `built_by` accepts a list and self-review becomes a membership test; severity counts deduped per artifact
+- `.claude/skills/eng/refs/review/protocol.md` — new § Batched wave reviews; the artifact schema gains the optional `packets` field
+- `.claude/skills/plan-em/refs/protocol-team.md` — § Build wave step 4 routes review by packet tier; § Subagent contract gains the `review=` field and the batched-wave reviewer row
+- `.claude/skills/eng/refs/build/protocol-packet.md` — Step 5 branches on `review=`; Step 7 states the commit-granularity rule and that the gates do not batch
+- `evals/cases/review-check-wave-batched`, `review-check-wave-unlisted`, `review-check-wave-self-reviewed` — **new**: the batch covers its listed keys and counts once; an unlisted key is still MISSING; a batched builder reviewing its own wave is still SELF-REVIEWED
+- `ARCHITECTURE.md` — the review-evidence section states that granularity varies and coverage does not
+
+### [123] — medium PRDs plan and build in one run (v5.4 P5)
+
+A PRD used to cost two `/plan-em` invocations no matter how big it was: plan wave, stop, human re-invokes, build wave. Each invocation repaid the same fixed ceremony — pre-flight scan, cross-PRD check, roster gate — and a full certification round-trip sat between the two halves. For a small feature that overhead is most of the run.
+
+`plan-em` now **sizes itself on the PRD**. Step 1e resolves the intake complexity grade once (`C:` band from the `INTAKE.md` row the PRD's `intake:` key names) into `$SIZE`, and everything downstream consumes that one answer:
+
+- **Medium (`C:` < 8, and the default whenever the grade cannot be resolved)** — one `/plan-em` run does everything. Steps 1–3 are unchanged (pre-flight, one certification, roster gate, exec-table skeleton), then a single **fused** Step 4: the plan leaves write their engineering sections and tickets, `--fill-files` derives the Files column, a mechanical plan-shape check runs, the branch is cut and the lane moved, and the build leaves dispatch — without returning to the user in between. Status walks `backlog → specced` when the tickets land and `→ wip` when the branch is cut, both inside the one invocation, because the lifecycle tracks the work and not the call count.
+- **Large (`C:` ≥ 8)** — the two-wave path, byte-for-byte as before, with a certification before each wave.
+
+**One certification, not two — and the gap is filled mechanically.** A medium run pays only the product certification at Step 2. The between-wave eng certification is not deferred, it is deleted for that size, and `script-eng-plan-shape.py` runs in its place immediately before the build half dispatches. That trade is deliberate: the eng cert's real value is catching a plan that drifted across a session boundary, and a fused run has no session boundary — whereas the failures that actually break a build wave (a ticket violating the schema, a cyclic `depends-on`, a `(edit)` path that does not exist) are exactly what the shape check catches mechanically in seconds. A red check after one repair attempt **stops the run before any build packet is dispatched**; a medium run has nothing else standing there.
+
+**Resume needs no new machinery.** The existing `engineering_agents` mode detection does double duty: it is the wave selector for a large PRD and the resume detector for a medium one. An interrupted fused run leaves exactly the on-disk evidence a completed plan wave leaves, so re-invoking `/plan-em` finds every roster agent present, resolves `$MODE = build`, and finishes the build half. No `--resume` flag, no run-state file.
+
+**One orchestrator spawn covers both halves in team mode**, which is the one documented exception to "the orchestrator never resolves the branch". plan-em is blocked while its orchestrator runs, so keeping the branch cut on plan-em's side would have forced a second orchestrator spawn for the build half — the exact cost the fusion removes. The invariant that protects the shared tree is unchanged: leaves never touch branches, and exactly one agent cuts it, once.
+
+Nothing about review coverage is relaxed for a fused run — v5.3's after-every-wave check, its single reviewer re-spawn and its escalation all apply to the build half unchanged.
+
+- `.claude/skills/plan-em/refs/protocol-em.md` — new Step 1e size resolution; Step 2 states the per-size certification count; Step 4 mode detection becomes a 3-mode table (`plan` / `build` / `fused`) crossed with `$SIZE`; new § Fused mode composing the two halves by reference; the eng-cert precondition is scoped to large; the branch suggestion is scoped to `$MODE = plan`; `$SIZE` joins the injected scoped context for plan dispatches
+- `.claude/skills/plan-em/refs/protocol-team.md` — new § Fused wave (planners → `--fill-files` → shape check → branch cut + stamps → build packets → one consolidation, one heartbeat across both halves); `$MODE` gains `fused` and `$SIZE` joins the input contract; hard failures scoped per mode
+- `.claude/skills/plan-em/SKILL.md` — new § How many invocations a PRD costs
+- `.claude/skills/shared/refs/closing-message.md` — third `plan-em` row for the fused wave
+- `ARCHITECTURE.md`, `README.md` — the pipeline narrative describes size-proportional invocation counts
+
+### [122] — orchestrated build leaves get a fast-path protocol (v5.4 P6)
+
+Every leaf in a parallel build wave was reading `eng/SKILL.md` plus `refs/build/protocol.md` — about 48KB — to do a job that needs a fraction of it. Most of what it read described situations that cannot arise inside an orchestrated run: how to create a branch (the orchestrator already did), how to call `/cook` (the standards payload is injected), how to open a sub-branch PR (leaves commit direct), how to run a status heartbeat (the orchestrator ticks for it), and how to build from a `report=` issues file (a different entry point entirely). With N leaves per wave, that read is paid N times.
+
+`eng/refs/build/protocol-packet.md` is the leaf's whole contract instead: what it may assume, tickets and their ordering, the red/green TDD loop, the full-suite gate and the note that a caller may suppress it, the Step-5 review artifact, the db-touch pause, the commit gates, scope enforcement, the AHA / OPEN-QUESTIONS writers, and the output contract. It opens by stating what the orchestrator guarantees — branch checked out, standards payload injected, scoped context injected, gates pre-approved — because a document that omits the branch-creation path has to say *why* it is safe to omit it.
+
+The two things that stay non-negotiable are called out as such. The **db-touch pause** is the one gate the autonomy contract does not reach, and the **v5.3 review artifact** (`reports/review-prd-<N>-<K>.json`) plus the summary's Review line are required elements of the return, not optional — with the reminder that the orchestrator's coverage check reads the filesystem regardless of what a leaf claims.
+
+**Only build leaves are rerouted.** Plan leaves have no branch, no standards payload and no commit gates, so `protocol-team.md` now names the protocol file per wave rather than once for both. Standalone human `eng --build` runs are untouched — the packet doc's assumptions are false outside an orchestrated run, so `SKILL.md` routes there only when a leaf was spawned.
+
+- `.claude/skills/eng/refs/build/protocol-packet.md` — **new**, ~11KB replacing ~48KB per leaf
+- `.claude/skills/plan-em/refs/protocol-team.md` — the leaf-spawn prompt's read target becomes a per-wave table (build → packet doc, plan → `SKILL.md`), with the standalone case stated explicitly
+- `.claude/skills/plan-em/refs/protocol-em.md` — the solo lane's build fan-out points at the packet doc; its plan fan-out is unchanged
+- `.claude/skills/eng/SKILL.md` — Step 0's `--build` row and the References entry note the orchestrated fast path
+
+### [121] — the exec table drops to three columns and the Files column is derived (v5.4 P4)
+
+The execution table went from five columns to three — `Feature — concern | Files | Agent` — and the one column that remains contentful is no longer written by an agent at all.
+
+**Two columns were carrying nothing.** The **Todos** anchor (`[F1](#todos-f1)`) was human navigation; nothing mechanical ever read it. The **Execution steps** pointer (`→ F2-T1, F2-T2`) was a second index over the tickets, and a second index is only ever something to disagree with the first. Build agents now locate their tickets exactly one way: take the assigned rows' F-IDs, read `### F<n>` under `## Todos — <Agent>`. That deletes a whole failure class — `unresolved-pointer`, `unpointed-ticket`, and the build protocol's Step 0 pointer cross-check — without weakening the tickets-are-the-spec contract, which is untouched.
+
+**Files is now mechanised.** `script-em-exec-skeleton.py --fill-files` reads the tickets and writes every Files cell as the union of that row's F-ID's ticket `files` for that row's agent. The collision graph therefore becomes derivable from the tickets at any moment, rather than being an assertion a planner agent typed and could get wrong. Rows sharing an (F-ID, agent) pair get the same set — deliberately, since two concerns of one feature built by one agent genuinely are not file-disjoint, and splitting the set would claim a safety the build does not have. An F-ID with no ticket block is a hard failure (`MISSING_TICKETS`, exit 1, nothing written); the empty-work sentinel is not (`EMPTY_FILES`, exit 0, cell left blank) — the distinction is exactly why that sentinel exists.
+
+**Read-tolerance, verified.** Every reader resolves columns by name, so the legacy 5-column table keeps working: the same rows in either shape produce a **byte-identical** wave decomposition, and `script-eng-plan-shape.py` on the untouched `features/planned/` sample PRDs produces byte-identical output before and after this change. Check 6 keeps its full pointer validation for legacy tables and reports `SKIP … reason=no-pointer-column` for 3-column ones. The A22 drift guard was at risk here — a table whose `Execution steps` header had drifted would have read as "the new shape" — so a pointerless table only counts as v5.4 when Feature, **Files** and Agent all resolve; anything else is still drift and still fails.
+
+- `.claude/scripts/script-em-exec-skeleton.py` — renders 3 columns; new `--fill-files [--agent <name>]` derivation mode with `FILLED` / `EMPTY_FILES` / `MISSING_TICKETS` / `NO_FILES_COLUMN` records; the atomic write is now shared by both write paths
+- `.claude/scripts/script-em-exec-collision.py` — columns resolve exact-then-prefix, which is what lets `Feature — concern` resolve and keeps collisions named by feature rather than `row<N>`; the exit-3 and `MISSING_FILES` arms stay for legacy tables, with the message redirected to the derivation
+- `.claude/scripts/script-eng-plan-shape.py` — check 6's pointer arm is legacy-only; `pointer_mode` tri-state distinguishes the new shape from header drift
+- `.claude/skills/eng/refs/build/protocol-exec.md` — **deleted**, with every reference to it; the Files-fill instruction it carried is now a script
+- `.claude/skills/eng/refs/build/protocol.md` — Step 0 cross-checks that the ticket blocks exist rather than that pointers resolve; Spec source and step 2 locate tickets by F-ID alone
+- `.claude/skills/eng/refs/plan/protocol.md` · `template-todo.md` · `SKILL.md` — the plan pass writes two artifacts, not three, and touches no exec-table cell
+- `.claude/skills/plan-em/refs/template-exec-table.md` — rewritten around the 3-column shape, the derivation call and its two failure lines
+- `.claude/skills/plan-em/refs/protocol-em.md` · `protocol-team.md` — the derivation step after the plan wave; every "the plan wave must populate Files" hard-failure text now says "run the Files derivation"
+- `.claude/skills/plan-pm/refs/template-prd.md` · `.claude/skills/plan-review/refs/certification.md` · `ARCHITECTURE.md` — the 3-column skeleton and the derived-not-typed reading of an empty cell
+- `evals/cases/exec-skeleton-v54-3col` · `exec-files-derive` · `exec-files-derive-missing-tickets` · `exec-collision-v54-3col` · `exec-collision-legacy-5col` — new; the 3-column render, both derivation directions (including the PRD being left byte-identical on failure), and the two table shapes producing identical decompositions
+- `evals/cases/a21-exec-collision-no-files-column` — golden refreshed for the redirected message
+
+### [120] — the engineering plan is sized to the PRD: 12 sections become 4 (v5.4 P3)
+
+An eng agent used to write the same twelve-section essay whether the PRD was a one-file tweak or a multi-stack rewrite. Most of it had no reader: build agents execute the `## Todos` tickets and never open plan prose, so Summary, PRD reference, Alternatives considered, Phases and dependencies, Developer experience, Migration and breaking changes and Risks and mitigations were written, paid for in Opus tokens, and consumed by nobody.
+
+The default is now four sections — **Design decisions, Integration contracts, Scope mapping, Open questions** — chosen because each carries something a ticket structurally cannot: a rationale that outlives the diff, a cross-agent contract, the feature-to-agent map, and a question only a human can answer. The old Findings — PRD gaps section folds into Open questions; both resolve the same way, so they were one list split across two headings.
+
+The full twelve-section shape survives for genuinely large work, **tiered on the intake grade**: a PRD whose `INTAKE.md` row grades `C:` ≥ 8 gets the long form, everything else gets the short one. That threshold is not new — it is the same band that already triggers intake's split gate. An unresolvable grade defaults to medium, deliberately: writing the long shape defensively would give back the entire saving.
+
+Read-tolerance runs both ways. `script-eng-plan-shape.py` gains an eighth check that accepts either shape, including the legacy 13-section variant carrying "Branching and CI strategy" that the `features/planned/` sample PRDs still use — those parse untouched. A section with no `###` subheadings at all is skipped rather than failed, so prose-only engineering sections written before the shape was numbered do not start erroring.
+
+- `.claude/skills/eng/refs/plan/template-eng-plan.md` — rewritten around the two shapes: the tier table and grade-resolution rule up front, then the medium four and the large twelve, each with its own quality-gate table
+- `.claude/skills/eng/refs/plan/protocol.md` — the shape-selection rule at the output contract; every `§11 (Findings)` gap-reporting pointer now names **Open questions** (medium §4 / large §11), since a medium plan has no §11
+- `.claude/scripts/script-eng-plan-shape.py` — **check 8**: the `## Engineering — <Agent>` section must be one of the two sanctioned shapes. Titles are prefix-matched after normalising ordinals, emphasis and dash style, so numbering drift and em-dash style cannot cause a false failure. Codes `missing-plan-section` / `unknown-plan-section`
+- `.claude/skills/eng/SKILL.md` — the reference entries for the template and the validator
+- `evals/cases/plan-shape-v54-medium` · `plan-shape-v54-large-legacy` · `plan-shape-v54-unknown-section` · `plan-shape-v54-shape-skip` — new; both accepted shapes, the fail-loud direction (missing core + invented section in one case), and the no-sections SKIP
+
+### [119] — plan-review findings move to an external report (v5.4 P2)
+
+The certification ledger left the PRD. Findings now accumulate in one growing table at `<prd-dir>/reports/review-prd-[n]-[slug].md`, created on the first run and appended to thereafter. The reasoning: a findings table is append-only and grows without bound, while the PRD is a contract every downstream stage re-reads on every run — keeping them in one file made every reader pay for the audit history. The `reviewed:` frontmatter stamp stays the gate signal; the report is the evidence trail behind it, and gates nothing on its own.
+
+The report drops the `Auditor` column — one mode, one auditor, so it carried no information. **PRDs written before v5.4 keep their ledger exactly where it is**: `script-ledger.py` picks the home (existing report → existing in-PRD section → new report) and appends to whichever table it finds, eight-column Auditor table and all. Nothing is migrated.
+
+Two things worth flagging. First, the A11 drift guard would have silently died: a PRD whose findings heading had drifted used to be refused, but under the new selection it would have quietly got a report created beside the orphaned section, whose rows no run would ever dedup against. The guard moved into target selection and still refuses. Second, that made the in-PRD section-creation arm unreachable, so it and its `LEDGER_PLACEMENT=eof-fallback` output are gone.
+
+- `.claude/skills/plan-review/refs/template-review-report.md` — **new**: the report's location, frontmatter, column contract and status-recomputation rule, plus an explicit table distinguishing it from v5.3's `review-prd-<N>-<K>.json` eng build evidence. Different suffix shape, verified non-colliding against every existing glob
+- `.claude/scripts/script-ledger.py` — picks the ledger's home; creates the report scaffold; `created` set once and `last-run` rewritten each run; `Auditor` written only when the target table has that column; `--auditor` now optional; emits `LEDGER_TARGET=` and `LEDGER_FILE=`
+- `.claude/scripts/script-cert-status.sh` — follows the ledger to its new home and resolves Severity/Status by column *name*, which is what lets one scan read either table shape. The stamp read falls back to `reviewed:` when the PRD has no tune pair, so `--product`/`--eng` keep working unchanged at the call site
+- `.claude/skills/plan-review/SKILL.md` — the report is now the one file this skill creates; stamps `reviewed: yes`; the discriminator for a legacy PRD is the *tune pair*, not `reviewed` (both shapes have `reviewed`, so keying on it would have left older PRDs uncertified)
+- `.claude/skills/plan-review/refs/certification.md` — findings-table schema split into the v5.4 and legacy shapes
+- `ARCHITECTURE.md` — `script-ledger.py` and `script-cert-status.sh` entries rewritten
+- `evals/cases/ledger-report-append` · `ledger-legacy-section-kept` — new; the growing-table cycle (carry + append + `last-run`) and the read-tolerance direction (legacy PRD keeps §7, no report created)
+- `evals/cases/a11-ledger-eof-fallback` → `a11-ledger-no-section-creates-report` — repurposed: the same input now creates the report and leaves the PRD byte-identical
+
+### [118] — PRD template slim: seven sections, one review stamp (v5.4 P1)
+
+The PRD shrank. Frontmatter dropped `module`, `platform` and `affects`, renamed `depends_on` to `deps`, and fused the `product-tuned`/`eng-tuned` pair into a single `reviewed` stamp. The lifecycle enum is now `backlog → specced → wip → complete`, where `status` is the lifecycle truth and the lane directory stays the location truth — the two answer different questions and neither derives from the other. §1 Product objective became three terse bullets (who / what changes / success signal) instead of a paragraph, §4 Error cases lost its ≥2-row quota, and the old §7 Plan review findings section is gone, which renumbers Todos to §7.
+
+**Every parser keeps reading v5-shape PRDs**, exactly as they already tolerate the pre-v5 `## Execution Table` heading. Shape is detected from the frontmatter alone — any of the six dropped/renamed keys means v5 — so section expectations and key expectations can never disagree about which shape a file is. Nothing on disk is migrated: writers emit v5.4 only, and the sample PRDs under `features/planned/` are regenerated in a later packet.
+
+- `.claude/skills/plan-pm/refs/template-prd.md` — rewritten to seven sections; new frontmatter block; the status/lane table; the platform-detection and overlap-scan fallbacks for the removed fields
+- `.claude/scripts/script-prd-shape.py` — one validator, two shapes: `Shape` bundles the canonical sections, reserved placeholders, owners and frontmatter keys per shape, and `detect_shape()` picks from the frontmatter. `SUMMARY` now carries `shape=`
+- `.claude/scripts/script-prd-scan.sh` — normalises both shapes once, then derives `complete`/`completion` from the normalised values, so a v5 PRD buckets byte-identically. Emits `deps` alongside `depends_on`; frontmatter scalars stay verbatim passthrough
+- `.claude/scripts/script-prd-deps-mirror.sh` — writes back under whichever array name the file carries, so a v5 PRD keeps `depends_on` and is never migrated; a file with neither gets `deps`
+- `.claude/scripts/script-prd-digest.py` — the frontmatter slice carries both shapes' keys; whichever the file lacks reads back `None`
+- `.claude/scripts/script-cert-mech.py` — check 6 walks whichever edge keys the PRD actually has, so a v5 PRD still gets both its edge kinds checked and a v5.4 PRD gets one
+- `.claude/scripts/script-prd-stamp.sh` — documents the new enum and the single `reviewed` stamp; keeps the v5 fields allowed so an older PRD can still be stamped where it sits
+- `.claude/skills/msg/refs/gui/server.py` · `index.html` — `specced`/`wip` join the planned rung; `deps` alias; the board is told each PRD's shape so it stops rendering two permanently-blank tune pills on a v5.4 PRD
+- `.claude/skills/plan-pm/refs/protocol-pm.md` · `protocol-sub.md` · `SKILL.md` — deps-only overlap scan, run-time platform detection, terse §1, no row quota, the new stamp table
+- `.claude/skills/plan-em/refs/protocol-em.md` — Step 1c is a deps-only conflict check; stamps `specced` after the plan wave and `wip` at the branch cut
+- `.claude/skills/merge/refs/production.md` · `SKILL.md` — the terminal stamp is `complete`, or `done` on a PRD that predates v5.4
+- `.claude/skills/plan-review/refs/certification.md` — check 6 reads `deps`; notes that cert-mech covers both shapes
+- `evals/cases/prd-shape-v54-clean` · `prd-shape-v5-tolerated` · `prd-shape-v54-stale-findings` · `deps-mirror-v54-deps-key` — new; the first cases to cover `script-prd-shape.py` at all, pinning both shapes and the "v5.4 PRD must not keep the findings section" direction
+- `evals/cases/a16-prd-scan-title-anchored/expected/stdout` — regenerated for the additive `deps` key; every other field byte-identical
+
 ### [117] — The pre-merge backstop, plus docs and the incident learning (v5.3 P5)
 
 - `.claude/skills/pre-merge/refs/executor.md`: Added — §5a.1, review coverage for the branch under grade. The gate did not run the wave and holds no packet list, so it uses `--expect-from-builds`: for every `report-prd-<N>-<K>` on disk there should be a `review-prd-<N>-<K>`. Missing coverage is **one `medium` finding** (`rule: review-coverage`), authored the same way §5a authors its `missing-result-report` finding
@@ -370,7 +554,6 @@
 - `.claude/skills/msg/SKILL.md`: Changed — `allowed_tools` gains `Edit`; `--update` precondition corrected to key on `devkit/` (`INITIALISED`), not `policy.json` (also in `refs/protocol-update.md`, where a missing `policy.json` is now explicitly a top-up case, not a refusal)
 - 8 files: Removed — every mention of the expired `--doctor` one-release alias for the gates' `--init` (msg, pre-merge, post-merge, `shared/refs/policy-schema.md`); the name is now free
 - `features/` is gitignored: Added to `template-gitignore.md` + `protocol-init.md` docs; new `--update` Step 3-FT offers `git rm -r --cached features/` (stage-only, confirmed) for legacy tracked repos; lane moves now branch tracked→`git mv` / untracked→`mv` (`plan-em-branch-resolve.sh`, post-merge refs, `init.sh` comments)
-
 
 ## 2026-07-26
 
@@ -821,7 +1004,6 @@ Red or pending checks from any CI still refuse `red_ci`/`pending_ci`, branch pro
 - `.gitignore`: Added — `.pre-merge/` (runtime preflight/result artifacts, never committed)
 
   **Gate behavior unchanged this phase.** The 16 scripts and the manifest are produced by `--init`/`--update` and read by the executor only from P3; today's Steps 0–9 gate still runs on `pre-merge-tooling-detect.sh` + `steps.*`. `install.sh` already ships `.claude/scripts/*` wholesale, so the new family and the common lib install without an edit.
-
 
 ### [15] — v3 build P0: pre-v3 token baseline recorded
 

@@ -1,0 +1,6 @@
+# A11 lineage — a PRD with no findings section at all. Before v5.4 the ledger
+# created a `## Plan review findings` section inside the PRD (announcing an
+# EOF placement when there was no Todos anchor to sit above). The ledger now
+# lives outside the PRD, so the same input creates the external report instead
+# and the PRD is left byte-identical.
+printf '%s' '[{"severity":"Major","what":"§5 error handling omits offline case","fix":"add an offline branch","why":"pre-merge PRD-consistency gate"}]' | python3 "$REPO/.claude/scripts/script-ledger.py" prd.md --auditor P --date 2026-01-15

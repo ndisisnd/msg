@@ -1,0 +1,4 @@
+# v5.4 — the shape every writer now emits: seven sections (no findings section),
+# frontmatter deps/status/reviewed/intake, no module/platform/affects and no
+# tune-stamp pair. All five checks certify it.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md

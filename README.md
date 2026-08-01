@@ -106,7 +106,7 @@ flowchart TD
     stg -->|you sign off on the commit you tested| prod
 ```
 
-`/plan-review` doesn't appear as a step because `/plan-em` runs it for you — once before the plan wave and once before the build wave — so a build can never start on an uncertified plan.
+`/plan-review` doesn't appear as a step because `/plan-em` runs it for you — so a build can never start on an uncertified plan. How often depends on the PRD's size: a medium one is certified once and then planned *and* built in a single `/plan-em` run; a large one is certified twice, once before it plans and once before it builds.
 
 The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_manifest`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~58 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
 

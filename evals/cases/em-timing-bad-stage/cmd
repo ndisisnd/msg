@@ -1,0 +1,6 @@
+# T3 — the other direction: a stage name is a column value, not prose. One
+# with a space or a capital would make the log unreadable by column, so it is a
+# usage error (exit 2) and nothing is appended — the script never writes a line
+# it could not read back.
+S="$REPO/.claude/scripts/script-em-timing.sh"
+bash "$S" --stage "Pre Flight" --reports-dir reports --date 2026-08-01T10:00:00Z

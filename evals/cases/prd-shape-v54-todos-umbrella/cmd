@@ -1,0 +1,7 @@
+# S1 — the shape the pipeline actually writes. plan-em appends the `## 7. Todos`
+# umbrella heading once (race-safe), then each planner adds its own
+# `## Todos — <Agent>` block beside it. Those blocks are H2s, so the umbrella has
+# no body of its own — and check 4 must read the populated siblings as the
+# population, not the umbrella as an empty reserved section. Before this was
+# fixed, every real v5.4 PRD failed here after its plan wave.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md

@@ -40,11 +40,11 @@ There are ~58 scripts. Grouped by what they own:
 | Script | Purpose |
 |--------|---------|
 | `script-prd-number` | Assigns the next available PRD (or sub-PRD) number |
-| `script-prd-shape.py` | Mechanical PRD shape validator — the eight canonical sections, the §3 features table, F-ID sequencing, reserved placeholders, frontmatter keys |
+| `script-prd-shape.py` | Mechanical PRD shape validator — the seven canonical sections, the §3 features table, F-ID sequencing, reserved placeholders, frontmatter keys. Auto-detects and still validates the eight-section v5 shape |
 | `script-prd-digest.py` | Deterministic PRD → JSON digest with per-stage slices (`plan`/`build`/`synth`); carries `engineering_agents` for plan-em's wave-mode detection |
 | `script-prd-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2 and plan-em Step 1c |
-| `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, tune stamps, reviewed, completion, module); single-line edit, idempotent |
-| `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `depends_on` union writeback (`ADDED <id>` lines, idempotent) |
+| `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, reviewed, completion, staging-signoff, plus the retired v5 tune stamps); single-line edit, idempotent |
+| `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `deps` union writeback (`ADDED <id>` lines, idempotent); rewrites `depends_on` instead on a v5-shape PRD |
 | `script-intake-stamp.sh` | The `INTAKE.md` ledger writer — `--append-row`, `--set-cell`, `--remove-row`, `--find-row`, `--log-append`, plus the `status`/`prd` stamps. Header-derived columns, escaped pipes, temp-file writes; never renumbers |
 
 **Certification (plan-review)**
@@ -53,16 +53,17 @@ There are ~58 scripts. Grouped by what they own:
 |--------|---------|
 | `script-cert-preflight.sh` | Resolves and validates the PRD path, and detects which tune type the content calls for |
 | `script-cert-mech.py` | The mechanical half of certification — every check verdict decidable from PRD text alone, so the model only judges what needs judgment |
-| `script-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the tune stamp + the §7 ledger; gates plan-em's plan and build waves |
-| `script-ledger.py` | Writer for the PRD's §7 *Plan review findings* ledger — locate-or-create, dedup against prior rows, monotonic `#`, clean-marker row |
+| `script-cert-status.sh` | Certification gate read — `CERTIFIED`/`UNCERTIFIED <reason>` from the `reviewed:` stamp + the findings ledger; gates plan-em's plan and build waves. Falls back to the v5 tune stamps and inline §7 on a PRD that has them |
+| `script-ledger.py` | Writer for the plan-review findings ledger at `<prd-dir>/reports/review-prd-<n>-<slug>.md` — pick the home, locate-or-create, dedup against prior rows, monotonic `#`, clean-marker row. Appends to a pre-v5.4 PRD's inline §7 section instead when it has one |
 
 **Engineering (plan-em, eng)**
 
 | Script | Purpose |
 |--------|---------|
-| `script-em-exec-skeleton.py` | Renders the §6 exec-table skeleton (exact row text + todo anchors) from plan-em's JSON `(fid, concern, agent)` spec |
-| `script-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet decomposition consumed by the team orchestrator |
+| `script-em-exec-skeleton.py` | Renders the §6 exec-table skeleton (3 columns: `Feature — concern \| Files \| Agent`) from plan-em's JSON `(fid, concern, agent)` spec; `--fill-files` then derives every Files cell from the tickets' `files` fields |
+| `script-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet decomposition consumed by the team orchestrator; reads both the 3-column and the legacy 5-column table |
 | `script-em-branch-resolve.sh` | Read-only parent-aware branch resolver — emits `BRANCH`/`ACTION`/`LANE_MOVE` for the build wave (reusing a merged branch is impossible) |
+| `script-em-timing.sh` | Append-only stage-boundary log for a plan-em run (`reports/timings-<date>.log`) — one line per boundary with elapsed-within-run-id; best-effort, never affects control flow |
 | `script-eng-plan-shape.py` | Mechanical validator for an `eng --plan` pass — the three coupled artifacts it writes must agree |
 | `script-eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
 | `script-eng-commit-cap.sh` | A5 small-commit cap — measures a staged diff against 500 changed LOC (300 with `--breaking`); pairs the cap with the prepared message and its `Oversize-reason:` trailer |
@@ -140,9 +141,9 @@ Execution:  eng --plan → eng --build → pre-merge → merge --staging → (hu
 
 The planning pipeline starts at `intake`, the graded backlog front door: it captures every feature idea and bug as a row in the root `INTAKE.md` ledger (chronological table `# | date | type | idea | goal | grade | status | prd`), owning the requirements interview (flesh-out, adjacent-idea suggestion, hybrid/XL splitting) and grading each idea in a single-turn banded judgment (complexity / token-cost / sequencing — bands only). `plan-pm` then consumes a graded row and drafts the PRD autonomously; the row's `status` walks `backlog` (intake) → `in-progress` (plan-pm, which also fills the `prd` mapping) → `completed` (`merge --production`), giving the harness a living ledger connecting "things we want" to "PRDs that shipped."
 
-Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The one deliberate exception is `plan-em`'s **certification preconditions**: `plan-em` auto-runs `plan-review --product` before the plan wave and `plan-review --eng` before the build wave (D18), so the build wave can never start on an uncertified plan. `plan-review` itself is a **contract certifier** — it runs a fixed seven-check certification, each check bound to a named downstream consumer that executes a PRD field blindly (regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads); "no check without a consumer" is its governing rule. It auto-fixes every Critical + Major and writes a category-tagged learning to `devkit/AHA.md`, which `plan-pm` reads on its next draft — a self-healing loop that trends fresh-PRD defect counts toward zero. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
+Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The one deliberate exception is `plan-em`'s **certification preconditions**: `plan-em` auto-runs `plan-review --product` before it plans and, on a large PRD, `plan-review --eng` before it builds (D18), so a build can never start on an uncertified plan. `plan-review` itself is a **contract certifier** — it runs a fixed seven-check certification, each check bound to a named downstream consumer that executes a PRD field blindly (regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads); "no check without a consumer" is its governing rule. It auto-fixes every Critical + Major and writes a category-tagged learning to `devkit/AHA.md`, which `plan-pm` reads on its next draft — a self-healing loop that trends fresh-PRD defect counts toward zero. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
 
-`plan-em` runs **one wave per invocation**: the first `/plan-em <prd>` certifies the product side and runs the plan wave, the second certifies the eng side and runs the build wave. Its closing message says which of the two just finished and therefore what to run next — re-run `/plan-em`, or move on to `/pre-merge`.
+**How many invocations a PRD costs is sized to the PRD**, from the intake complexity grade `plan-em` resolves once at Step 1e. A **medium** PRD (`C:` < 8, and the default whenever the grade cannot be resolved) runs a single **fused** wave: one `/plan-em <prd>` certifies the product side, plans the tickets, derives the `Files` column, runs a mechanical plan-shape check in place of the eng certification, cuts the branch and builds — one invocation, one certification. A **large** PRD (`C:` ≥ 8) keeps the two-wave path: the first `/plan-em <prd>` certifies the product side and plans, the second certifies the eng side and builds. Either way the closing message says which wave just finished and therefore what to run next — re-run `/plan-em`, or move on to `/pre-merge`. An interrupted fused run needs no special handling: re-invoking `/plan-em` finds the engineering sections already written and completes the build half.
 
 Parallelism lives *inside* a wave, not across skills. In `--team` mode (the default) an Opus orchestrator engineer decomposes the wave into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents; `--solo` runs one leaf subagent per roster stack. Either way the guardrails hold: all work on `feat/prd-<n>-*` branches, a sign-off pause on any database/data/production-config touch (`script-eng-db-touch.sh`), no skill merges with its own hands, and production is always a human release.
 
@@ -211,6 +212,14 @@ plus `reviewed_by` and `built_by` — and every orchestrator that spawns builds 
 A missing artifact is repaired by spawning a reviewer over that packet's diff, never
 by re-running the builder; a second miss escalates to the user and logs a DOCTOR row.
 `pre-merge` backstops the whole thing by reporting coverage for the branch it grades.
+
+v5.4 lets the **granularity** vary without letting the coverage vary. Mechanical
+(Sonnet-tier) packets are reviewed **per wave** rather than per leaf: one reviewer
+reads the wave's accumulated diff and writes one artifact carrying a `packets` list,
+which the coverage check accepts as satisfying each member key. Load-bearing
+(Opus-tier) packets keep their own reviewer. Either way every packet key is passed to
+the check and proven from the filesystem — batching removes reviewer spawns, never the
+proof that the code was reviewed.
 
 The reason for the artifact is that a skipped review and a clean review look
 identical from the outside: both return silence. Presence therefore has to be a

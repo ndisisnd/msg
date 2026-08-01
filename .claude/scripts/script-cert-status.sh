@@ -3,22 +3,28 @@
 #
 # Answers a single mechanical question for plan-em's Step 2 / Step 4
 # preconditions: is this PRD certified for the requested wave? A PRD is
-# certified when its frontmatter stamp is `yes` AND the §7 "Plan review findings"
-# ledger carries no Critical finding still Open (or "Still open").
+# certified when its frontmatter stamp is `yes` AND its findings ledger carries
+# no Critical finding still Open (or "Still open").
 #
 # Usage:
 #   script-cert-status.sh <prd.md> --product   # gate the product/plan wave
 #   script-cert-status.sh <prd.md> --eng        # gate the eng/build wave
 #
-# --product reads the `product-tuned:` stamp; --eng reads `eng-tuned:`.
+# WHICH STAMP, WHICH LEDGER — both auto-detected, so the flags never change:
+#   stamp   `--product` reads `product-tuned:` and `--eng` reads `eng-tuned:`
+#           when the PRD carries that key (a pre-v5.4 file). When it does not,
+#           both fall back to v5.4's single `reviewed:` stamp.
+#   ledger  `<prd-dir>/reports/review-<prd-stem>.md` (its `## Findings` table)
+#           when that report exists; otherwise the PRD's own inline
+#           `## 7. Plan review findings` section. Nothing is ever migrated.
 #
 # Output (single line on stdout):
 #   CERTIFIED                                   stamp yes + no open Criticals
 #   UNCERTIFIED no-stamp                        stamp missing / not `yes`
 #   UNCERTIFIED open-critical <finding-id>      a Critical row is Open/Still open
-#   LEDGER_HEADER_UNRESOLVED=severity|status    §7 header drift (exit 2, never CLEAN)
+#   LEDGER_HEADER_UNRESOLVED=severity|status    ledger header drift (exit 2, never CLEAN)
 #
-# A stamped PRD whose §7 ledger section is absent is CERTIFIED (ledger absent =
+# A stamped PRD whose ledger section is absent is CERTIFIED (ledger absent =
 # no findings), with a note on stderr.
 #
 # Exit code: 0 = CERTIFIED, 1 = UNCERTIFIED, 2 = usage/environment error.
@@ -62,37 +68,65 @@ if [[ "$(sed -n '1p' "$prd")" != "---" ]]; then
   exit 2
 fi
 
-# Extract the stamp value (everything after `<field>:`, comment- and space-trimmed).
-stamp="$(awk -v key="$field" '
-  NR==1 { next }                       # skip opening fence
-  /^---[[:space:]]*$/ { exit }         # closing fence ends frontmatter
-  {
-    if ($0 ~ "^"key":[[:space:]]*") {
-      v=$0; sub("^"key":[[:space:]]*","",v); sub(/[[:space:]]*#.*/,"",v)
-      gsub(/^[[:space:]]+|[[:space:]]+$/,"",v)
-      print tolower(v); exit
+# Extract a frontmatter scalar (everything after `<key>:`, comment- and
+# space-trimmed). Prints nothing when the key is absent.
+read_fm() {
+  awk -v key="$1" '
+    NR==1 { next }                       # skip opening fence
+    /^---[[:space:]]*$/ { exit }         # closing fence ends frontmatter
+    {
+      if ($0 ~ "^"key":[[:space:]]*") {
+        v=$0; sub("^"key":[[:space:]]*","",v); sub(/[[:space:]]*#.*/,"",v)
+        gsub(/^[[:space:]]+|[[:space:]]+$/,"",v)
+        print tolower(v); exit
+      }
     }
-  }
-' "$prd")"
+  ' "$prd"
+}
+
+# v5.4 fused the two tune stamps into one `reviewed:`. Read the mode's stamp when
+# the PRD actually has it (a pre-v5.4 file), and fall back to `reviewed` when it
+# does not — so `--product` and `--eng` keep working, unchanged at the call site,
+# against a PRD of either shape.
+if grep -qE "^${field}:" <(sed -n '2,/^---[[:space:]]*$/p' "$prd"); then
+  stamp="$(read_fm "$field")"
+else
+  stamp="$(read_fm reviewed)"
+fi
 
 if [[ "$stamp" != "yes" ]]; then
   echo "UNCERTIFIED no-stamp"
   exit 1
 fi
 
-# ── §7 "Plan review findings" ledger — hunt for an Open Critical row ────────────
-# Match on the section TITLE (number-agnostic — §7 may renumber); the legacy
-# "Plan tune findings" heading in pre-v5 PRDs is accepted too. The findings
-# table columns are: # | Date | Auditor | Severity | ... | Status. We locate the
-# Severity and Status columns from the header row (position-independent) and flag
-# any Critical row whose Status is still Open / Still open.
-result="$(awk '
+# ── Which ledger holds the findings ───────────────────────────────────────────
+# v5.4 moved the ledger out of the PRD into a sibling report. An existing report
+# is authoritative; otherwise the findings are still inline in the PRD's §7.
+prd_dir="$(dirname "$prd")"
+prd_stem="$(basename "$prd" .md)"
+report="$prd_dir/reports/review-$prd_stem.md"
+if [[ -f "$report" ]]; then
+  ledger="$report"
+  sec_re="^findings"
+else
+  ledger="$prd"
+  sec_re="^plan (review|tune) findings"
+fi
+
+# ── The findings ledger — hunt for an Open Critical row ───────────────────────
+# Match on the section TITLE (number-agnostic — the section may renumber); the
+# legacy "Plan tune findings" heading in pre-v5 PRDs is accepted too. The two
+# table shapes differ (the report dropped the Auditor column), so Severity and
+# Status are resolved from the header row BY NAME rather than by position — which
+# is what lets one scan read either ledger. Flags any Critical row whose Status
+# is still Open / Still open.
+result="$(awk -v secre="$sec_re" '
   function trim(s){ gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return s }
   BEGIN { insec=0; found=0; header_done=0; sev_col=0; stat_col=0; id_col=2; emitted=0 }
   /^##[[:space:]]/ {
     insec=0
     h=$0; sub(/^##[[:space:]]+/,"",h); sub(/^[0-9]+\.[[:space:]]*/,"",h); h=trim(h)
-    if (tolower(h) ~ /^plan (review|tune) findings/) { insec=1; found=1; next }
+    if (tolower(h) ~ secre) { insec=1; found=1; next }
   }
   insec && /^\|/ {
     n=split($0, cells, "|")
@@ -130,12 +164,12 @@ result="$(awk '
     if (!found) print "NOSECTION"
     else if (!emitted) print "CLEAN"
   }
-' "$prd")"
+' "$ledger")"
 
 case "$result" in
   NOSECTION)
     echo "CERTIFIED"
-    echo "$SELF: note: §7 Plan review findings ledger absent in $prd — no findings to gate on." >&2
+    echo "$SELF: note: findings ledger absent in $ledger — no findings to gate on." >&2
     exit 0 ;;
   CLEAN)
     echo "CERTIFIED"
@@ -145,9 +179,9 @@ case "$result" in
     exit 1 ;;
   HEADERBAD\ *)
     echo "LEDGER_HEADER_UNRESOLVED=${result#HEADERBAD }"
-    echo "$SELF: §7 findings table header did not resolve required column(s): ${result#HEADERBAD } — refusing to report CERTIFIED." >&2
+    echo "$SELF: findings table header did not resolve required column(s): ${result#HEADERBAD } — refusing to report CERTIFIED." >&2
     exit 2 ;;
   *)
-    echo "$SELF: internal error parsing §7 ledger" >&2
+    echo "$SELF: internal error parsing the findings ledger" >&2
     exit 2 ;;
 esac

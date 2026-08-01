@@ -46,13 +46,14 @@ Emoji are the circle set only — 🟢/🟡/🔴. Never ✅/⚠️/❌ or other 
 
 Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from THIS run's actual artifacts. Fail-path commands must match `fix-loop.md` byte-for-byte.
 
-`plan-em` has two rows because it runs one wave per invocation: pick the row for the wave that just finished (`$MODE` at Step 4 — `plan` or `build`).
+`plan-em` has three rows, one per `$MODE` at Step 4 — pick the row for the wave that just finished. A **large** PRD runs one wave per invocation (`plan`, then `build` on a second call); a **medium** PRD runs the `fused` wave, which plans *and* builds in one invocation and therefore lands on the same next step a build wave does.
 
 | Skill / mode | 🟢 | 🟡 | 🔴 |
 |---|---|---|---|
 | intake (all modes) | Run `/plan-pm` when ready to turn the backlog into a PRD | Answer the open question(s), then re-run `/intake` | Fix the stated blocker, then re-run `/intake` |
 | plan-pm (default / --sub) | Run `/plan-em` now | Resolve each flagged decision in `<prd>`, then run `/plan-em` | Provide the missing input named above, then re-run `/plan-pm` |
 | plan-em — plan wave | Run `/plan-em <prd>` again to start the build wave | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again for the build wave | Provide the missing input named above, then re-run `/plan-em <prd>` |
+| plan-em — fused wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` (it resumes at the build half) |
 | plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` |
 | plan-review (Product / Eng) | Nothing to do — you're done. | Review the flagged tune items, then re-run `/plan-review` if you change them | Fix the stated blocker, then re-run `/plan-review` |
 | eng --plan | Run `/eng --build` now | Review the plan's open questions in `<fix-plan path>`, then run `/eng --build` | Fix the stated blocker, then re-run `/eng --plan report=<path>` |

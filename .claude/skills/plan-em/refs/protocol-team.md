@@ -17,10 +17,17 @@ subagent per roster stack, whole-stack scope, on the inherited model**; team dec
 model-appropriate tier (Opus or Sonnet), to parallelise as much as the collision graph
 allows.
 
-plan-em still owns everything up to the fan-out — pre-flight, product/eng certification
-preconditions, roster approval, the exec-table skeleton, the `## Todos` umbrella heading
-(plan wave), and branch resolution + lane move (build wave). The orchestrator **consumes**
-those; it never re-runs a certification, re-resolves the branch, or re-invokes `/cook`.
+plan-em still owns everything up to the fan-out — pre-flight, certification preconditions,
+roster approval, the exec-table skeleton, the `## Todos` umbrella heading (plan wave), and
+branch resolution + lane move (build wave). The orchestrator **consumes** those; it never
+re-runs a certification, re-resolves the branch, or re-invokes `/cook`.
+
+**The one exception is `$MODE = fused`** (a medium PRD — `refs/protocol-em.md` Step 1e),
+where a single orchestrator spawn owns both halves of the run. Because plan-em is blocked
+while its orchestrator works, the mid-run steps between planning and building — the Files
+derivation, the plan-shape check, the branch cut, the lane move and the status stamps —
+belong to the orchestrator in that mode, per § Fused wave. Certifications are still never
+the orchestrator's: a fused run pays exactly one, and plan-em already ran it at Step 2.
 
 ## Input contract (what plan-em injects)
 
@@ -29,19 +36,41 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 
 | Field | Value |
 |-------|-------|
-| `$MODE` | `plan` or `build` — the active wave (from plan-em Step 4 mode detection) |
+| `$MODE` | `plan`, `build` or `fused` — the active wave (from plan-em Step 4 mode detection) |
 | `prd-path` | the input PRD `.md` path |
 | `roster` | the approved roster — each `(agent, domain, stack, rows)` tuple |
 | `exec_table` | the exec-table rows: `Feature`, `Files` (build wave — the collision key), `Todos`, `Agent` |
-| `$BRANCH` | resolved feature branch (**build wave only** — the orchestrator never resolves or creates it) |
-| `standards payloads` | the compiled `/cook` output **per stack** (**build wave only**), retained from plan-em Step 3a |
+| `$BRANCH` | resolved feature branch (**`$MODE = build` only** — the orchestrator never resolves or creates it). **Absent on a fused wave**, which cuts it itself at § Fused wave step 4. |
+| `$SIZE` + `C:` band | the size tier plan-em resolved once at Step 1e (`medium` / `large`) and the intake complexity band behind it. Pass the band into every `--plan` leaf's scoped context — it selects the eng-section shape, and a leaf must never re-resolve it. |
+| `standards payloads` | the compiled `/cook` output **per stack** (**build and fused waves**), retained from plan-em Step 3a |
+| `$TIMING_RUN_ID` | the run id plan-em fixed for its stage-timing log (§ Stage timing) — reuse it verbatim; never mint a second one |
 | `devkit digest` | canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows (from plan-em's Step 1 pre-flight) |
-| `house rules` | **plan wave only** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
+| `house rules` | **plan wave and the plan half of a fused wave** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
 
 **Escape hatch (pass through to every leaf):** *"The full PRD is at `<prd-path>`; read it
 (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve
 a row."* The orchestrator injects the same escape hatch it received — siblings never
 re-read the whole PRD or every devkit file.
+
+## Stage timing
+
+plan-em marks the boundaries it owns; you mark the ones that happen inside your spawn, with
+the **same `$TIMING_RUN_ID` plan-em injected** (the heartbeat's `RUN_ID`) so the run reads as
+one timeline rather than two. The stage vocabulary and the best-effort rule are
+`refs/protocol-em.md` § Stage timing — this is the same script and the same log:
+
+```bash
+T=.claude/scripts/script-em-timing.sh; [ -f "$T" ] || T="$HOME/.claude/scripts/script-em-timing.sh"
+bash "$T" --stage <stage> --reports-dir "<prd-dir>/reports" --run-id "$TIMING_RUN_ID" --note "<optional>" || true
+```
+
+Mark: `plan-half-done` when every stack's sections and tickets exist · `files-collision-done`
+after `--fill-files` and the `--waves` decomposition · `branch-done` after a fused wave's
+branch cut · `build-wave-<n>-done` per wave · `review-check-done` after each wave's coverage
+check. A `--note` carrying the packet count or the model split is worth writing — the
+question the log answers is *which* stage ate the run, and "wave 2, 5 packets, 4 Sonnet"
+answers it far better than a bare timestamp. **Never branch on the script's exit code**: it
+appends `|| true` and control flow is unaffected either way.
 
 ## Persona — orchestrator engineer
 
@@ -98,9 +127,15 @@ After the `COLLISION` / `MISSING_FILES` lines the script emits the decomposition
   into different waves).
 
 **Exit 3** (`ERROR=no-files-column` on stderr, no decomposition emitted) — the exec table has
-no `Files` column at all, so there is nothing to decompose. Same hard failure as an
-`UNPACKETED` row: stop, have the plan wave populate the column, and re-run. `--waves` exits 0
-on collisions but **not** on this.
+no `Files` column at all, so there is nothing to decompose. Both the v5.4 3-column shape and
+the legacy 5-column shape carry `Files`, so this table is malformed: restore the column from
+`refs/template-exec-table.md`, **run the Files derivation**, and re-run. `--waves` exits 0 on
+collisions but **not** on this.
+
+The checker resolves columns by name, so it reads **both** shapes — v5.4's
+`Feature — concern | Files | Agent` and the legacy
+`Feature | Execution steps | Files | Todos | Agent` — and produces a byte-identical
+decomposition for the same rows either way.
 
 The script's `PACKET` / `WAVE` lines **ARE** the decomposition — any hand-derived packet or
 wave that contradicts them is wrong; the script wins. Your **residual judgment is exactly
@@ -162,19 +197,87 @@ plan wave is done — close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outc
 and return the consolidated summary to plan-em. (The finer file-disjoint packet decomposition
 has no teeth until the `Files` column exists; it is the **build** wave that reaps it.)
 
+## Fused wave (`$MODE = fused`) — medium PRDs
+
+One spawn, both halves, no return to plan-em in between. Every step below is a step of
+§ Plan wave or § Build wave, run in order by the same agent; the only work that is *new*
+here is the middle — the four things plan-em would otherwise have done between two
+invocations. **Do not invent a third dispatch style**: planners are still one packet per
+stack on Opus, build packets are still the script's `PACKET` lines on their assigned tiers.
+
+Open **one** heartbeat for the whole fused run (`--phase plan-em-team`, `--run-id`
+`em-<epoch>` fixed once) with `--total` = planner count **+** total build packet count, so
+the human sees one progress line across both halves rather than two runs that look
+unrelated. Tick per returning leaf in both halves.
+
+1. **Plan half** — § Plan wave verbatim: fan out one `eng --plan` leaf per roster stack,
+   in one message, on Opus, with the house rules and the injected `C:` band. Collect every
+   stack's `## Engineering — <Agent>` + `## Todos — <Agent>` blocks.
+2. **Derive the `Files` column** — the planners did not fill it and must not (v5.4 P4):
+
+   ```bash
+   S=.claude/scripts/script-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-skeleton.py"
+   python3 "$S" --fill-files "<prd-path>"
+   ```
+
+   `MISSING_TICKETS row=<n> fid=<F> agent=<a>` → that stack's plan leaf returned
+   incomplete: re-spawn **that one planner** for the named F-ID and re-run. Never hand-fill
+   the cell — a typed cell that disagrees with the tickets makes the collision graph a lie.
+3. **Plan-shape check — the gate that replaces the eng certification.** Once per planning
+   agent (two-path resolution):
+
+   ```bash
+   S=.claude/scripts/script-eng-plan-shape.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-plan-shape.py"
+   python3 "$S" "<prd-path>" --agent "<agent>"
+   ```
+
+   Green → continue. Non-zero → re-dispatch that one planner with the findings and re-check
+   **once**; still failing → **stop before dispatching any build packet**, return the
+   failure to plan-em, and log one `validator-fail:script-eng-plan-shape` row to
+   `devkit/DOCTOR.md` per `../../shared/refs/doctor-logging.md`. A medium run pays no eng
+   certification, so this check is the only thing standing between a malformed plan and a
+   build wave — never proceed past a red one.
+4. **Cut the branch, move the lane, stamp the status.** Run the resolver (READ-ONLY) and
+   execute exactly what it emits, per `refs/protocol-em.md` § Branch resolution + lane move
+   — `create` / `checkout` / `fresh-cut`, then the emitted `LANE_MOVE=` unless it is `none`:
+
+   ```bash
+   S=.claude/scripts/script-em-branch-resolve.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-branch-resolve.sh"; bash "$S" "<prd-path>"
+   P=.claude/scripts/script-prd-stamp.sh; [ -f "$P" ] || P="$HOME/.claude/scripts/script-prd-stamp.sh"
+   bash "$P" "<prd-path>" status specced   # after step 1 landed
+   bash "$P" "<prd-path>" status wip       # once the branch exists
+   ```
+
+   This is the **only** mode in which the orchestrator touches git branches or PRD status,
+   and it is still the only agent in the run that may: **leaves never resolve, create or
+   switch a branch** in any mode. Do not stamp a sub-PRD (it rides its parent's branch).
+5. **Build half** — § Build wave steps 0–5 verbatim, with `$BRANCH` now set to what step 4
+   resolved: collision checker with `--waves`, emit the decomposition, fan out wave by wave,
+   the db-touch guard after every wave, and the **review-coverage check after every wave**.
+   Nothing about review coverage is relaxed for a fused run.
+6. **Consolidate once** — one report covering both halves (sections planned, packets built,
+   models used, review coverage per wave), close the heartbeat, return to plan-em for Step 5.
+
+**Interruption.** A fused run that dies leaves ordinary on-disk state, and plan-em's mode
+detection recovers it: sections written → the next `/plan-em` resolves `$MODE = build` and
+this orchestrator is spawned for the build wave alone, with plan-em owning the branch
+resolution again as usual. Keep no run-state file.
+
 ## Build wave (`$MODE = build`)
 
-The `Files` column is populated now (the plan wave wrote it), so the collision graph is
-real. Decompose per § Parallelism model into file-disjoint, model-tiered packets and
-waves, then:
+The `Files` column is populated now — **derived from the tickets** by
+`script-em-exec-skeleton.py --fill-files` after the plan wave, not typed by a planner agent
+— so the collision graph is real and can be regenerated at any time from the tickets alone.
+Decompose per § Parallelism model into file-disjoint, model-tiered packets and waves, then:
 
 0. **Run the collision checker first (before emitting the decomposition).** Run
    `script-em-exec-collision.py` **with `--waves`** (two-path resolution, per § Parallelism
    model) on the in-scope exec-table rows. Two consequences gate the decomposition:
    - A `MISSING_FILES row<N> <feature>` line (equivalently an `UNPACKETED` id) on any
      **in-scope** row is a **hard failure**, equivalent to the empty-`Files`-column hard
-     failure in § Hard failures (*"Files column empty — the plan wave must run before the
-     build wave."*) — stop; the plan wave must populate `Files` first.
+     failure in § Hard failures — stop and **run the Files derivation**
+     (`script-em-exec-skeleton.py --fill-files <prd>`) before decomposing. If that reports
+     `MISSING_TICKETS`, the plan wave is what is incomplete, not the table.
    - The script's `PACKET` / `WAVE` lines **are** the packets and waves — consume them
      directly (every `COLLISION` pair already shares a packet, run serially). Do not
      re-derive them; your only wave edit is the optional `depends_on` sub-split of § Parallelism
@@ -207,10 +310,27 @@ waves, then:
    Non-zero exit (it prints `category<TAB>path`) → **pause** and `AskUserQuestion`
    (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM
    schema/model, seed/fixture, `.env`, or production-config change needs sign-off.
-4. **Review coverage after every wave.** Every leaf's `eng --build` spawns a whole-change
-   reviewer that writes one evidence artifact (`../../eng/refs/review/protocol.md`
-   § Artifact). Ask the script whether every packet in the wave has one — never the leaf,
-   whose self-report is exactly what a skipped review looks like:
+4. **Review coverage after every wave.** Every packet is reviewed; **who spawns the
+   reviewer depends on the packet's model tier**, which you already assigned in step 1:
+
+   | Packet tier | Reviewer | Artifact |
+   |-------------|----------|----------|
+   | **Opus / load-bearing** | the leaf spawns its own, per packet — unchanged | `review-prd-<N>-<K>.json`, `<K>` = the packet key |
+   | **Sonnet / mechanical** | **you** spawn **one** `eng --review` over the wave's accumulated diff, after the wave lands | `review-prd-<N>-W<w>.json` carrying `"packets": [<the covered keys>]` and `built_by` = the list of those packets' agents |
+
+   The tier is the routing signal because it already encodes the judgment this decision
+   needs: a mechanical packet is well-scoped, low-blast-radius and fully specified, so N
+   reviewers reading N slices of one boilerplate diff buy less than one reviewer reading
+   the whole of it — while a load-bearing packet is exactly where a dedicated reviewer with
+   the packet's own context earns its cost. Tell each mechanical leaf it is batched by
+   passing `review=batched` (§ Subagent contract); it then skips its own reviewer spawn and
+   says so on its Review line. **Never batch across waves** — the review must be over a
+   landed, complete diff — and never batch a load-bearing packet in with mechanical ones.
+
+   Then ask the script whether every packet in the wave is covered — never the leaf, whose
+   self-report is exactly what a skipped review looks like. Pass **every** packet key in the
+   wave, batched or not; the check resolves a member key against the wave artifact's
+   `packets` list automatically, so the expectation is unchanged by the batching:
    ```bash
    R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/scripts/script-eng-review-check.sh"
    bash "$R" --reports-dir "<prd-dir>/reports" --expect "<this wave's packet keys, comma-separated>"
@@ -223,6 +343,9 @@ waves, then:
      rows, its `Files` set as the change scope, `built_by=<the packet's agent>` and
      `<K>=<k>`. The builder is **not** re-run and its commits are not touched — a missing
      review is repaired by reviewing, not by rebuilding. Then re-run the check **once**.
+     A key you batched reading `MISSING` means the wave review did not happen or its
+     artifact omitted that key: repair it the same way, **per packet** — never by editing
+     the wave artifact's `packets` list to claim coverage it did not have.
    - **Still missing on the re-check** — escalate to the user in the consolidated summary,
      naming each uncovered packet, and log one `tool-error:review-<k>` row to
      `devkit/DOCTOR.md` per `../../shared/refs/doctor-logging.md` — the same shape as the
@@ -252,15 +375,27 @@ general-purpose**, and gets a prompt prefixed with the autonomy paragraph:
 > engineer. When the skill's protocol reaches an approval gate (`AskUserQuestion`), treat
 > it as pre-approved and proceed. Only stop if genuinely blocked by missing information
 > you cannot derive — if so, return the blocker instead of guessing. Read
-> `.claude/skills/eng/SKILL.md` fully and follow its protocol.
+> `<protocol file for this wave>` fully and follow it.
+
+**The protocol file differs by wave**, because a build leaf and a plan leaf need different
+things:
+
+| Wave | Leaf reads | Why |
+|------|-----------|-----|
+| **Build** | `.claude/skills/eng/refs/build/protocol-packet.md` | The orchestrated build leaf's fast path — tickets, TDD loop, full-suite gate (may be caller-suppressed), the Step-5 review artifact, commit gates, db-touch pause, output contract. It **assumes** precisely what this protocol guarantees: branch already created and checked out, standards payload injected, scoped context injected, every gate pre-approved except the db-touch safety floor. ~11KB instead of ~48KB. |
+| **Plan** | `.claude/skills/eng/SKILL.md` | Unchanged. A plan leaf has no branch, no standards payload and no commit gates, so the packet doc does not apply to it. |
+
+A **standalone** human `eng --build` also keeps reading `SKILL.md` — the packet doc's
+assumptions are false outside an orchestrated run.
 
 Then the leaf's fields, by wave:
 
 | Wave | Invocation | Injected |
 |------|-----------|----------|
 | Plan | `eng --plan prd-path=<p> rows=<packet rows> agent=<eng-stack>` | scoped context (rows + mapped PRD feature sections + devkit digest) + escape hatch + the **house rules** verbatim. No standards payload (`--plan` pulls no standards). |
-| Build | `eng --build prd-path=<p> rows=<packet rows> branch=$BRANCH agent=<eng-stack> commit_mode=direct` | scoped context + escape hatch **+ the stack's compiled `standards payload`** (the leaf uses it and does **not** call `/cook`) **+ the review-artifact identity: `<K>` = this packet's key (`P1`, `P2`, …) and `built_by` = `<eng-stack>`**, which the leaf passes straight through to its Step 5a reviewer. The packet key is the same key step 4 hands the coverage check as `--expect`, so a leaf never invents one. |
+| Build | `eng --build prd-path=<p> rows=<packet rows> branch=$BRANCH agent=<eng-stack> commit_mode=direct review=<self\|batched>` | scoped context + escape hatch **+ the stack's compiled `standards payload`** (the leaf uses it and does **not** call `/cook`) **+ the review-artifact identity: `<K>` = this packet's key (`P1`, `P2`, …) and `built_by` = `<eng-stack>`**, which the leaf passes straight through to its Step 5a reviewer. The packet key is the same key step 4 hands the coverage check as `--expect`, so a leaf never invents one. **`review=`** carries the step-4 tier decision: `self` (default, load-bearing) → the leaf spawns its own reviewer; `batched` (mechanical) → it skips that spawn because you review the wave, and it may commit its packet as one coherent commit. |
 
+| Review (batched wave) | `eng --review` | the **wave's** accumulated diff as the change scope, the covered packets' rows, `built_by=<the list of those packets' agents>`, `<K>=W<w>`, **and the `packets` list to record in the artifact**. Spawned by § Build wave step 4 once per wave, after the wave's leaves have returned, covering every mechanical packet in it. Never an agent that built any packet in the wave. |
 | Review (repair only) | `eng --review` | the packet's diff scope (its rows + `Files` set), `built_by=<eng-stack>`, `<K>=<packet key>`, and the PRD path as escape hatch. Spawned only by § Build wave step 4 when a packet's artifact is missing — one reviewer, over the packet's existing commits, on the packet's own model tier. Never the agent that built the packet. |
 
 `rows` is the exact semicolon-separated `<ID>: <name> — <concern>` Feature-cell text of
@@ -274,7 +409,9 @@ confirmation; build: build summary) plus **one added line** for the heartbeat �
 otherwise. A **build** leaf's summary must also carry its **`**Review:**` line** (verdict,
 one-liner, artifact path — `refs/build/protocol.md` § Output contract): it is a **required**
 element of the build return, exactly like the `status:` line, and a build summary without it
-is an incomplete return. The line is a convenience for the human reading the wave, not the
+is an incomplete return. A leaf spawned with `review=batched` still carries the line, reading
+`batched — covered by the wave review` instead of a verdict and path; what it must never do
+is omit the line or claim a review it did not run. The line is a convenience for the human reading the wave, not the
 proof — step 4's filesystem check is the proof, and it runs whether or not a leaf claims a
 review happened. That line is the **only** sanctioned path from a leaf into the heartbeat: a leaf
 never calls the tick script and never emits status itself, including a leaf `eng --build`
@@ -291,15 +428,20 @@ fails; logging never changes the escalation above.
 ## Guardrails
 
 - **Branch isolation** — build leaves commit only to `$BRANCH`; never `main`. The
-  orchestrator itself writes no code and runs no `git push` / `merge`.
+  orchestrator itself writes no code and runs no `merge`. It touches git exactly once, and
+  only on a fused wave: the resolver-emitted branch create/checkout (plus its `push -u`) at
+  § Fused wave step 4. A leaf never does, in any mode.
 - **File-disjoint concurrency only** — never place two file-overlapping packets in the
   same wave (tree corruption on the shared branch). The script's `--waves` output is the
   authority; a `depends_on` sub-split may only narrow a wave, never widen one.
 - **DB / data pause** — the after-every-wave touch check above; pause for sign-off on any
   hit.
-- **Review coverage** — the other after-every-wave check (§ Build wave step 4). A packet
-  with no review artifact is repaired by re-spawning a reviewer, never by re-running the
-  builder, and never by accepting the leaf's word for it.
+- **Review coverage** — the other after-every-wave check (§ Build wave step 4). Batching
+  changes the **granularity** of review, never whether it happened: every packet key is
+  still passed to the check, still proven by an artifact on disk, and a packet with no
+  artifact is repaired by re-spawning a reviewer — never by re-running the builder, never
+  by accepting the leaf's word for it, and never by widening a wave artifact's `packets`
+  list after the fact.
 - **Scope** — the orchestrator and its leaves touch only what the exec-table rows specify;
   no invented work, no unrelated refactors, no edits to PRD product sections.
 
@@ -307,8 +449,15 @@ fails; logging never changes the escalation above.
 
 - Missing `$MODE`, `prd-path`, `roster`, or `exec_table` → `Hard failure: team orchestrator
   requires $MODE, prd-path, roster, and exec_table.` Stop.
-- Build wave with no `$BRANCH` or a missing `standards payload` for a stack in scope →
-  `Hard failure: build wave requires $BRANCH and a standards payload per stack.` Stop —
-  plan-em must resolve the branch and compile standards before spawning the orchestrator.
-- Build wave with an empty `Files` column on a row in scope → `Hard failure: Files column
-  empty — the plan wave must run before the build wave.` Stop.
+- `$MODE = build` with no `$BRANCH`, or **any** wave missing a `standards payload` for a
+  stack in scope → `Hard failure: build wave requires $BRANCH and a standards payload per
+  stack.` Stop — plan-em must resolve the branch and compile standards before spawning the
+  orchestrator. (`$MODE = fused` is exempt from the `$BRANCH` half only: it resolves the
+  branch itself at § Fused wave step 4. It is **not** exempt from the standards payload.)
+- `$MODE = build` with an empty `Files` column on a row in scope → `Hard failure: Files
+  column empty — the plan wave must run before the build wave.` Stop. On a **fused** wave an
+  empty column before step 2 is expected, not a failure; after step 2 it is `MISSING_TICKETS`
+  and handled there.
+- `$MODE = fused` reaching the build half with a red plan-shape check → `Hard failure: plan
+  shape check failed after repair — build half not dispatched.` Stop and return it; a medium
+  run has no eng certification behind this check.

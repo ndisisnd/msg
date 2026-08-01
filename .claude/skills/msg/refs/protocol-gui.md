@@ -189,8 +189,15 @@ is unchanged from the previous protocol revision, with these notes:
   headings and the new numbered template render: `## Todos` / `## 8. Todos`,
   `## Execution Table` (legacy) / `## 6. Feature execution table`, and
   `## Features` / `## 3. Features & acceptance criteria` (any `## N. Features…`). The Todos dump is
-  omitted (todos render in their own section). The findings section — new
-  `## N. Plan review findings` (legacy `## Plan tune findings` and `## Audit — <date>` still supported) — plus any
+  omitted (todos render in their own section). **Findings have two possible homes, and the
+  external one wins.** On a v5.4 PRD `plan-review` writes them to
+  `<prd-dir>/reports/review-prd-<n>-<slug>.md`; `server.py` reads that file and ships its
+  text as the PRD's `reviewFindings` field (with `reviewFindingsPath`), and the client
+  parses the ledger's 7-column table (no Auditor column — one mode, one auditor) directly.
+  `reviewFindings` is `null` on a PRD written before v5.4, and *that* is the signal to fall
+  back to the in-PRD section below. Nothing is migrated; each PRD is read where it keeps
+  them. The in-PRD findings section — legacy
+  `## N. Plan review findings` (`## Plan tune findings` and `## Audit — <date>` still supported) — plus any
   nested `### 12. Findings` eng list is parsed into a dedicated **Plan-review findings**
   table. In the new template that section is itself a **markdown table** with columns
   `# | Date | Auditor | Severity | What is wrong | Suggested fix | Why it matters | Status`

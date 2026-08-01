@@ -68,13 +68,16 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 
 | Field | Initial | Updated by | Updated to | Trigger |
 |-------|---------|-----------|-----------|---------|
-| `status` | `product` | `plan-em` | `eng` | eng sections written to PRD |
-| `status` | `eng` | `merge --production` | `done` | shipped to production |
-| `product-tuned` | `no` | `plan-review --product` | `yes` | certification passes |
-| `eng-tuned` | `no` | `plan-review --eng` | `yes` | eng-side certification passes |
-| `reviewed` | `no` | `pre-merge` / `merge` | `yes` | gate/ship complete |
+| `status` | `backlog` | `plan-em` | `specced` | eng sections + todos written to PRD |
+| `status` | `specced` | `plan-em` | `wip` | feature branch cut |
+| `status` | `wip` | `merge --production` | `complete` | shipped to production |
+| `reviewed` | `no` | `plan-review` | `yes` | certification passes |
 
-`status: done` is the terminal stamp — a production ship also relocates the PRD folder into the `done/` lane. It is **orthogonal** to `reviewed:`: `reviewed: yes` records that a gate ran; `status: done` records that the feature shipped. The two are set independently and never substitute for each other.
+**`status` is the lifecycle truth; the lane directory is the location truth.** They answer different questions and neither is derived from the other — a production ship both stamps `status: complete` and relocates the PRD folder into the `done/` lane, but a consumer asking "has this shipped?" reads the status and one asking "where does this file live?" reads the lane.
+
+`reviewed: yes` is the single certification stamp, written by `plan-review` on a successful run; the findings themselves live in `<prd-dir>/reports/review-prd-[n]-[slug].md`. It is **orthogonal** to `status`: `reviewed` records that the contract was certified, `status` records how far through the pipeline the work is. The two are set independently and never substitute for each other.
+
+PRDs written before v5.4 carry the old enum (`product` → `eng` → `done`, plus `retired`) and a `product-tuned`/`eng-tuned` pair instead of `reviewed`. Every reader normalises those to the table above; no writer emits them.
 
 **Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5), via the shared ledger writer `.claude/scripts/script-intake-stamp.sh` (two-path resolution) — a single row rewrite that leaves every other row byte-identical. intake wrote the row `backlog`; `merge --production` later stamps it `completed` through the same writer.
 
@@ -83,7 +86,7 @@ Each PRD carries status fields in its YAML frontmatter. The owning skill updates
 - `refs/protocol-pm.md` — end-to-end five-step autonomous protocol; followed from § Step-by-step protocol
 - `refs/protocol-sub.md` — the `--sub` deltas layered over that protocol; read from § Sub-PRD mode when `--sub` is set
 - `.claude/scripts/script-prd-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
-- `refs/template-prd.md` — structured PRD format (eight sections) and its drafting rules, including the §3 F-ID contract and the §4 error-case format; used to initialize the file in Step 3
+- `refs/template-prd.md` — structured PRD format (seven sections) and its drafting rules, including the §3 F-ID contract and the §4 error-case format; used to initialize the file in Step 3
 - `.claude/scripts/script-prd-shape.py` — deterministic PRD shape validator; call at the end of Step 3 Part 4
 - `.claude/scripts/script-prd-number prd` — deterministic next-PRD-number resolver; call in Step 3
 - `.claude/scripts/script-prd-number sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)

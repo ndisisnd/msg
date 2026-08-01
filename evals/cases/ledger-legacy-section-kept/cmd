@@ -1,0 +1,5 @@
+# READ TOLERANCE — a PRD written before v5.4 keeps its ledger where it already
+# is. The §7 section is filled in place with its eight-column, Auditor-bearing
+# table, and NO external report is created beside it: the target is whichever
+# home the PRD already has, and nothing is ever migrated.
+printf '%s' '[{"severity":"Major","what":"§4 has no rows","fix":"add error cases","why":"pre-merge PRD-consistency gate"}]' | python3 "$REPO/.claude/scripts/script-ledger.py" prd-8-old.md --auditor P --date 2026-08-01

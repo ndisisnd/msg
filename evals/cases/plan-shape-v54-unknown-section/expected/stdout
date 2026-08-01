@@ -1,0 +1,4 @@
+FAIL check=8 code=missing-plan-section ref=assertions/open questions detail='## Engineering — assertions' has no 'open questions' section — both the medium (4-section) and large (12-section) shapes require it
+FAIL check=8 code=missing-plan-section ref=assertions/scope mapping detail='## Engineering — assertions' has no 'scope mapping' section — both the medium (4-section) and large (12-section) shapes require it
+FAIL check=8 code=unknown-plan-section ref=assertions/risk register detail='### risk register' is not a section of either sanctioned shape — see eng/refs/plan/template-eng-plan.md (medium: 4 sections; large: 12)
+SUMMARY checks=8 agents=assertions failures=3

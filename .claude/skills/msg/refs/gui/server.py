@@ -341,9 +341,10 @@ def infer_completion(fm, num, slug, lane=None):
     if branch:
         return "building", "branch %s exists" % branch
 
-    # Rungs 6-7 — frontmatter fallback.
+    # Rungs 6-7 — frontmatter fallback. `specced`/`wip` are the v5.4 lifecycle
+    # names for what v5 called `eng`; both spellings mean "past product spec".
     status = (fm.get("status") or "").strip().lower()
-    if status in ("eng", "engineering"):
+    if status in ("eng", "engineering", "specced", "wip"):
         return "planned", "frontmatter status: %s" % status
     return "product", "frontmatter status: %s" % (status or "absent")
 
@@ -376,12 +377,37 @@ def parse_prd_dir(d):
     feats, order = parse_features(body)
     has_todos = parse_todos(body, feats, order)
     completion, source = infer_completion(fm, num, slug, lane)
+    # v5.4 dropped module/platform/affects and fused the two tune stamps into one
+    # `reviewed`. A PRD carrying any of the dropped keys is v5-shape and keeps its
+    # three badges; a v5.4 PRD has one, and the board is told which so it does not
+    # render two permanently-blank pills.
+    shape = "v5" if any(k in fm for k in
+                        ("module", "platform", "affects", "depends_on",
+                         "product-tuned", "eng-tuned")) else "v5.4"
     badges = {
         "productTuned": as_badge(fm.get("product-tuned", fm.get("tuned"))),
         "engTuned": as_badge(fm.get("eng-tuned")),
         "reviewed": as_badge(fm.get("reviewed")),
     }
+    # v5.4 moved plan-review's findings out of the PRD into a growing ledger beside
+    # it, so the board can no longer find them by parsing the PRD body. Ship the
+    # ledger's text alongside the body and let the client prefer it; a PRD written
+    # before v5.4 has no ledger, and its inline findings section is still parsed.
+    review_findings = None
+    review_findings_path = None
+    ledgers = sorted(glob.glob(os.path.join(d, "reports", "review-prd-*.md")))
+    preferred = os.path.join(d, "reports", "review-%s.md" % base)
+    if preferred in ledgers:
+        ledgers = [preferred]
+    if ledgers:
+        try:
+            review_findings = open(ledgers[0], encoding="utf-8", errors="replace").read()
+            review_findings_path = os.path.relpath(ledgers[0], root_path())
+        except OSError:
+            review_findings = None
+
     return {
+        "shape": shape,
         "num": num,
         "id": base,
         "path": rel + "/",
@@ -394,11 +420,17 @@ def parse_prd_dir(d):
         "status": fm.get("status"),
         "created": fm.get("created"),
         "affects": fm.get("affects") or [],
-        "depends_on": fm.get("depends_on") or [],
+        # `deps` is the v5.4 name for `depends_on`; both keys carry the array so
+        # the board reads one field regardless of which shape wrote the file.
+        "deps": fm.get("deps") or fm.get("depends_on") or [],
+        "depends_on": fm.get("deps") or fm.get("depends_on") or [],
         "badges": badges,
         "completion": completion,
         "completionSource": source,
         "detail": body.strip(),
+        # None on a pre-v5.4 PRD — which is the signal to fall back to the body.
+        "reviewFindings": review_findings,
+        "reviewFindingsPath": review_findings_path,
         "hasTodos": has_todos,
         "features": [feats[k] for k in order],
     }, None

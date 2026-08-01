@@ -1,13 +1,18 @@
 #!/usr/bin/env bash
 # script-prd-deps-mirror.sh — mirror a PRD's §3 Dependencies column into its
-# frontmatter `depends_on` array.
+# frontmatter `deps` array (`depends_on` on v5-shape PRDs).
 #
 # §3 (Features & acceptance criteria) is the source of truth for cross-PRD edges:
 # every prd-<n>-<slug> id that appears in a §3 Dependencies cell must also appear
-# in the frontmatter `depends_on` array. This script extracts those ids, unions
-# them with the current array, and rewrites `depends_on` in place. It replaces the
-# inline awk-and-eyeball snippet in plan-pm's protocol Step 3 Part 4, and — per the
-# wave design — owns its own array rewrite (script-prd-stamp.sh is scalar-only).
+# in the frontmatter deps array. This script extracts those ids, unions them with
+# the current array, and rewrites the array in place. It replaces the inline
+# awk-and-eyeball snippet in plan-pm's protocol Step 3 Part 4, and — per the wave
+# design — owns its own array rewrite (script-prd-stamp.sh is scalar-only).
+#
+# v5.4 renamed the array `depends_on` -> `deps`. The rewrite targets whichever
+# name the file already carries, so a PRD written before v5.4 keeps its
+# `depends_on` line and is never migrated; a file carrying neither name gets a
+# `deps` line inserted. `deps` wins when a file somehow carries both.
 #
 # Usage:
 #   script-prd-deps-mirror.sh <prd.md>
@@ -16,7 +21,7 @@
 #   the Dependencies column are never mirrored — only prd-<n>-<slug> tokens.
 # - The Dependencies column is located from the §3 table header, not a fixed index.
 # - Prints `ADDED <id>` to stdout for each newly-added id (none added → no output).
-# - Idempotent. Writes via a temp file + mv. `depends_on: []` when the union empty.
+# - Idempotent. Writes via a temp file + mv. `deps: []` when the union is empty.
 #
 # Exit codes: 0 = mirrored (or nothing to add); 2 = missing file / no frontmatter
 #             / no §3 section matched (SECTION_NOT_FOUND=features) / a §3 table
@@ -63,12 +68,17 @@ function extract(s, setarr, ordarr,   rest,tok) {
   }
 }
 
-# ── Pass 1: collect current depends_on ids and §3 Dependencies ids ──
+# ── Pass 1: collect the current deps ids and the §3 Dependencies ids ──
+# v5.4 renamed the array `depends_on` -> `deps`. The mirror writes back under
+# whichever name the file already uses, so a v5-shape PRD keeps its `depends_on`
+# line and a v5.4 PRD keeps its `deps` line; only a PRD carrying neither gets a
+# fresh line, and that one is written under the v5.4 name.
 FNR==NR {
   if (FNR==1) { if ($0=="---") { fm=1 } else { nofm=1 } ; next }
   if (fm==1) {
     if ($0=="---") { fm=2; next }
-    if ($0 ~ /^depends_on:/) { extract($0, curset, curord); have_dep=1 }
+    if ($0 ~ /^deps:/)       { extract($0, curset, curord); have_dep=1; depkey="deps" }
+    if ($0 ~ /^depends_on:/) { extract($0, curset, curord); have_dep=1; if (depkey=="") depkey="depends_on" }
     next
   }
   # body — locate §3 and its Dependencies column
@@ -108,13 +118,14 @@ FNR==1 {
     id=sixord[i]
     if (!(id in curset)) { ulist[++ucount]=id; print "ADDED " id }
   }
-  newline="depends_on: ["
+  if (depkey=="") depkey="deps"      # neither name present -> write the v5.4 one
+  newline=depkey ": ["
   for (i=1;i<=ucount;i++) { newline=newline (i>1?", ":"") ulist[i] }
   newline=newline "]"
   wrote_dep=0
 }
 
-# ── Pass 2: emit the file to $out, rewriting (or inserting) depends_on ──
+# ── Pass 2: emit the file to $out, rewriting (or inserting) the deps array ──
 {
   if (badfm) next
   if (fm2==0 && FNR==1 && $0=="---") { fm2=1; print > out; next }
@@ -123,7 +134,7 @@ FNR==1 {
       if (!have_dep && !wrote_dep) { print newline > out; wrote_dep=1 }
       fm2=2; print > out; next
     }
-    if ($0 ~ /^depends_on:/ && !wrote_dep) { print newline > out; wrote_dep=1; next }
+    if ($0 ~ ("^" depkey ":") && !wrote_dep) { print newline > out; wrote_dep=1; next }
     print > out; next
   }
   print > out

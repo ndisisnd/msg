@@ -10,7 +10,9 @@ spec; this script only renders them, so anchor typos and row-text drift are
 impossible. See template-exec-table.md and template-prd.md §3/§6 for the shapes
 consumed/produced.
 
-Usage:
+Two modes.
+
+RENDER (default) — build the skeleton from an assignment spec:
   echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}]' \\
     | script-em-exec-skeleton.py [--write] [--force] <prd.md>
 
@@ -21,32 +23,57 @@ Usage:
 
   --force   allow --write to overwrite an exec table that already holds work.
             Without it, --write refuses (exit 1, REFUSING_OVERWRITE=<n>) when the
-            section's table has any populated "Execution steps"/"Files" cell, or
-            holds a table whose header resolves neither column (then the key is
-            REFUSING_OVERWRITE=unresolved-columns). A genuinely blank skeleton
-            (or the placeholder) is replaced as before.
+            section's table has any populated "Files" cell (or, on a legacy
+            table, "Execution steps"), or holds a table whose header resolves
+            neither column (then the key is REFUSING_OVERWRITE=unresolved-columns).
+            A genuinely blank skeleton (or the placeholder) is replaced as before.
 
-Stdin: a JSON array of {"fid","concern","agent"} objects, in row order.
-Stdout: the skeleton table — header + separator + one row per spec entry:
-  | Feature | Execution steps | Files | Todos | Agent |
-  Feature cell = "<fid>: <name> — <concern>"; Execution steps + Files blank;
-  Todos = "[F<n>](#todos-f<n>)" (lowercase anchor); Agent = the spec agent.
-  With --write, stdout carries "WROTE <prd> section=<heading> rows=<n>" instead.
+  Stdin: a JSON array of {"fid","concern","agent"} objects, in row order.
+  Stdout: the skeleton table — header + separator + one row per spec entry:
+    | Feature — concern | Files | Agent |
+    Feature cell = "<fid>: <name> — <concern>"; Files blank (see --fill-files);
+    Agent = the spec agent.
+    With --write, stdout carries "WROTE <prd> section=<heading> rows=<n>".
+
+FILL-FILES (v5.4) — derive every row's Files cell from the tickets:
+  script-em-exec-skeleton.py --fill-files [--agent <name>] <prd.md>
+
+  The Files column is no longer typed by a planner agent. This mode reads the
+  PRD's `## Todos — <Agent>` blocks, and for each exec-table row unions the
+  `files` paths of every ticket under that row's F-ID in that row's agent's
+  block, then writes the result into the row's Files cell in place. Rows sharing
+  an (F-ID, agent) pair therefore share a Files set — deliberately: the collision
+  graph is a file-disjointness question, and a per-concern split of one feature's
+  files would claim a disjointness the build does not actually have.
+
+  --agent   fill only rows whose Agent cell matches; other rows are left byte-
+            identical. Omitted: every row.
+
+  Stdout, one record per line:
+    FILLED <prd> rows=<n> paths=<m>          on success
+    EMPTY_FILES row=<n> fid=<F> agent=<a>    row resolved to an empty ticket
+                                             file set (the empty-feature
+                                             sentinel) — informational, the cell
+                                             is left blank, exit stays 0
+    MISSING_TICKETS row=<n> fid=<F> agent=<a>  no `### F<n>` block under
+                                             `## Todos — <a>` — hard failure
+    NO_FILES_COLUMN                          the table has no Files column
 
 Exit codes:
-  0 = table rendered (or written).
-  1 = a spec fid is absent from §3, --write found no reserved
-      "Feature execution table" section, or --write would overwrite a populated
-      exec table without --force (named on stderr; nothing written).
+  0 = table rendered / written / filled.
+  1 = a spec fid is absent from §3; --write found no reserved "Feature execution
+      table" section; --write would overwrite a populated exec table without
+      --force; or --fill-files hit a missing ticket block or no Files column
+      (named on stderr; nothing written in every case).
   2 = malformed JSON on stdin / usage / unreadable or unwritable PRD.
 
---write goes through a temp file + os.replace, so a crash can never truncate the
-PRD (same discipline as script-eng-close-loop.py / script-ledger.py).
+Every write goes through a temp file + os.replace, so a crash can never truncate
+the PRD (same discipline as script-eng-close-loop.py / script-ledger.py).
 """
 import sys, re, json, os, tempfile
 
-HEADER = "| Feature | Execution steps | Files | Todos | Agent |"
-SEP    = "|---------|----------------|-------|-------|-------|"
+HEADER = "| Feature — concern | Files | Agent |"
+SEP    = "|-------------------|-------|-------|"
 
 
 def die(msg, code):
@@ -208,13 +235,144 @@ def write_section(prd, lines, rows, force=False):
 
     body = kept + ([""] if kept else []) + [HEADER, SEP] + rows
     new = lines[:start + 1] + [""] + body + [""] + lines[end:]
-    # Temp file + os.replace: a crash mid-write can never leave a truncated PRD
-    # (A8b — the same discipline every other writer in .claude/scripts/ uses).
+    atomic_write(prd, new)          # A8b — never leave a truncated PRD
+    sys.stdout.write("WROTE %s section=%s rows=%d\n"
+                     % (prd, lines[start].lstrip("# ").strip(), len(rows)))
+
+
+# ── --fill-files (v5.4): the Files column is derived, never typed ─────────────
+
+# `src/api/goals.ts` (edit)  ->  src/api/goals.ts
+TICKET_PATH_RE = re.compile(r"`([^`]+)`")
+FID_HEAD_RE = re.compile(r"^\**\s*(F\d+(?:\.\d+)?)\b")
+
+
+def parse_todos(lines):
+    """{agent: {FID: [paths in ticket order, de-duped]}} from every
+    `## Todos — <Agent>` block. A block present with no ticket `files` (the
+    empty-feature sentinel) yields an empty list — which is a real answer,
+    distinct from the F-ID being absent entirely."""
+    out, agent, fid = {}, None, None
+    for ln in lines:
+        h2 = re.match(r"^##\s+Todos\s+—\s+(.+?)\s*$", ln)
+        if h2:
+            agent = h2.group(1).strip()
+            out.setdefault(agent, {})
+            fid = None
+            continue
+        if re.match(r"^##\s+", ln):
+            agent, fid = None, None
+            continue
+        if agent is None:
+            continue
+        h3 = re.match(r"^###\s+(.+?)\s*$", ln)
+        if h3:
+            m = FID_HEAD_RE.match(h3.group(1))
+            fid = m.group(1).upper() if m else None
+            if fid:
+                out[agent].setdefault(fid, [])
+            continue
+        if fid is None:
+            continue
+        f = re.match(r"^\s+-\s+\*\*files:\*\*\s*(.*)$", ln, re.I)
+        if f:
+            for path in TICKET_PATH_RE.findall(f.group(1)):
+                p = path.strip()
+                if p and p not in out[agent][fid]:
+                    out[agent][fid].append(p)
+    return out
+
+
+def fill_files(prd, lines, only_agent=None):
+    """Rewrite every exec-table row's Files cell as the union of its tickets'
+    `files` paths. Planner agents no longer fill this cell by hand — the two
+    could disagree, and the collision graph is only as true as this column."""
+    start = None
+    for i, ln in enumerate(lines):
+        if EXEC_HDR.match(ln):
+            start = i
+            break
+    if start is None:
+        die("no '## N. Feature execution table' section in %s — nothing to fill" % prd, 1)
+    end = len(lines)
+    for j in range(start + 1, len(lines)):
+        if re.match(r"^##\s+", lines[j]):
+            end = j
+            break
+
+    todos = parse_todos(lines)
+
+    headers, hdr_line = None, None
+    fi = ii = ai = None
+    out = list(lines)
+    filled, total_paths, missing, empties = 0, 0, [], []
+    rowno = 0                      # 1-based over data rows, matching the collision
+                                   # checker's row ids so the two can be cross-read
+
+    for i in range(start + 1, end):
+        s = lines[i].strip()
+        if not s.startswith("|"):
+            continue
+        if re.match(r"^[\s:|-]+$", s.replace("|", "")):
+            continue
+        cells = [c.strip() for c in s.strip("|").split("|")]
+        if headers is None:
+            headers, hdr_line = [c.lower() for c in cells], i
+            for idx, h in enumerate(headers):
+                if fi is None and h.startswith("feature"):
+                    fi = idx
+                if ii is None and "file" in h:
+                    ii = idx
+                if ai is None and h.startswith("agent"):
+                    ai = idx
+            if ii is None:
+                sys.stdout.write("NO_FILES_COLUMN\n")
+                die("the exec table in %s has no Files column (headers seen: %s) — "
+                    "restore it from template-exec-table.md" % (prd, ", ".join(headers)), 1)
+            if fi is None or ai is None:
+                die("the exec table in %s resolves no Feature and/or Agent column "
+                    "(headers seen: %s)" % (prd, ", ".join(headers)), 1)
+            continue
+
+        rowno += 1
+        if len(cells) <= max(fi, ii, ai):
+            continue                    # short row — plan-shape check 6 owns it
+        agent = cells[ai]
+        if only_agent is not None and agent != only_agent:
+            continue
+        m = FID_HEAD_RE.match(cells[fi])
+        fid = m.group(1).upper() if m else ""
+        paths = todos.get(agent, {}).get(fid)
+        if paths is None:
+            missing.append((rowno, fid or cells[fi][:24], agent))
+            continue
+        if not paths:
+            empties.append((rowno, fid, agent))
+        cells[ii] = ", ".join(paths)
+        out[i] = "| " + " | ".join(cells) + " |"
+        filled += 1
+        total_paths += len(paths)
+
+    for rowno, fid, agent in missing:
+        sys.stdout.write("MISSING_TICKETS row=%d fid=%s agent=%s\n" % (rowno, fid, agent))
+    if missing:
+        die("%d exec-table row(s) name an F-ID with no '### F<n>' block under their "
+            "agent's '## Todos — <Agent>' section — the plan pass is incomplete; "
+            "nothing written" % len(missing), 1)
+    for rowno, fid, agent in empties:
+        sys.stdout.write("EMPTY_FILES row=%d fid=%s agent=%s\n" % (rowno, fid, agent))
+
+    atomic_write(prd, out)
+    sys.stdout.write("FILLED %s rows=%d paths=%d\n" % (prd, filled, total_paths))
+
+
+def atomic_write(prd, newlines):
+    """Temp file + os.replace: a crash mid-write can never leave a truncated PRD."""
     directory = os.path.dirname(os.path.abspath(prd)) or "."
     fd, tmp = tempfile.mkstemp(dir=directory, prefix=".exec-skeleton.")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write("\n".join(new).rstrip("\n") + "\n")
+            fh.write("\n".join(newlines).rstrip("\n") + "\n")
         try:
             os.chmod(tmp, os.stat(prd).st_mode & 0o777)
         except OSError:
@@ -226,18 +384,33 @@ def write_section(prd, lines, rows, force=False):
         except OSError:
             pass
         die("cannot write PRD: %s" % e, 2)
-    sys.stdout.write("WROTE %s section=%s rows=%d\n"
-                     % (prd, lines[start].lstrip("# ").strip(), len(rows)))
 
 
 def main():
     argv = sys.argv[1:]
     write = "--write" in argv
     force = "--force" in argv
-    argv = [a for a in argv if a not in ("--write", "--force")]
+    fill = "--fill-files" in argv
+    only_agent = None
+    if "--agent" in argv:
+        k = argv.index("--agent")
+        if k + 1 >= len(argv):
+            die("--agent needs a value", 2)
+        only_agent = argv[k + 1]
+        argv = argv[:k] + argv[k + 2:]
+    argv = [a for a in argv if a not in ("--write", "--force", "--fill-files")]
     if len(argv) != 1:
-        die("usage: script-em-exec-skeleton.py [--write] [--force] <prd.md>", 2)
+        die("usage: script-em-exec-skeleton.py [--write] [--force] <prd.md>\n"
+            "       script-em-exec-skeleton.py --fill-files [--agent <name>] <prd.md>", 2)
     prd = argv[0]
+
+    if fill:
+        if write or force:
+            die("--fill-files is its own mode — do not combine it with --write/--force", 2)
+        fill_files(prd, read_lines(prd), only_agent)
+        return
+    if only_agent is not None:
+        die("--agent applies to --fill-files only", 2)
 
     try:
         spec = json.loads(sys.stdin.read())
@@ -262,9 +435,7 @@ def main():
         if rec is None:
             die("fid '%s' not present in §3 Features & acceptance criteria table" % fid, 1)
         canon, name = rec
-        anchor = canon.lower()
-        rows.append("| %s: %s — %s | | | [%s](#todos-%s) | %s |"
-                    % (canon, name, concern, canon, anchor, agent))
+        rows.append("| %s: %s — %s | | %s |" % (canon, name, concern, agent))
 
     if write:
         write_section(prd, lines, rows, force=force)

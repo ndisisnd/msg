@@ -7,6 +7,13 @@ Reads an exec-table markdown (from a file arg or stdin), extracts each row's
 **Files** set, and computes pairwise intersections. Two rows are unsafe to run
 in parallel iff their Files sets overlap.
 
+Reads BOTH exec-table shapes. v5.4 writes three columns —
+`Feature — concern | Files | Agent`, with Files derived from the tickets by
+`script-em-exec-skeleton.py --fill-files`. PRDs written earlier carry five —
+`Feature | Execution steps | Files | Todos | Agent`, with Files typed by the
+planner agent. Columns resolve by name (exact, then prefix), so neither shape is
+privileged and a table that gains or loses a column keeps working.
+
 With `--waves` it goes one step further: it turns that overlap relation into a
 wave decomposition — packets (rows that must run serially) and waves (packets
 that may run concurrently) — so callers consume the schedule instead of
@@ -98,8 +105,19 @@ def parse_table(text):
 
 
 def col_index(headers, *names):
-    for i, h in enumerate(headers or []):
-        if h.strip().lower() in names:
+    """Resolve a column by header name, exact match first then prefix.
+
+    The prefix arm is what makes the checker read BOTH exec-table shapes: v5.4's
+    3-column `Feature — concern | Files | Agent` and the legacy 5-column
+    `Feature | Execution steps | Files | Todos | Agent`. Without it the v5.4
+    Feature header would not resolve and every collision would be reported
+    against an anonymous `row<N>` instead of the feature that owns it."""
+    lowered = [h.strip().lower() for h in (headers or [])]
+    for i, h in enumerate(lowered):
+        if h in names:
+            return i
+    for i, h in enumerate(lowered):
+        if any(h.startswith(n) for n in names):
             return i
     return -1
 
@@ -224,9 +242,12 @@ def main():
         print("ERROR=no-files-column", file=sys.stderr)
         print("%s: the table has no `Files` column (headers seen: %s) — every "
               "row's Files set would be empty, so a zero-collision result "
-              "would be meaningless; populate the Files column before the "
-              "build wave" % ("script-em-exec-collision",
-                              ", ".join(headers) or "(none)"), file=sys.stderr)
+              "would be meaningless; both the v5.4 3-column and the legacy "
+              "5-column shape carry Files, so this table is malformed — restore "
+              "the column from template-exec-table.md and run the Files "
+              "derivation (script-em-exec-skeleton.py --fill-files)"
+              % ("script-em-exec-collision",
+                 ", ".join(headers) or "(none)"), file=sys.stderr)
         sys.exit(3)
 
     def cell(row, idx):

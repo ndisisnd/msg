@@ -31,7 +31,7 @@ Todos are appended to the **PRD file** (the same file the `## Engineering — <A
 - _No discrete work for this feature._
 ```
 
-- `## Todos` — the umbrella section, appended **once**, after the execution-table skeleton. It gives the `todos-` anchor namespace the execution table's Todos column points into (`#todos-f1`, `#todos-f2`, …). `plan-em` creates this heading before dispatching the plan wave; agents do not create it.
+- `## Todos` — the umbrella section, appended **once**, after the execution-table skeleton. Since v5.4 it is the **only** index to the tickets: a build agent takes its assigned rows' F-IDs and reads `### F<n>` under its own `## Todos — <Agent>` block, with no exec-table pointer in between. `plan-em` creates this heading before dispatching the plan wave; agents do not create it.
 - `## Todos — <Agent Name>` — one per agent, mirroring the `## Engineering — <Agent>` convention exactly (the literal `— <Agent Name>` suffix is required). Detection scans for this literal heading (`## Todos —`).
 - `### F<n>` — one subsection per feature the agent owns, holding that feature's tickets. The F-ID matches the PRD's Features & acceptance criteria table and the execution-table rows.
 
@@ -74,7 +74,7 @@ Each ticket is a bullet whose title line carries the ticket id and summary, foll
 4. **Ids are stable and unique per PRD.** `F<n>-T<k>` — numbered 1-based within each feature. Ids are the dependency graph's nodes; never reuse or renumber an id once other tickets or the build summary reference it.
 5. **`depends-on` references real ids only.** Every id in a `depends-on` must exist elsewhere in the same `## Todos`. A dangling dependency is a coverage gap, not silently written. Dependencies must be **acyclic** — a build agent walks them in order.
 6. **`done-when` is verifiable.** Every `done-when` names something concrete a build agent can check — a command, an assertion, a file-state condition. A `done-when` that can't be checked is a defect, not a ticket.
-7. **Empty features are explicit.** A feature whose scope yields no discrete work still gets a `### F<n>` block containing the single line `_No discrete work for this feature._` — never a missing block. This keeps the execution table's `#todos-f<n>` anchor resolvable.
+7. **Empty features are explicit.** A feature whose scope yields no discrete work still gets a `### F<n>` block containing the single line `_No discrete work for this feature._` — never a missing block. This is what distinguishes "nothing to build here" from "the plan pass forgot this feature": the Files derivation reports the first as `EMPTY_FILES` and continues, and the second as `MISSING_TICKETS` and stops.
 8. **F-IDs stay aligned with the exec table.** Every `### F<n>` under `## Todos` must correspond to an F-ID that has execution-table rows, and vice versa. A mismatch is a coverage gap.
 9. **Ticket, not narrative.** Keep each ticket to its fields. Design rationale belongs in the `## Engineering — <Agent>` section; the ticket carries only what's needed to execute and verify it.
 

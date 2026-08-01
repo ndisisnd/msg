@@ -1,0 +1,2 @@
+# v5.4 P3 — a prose-only engineering section is SKIPped, never failed.
+python3 "$REPO/.claude/scripts/script-eng-plan-shape.py" plan.md --agent assertions --checks 8

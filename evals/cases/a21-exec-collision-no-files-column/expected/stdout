@@ -1,2 +1,2 @@
 ERROR=no-files-column
-script-em-exec-collision: the table has no `Files` column (headers seen: Feature, Agent, Paths, Execution steps) — every row's Files set would be empty, so a zero-collision result would be meaningless; populate the Files column before the build wave
+script-em-exec-collision: the table has no `Files` column (headers seen: Feature, Agent, Paths, Execution steps) — every row's Files set would be empty, so a zero-collision result would be meaningless; both the v5.4 3-column and the legacy 5-column shape carry Files, so this table is malformed — restore the column from template-exec-table.md and run the Files derivation (script-em-exec-skeleton.py --fill-files)

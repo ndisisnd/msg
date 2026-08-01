@@ -13,7 +13,7 @@ A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) that captures additional chang
 2. **Infer from branch** — run `git branch --show-current`; if it matches `feat/prd-<n>-<slug>`, that PRD is the parent (the user is typically already on the parent's branch when asking for follow-up work). Confirm the PRD directory exists in some lane (`features/{planned,wip,done}/prd-<n>-<slug>/` or legacy flat `features/prd-<n>-<slug>/`).
 3. **Pick from a list** — otherwise, `AskUserQuestion` listing open PRDs (glob all lanes `features/{planned,wip,done}/prd-*/prd-*.md` plus legacy flat `features/prd-*/prd-*.md`, deduped by id, and exclude any that are themselves sub-PRDs — i.e. whose id contains a `.`). The user selects the parent. If no top-level PRDs exist at all, hard-refuse: `Hard failure: no parent PRD found for --sub — run /plan-pm to create a top-level PRD first.` and stop.
 
-Store the resolved parent as `parent_id` = `prd-<parent-n>-<parent-slug>` and `parent_dir` = its resolved directory (whatever lane — `planned/`, `wip/`, `done/`, or the legacy flat path — it currently sits in; the resolver locates it lane-agnostically), and read its frontmatter (`feature`, `module`, `platform`) — needed for D3/D4.
+Store the resolved parent as `parent_id` = `prd-<parent-n>-<parent-slug>` and `parent_dir` = its resolved directory (whatever lane — `planned/`, `wip/`, `done/`, or the legacy flat path — it currently sits in; the resolver locates it lane-agnostically), and read its frontmatter (`feature`) — needed for D3/D4.
 
 **D2 — Seed the idea from the parent, then capture its own intake row (Step 1).** The parent supplies the idea and goal, not the backlog picker. Compose the working idea as `Sub-PRD of prd-<parent-n>-<parent-slug>: <the user's stated follow-up scope>` (parent `feature` from its frontmatter for context) — then **capture it as an `INTAKE.md` row of its own**, exactly as Step 1 path 3 does for a top-level PRD:
 
@@ -43,10 +43,9 @@ Store the output as `m` (the minor). Derive `sub_slug` (kebab-case, ≤6 words) 
 **D4 — Frontmatter (Step 3 Part 2).** Same fields as a top-level PRD, with:
 - `name`: `prd-<parent-n>.<m>-<sub_slug>`
 - `parent`: `prd-<parent-n>-<parent-slug>` — **new field, sub-PRD only.** This is the field `plan-em`/`eng --build` read to resolve the shared branch (a sub-PRD never gets its own branch).
-- `module` / `platform`: **default to the parent's values** (read in D1). Overridable only if the autonomous draft reveals the sub-PRD's scope genuinely differs — otherwise inherit unchanged.
 - `summary`: authored fresh for the sub-PRD's own follow-up scope (2–3 single-line sentences), exactly as a top-level PRD — do not inherit the parent's.
-- All other fields (`status: product`, `product-tuned: no`, `eng-tuned: no`, `reviewed: no`, `created`, `affects`, `depends_on`) exactly as a top-level PRD.
+- All other fields (`status: backlog`, `reviewed: no`, `created`, `intake`, `deps`) exactly as a top-level PRD. `parent` is the only field a sub-PRD has that a top-level PRD does not; there is nothing to inherit from the parent beyond it, because v5.4 removed the `module` and `platform` fields that used to be inherited.
 
-**Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–5) → `plan-review --product` → `plan-em` → `plan-review --eng` → `eng --build`. Step 5 stamps the D2 row (`status: in-progress`, `prd: prd-<parent-n>.<m>-<sub_slug>`) and terminates exactly as for a top-level PRD, using the nested sub-PRD path.
+**Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–5) → `plan-review` → `plan-em` → `eng --build`. Step 5 stamps the D2 row (`status: in-progress`, `prd: prd-<parent-n>.<m>-<sub_slug>`) and terminates exactly as for a top-level PRD, using the nested sub-PRD path.
 
 Everywhere the steps in `refs/protocol-pm.md` write the drafted PRD's own path `features/planned/prd-[n]-[feature_slug]/prd-[n]-[feature_slug].md`, substitute the nested sub-PRD path from D3 when in `--sub` mode — it lands inside the parent's existing folder in whatever lane the parent occupies, not in `planned/`.

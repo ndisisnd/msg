@@ -382,11 +382,15 @@ function requestStatusChange(p, bucket, onCancel) {
 }
 function badgePills(p) {
   var b = p.badges || {};
+  var shape = p.shape || "v5";
   function one(label, v) {
     if (v == null) return '<span class="pill unset">' + esc(label) + " —</span>";
     return '<span class="pill ' + (v ? "set" : "unset") + '">' + esc(label) + (v ? " ✓" : " ✕") + "</span>";
   }
-  return one("product-tuned", b.productTuned) + one("eng-tuned", b.engTuned) + one("reviewed", b.reviewed);
+  // v5.4 PRDs carry a single `reviewed` stamp; the two tune pills are rendered
+  // only for the v5-shape PRDs that still have those fields.
+  if (shape === "v5") return one("product-tuned", b.productTuned) + one("eng-tuned", b.engTuned) + one("reviewed", b.reviewed);
+  return one("reviewed", b.reviewed);
 }
 function progressFrag(p) {
   if (!p.hasTodos) return "";
@@ -960,6 +964,17 @@ function parseAuditFindings(detail) {
   }
   return out;
 }
+/* v5.4: plan-review's findings live in `reports/review-prd-<n>-<slug>.md`, not in
+   the PRD. The server ships that file's text as `reviewFindings`; its table is the
+   same 7-column shape minus the Auditor column, and it sits under a plain
+   `## Findings` heading, so the table parser is pointed straight at the file
+   rather than at a heading match. Returns null when there is no ledger — the
+   signal to fall back to the PRD body, which is where a pre-v5.4 PRD keeps them. */
+function parseLedgerFindings(text) {
+  if (!text) return null;
+  var lines = String(text).replace(/\r\n?/g, "\n").split("\n");
+  return parseFindingsTable(lines);
+}
 function parseEngFindings(detail) {
   var lines = String(detail == null ? "" : detail).replace(/\r\n?/g, "\n").split("\n");
   var out = [], inSec = false, n = 0;
@@ -979,7 +994,10 @@ function findingSevPill(sev) {
   return '<span class="pill sev-' + esc(k) + '">' + esc(sev || "?") + "</span>";
 }
 function findingsAccordion(p) {
-  var rows = parseAuditFindings(p.detail).concat(parseEngFindings(p.detail));
+  // The external ledger wins when it exists; the PRD body is the legacy source.
+  var ledger = parseLedgerFindings(p.reviewFindings);
+  var rows = (ledger !== null ? ledger : parseAuditFindings(p.detail))
+    .concat(parseEngFindings(p.detail));
   if (!rows.length) return null;
   var open = state.openSections.__findings === true;
   var det = el('<details class="collapsible section findings-section"' + (open ? " open" : "") + ">" +

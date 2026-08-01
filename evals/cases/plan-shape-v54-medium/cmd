@@ -1,0 +1,2 @@
+# v5.4 P3 — check 8 accepts the medium 4-section shape.
+python3 "$REPO/.claude/scripts/script-eng-plan-shape.py" plan.md --agent assertions --checks 8

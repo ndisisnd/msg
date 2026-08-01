@@ -1,0 +1,6 @@
+# R8 — the other direction: a batched artifact covers exactly the keys it
+# lists. P3 was built in the same wave but is absent from `packets`, so it
+# reads MISSING and the wave does not silently absorb it — the orchestrator
+# re-spawns a reviewer for it.
+S="$REPO/.claude/scripts/script-eng-review-check.sh"
+bash "$S" --reports-dir reports --expect P2,P3

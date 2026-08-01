@@ -121,9 +121,16 @@ def build(prd_path):
     d = {
         "prd": prd_path,
         "source_hash": sha256(text),
+        # Both PRD shapes are emitted from one key list: the v5.4 keys
+        # (deps/intake/reviewed) and the v5 keys it replaced (depends_on/affects/
+        # module/platform/product-tuned/eng-tuned). Whichever the file does not
+        # carry comes back None, so a consumer reads `deps or depends_on` and
+        # gets the right array for either shape.
         "frontmatter": {k: fm.get(k) for k in
-                        ("name","feature","module","platform","status",
-                         "product-tuned","eng-tuned","reviewed","parent","depends_on","affects","created")},
+                        ("name","feature","status","reviewed","parent","deps",
+                         "created","intake",
+                         "module","platform","product-tuned","eng-tuned",
+                         "depends_on","affects")},
         "summary": fm.get("summary"),
         "features": [], "out_of_scope": [], "key_interactions": [],
         "error_cases": [], "edge_cases": [], "glossary": {}, "open_questions": [],

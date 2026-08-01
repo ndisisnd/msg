@@ -1,0 +1,6 @@
+# v5.4 renamed the frontmatter array `depends_on` -> `deps`. The mirror writes
+# back under the name the file already carries, so a v5.4 PRD's §3 ids land in
+# `deps:` and the file is never given a stray second array. The legacy direction
+# (a `depends_on:` PRD keeps `depends_on:`) is pinned by deps-mirror-idempotent
+# and the a13-* cases, whose fixtures are all v5-shape.
+"$REPO/.claude/scripts/script-prd-deps-mirror.sh" prd.md

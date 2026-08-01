@@ -1,0 +1,2 @@
+FAIL check=4 code=placeholder-drift ref=§7 detail=section is empty — it must carry the exact reserved placeholder '_Populated by eng --plan — implementation tickets, grouped by feature._' until eng --plan fills it
+SUMMARY shape=v5.4 checks=1,2,3,4,5 failures=1
