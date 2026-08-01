@@ -2,6 +2,10 @@
 
 ## 2026-08-01
 
+### [129] — Release v5.3.0
+
+- `RELEASES.md`: Added — v5.3.0 notes covering [112]–[117] (review evidence artifacts, coverage checks at every build-spawning orchestrator, pre-merge backstop). Numbered [129] deliberately: [118]–[128] are already taken by the v5.4 work on `feat/msg-v5.4.0`, which merges next.
+
 ### [128] — the PRD shape validator rejected the Todos shape the pipeline writes (v5.4 fix)
 
 `script-prd-shape.py` check 4 failed `§7 Todos` as an empty reserved section on **every PRD the pipeline actually produces** after a plan wave. The section splitter cuts on H2 headings, and the umbrella `## 7. Todos` is immediately followed by each planner's `## Todos — <Agent>` block — also an H2 — so the umbrella's own body is empty by construction. That is the correct shape: plan-em appends the umbrella once so parallel planners do not race on a shared heading, and each planner adds its own sibling block. Found while regenerating the sample PRDs, where every fixture hit it.
@@ -551,7 +555,6 @@ The PRD shrank. Frontmatter dropped `module`, `platform` and `affects`, renamed 
 - 8 files: Removed — every mention of the expired `--doctor` one-release alias for the gates' `--init` (msg, pre-merge, post-merge, `shared/refs/policy-schema.md`); the name is now free
 - `features/` is gitignored: Added to `template-gitignore.md` + `protocol-init.md` docs; new `--update` Step 3-FT offers `git rm -r --cached features/` (stage-only, confirmed) for legacy tracked repos; lane moves now branch tracked→`git mv` / untracked→`mv` (`plan-em-branch-resolve.sh`, post-merge refs, `init.sh` comments)
 
-
 ## 2026-07-26
 
 ### [60] — The gate can now run only the tests your diff can break (contract core)
@@ -1001,7 +1004,6 @@ Red or pending checks from any CI still refuse `red_ci`/`pending_ci`, branch pro
 - `.gitignore`: Added — `.pre-merge/` (runtime preflight/result artifacts, never committed)
 
   **Gate behavior unchanged this phase.** The 16 scripts and the manifest are produced by `--init`/`--update` and read by the executor only from P3; today's Steps 0–9 gate still runs on `pre-merge-tooling-detect.sh` + `steps.*`. `install.sh` already ships `.claude/scripts/*` wholesale, so the new family and the common lib install without an edit.
-
 
 ### [15] — v3 build P0: pre-v3 token baseline recorded
 
