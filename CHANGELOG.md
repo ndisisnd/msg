@@ -2,6 +2,10 @@
 
 ## 2026-08-01
 
+### [130] — Release v5.4.0
+
+- `RELEASES.md`: Added — v5.4.0 notes covering [118]–[128] (slim PRD schema, external findings ledger, tiered eng plans, 3-column exec table with derived Files, fused medium wave, packet fast-path, batched review, write slimming, timing instrumentation, GUI ledger read, Todos-umbrella validator fix).
+
 ### [129] — Release v5.3.0
 
 - `RELEASES.md`: Added — v5.3.0 notes covering [112]–[117] (review evidence artifacts, coverage checks at every build-spawning orchestrator, pre-merge backstop). Numbered [129] deliberately: [118]–[128] are already taken by the v5.4 work on `feat/msg-v5.4.0`, which merges next.

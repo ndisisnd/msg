@@ -2,6 +2,25 @@
 
 What's new for you, release by release.
 
+## v5.4.0 — 2026-08-01
+
+> Build sessions get shorter because effort now scales with feature size. A medium feature plans and builds in a single run instead of two, the documents the pipeline writes are roughly half their old size, and everything it used to write "just in case" is now written only when someone actually reads it. Every run also leaves a timing log, so "where did the hour go?" finally has a measured answer.
+
+### ✨ New
+- Medium-sized features plan and build in one run. You no longer re-invoke the planner between the planning and building phases — it flows straight through, and only genuinely large, multi-platform features keep the deliberate two-phase path. The size call is made automatically from the idea's existing grade.
+- Every planning run leaves a simple timeline of its stages, so you can see exactly which part of a long session took the time — measured, not guessed.
+
+### 📈 Improved
+- PRDs are about half their former size. The objective is a few sharp bullets instead of prose, engineering plans keep only the four sections that downstream work actually uses, and boilerplate rows are no longer required just to fill a quota.
+- Review findings now live in one growing report beside the PRD instead of inside it, so the PRD stays a spec rather than a spec-plus-audit-trail. The project board reads the report directly; older PRDs keep showing their findings exactly as before.
+- Build workers read a short, focused playbook instead of the full manual — about three-quarters less onboarding per worker — and simple changes are reviewed together per batch instead of one at a time, with the same "review cannot be skipped" guarantees from v5.3.
+- File lists in the plan are now derived automatically from the tickets rather than filled in by hand, which removes an entire class of "the plan forgot to fill this in" failures.
+- Nothing to migrate: PRDs written before this release keep working everywhere, unchanged.
+
+### 🐛 Fixed
+- The PRD validator wrongly rejected the Todos section of every PRD the pipeline itself produces — found and fixed while regenerating the sample projects.
+- The project board showed no review findings for PRDs written in the new format.
+
 ## v5.3.0 — 2026-08-01
 
 > Code review can no longer be silently skipped. Every review now leaves a small evidence file behind, and every build run checks that evidence before declaring itself done — a missing review is repaired automatically by re-running just the review, never the build. This closes a real incident where nine parallel build packets shipped green without a single review running.
