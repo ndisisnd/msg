@@ -1,0 +1,17 @@
+WATCH_REGISTERED=leafA
+WATCH_REGISTERED=leafB
+OK leafA 3m
+OK leafB 3m
+WATCH_SUMMARY=2/0/0/0
+NOTICE leafA idle 6m
+NOTICE leafB idle 6m
+WATCH_SUMMARY=0/2/0/0
+WARN leafA idle 11m
+WARN leafB idle 11m
+WATCH_SUMMARY=0/0/2/0
+STALL leafA idle 16m
+STALL leafB idle 16m
+WATCH_SUMMARY=0/0/0/2
+STALL leafA idle 17m
+STALL leafB idle 17m
+WATCH_SUMMARY=0/0/0/2

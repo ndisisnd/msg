@@ -1,0 +1,10 @@
+# B1 — observational-degradation contract: a state file overwritten with
+# garbage, and a run-id that was never registered, must both leave the run
+# intact. Each prints the zeroed WATCH_SUMMARY at exit 0; the diagnostic note
+# goes to stderr, which is discarded here.
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+"$S" --register --run-id w4 --leaf leafA --now 1754000000 >/dev/null
+printf 'not a state file, just noise\n###garbage###\n' > "$PWD/.claude/msg/cache/watch/w4.state"
+"$S" --check --run-id w4 --now 1754000960 2>/dev/null
+"$S" --check --run-id never-registered --now 1754000960 2>/dev/null
+"$S" --close --run-id never-registered

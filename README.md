@@ -126,6 +126,7 @@ Eight slash commands. Run `/msg` to browse them interactively, or invoke any one
 | `/intake --update` | Changes an idea you already captured. A real change to the idea re-grades it; a wording fix doesn't. |
 | `/intake --delete` | Drops an idea from the backlog. Warns you first about anything that depends on it, then asks you to confirm. |
 | `/plan-pm` | Writes the PRD for you — user flows, edge cases, what "done" means — stopping only for the questions it genuinely can't answer itself. |
+| `/plan-pm --update` | Brings an existing PRD up to the current template and style — one PRD or `--all`. Maintenance only: acceptance criteria, F-IDs, and everything engineering wrote stay untouched. |
 | `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. You don't invoke this one; `/plan-em` runs it for you. |
 | `/plan-em` | Turns the PRD into an engineering plan. It proposes a roster of specialists for the work — approving that roster is your only decision here — then puts them to work. |
 
@@ -201,6 +202,12 @@ so the quiet stretch is expected, not worrying. Outside of steps like that,
 you'll see a short status line roughly every five minutes on any long-running
 phase. Turn it off for one run with `--quiet`, or change how often it reports
 with `--status <n>m`.
+
+When a phase fans work out to parallel agents, the run also watches each one
+for signs of life. An agent that has produced nothing gets mentioned at 5
+minutes, flagged at 10, and assumed stuck at 15 — at which point the run tells
+you plainly and asks whether to stop it or let it ride. Nothing is ever killed
+automatically; that call is always yours.
 
 **How do I know the review actually ran?**
 

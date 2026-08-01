@@ -1,0 +1,12 @@
+CHANGE code=key-dropped ref=frontmatter detail=`module: habits` removed — v5.4 has no module field
+CHANGE code=key-dropped ref=frontmatter detail=`affects: []` removed — v5.4 has no affects field
+CHANGE code=deps-renamed ref=frontmatter detail=`depends_on: []` → `deps: []` — one dependency key
+CHANGE code=key-dropped ref=frontmatter detail=`platform: mobile` removed — v5.4 has no platform field
+CHANGE code=status-mapped ref=frontmatter detail=`status: eng` → `status: specced` — v5.4 lifecycle enum
+CHANGE code=key-dropped ref=frontmatter detail=`product-tuned: yes` removed — folded into the single `reviewed` stamp
+CHANGE code=key-dropped ref=frontmatter detail=`eng-tuned: no` removed — folded into the single `reviewed` stamp
+CHANGE code=intake-resolved ref=frontmatter detail=`intake: #7` recovered by matching `prd-9-grace-window` against INTAKE.md
+CHANGE code=findings-extracted ref=prd-9-grace-window/reports/review-prd-9-grace-window.md detail=4 lines moved out of '## 7. Plan review findings' — findings live in the report, never in the PRD
+CHANGE code=todos-renumbered ref='## 8. Todos' detail=renumbered to '## 7. Todos' — seven sections after the findings move
+SUMMARY shape=v5 changes=10 warnings=0 result=migrated mode=write
+SUMMARY shape=v5.4 checks=1,2,3,4,5,6 failures=0

@@ -52,6 +52,7 @@ Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from T
 |---|---|---|---|
 | intake (all modes) | Run `/plan-pm` when ready to turn the backlog into a PRD | Answer the open question(s), then re-run `/intake` | Fix the stated blocker, then re-run `/intake` |
 | plan-pm (default / --sub) | Run `/plan-em` now | Resolve each flagged decision in `<prd>`, then run `/plan-em` | Provide the missing input named above, then re-run `/plan-pm` |
+| plan-pm --update | Nothing to do — you're done. | Resolve each skipped or placeholder target named above, then re-run `/plan-pm --update <prd>` | Fix the gate failure in `<prd>`, then re-run `/plan-pm --update <prd>` |
 | plan-em — plan wave | Run `/plan-em <prd>` again to start the build wave | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again for the build wave | Provide the missing input named above, then re-run `/plan-em <prd>` |
 | plan-em — fused wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` (it resumes at the build half) |
 | plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` |

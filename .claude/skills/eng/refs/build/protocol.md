@@ -141,6 +141,8 @@ RUN_ID=build-$(date +%s)
 "$S" --start --phase eng-build --run-id "$RUN_ID" --total <ticket count>
 ```
 
+**Plain checkpoint ticks, no watch loop.** This protocol builds one packet with one agent: it fans out no leaf wave, so there is nothing to register and nothing to poll, and the dispatch-and-watch loop of `../../../shared/refs/agent-watch.md` does **not** apply here. Its checkpoints are the ones already in the numbered steps — a ticket going green (step 4d), the full-suite gate (step 5), the reviewer's return (step 5a) — each pre-announced where it can outlast the interval. The single reviewer subagent at step 5a is one foreground spawn, not a wave: pre-announced and ticked on return, never registered and never polled. Should a future revision fan out parallel packet leaves from here, that fan-out — and only that fan-out — adopts the loop.
+
 0. **Cross-check the tickets exist.** Before reading any file: every assigned row resolves to an F-ID, and each of those F-IDs has a `### F<n>` block under `## Todos — <Agent Name>` (tickets, or the explicit empty-work sentinel). A missing row or a missing ticket block is a blocking gap — surface via `AskUserQuestion` and do not proceed until resolved. Do not guess intent; `plan-review` may have edited the table after the tickets were written.
    *(The pointer cross-check this step used to run is retired with v5.4's Execution-steps column. Tickets are found by F-ID under `## Todos` and nowhere else — there is no pointer left to disagree with them.)*
 

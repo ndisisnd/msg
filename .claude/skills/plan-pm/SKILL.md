@@ -7,7 +7,7 @@ description: >
   features/planned/prd-[n]-[feature-slug]/. The requirements interview lives in /intake now,
   not here. Pauses ONLY for batched open questions the draft couldn't resolve and for
   breaking/critical touches. Refuses requests that would skip the PRD stage entirely.
-argument-hint: "[#<n> | --sub <prd-path>]"
+argument-hint: "[#<n> | --sub <prd-path> | --update <prd|--all>]"
 allowed_tools:
   - AskUserQuestion
   - Bash
@@ -25,11 +25,12 @@ allowed_tools:
 
 **Invoke**: `/plan-pm`. With no args it lists the `INTAKE.md` backlog and asks which row to plan.
 
-- Slash commands: `/plan-pm`, `/plan-pm #<n>` (plan a specific intake row), `/plan-pm --sub [parent PRD path | number]`
+- Slash commands: `/plan-pm`, `/plan-pm #<n>` (plan a specific intake row), `/plan-pm --sub [parent PRD path | number]`, `/plan-pm --update [prd path | number | --all]`
 - Natural language: "plan this idea", "draft a PRD", "write the PRD for the streaks feature", "turn backlog item 3 into a PRD"
 - Natural language (**sub-PRD**): "create a sub-PRD", "more changes to PRD 2", "follow-up fixes for this PRD", "spin off a sub-PRD" — route to the `--sub` mode in the § Sub-PRD mode section below.
+- Natural language (**update**): "migrate this PRD to the new template", "update the PRDs to the new style", "bring PRD 3 up to date with the template" — route to the § Update mode section below.
 
-**Modes:** default (autonomous top-level PRD from an intake row) and `--sub` (a numbered follow-up nested under an existing parent PRD). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first; all other steps run identically.
+**Modes:** default (autonomous top-level PRD from an intake row), `--sub` (a numbered follow-up nested under an existing parent PRD), and `--update` (maintenance on PRDs that already exist). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first; all other steps run identically. `--update` replaces the five-step protocol entirely.
 
 **Every PRD comes from an `INTAKE.md` row — there is no other entry path.** Prose handed straight to plan-pm is captured into the ledger first (Step 1 calls `/intake` in capture mode), then planned from the row that comes back. Nothing is drafted against a row that does not exist.
 
@@ -54,11 +55,22 @@ Before Step 1, stat-check and read the following in parallel via `Bash`. Written
 
 A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) capturing extra changes/fixes to an existing parent PRD, nested inside the parent's folder, sharing the parent's branch. When `--sub` is present — flag or natural-language trigger — read `refs/protocol-sub.md` first and apply its deltas before Step 1 emits; every other step runs unchanged.
 
+## Update mode (`--update`)
+
+`--update` converges a PRD that already exists onto the current template — the one deliberate, user-invoked exception to the rule that nothing on disk is ever rewritten. Read `refs/protocol-update.md` and follow it end to end; **the five-step protocol below does not run in this mode.** It takes one PRD (path or number) or `--all`.
+
+Two things this mode is not:
+
+- **It writes no `INTAKE.md` row and reads none.** The intake-only rule governs where a PRD's *idea* comes from, and an update introduces no idea — this is maintenance on an existing artifact. Explicit carve-out; the hard refusal against skipping the PRD stage is untouched.
+- **It changes nothing about how PRDs are read.** Every other skill still normalises the old shape in memory, and no writer emits it. The read path is exactly as it was.
+
+The run is two layers: `.claude/scripts/script-prd-update.py` does the mechanical migration (frontmatter mapping, inline findings moved out to `reports/`, section renumbering), then the model does the style pass (§5 bullets → the four-column table, §1 back to its three bullets). It finishes on `script-prd-shape.py --checks 1,2,3,4,5,6` — check 6 is opt-in and requested only here, so fresh-draft gates keep running 1–5.
+
 ## Step-by-step protocol
 
 Follow `refs/protocol-pm.md` end-to-end — it owns the steps, their order, and their outputs.
 
-**Closing message (all modes, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output. Two `What happened` rows are **mandatory** on every completed run: the PRD path, written verbatim so it can be copy-pasted, and `Open questions left: <n>` counted from the drafted §5. That count drives the protocol deterministically — `0` ⇒ 🟢, `>0` ⇒ 🟡. The one-line "what this run did" slot may run to 2–3 lines here, summarising the feature drafted. Take the next step from the registry's plan-pm row; never compose it.
+**Closing message (default / `--sub`, every outcome; `--update` closes per `refs/protocol-update.md` § Step U5):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's termination output. Two `What happened` rows are **mandatory** on every completed run: the PRD path, written verbatim so it can be copy-pasted, and `Open questions left: <n>` counted from the drafted §5. That count drives the protocol deterministically — `0` ⇒ 🟢, `>0` ⇒ 🟡. The one-line "what this run did" slot may run to 2–3 lines here, summarising the feature drafted. Take the next step from the registry's plan-pm row; never compose it.
 
 **Harness incidents (all modes):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
 
@@ -85,6 +97,8 @@ PRDs written before v5.4 carry the old enum (`product` → `eng` → `done`, plu
 
 - `refs/protocol-pm.md` — end-to-end five-step autonomous protocol; followed from § Step-by-step protocol
 - `refs/protocol-sub.md` — the `--sub` deltas layered over that protocol; read from § Sub-PRD mode when `--sub` is set
+- `refs/protocol-update.md` — the standalone `--update` protocol (target resolution → L1 → style pass → checks 1–6 gate → close); read from § Update mode when `--update` is set, and it replaces the five-step protocol rather than layering over it
+- `.claude/scripts/script-prd-update.py` — deterministic v5 → v5.4 PRD migrator (L1); called per target in `--update` Step U2
 - `.claude/scripts/script-prd-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
 - `refs/template-prd.md` — structured PRD format (seven sections) and its drafting rules, including the §3 F-ID contract and the §4 error-case format; used to initialize the file in Step 3
 - `.claude/scripts/script-prd-shape.py` — deterministic PRD shape validator; call at the end of Step 3 Part 4

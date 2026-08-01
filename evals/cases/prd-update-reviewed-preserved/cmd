@@ -1,0 +1,13 @@
+# THE CERTIFICATION STAMP SURVIVES — a structure-only migration never
+# decertifies a contract. certified.md was tuned on both waves (yes + yes) and
+# fuses to `reviewed: yes`; stamped.md was already stamped `reviewed: yes` and
+# keeps it even though both legacy tune flags read `no`. Both also exercise the
+# rest of the mapping (depends_on → deps, status remap, a placeholder-only
+# findings section dropped rather than written out as a report) and must clear
+# the full 1–6 gate afterwards.
+python3 "$REPO/.claude/scripts/script-prd-update.py" certified.md
+python3 "$REPO/.claude/scripts/script-prd-update.py" stamped.md
+grep -H '^\(status\|reviewed\|deps\):' certified.md stamped.md
+[ -d reports ] && echo "reports/ created" || echo "no reports/ written"
+python3 "$REPO/.claude/scripts/script-prd-shape.py" certified.md --checks 1,2,3,4,5,6
+python3 "$REPO/.claude/scripts/script-prd-shape.py" stamped.md --checks 1,2,3,4,5,6

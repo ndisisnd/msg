@@ -1,0 +1,6 @@
+SUMMARY shape=v5.4 changes=0 warnings=0 result=no-op mode=write
+FAIL check=6 code=loose-question ref=§5 detail='- Does the window follow the user-profile timezone or the br' is a loose bullet — every open question is a row of the §5 table
+FAIL check=6 code=missing-questions-table ref=§5 detail=section carries no markdown table — §5 is the # | question | answer | status table, with Status derived from the Answer cell
+FAIL check=6 code=objective-bullet-count ref=§1 detail=§1 is exactly 3 bullets (**Who** / **What changes** / **Success signal**); found 5 — anything else belongs in §5 as an Addressed row, or is dropped
+SUMMARY shape=v5.4 checks=6 failures=3
+SUMMARY shape=v5.4 checks=1,2,3,4,5,6 failures=0

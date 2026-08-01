@@ -1,0 +1,8 @@
+# IDEMPOTENCY — the migrator is a converger, not a rewriter. The first run is
+# silenced (goldened by prd-update-v5-to-v54); the second run on the same file
+# must report nothing, exit 0, and leave every byte of the PRD and the extracted
+# findings report identical.
+python3 "$REPO/.claude/scripts/script-prd-update.py" prd-9-grace-window/prd-9-grace-window.md >/dev/null
+cp -R prd-9-grace-window .snapshot
+python3 "$REPO/.claude/scripts/script-prd-update.py" prd-9-grace-window/prd-9-grace-window.md
+diff -r .snapshot prd-9-grace-window

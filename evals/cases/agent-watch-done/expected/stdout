@@ -1,0 +1,4 @@
+WATCH_DONE=leafB
+WATCH_DONE=ghost
+STALL leafA idle 16m
+WATCH_SUMMARY=0/0/0/1

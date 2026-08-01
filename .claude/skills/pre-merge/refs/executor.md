@@ -206,17 +206,48 @@ Smoke's default-liveness floor means the check can never pass vacuously
 Run waves **in order**. For every edge `A depends_on B`, B fully completes before
 A starts — true under every flag combination. Within a wave:
 
-- **Independent components run concurrently** as parallel `Agent` subagents. `load` and `perf` run **isolated** (not overlapping each other or
-  other components) so contention can't skew their numbers (`../_common.md`).
+- **Independent components run concurrently** as parallel `Agent` subagents,
+  **dispatched backgrounded and watched** (`../../shared/refs/agent-watch.md`): the
+  wave's subagents go out in one message with `run_in_background: true`, and the
+  executor keeps the turn and polls until they return, rather than blocking for the
+  length of the wave. `load` and `perf` run **isolated** (not overlapping each other or
+  other components) so contention can't skew their numbers (`../_common.md`) —
+  isolation is a scheduling rule and the watch does not touch it; an isolated
+  component is simply a wave of one, dispatched and polled the same way.
 - **Dependent components never run concurrently** — a dependent waits for its
   whole `depends_on` set.
 
-**Heartbeat tick at each wave boundary.** After every wave completes, tick
+**Heartbeat + watch across the wave** (`../../shared/refs/status-heartbeat.md`,
+`../../shared/refs/agent-watch.md` — those own the loop, the thresholds and the
+escalation ladder; this section only wires them up). Pre-announce the wave before
+dispatching it; when it carries a known-long component (catalog `cost: expensive` —
+`e2e`, `perf`, `load`, `regression`'s accumulated run), the `--next` names it and its
+expected duration, so the silence is bounded rather than mysterious. Then register
+each component as it is spawned:
+
+```bash
+W=.claude/scripts/script-agent-watch.sh; [ -f "$W" ] || W="$HOME/.claude/scripts/script-agent-watch.sh"
+"$W" --register --run-id premerge-<epoch> --leaf <check id> \
+     --evidence ".pre-merge/<ts>/<check>.json" --evidence ".pre-merge/<ts>/<check>.log" --label "<check>"
+```
+
+The per-check **result report and its log** (§4) are the evidence globs — every
+component writes both on every run, pass, fail or skip, so a component's liveness is
+measured against the exact artifact it is producing. `--run-id` is the same
+`premerge-<epoch>` fixed at §1; never mint a second one.
+
+On each poll wake, in the contract's order: fold every component that returned since the
+last wake in as a `--note` carrying its verdict (§4) and `--done` it in the watch state,
+`--check`, then `--tick --step "wave <n> — <k>/<m> checks"`. §4's per-report note is
+unchanged in content — it now rides the poll wake that first observes the report rather
+than a checkpoint of its own. The wave boundary still ticks
 (`--tick --run-id premerge-<epoch> --step "wave <n> done" --done <n components complete>`)
-— the natural point where control returns between Kahn levels. When the next
-wave carries a known-long component (catalog `cost: expensive` — `e2e`, `perf`,
-`load`, `regression`'s accumulated run), that tick's `--next` names it and its
-expected duration, so the silence is bounded rather than mysterious.
+as the natural point where control returns between Kahn levels. A `NOTICE` banks a
+note, a `WARN` adds `--finding low`, and a `STALL` adds `--finding high` plus the one
+visible line naming the check, its idle age and the human's options. **The watch is
+observational**: a stalled check is reported, never stopped, never failed, and never
+graded — it produces no result report, no finding of its own beyond the heartbeat's,
+and no change to the wave order or the verdict.
 
 **Only-on-green tier.** `regression`'s test-authoring sub-step **and the C23 sandbox
 provisioning (§3b)** run only after the correctness
@@ -234,7 +265,9 @@ not restate it. In one line: a failing `critical` component aborts the rest of t
 pipeline, a failing `blocking` component fails the verdict and blocks its dependents
 while independent branches finish, and `advisory`/`config-driven` never aborts. The
 **critical class is `{mechanical, security, migration}`** — those three, and only
-those three, abort a run.
+those three, abort a run. **A stalled component is not a failed one** — the watch above
+reports idleness and nothing else, so fail-fast, criticality and the abort set read
+exactly as they did before it existed.
 
 A component marked `blocked` (its dependency failed) is not run; it writes a
 `skipped` result report with `skip_reason: "blocked:<dep>"` (§4).
@@ -461,11 +494,13 @@ runtime artifact. This is the `result` section of the one check-report schema (`
   "the environment hiccuped on something we didn't change" and "nothing has verified
   the thing we are shipping".
 - Mandatory-component reports are always written even when they degrade (`security` with no scanner → its `/cook` pass result).
-- **Heartbeat tick at each report write.** Immediately after this write, tick
-  (`--tick --run-id premerge-<epoch> --note "<check> <verdict>" --done <n components complete>`)
-  — the write is already one-per-component, making it the tick's natural site,
-  no step added to create it. When the report's `findings[]` graded this check
-  `blocker` or `high`, add `--finding <severity>` once per such finding.
+- **Heartbeat note per report.** Each report is worth one
+  `--note "<check> <verdict>"` on the heartbeat, with
+  `--done <n components complete>`; when the report's `findings[]` graded this check
+  `blocker` or `high`, add `--finding <severity>` once per such finding. The report
+  write is already one-per-component, so it is the note's natural site and no step is
+  added to create it — the tick that carries it is the §3 poll wake that first sees the
+  report land (or, for a component the executor ran in the foreground, the write itself).
 
 These per-check result reports are the executor's **single uniform aggregation
 input** — the verdict and the universal report are both *derived* from them, never
@@ -592,11 +627,13 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
   selection-capable check's line also carries `selected/total`, the tier, and any
   `fallback_reason` (§3c.3); on a full or selection-off run the lines are
   unchanged.
-- **Heartbeat ends here.** After the terminal issue summary and run report are
-  written, call `--end --run-id premerge-<epoch> --outcome "<verdict>"` —
-  before the verdict JSON is emitted. The verdict JSON (§5b) remains stdout's
-  final machine emission, byte-identical whether the heartbeat ran or was
-  disabled/quiet.
+- **Heartbeat and watch end here.** After the terminal issue summary and run report are
+  written, call `--end --run-id premerge-<epoch> --outcome "<verdict>"` on the tick
+  script and `--close --run-id premerge-<epoch>` on the watch script — before the verdict
+  JSON is emitted. **Both close on every exit path after §1's `--start`**, not just a
+  completed run: a critical abort (§3), an unresolvable env degrade, a refusal reached
+  mid-run. The verdict JSON (§5b) remains stdout's final machine emission,
+  byte-identical whether the heartbeat ran or was disabled/quiet.
 
 ## Contract stability (load-bearing)
 

@@ -1,0 +1,3 @@
+OK leafA 2m
+STALL leafB idle 16m
+WATCH_SUMMARY=1/0/0/1

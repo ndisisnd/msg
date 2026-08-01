@@ -1,0 +1,14 @@
+# B1 — exit 2 is reserved for genuine caller usage errors. Each guard below is
+# asserted to exit 2 and the case only reaches its own exit 0 if all of them
+# did: unknown flag, no verb, two verbs, missing --run-id, missing --leaf on
+# --register and on --done, non-integer --now. Usage text goes to stderr.
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+fail() { echo "expected exit 2: $*"; exit 1; }
+try() { "$S" "$@" >/dev/null 2>&1; [[ $? -eq 2 ]] || fail "$@"; }
+try --check --run-id u1 --bogus-flag
+try --run-id u1
+try --check --done --run-id u1
+try --check
+try --register --run-id u1
+try --done --run-id u1
+try --check --run-id u1 --now not-an-epoch
