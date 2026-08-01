@@ -2,7 +2,19 @@
 
 What's new for you, release by release.
 
-## v5.4.0 — 2026-08-01
+## v5.5.0 — 2026-08-01
+
+> When a run fans work out to parallel agents, it no longer goes dark until they all come back. You now get a status update roughly every five minutes for the whole stretch, and every agent is watched for signs of life: one that has produced nothing is mentioned at 5 minutes, flagged at 10, and declared stuck at 15 — at which point the run asks you whether to stop it or let it ride. Nothing is ever killed automatically; that call is always yours.
+
+### ✨ New
+- Live progress through parallel work. During planning waves and the pre-merge pipeline you see a short update on a real five-minute rhythm — elapsed time, what finished since the last update, what's running now, and anything that needs your attention — instead of one report whenever the whole wave happens to end.
+- A watchdog on every parallel agent. A quiet agent is measured against the evidence of its work, so a stuck one is called out while you can still do something about it, with a plain question: stop it, or let it ride?
+- `/plan-pm --update` brings a PRD written under an older template up to the current shape — one document or all of them at once. It's maintenance-safe by design: acceptance criteria, feature numbering, and everything engineering wrote are never touched, and re-running it on an already-current PRD changes nothing at all.
+
+### 📈 Improved
+- A stuck agent no longer looks identical to a slow one. Before, a wave that never ended gave you no way to tell the difference; now the difference is measured and reported, with the decision left to you.
+- The watchdog's timing is tunable per project, and it can be switched off entirely for a run or a repo. The one thing no setting can do is auto-stop an agent — that option deliberately does not exist.
+- The bundled sample projects have been brought up to the current PRD template, so they read as current examples rather than leftovers from an older format.
 
 > Build sessions get shorter because effort now scales with feature size. A medium feature plans and builds in a single run instead of two, the documents the pipeline writes are roughly half their old size, and everything it used to write "just in case" is now written only when someone actually reads it. Every run also leaves a timing log, so "where did the hour go?" finally has a measured answer.
 

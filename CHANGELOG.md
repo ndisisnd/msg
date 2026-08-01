@@ -2,6 +2,10 @@
 
 ## 2026-08-01
 
+### [137] — Release v5.5.0
+
+- `RELEASES.md`: Added — v5.5.0 notes covering [131]–[136] (subagent stall watchdog with the 5/10/15 ladder and no auto-stop, backgrounded-wave dispatch giving the heartbeat a real 5-minute cadence, the shared agent-watch contract, `plan-pm --update` PRD migration, converged sample PRDs, docs).
+
 ### [136] — v5.5 docs
 
 - `README.md`: Added — `/plan-pm --update` skill-table row; run-visibility FAQ paragraph on the stall watchdog (mentioned at 5m, flagged at 10m, assumed stuck at 15m; nothing is ever killed automatically).
