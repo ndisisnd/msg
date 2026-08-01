@@ -1,0 +1,16 @@
+# B1 — the four idle tiers on the fake clock. Two leaves are registered at T0
+# with no evidence globs, so their only liveness signal is the register ts and
+# their idle age is exactly the elapsed time. Checks at +3/+6/+11/+16m walk the
+# default 5/10/15 ladder (OK -> NOTICE -> WARN -> STALL) and pin the
+# WATCH_SUMMARY counter line at each step. The last check sets
+# MSG_WATCH_THRESHOLD=60 to prove the no-mid-run-drift rule: thresholds are
+# resolved once at the first --register, so a late env change cannot move them
+# and the leaf is still STALL, not OK.
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+"$S" --register --run-id w1 --leaf leafA --now 1754000000
+"$S" --register --run-id w1 --leaf leafB --now 1754000000
+"$S" --check --run-id w1 --now 1754000180
+"$S" --check --run-id w1 --now 1754000360
+"$S" --check --run-id w1 --now 1754000660
+"$S" --check --run-id w1 --now 1754000960
+MSG_WATCH_THRESHOLD=60 "$S" --check --run-id w1 --now 1754001020

@@ -1,0 +1,10 @@
+# B1 — MSG_WATCH_THRESHOLD=0 disables the watch for the run: --register stores
+# a disabled marker and prints nothing, and every later --check prints only the
+# zeroed summary regardless of elapsed time. Nothing exits non-zero.
+export MSG_WATCH_THRESHOLD=0
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+"$S" --register --run-id w5 --leaf leafA --now 1754000000
+"$S" --register --run-id w5 --leaf leafB --now 1754000000
+"$S" --check --run-id w5 --now 1754000960
+"$S" --done --run-id w5 --leaf leafA
+"$S" --close --run-id w5

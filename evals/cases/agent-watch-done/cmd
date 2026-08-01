@@ -1,0 +1,9 @@
+# B1 — --done drops a returned leaf from the watch set. After leafB is marked
+# done, the +16m check reports only leafA and the summary counts one leaf, not
+# two. A --done for a leaf that was never registered is a no-op at exit 0.
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+"$S" --register --run-id w3 --leaf leafA --now 1754000000 >/dev/null
+"$S" --register --run-id w3 --leaf leafB --now 1754000000 >/dev/null
+"$S" --done --run-id w3 --leaf leafB
+"$S" --done --run-id w3 --leaf ghost
+"$S" --check --run-id w3 --now 1754000960

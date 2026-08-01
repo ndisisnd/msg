@@ -28,9 +28,17 @@ answers `REPORT` or `QUIET`. The guarantee is therefore:
 
 Checkpoints belong wherever control returns anyway: a wave boundary, a per-check
 result-report write, a completed ticket, a numbered protocol step, a returning
-subagent, a poll iteration. **Never insert a step, a command, or a delay solely to
-create a checkpoint** — a heartbeat that changes the shape of the run has cost more
-than it bought.
+subagent, a **poll-loop wake**. **Never insert a step, a command, or a delay solely
+to create a checkpoint** — a heartbeat that changes the shape of the run has cost
+more than it bought.
+
+The poll wake is the checkpoint that tightens the guarantee. When a wave is
+dispatched backgrounded and polled — the standard shape for leaf fan-out, per
+[`agent-watch.md`](agent-watch.md) — the orchestrator regains control roughly every
+interval for the whole length of the wave. So for the duration of a wave:
+
+> reports land within ~1 poll interval of when they are due — effectively a real
+> 5-minute cadence, not one report per wave.
 
 ## The call surface
 
@@ -85,6 +93,13 @@ status: <ticket-or-packet-id> <done|blocked> — <≤8-word summary>
 The orchestrator ticks once per returning leaf and folds that line in as a
 `--note`. This is the only sanctioned path from a subagent into the heartbeat.
 
+**One exception, and only one.** When a watched leaf has been idle past the stall
+threshold, the orchestrator emits a single visible line naming the leaf, its idle
+age, and the human's options — out of band, between reports. It is defined in
+[`agent-watch.md`](agent-watch.md) § The stall line, and it is informational: it
+asks a human to decide, and never stops anything itself. No other out-of-band line
+is sanctioned.
+
 ## Long blocking steps
 
 A single component — a full test suite, an e2e run, a deploy — can outlast the
@@ -98,6 +113,12 @@ interval with no checkpoint inside it. Two mitigations, in order of preference:
    interval — each poll is a legitimate checkpoint carrying real content
    (`now: unit — 412/900 tests`). Use this only where the log is genuinely
    parseable; a fabricated progress number is worse than silence.
+
+For **leaf waves** this is no longer a mitigation — background-and-poll is the
+standard dispatch shape, with the loop, the watch calls and the escalation ladder
+specified in [`agent-watch.md`](agent-watch.md). It stays a mitigation for a single
+long *foreground* command, which has no leaves to watch and nothing to poll but its
+own log.
 
 ## Cadence resolution
 

@@ -1,0 +1,8 @@
+# L1 MIGRATION — a full v5-shape PRD (old frontmatter enum, eight sections with
+# inline plan review findings) is converged to v5.4 by the deterministic
+# migrator: keys renamed/dropped/fused, status remapped, the missing `intake`
+# recovered by matching the PRD id against the INTAKE.md ledger, the findings
+# moved out to reports/, and `## 8. Todos` renumbered to `## 7.`. The converged
+# file then passes the full gate, style check included.
+python3 "$REPO/.claude/scripts/script-prd-update.py" prd-9-grace-window/prd-9-grace-window.md
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd-9-grace-window/prd-9-grace-window.md --checks 1,2,3,4,5,6

@@ -2,6 +2,41 @@
 
 ## 2026-08-01
 
+### [136] — v5.5 docs
+
+- `README.md`: Added — `/plan-pm --update` skill-table row; run-visibility FAQ paragraph on the stall watchdog (mentioned at 5m, flagged at 10m, assumed stuck at 15m; nothing is ever killed automatically).
+- `ARCHITECTURE.md`: Added — § Run visibility paragraph on backgrounded waves, the poll loop, the 5/10/15 ladder, and the no-auto-stop rule; pointers to `agent-watch.md` and `policies.agent_watch`.
+
+### [135] — sample PRDs converged via `--update` (v5.5 Part A acceptance)
+
+Ran the full `--update` pass (L1 + L2) on prd-100..103. L1 was a no-op (frontmatter already v5.4); the style pass converted §5 bullet lists to the four-column table in all four and relocated extra §1 constraint bullets to §5 as `Addressed` rows (platform bullets deleted — platform is detected at run time). All four now pass `script-prd-shape.py --checks 1,2,3,4,5,6` with 0 failures. §3/§4/§6/§7 and every `Engineering —`/`Todos —` block byte-untouched. Closes the v5.0.1 "prd-100..103 repair-or-accept" item. Note: `features/` is gitignored, so the converged samples exist on disk only and cannot be committed as evidence.
+
+### [134] — `plan-pm --update`: the PRD template/style migrator (v5.5 Part A)
+
+- `.claude/scripts/script-prd-update.py`: Added — deterministic L1 migrator, v5 → v5.4: `depends_on`→`deps`, drops `module`/`platform`/`affects`, fuses the two tuned stamps into `reviewed`, remaps the status enum (`retired` → skip + warn), recovers missing `intake:` from the INTAKE.md ledger (never invents), moves inline plan-review findings to `reports/`, renumbers `## 8. Todos` → `## 7.`. `--dry-run`; one CHANGE/WARN line per edit; exit 0 no-op · 1 migrated · 2 skipped/error; idempotent.
+- `script-prd-shape.py`: Added — opt-in check 6 "style" (§5 four-column table, §1 exactly three labelled bullets). Not in the default set; every existing gate byte-identical.
+- `plan-pm/refs/protocol-update.md`: Added — U1–U5: resolve targets (path | number | `--all`) → L1 → four L2 style edits → `--checks 1,2,3,4,5,6` gate → closing message. Invariants hard: §3/§4 verbatim, F-IDs frozen, downstream sections untouched, `reviewed: yes` survives structure-only migration. A lingering `[USER: intake row #]` placeholder is 🟡, not 🔴.
+- `plan-pm/SKILL.md`: Added — `--update` usage, NL triggers, § Update mode (no INTAKE row — maintenance carve-out; read path unchanged), argument-hint, References.
+- `shared/refs/closing-message.md`: Added — one registry row for `plan-pm --update`.
+- Evals: 4 new `prd-update-*` cases (full v5→v5.4 migration, idempotency, style gate, `reviewed` preservation).
+
+### [133] — subagent waves dispatch backgrounded and watched (v5.5 Part B, adopters)
+
+- `plan-em/refs/protocol-team.md`: Added — § Wave dispatch (backgrounded + watched): every fan-out (plan wave, build wave, both fused halves) spawns leaves `run_in_background: true`, registers each with its evidence globs, and polls; the per-returning-leaf tick lives inside the loop; `--close` joins `--end` on every exit path including § Hard failures. The "orchestrator is blocked while its leaves run" shape is gone. Leaf contract, collision graph, model tiering, review coverage untouched.
+- `pre-merge/refs/executor.md`: Changed — component waves same flip; evidence globs are each check's result report + log; §4's per-report note now rides the poll wake that first observes the report; a stalled component is explicitly not a failed one — fail-fast, criticality and the abort set unchanged; heartbeat and watch both close on every exit path. `load`/`perf` isolation unchanged (an isolated component is a wave of one).
+- `eng/refs/build/protocol.md`: Added — one paragraph stating this protocol fans out no leaf wave and keeps plain checkpoint ticks; the step-5a reviewer is a single foreground spawn, never registered or polled.
+- merge: audited, not edited — zero subagent fan-out across all 12 files; its long steps are foreground commands, so it keeps checkpoint ticks + pre-announce.
+
+### [132] — the agent-watch contract and heartbeat amendments (v5.5 Part B, refs)
+
+- `shared/refs/agent-watch.md`: Added — the cross-skill dispatch-and-watch contract: the five-step loop, the four-verb call surface, thresholds resolved once at first `--register` (`MSG_WATCH_THRESHOLD` → `policies.agent_watch` → 5/10/15), and the escalation ladder — NOTICE banks a note, WARN adds `--finding low`, STALL adds `--finding high` plus the one sanctioned visible line asking the human ("Stop the task, or let it ride?"). No auto-stop exists in any configuration.
+- `shared/refs/status-heartbeat.md`: Changed — poll-loop wake added as a first-class checkpoint with the tightened guarantee (during a backgrounded wave, reports land within ~1 interval of due — effectively real 5-minute cadence); background-and-poll is the standard shape for leaf waves; the persisted-STALL line documented as the single sanctioned out-of-band exception to "only the orchestrator speaks".
+- `shared/refs/policy-schema.md`: Added — `policies.agent_watch {enabled, notice_minutes, warn_minutes, stall_minutes}` in the `status_cadence` format, with the explicit statement that the four keys are the whole schema and there is deliberately no `action` key.
+
+### [131] — `script-agent-watch.sh`: the subagent stall watchdog (v5.5 Part B, script)
+
+The sole owner of "is a spawned leaf still producing evidence of work?" arithmetic. Four verbs (`--register` with repeatable `--evidence` globs, `--check` emitting one `OK`/`NOTICE`/`WARN`/`STALL` line per leaf plus `WATCH_SUMMARY=<ok>/<notice>/<warn>/<stall>`, `--done`, `--close`); liveness = freshest of evidence-glob mtimes → newest HEAD commit since register → register ts; thresholds frozen at first `--register` (env → policy → 5/10/15 defaults, ordering repaired to defaults with one stderr note); flat KEY=VALUE state under `.claude/msg/cache/watch/`; strictly observational — no kill, no signal, no `action` key; missing/corrupt state degrades to `WATCH_SUMMARY=0/0/0/0` + exit 0, exit 2 only for caller usage errors. Mirrors `script-status-tick.sh`'s discipline throughout. 7 new `agent-watch-*` eval cases (fake clock): the full tier ladder, no-mid-run threshold drift, fresh-evidence reset, `--done` removal, corrupt state, the disable switch, env scaling + ordering repair, usage guards. Suite green at 98/98.
+
 ### [130] — Release v5.4.0
 
 - `RELEASES.md`: Added — v5.4.0 notes covering [118]–[128] (slim PRD schema, external findings ledger, tiered eng plans, 3-column exec table with derived Files, fused medium wave, packet fast-path, batched review, write slimming, timing instrumentation, GUI ledger read, Todos-umbrella validator fix).

@@ -1,0 +1,30 @@
+CHANGE code=key-dropped ref=frontmatter detail=`module: tasks` removed — v5.4 has no module field
+CHANGE code=key-dropped ref=frontmatter detail=`platform: web` removed — v5.4 has no platform field
+CHANGE code=key-dropped ref=frontmatter detail=`affects: []` removed — v5.4 has no affects field
+CHANGE code=deps-renamed ref=frontmatter detail=`depends_on: [prd-11-task-list]` → `deps: [prd-11-task-list]` — one dependency key
+CHANGE code=status-mapped ref=frontmatter detail=`status: done` → `status: complete` — v5.4 lifecycle enum
+CHANGE code=key-dropped ref=frontmatter detail=`product-tuned: yes` removed — folded into the single `reviewed` stamp
+CHANGE code=key-dropped ref=frontmatter detail=`eng-tuned: yes` removed — folded into the single `reviewed` stamp
+CHANGE code=reviewed-fused ref=frontmatter detail=`reviewed: no` → `reviewed: yes` — fused with the tune stamps
+CHANGE code=findings-dropped ref='## 7. Plan review findings' detail=section held only the reserved placeholder — removed, nothing to keep
+CHANGE code=todos-renumbered ref='## 8. Todos' detail=renumbered to '## 7. Todos' — seven sections after the findings move
+SUMMARY shape=v5 changes=10 warnings=0 result=migrated mode=write
+CHANGE code=key-dropped ref=frontmatter detail=`module: tasks` removed — v5.4 has no module field
+CHANGE code=key-dropped ref=frontmatter detail=`platform: web` removed — v5.4 has no platform field
+CHANGE code=key-dropped ref=frontmatter detail=`affects: []` removed — v5.4 has no affects field
+CHANGE code=deps-renamed ref=frontmatter detail=`depends_on: []` → `deps: []` — one dependency key
+CHANGE code=status-mapped ref=frontmatter detail=`status: product` → `status: backlog` — v5.4 lifecycle enum
+CHANGE code=key-dropped ref=frontmatter detail=`product-tuned: no` removed — folded into the single `reviewed` stamp
+CHANGE code=key-dropped ref=frontmatter detail=`eng-tuned: no` removed — folded into the single `reviewed` stamp
+CHANGE code=findings-dropped ref='## 7. Plan review findings' detail=section held only the reserved placeholder — removed, nothing to keep
+CHANGE code=todos-renumbered ref='## 8. Todos' detail=renumbered to '## 7. Todos' — seven sections after the findings move
+SUMMARY shape=v5 changes=9 warnings=0 result=migrated mode=write
+certified.md:deps: [prd-11-task-list]
+certified.md:status: complete
+certified.md:reviewed: yes
+stamped.md:deps: []
+stamped.md:status: backlog
+stamped.md:reviewed: yes
+no reports/ written
+SUMMARY shape=v5.4 checks=1,2,3,4,5,6 failures=0
+SUMMARY shape=v5.4 checks=1,2,3,4,5,6 failures=0

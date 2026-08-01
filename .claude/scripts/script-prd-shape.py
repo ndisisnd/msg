@@ -8,11 +8,12 @@ from depending on the model having read it carefully. Run at the end of
 plan-pm's Step 3 (Part 5), where the fix is cheap.
 
 Usage:
-  script-prd-shape.py <prd.md> [--checks 1,2,3,4,5]
+  script-prd-shape.py <prd.md> [--checks 1,2,3,4,5,6]
 
-  --checks   comma-separated subset of 1..5. Default: all five.
+  --checks   comma-separated subset of 1..6. Default: 1,2,3,4,5 — check 6 is
+             opt-in, so every existing gate keeps running exactly as before.
 
-The five checks:
+The five default checks:
   1 sections   every canonical `## N. Title` present, correctly numbered, in
                canonical order, none missing, none extra-numbered.
   2 ftable     §3 carries the four canonical columns; every row has a non-empty
@@ -22,6 +23,15 @@ The five checks:
   4 reserved   the reserved sections carry their byte-exact placeholders, OR are
                genuinely populated by their owning skill. Never paraphrased.
   5 frontmatter every required key present with a legal value.
+
+The opt-in check:
+  6 style      the two places where the template's *shape* is prose-shaped and
+               so drifts silently: §5 carries the four-column `# / Question /
+               Answer / Status` table (not a bullet list), and §1 carries
+               exactly the three `**Who**` / `**What changes**` /
+               `**Success signal**` bullets and nothing else. Requested by
+               `plan-pm --update` as its convergence gate; never part of the
+               default set, so a fresh-draft gate is unchanged.
 
 Two shapes, auto-detected from the frontmatter (never from the body):
   v5.4  seven sections (findings moved to reports/review-prd-<n>-<slug>.md),
@@ -33,7 +43,7 @@ Two shapes, auto-detected from the frontmatter (never from the body):
         already on disk — nothing is ever rewritten into the new shape.
 
 Output (stdout, one record per line, machine-readable):
-  FAIL  check=<1-5> code=<slug> ref=<locator> detail=<free text to EOL>
+  FAIL  check=<1-6> code=<slug> ref=<locator> detail=<free text to EOL>
   SUMMARY shape=<v5.4|v5> checks=<list> failures=<n>
 
 Failure codes:
@@ -42,6 +52,8 @@ Failure codes:
   check 3  bad-fid · fid-gap · fid-duplicate
   check 4  placeholder-drift
   check 5  missing-key · bad-value
+  check 6  missing-questions-table · bad-questions-columns · loose-question ·
+           objective-bullet-count · objective-bullet-label
 
 Exit codes:
   0  shape is conformant
@@ -397,6 +409,62 @@ def check5(fm, shape):
                  f"value '{fm[key]}' must be a YAML flow list, e.g. [] or [prd-2-slug]")
 
 
+# ── check 6 — style (opt-in) ──────────────────────────────────────────────────
+# Checks 1–5 catch structural drift. These two rules are the places where the
+# template asks for a *shape* inside a section — a table in §5, three bullets in
+# §1 — and a hand-edited or pre-v5.4 PRD drifts out of them without ever failing
+# a structural check. Opt-in because it is the convergence gate for
+# `plan-pm --update`, not a bar a fresh draft has ever been held to.
+
+QUESTION_COLUMNS = ["#", "question", "answer", "status"]
+
+OBJECTIVE_BULLETS = ["**Who**", "**What changes**", "**Success signal**"]
+
+
+def check6(secs):
+    # §5 — the four-column open-questions table, never a bullet list.
+    block = section_body(secs, "open questions")
+    if block is None:
+        fail(6, "missing-questions-table", "§5", "no '## 5. Open questions' section")
+    else:
+        body = strip_examples(block)
+        headers, _ = md_table(body)
+        if headers is None:
+            fail(6, "missing-questions-table", "§5",
+                 f"section carries no markdown table — §5 is the "
+                 f"{' | '.join(QUESTION_COLUMNS)} table, with Status derived from "
+                 f"the Answer cell")
+        elif headers[:4] != QUESTION_COLUMNS:
+            fail(6, "bad-questions-columns", "§5",
+                 f"columns must be {' | '.join(QUESTION_COLUMNS)}; "
+                 f"found {' | '.join(headers)}")
+        for i, ln in enumerate(body):
+            s = ln.strip()
+            if re.match(r"^[-*]\s+\S", s):
+                fail(6, "loose-question", "§5",
+                     f"'{s[:60]}' is a loose bullet — every open question is a row of "
+                     f"the §5 table")
+                break
+
+    # §1 — exactly the three canonical bullets, in order.
+    block = section_body(secs, "product objective")
+    if block is None:
+        fail(6, "objective-bullet-count", "§1", "no '## 1. Product objective' section")
+        return
+    bullets = [l.strip() for l in strip_examples(block) if re.match(r"^\s*[-*]\s+\S", l)]
+    if len(bullets) != len(OBJECTIVE_BULLETS):
+        fail(6, "objective-bullet-count", "§1",
+             f"§1 is exactly {len(OBJECTIVE_BULLETS)} bullets "
+             f"({' / '.join(OBJECTIVE_BULLETS)}); found {len(bullets)} — anything else "
+             f"belongs in §5 as an Addressed row, or is dropped")
+    for got, want in zip(bullets, OBJECTIVE_BULLETS):
+        lead = re.sub(r"^[-*]\s+", "", got)
+        if not lead.startswith(want):
+            fail(6, "objective-bullet-label", "§1",
+                 f"bullet '{lead[:60]}' must open with '{want}' — the three labels are "
+                 f"fixed and ordered")
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def section_body(secs, want_lower):
@@ -423,9 +491,9 @@ def main():
     args = ap.parse_args()
 
     wanted = {c.strip() for c in args.checks.split(",") if c.strip()}
-    unknown = wanted - {"1", "2", "3", "4", "5"}
+    unknown = wanted - {"1", "2", "3", "4", "5", "6"}
     if unknown:
-        die(f"unknown check(s): {','.join(sorted(unknown))} (this script owns 1..5)")
+        die(f"unknown check(s): {','.join(sorted(unknown))} (this script owns 1..6)")
     if not wanted:
         die("--checks resolved to an empty set")
 
@@ -454,6 +522,8 @@ def main():
         check4(secs, shape)
     if "5" in wanted:
         check5(fm, shape)
+    if "6" in wanted:
+        check6(secs)
 
     for check, code, ref, detail in sorted(FAILURES, key=lambda f: (f[0], f[1], f[2])):
         print(f"FAIL check={check} code={code} ref={ref} detail={detail}")

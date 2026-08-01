@@ -1,0 +1,12 @@
+# B1 — fresh evidence resets the idle clock. leafA registers an evidence glob
+# at T0; a file matching it is written with mtime T0+14m. At T0+16m the leaf
+# would be STALL on register-ts alone, but the newest matching mtime wins, so
+# it is OK at 2m idle. leafB registers the same-shaped glob against a directory
+# nothing writes to and stays STALL — the two leaves in one golden show the
+# evidence lookup is per-leaf, not global.
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+mkdir -p work/a work/b
+"$S" --register --run-id w2 --leaf leafA --evidence "work/a/*.md" --label "packet A" --now 1754000000 >/dev/null
+"$S" --register --run-id w2 --leaf leafB --evidence "work/b/*.md" --now 1754000000 >/dev/null
+python3 -c "import os; open('work/a/out.md','w').write('x'); os.utime('work/a/out.md', (1754000840, 1754000840))"
+"$S" --check --run-id w2 --now 1754000960

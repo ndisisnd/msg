@@ -68,6 +68,7 @@ read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that s
     // branch_protection, staging_readiness → policy-schema-merge.md
     // test_selection                     → policy-schema-pre-merge.md
     // status_cadence                     → below, § policies.status_cadence
+    // agent_watch                        → below, § policies.agent_watch
   }
   // components[], source_signature, criticality_review → policy-schema-pre-merge.md
   // steps{}, staging_ready               → policy-schema-merge.md
@@ -161,6 +162,26 @@ Read only by `.claude/scripts/script-status-tick.sh`, once, at `--start` — abs
 unreadable or malformed falls through silently to the built-in default. **Not**
 read by `script-policy-read.py`, so no skill plumbs this key itself. Per-run
 override, precedence and the 2-minute clamp: `status-heartbeat.md`.
+
+### `policies.agent_watch` — the subagent stall-detection thresholds
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `enabled` | bool | ✖ | `true` | `false` disables stall detection project-wide, absent a per-run override |
+| `notice_minutes` | int | ✖ | `5` | idle age at which a leaf is banked as a note — no finding |
+| `warn_minutes` | int | ✖ | `10` | idle age at which a leaf raises a `low` finding |
+| `stall_minutes` | int | ✖ | `15` | idle age at which a leaf is assumed stalled — `high` finding plus one visible line asking the human to decide |
+
+Read only by `.claude/scripts/script-agent-watch.sh`, once, at the first
+`--register` of a run — absent, unreadable or malformed falls through silently to
+the built-in defaults. Ordering `notice < warn < stall` is enforced by the script
+with one stderr note. **Not** read by `script-policy-read.py`, so no skill plumbs
+this key itself. Per-run override (`MSG_WATCH_THRESHOLD`, `0` disables) and the
+escalation ladder: `agent-watch.md`.
+
+**These four keys are the whole schema — there is deliberately no `action` key.**
+The watch is observational: no auto-stop exists in any configuration, and no policy
+setting can create one. Only a human stops a leaf.
 
 ## Validation rules
 

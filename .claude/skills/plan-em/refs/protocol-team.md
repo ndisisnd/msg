@@ -166,6 +166,47 @@ Consume it accordingly:
 4. **No silent narrowing.** If you cap width or drop a packet for any reason, say so in the
    summary — a silent cap reads as "everything ran in parallel" when it did not.
 
+## Wave dispatch — backgrounded and watched
+
+Every fan-out in this protocol — plan-wave planners, build-wave packets, both halves of
+a fused run — uses the single dispatch shape in `../../shared/refs/agent-watch.md`: spawn
+the wave's leaves **backgrounded**, keep the turn, and poll. The orchestrator is **not**
+blocked for the length of a wave. It wakes at roughly the heartbeat interval, which is
+what stops a 20-minute wave going silent and what makes a stuck leaf distinguishable
+from a slow one. That contract owns the loop, the thresholds and the ladder — the steps
+below say only how this protocol feeds it, and never restate it.
+
+1. **Pre-announce** the wave in a `--tick --next` before dispatching anything.
+2. **Spawn** every leaf of the wave in one message with `run_in_background: true`.
+3. **`--register` each leaf** immediately after that message, naming the evidence globs
+   where its work lands — a build packet's run report under `<prd-dir>/reports/`
+   (`report-prd-<N>-<K>.*`, `<K>` = the packet key) and the shared `$BRANCH` tree it
+   commits to; a planner's evidence is the PRD file it writes its sections into.
+4. **Poll until every leaf has returned.** On each wake: fold each returning leaf's
+   `status:` line in as a `--note` and `--done` it, `--check` the watch state, then
+   `--tick` with a `--step` naming the wave's progress (`wave 2 — 3/5 packets`). The
+   per-returning-leaf tick this protocol has always done lives **inside** this loop now.
+5. **Escalate by the ladder** (`agent-watch.md` § The escalation ladder): `NOTICE` banks a
+   note, `WARN` adds `--finding low`, `STALL` adds `--finding high` **and** the one
+   sanctioned visible line naming the leaf, its idle age and the human's options. It
+   asks; it never acts. No leaf is ever stopped automatically, and a stall changes no
+   packet, no wave order, and no coverage decision.
+
+```bash
+W=.claude/scripts/script-agent-watch.sh; [ -f "$W" ] || W="$HOME/.claude/scripts/script-agent-watch.sh"
+"$W" --register --run-id "$RUN_ID" --leaf "<packet key>" --evidence "<prd-dir>/reports/report-prd-<N>-<K>.*" --label "<stack> — <rows>"
+"$W" --check --run-id "$RUN_ID"
+"$W" --done  --run-id "$RUN_ID" --leaf "<packet key>"
+"$W" --close --run-id "$RUN_ID"
+```
+
+`--run-id` is the **same** id the heartbeat uses for this run — never mint a second one.
+Wake on the harness's task notification where it delivers one, otherwise a Monitor or
+until-loop: never busy-wait, never foreground-`sleep`. Never branch on either script's
+exit code, and never add a step purely to create a checkpoint — the poll wake **is** the
+checkpoint. **Close both states on every exit path** — `--end` on the heartbeat and
+`--close` on the watch — on a clean wave, a hard failure, and a red plan-shape check alike.
+
 ## Plan wave (`$MODE = plan`)
 
 The plan wave writes each stack's `## Engineering — <Agent>` section **and** its
@@ -188,12 +229,16 @@ RUN_ID=em-$(date +%s)
 "$S" --tick  --run-id "$RUN_ID" --next "plan wave — <planner count> stack planners, ~<Xm>"
 ```
 
-Fan out all stack planners in one message (parallel — distinct sections, no file overlap),
-each a leaf `eng --plan` subagent per the § Subagent contract. Collect each planner's
-completion, ticking once per returning leaf and folding its `status:` line in as `--note`
-(`"$S" --tick --run-id "$RUN_ID" --done <n> --note "<the leaf's status line>"`). When every
-stack's `## Engineering —` + `## Todos —` blocks exist and its `Files` column is filled, the
-plan wave is done — close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"`)
+Fan out all stack planners **in one message, backgrounded** (parallel — distinct sections,
+no file overlap), each a leaf `eng --plan` subagent per the § Subagent contract, then run
+the poll loop of § Wave dispatch. Register each planner against the PRD file it writes its
+`## Engineering — <Agent>` and `## Todos — <Agent>` blocks into; on each wake fold the
+returning planners' `status:` lines in as `--note`s
+(`"$S" --tick --run-id "$RUN_ID" --done <n> --note "<the leaf's status line>"`), `--done`
+them in the watch state, `--check`, and `--tick` with `--step "plan wave — <k>/<m> stacks"`.
+When every stack's `## Engineering —` + `## Todos —` blocks exist and its `Files` column is
+filled, the plan wave is done — close both states
+(`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"` and `"$W" --close --run-id "$RUN_ID"`)
 and return the consolidated summary to plan-em. (The finer file-disjoint packet decomposition
 has no teeth until the `Files` column exists; it is the **build** wave that reaps it.)
 
@@ -208,7 +253,9 @@ stack on Opus, build packets are still the script's `PACKET` lines on their assi
 Open **one** heartbeat for the whole fused run (`--phase plan-em-team`, `--run-id`
 `em-<epoch>` fixed once) with `--total` = planner count **+** total build packet count, so
 the human sees one progress line across both halves rather than two runs that look
-unrelated. Tick per returning leaf in both halves.
+unrelated. Both halves fan out per § Wave dispatch — backgrounded leaves, one poll loop
+per wave, the same `--run-id` on the heartbeat and the watch state throughout, and the
+per-returning-leaf tick inside the loop in both halves.
 
 1. **Plan half** — § Plan wave verbatim: fan out one `eng --plan` leaf per roster stack,
    in one message, on Opus, with the house rules and the injected `C:` band. Collect every
@@ -256,7 +303,8 @@ unrelated. Tick per returning leaf in both halves.
    the db-touch guard after every wave, and the **review-coverage check after every wave**.
    Nothing about review coverage is relaxed for a fused run.
 6. **Consolidate once** — one report covering both halves (sections planned, packets built,
-   models used, review coverage per wave), close the heartbeat, return to plan-em for Step 5.
+   models used, review coverage per wave), close both states (§ Wave dispatch), return to
+   plan-em for Step 5.
 
 **Interruption.** A fused run that dies leaves ordinary on-disk state, and plan-em's mode
 detection recovers it: sections written → the next `/plan-em` resolves `$MODE = build` and
@@ -295,14 +343,19 @@ Decompose per § Parallelism model into file-disjoint, model-tiered packets and 
    RUN_ID=em-$(date +%s)
    "$S" --start --phase plan-em-team --run-id "$RUN_ID" --total <total packet count>
    ```
-   For each wave, pre-announce it before dispatch — the orchestrator is blocked while its
-   leaves run — `"$S" --tick --run-id "$RUN_ID" --next "wave <w> — <packet count> packets, ~<Xm>"`,
-   then spawn one leaf `eng --build` subagent per packet **in a single message** (parallel),
-   each on its assigned model, with `commit_mode=direct`, `branch=$BRANCH`, the packet's rows,
-   the stack's **standards payload**, and the scoped context — per the § Subagent contract.
-   Await the wave, ticking once per returning leaf and folding its `status:` line in as
-   `--note` (`"$S" --tick --run-id "$RUN_ID" --done <n> --note "<the leaf's status line>"`),
-   then proceed to the next.
+   Dispatch each wave per § Wave dispatch. Pre-announce it
+   (`"$S" --tick --run-id "$RUN_ID" --next "wave <w> — <packet count> packets, ~<Xm>"`),
+   then spawn one leaf `eng --build` subagent per packet **in a single message,
+   backgrounded** (`run_in_background: true`), each on its assigned model, with
+   `commit_mode=direct`, `branch=$BRANCH`, the packet's rows, the stack's **standards
+   payload**, and the scoped context — per the § Subagent contract. Register each packet
+   with its run-report evidence glob (`<prd-dir>/reports/report-prd-<N>-<K>.*`, `<K>` = the
+   packet key) plus the shared `$BRANCH` tree, then hold the turn and poll: on each wake
+   fold every returning leaf's `status:` line in as a `--note`
+   (`"$S" --tick --run-id "$RUN_ID" --done <n> --note "<the leaf's status line>"`), `--done`
+   it, `--check` the watch state, and `--tick --step "wave <w> — <k>/<m> packets"`. The wave
+   ends when every packet has returned; then proceed to the next. The orchestrator keeps the
+   turn throughout, so the run reports on cadence for the whole length of the wave.
 3. **DB / data guard after every wave.** Run the touch check on the accumulated diff:
    ```bash
    S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" main
@@ -355,8 +408,8 @@ Decompose per § Parallelism model into file-disjoint, model-tiered packets and 
      could not be established. Never read a non-zero exit as "reviewed".
 5. **Consolidate.** When the last wave lands, merge the leaf build summaries into one
    report (packets built, models used, files touched, any packet that failed or was
-   capped), close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"`), and
-   return it to plan-em for Step 5 synthesis.
+   capped), close both states (`"$S" --end --run-id "$RUN_ID" --outcome "<summary>"` and
+   `"$W" --close --run-id "$RUN_ID"`), and return it to plan-em for Step 5 synthesis.
 
    **The consolidation must state review coverage.** One line per wave — `reviewed <n>/<n>
    packets` — plus the aggregate finding counts across the artifacts (`<b> blocker, <h>
@@ -414,11 +467,13 @@ is an incomplete return. A leaf spawned with `review=batched` still carries the 
 is omit the line or claim a review it did not run. The line is a convenience for the human reading the wave, not the
 proof — step 4's filesystem check is the proof, and it runs whether or not a leaf claims a
 review happened. That line is the **only** sanctioned path from a leaf into the heartbeat: a leaf
-never calls the tick script and never emits status itself, including a leaf `eng --build`
+never calls the tick script, never calls the watch script, and never emits status itself,
+including a leaf `eng --build`
 running under this protocol, which must not open its own heartbeat even though a standalone
 `eng --build` would (`refs/build/protocol.md` Step 4's `standards payload` signal is what
 tells a build invocation it is orchestrated here). The orchestrator ticks once per returning
-leaf, folding this line in as `--note` (§ Plan wave / § Build wave above). A leaf that dies or
+leaf, folding this line in as `--note` on the poll wake that collects it (§ Wave dispatch).
+A leaf that dies or
 returns unparseable output is a failed packet: re-spawn it once; a second failure escalates to
 the user via the orchestrator's summary (do not silently drop a packet). **Log both arms
 to `devkit/DOCTOR.md`** per `../../shared/refs/doctor-logging.md` — a `retry:packet-<p>` row
@@ -446,6 +501,9 @@ fails; logging never changes the escalation above.
   no invented work, no unrelated refactors, no edits to PRD product sections.
 
 ## Hard failures
+
+Every stop below is an exit path like any other: close both states first — `--end` on the
+heartbeat and `--close` on the watch (§ Wave dispatch) — then emit the failure.
 
 - Missing `$MODE`, `prd-path`, `roster`, or `exec_table` → `Hard failure: team orchestrator
   requires $MODE, prd-path, roster, and exec_table.` Stop.

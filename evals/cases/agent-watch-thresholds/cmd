@@ -1,0 +1,11 @@
+# B1 — the single-integer env knob and the ordering guard.
+# MSG_WATCH_THRESHOLD=9 sets stall=9, warn=ceil(2*9/3)=6, notice=ceil(9/3)=3,
+# so +7m is WARN. MSG_WATCH_THRESHOLD=2 derives 1/2/2, which violates
+# notice < warn < stall; the tiers are repaired to the 5/10/15 defaults with
+# one stderr note (folded into stdout here so it is pinned) and +6m is
+# therefore NOTICE, not STALL.
+S="$REPO/.claude/scripts/script-agent-watch.sh"
+MSG_WATCH_THRESHOLD=9 "$S" --register --run-id w6 --leaf leafA --now 1754000000 >/dev/null
+"$S" --check --run-id w6 --now 1754000420
+MSG_WATCH_THRESHOLD=2 "$S" --register --run-id w7 --leaf leafB --now 1754000000 2>&1 >/dev/null
+"$S" --check --run-id w7 --now 1754000360

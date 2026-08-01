@@ -201,6 +201,20 @@ verdict, a refusal, or a gate. `--quiet` and `--status <n>m` tune it per run;
 `policies.status_cadence` tunes it per project. Contract:
 `shared/refs/status-heartbeat.md`.
 
+Where a phase fans out leaf subagents (`plan-em`'s waves, pre-merge's component
+waves), v5.5 tightens "checkpoint" into a real interval: leaves are spawned
+backgrounded and the orchestrator holds the turn in a poll loop, waking roughly
+every interval. Each wake runs two file-owned scripts — `script-status-tick.sh`
+(the report above) and `script-agent-watch.sh`, a stall watchdog that measures
+how long each leaf has gone without producing evidence (report files, commits)
+and grades it NOTICE / WARN / STALL at 5 / 10 / 15 minutes idle. A leaf idle 15
+minutes is assumed stuck and said so, with the decision handed to the human —
+**no auto-stop exists in any configuration**. The watch is observational under
+the same discipline as the heartbeat: it never changes a verdict, never breaks
+a run, and single-agent phases (eng's per-packet build, merge) skip it — there
+is nothing to watch. Loop + ladder contract: `shared/refs/agent-watch.md`;
+thresholds per project: `policies.agent_watch`.
+
 ## Review evidence
 
 Every build that produces a diff is reviewed by an agent that did not write the
