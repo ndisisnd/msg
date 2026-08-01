@@ -2,6 +2,22 @@
 
 What's new for you, release by release.
 
+## v5.3.0 — 2026-08-01
+
+> Code review can no longer be silently skipped. Every review now leaves a small evidence file behind, and every build run checks that evidence before declaring itself done — a missing review is repaired automatically by re-running just the review, never the build. This closes a real incident where nine parallel build packets shipped green without a single review running.
+
+### ✨ New
+- Every code review leaves proof it happened. "Was this change reviewed?" is now answered by a file on disk, not by a claim in a summary.
+- After every build wave, review coverage is verified mechanically. If a review is missing, it is re-run automatically over that change alone — your builds and commits are never touched, and you're only asked if the repair fails twice.
+- The pre-merge gate now reports review coverage for the whole branch. It never blocks a merge, but an unreviewed branch can no longer reach you without saying so.
+
+### 📈 Improved
+- The "reviewer must not be the author" rule is now enforced, not aspirational — a change reviewed by the same agent that wrote it is flagged as unreviewed.
+- Review stays advisory by design: nothing in this release changes what a review can block. It changes only whether the review *happened* — provably.
+
+### 🐛 Fixed
+- Parallel build runs could previously complete, consolidate, and report green without any reviewer running — and nothing anywhere would notice. That exact shape is now caught at the first checkpoint and repaired on the spot.
+
 ## v5.2.0 — 2026-08-01
 
 > Long runs stop going quiet on you. While a build, a gate run, or a ship is working — often for tens of minutes with nothing on screen — you now get a short status line roughly every five minutes: which phase is running, what finished since the last one, and whether anything is blocking. Nothing about what a run *decides* has changed; the update only reports.

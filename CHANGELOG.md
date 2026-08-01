@@ -2,6 +2,10 @@
 
 ## 2026-08-01
 
+### [129] — Release v5.3.0
+
+- `RELEASES.md`: Added — v5.3.0 notes covering [112]–[117] (review evidence artifacts, coverage checks at every build-spawning orchestrator, pre-merge backstop). Numbered [129] deliberately: [118]–[128] are already taken by the v5.4 work on `feat/msg-v5.4.0`, which merges next.
+
 ### [117] — The pre-merge backstop, plus docs and the incident learning (v5.3 P5)
 
 - `.claude/skills/pre-merge/refs/executor.md`: Added — §5a.1, review coverage for the branch under grade. The gate did not run the wave and holds no packet list, so it uses `--expect-from-builds`: for every `report-prd-<N>-<K>` on disk there should be a `review-prd-<N>-<K>`. Missing coverage is **one `medium` finding** (`rule: review-coverage`), authored the same way §5a authors its `missing-result-report` finding
