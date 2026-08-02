@@ -232,6 +232,7 @@ bash "$A" devkit/AHA.md --tag "eng:<class>" --summary "<what happened>" \
 ```
 
 - `--tag` names the class (e.g. `eng:standards-gap`, `eng:ticket-unbuildable`, `eng:debug-escalation`) — same tag for the same class every time, so recurrences count.
+- **Each field is one terse clause (≤140 chars, single line)** — the writer rejects anything longer (exit 2). Compress and retry; never hand-append to route around the cap.
 - **Exit 3** = no `devkit/AHA.md` in this project → skip the write silently and continue; not a build failure.
 - Exit 2 = usage error or malformed target file → note it in the build summary's **Warnings** and continue.
 

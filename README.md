@@ -122,6 +122,7 @@ Eight slash commands. Run `/msg` to browse them interactively, or invoke any one
 | `/msg --update` | Adds anything msg gained since you set the project up. Shows you the change before making it, and never rewrites a line you already have. |
 | `/msg --init-staging` | Adds a staging branch to a project that currently ships straight to production. The only skill that creates one. |
 | `/msg --doctor` | Tells you when msg itself is misbehaving. Every skill logs its own glitches; this reads that log and reports what keeps recurring, so a broken tool is visible instead of quietly absorbed. |
+| `/msg --aha` | Keeps the learnings log worth reading. Agents append lessons to `devkit/AHA.md` as they work; this sweeps the log, merges repeats, drops noise, and flags recurring lessons that should become a workflow, memory, or code change instead. |
 | `/intake` | Where every idea and bug starts. It interviews you, fleshes out the thin ideas, suggests ones you hadn't thought of, splits anything too big to build in one go, and grades each for complexity and cost. |
 | `/intake --update` | Changes an idea you already captured. A real change to the idea re-grades it; a wording fix doesn't. |
 | `/intake --delete` | Drops an idea from the backlog. Warns you first about anything that depends on it, then asks you to confirm. |

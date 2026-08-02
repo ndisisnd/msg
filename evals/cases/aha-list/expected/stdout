@@ -1,0 +1,5 @@
+PROP_IDEMPOTENT=AHA.md
+AHA_ENTRY=2026-01-15|tune:vague-criteria|2|A recurring learning
+AHA_ENTRY=2026-01-02|tune:vague-criteria|2|An older learning
+AHA_ENTRY=2025-12-20|-|1|A legacy untagged learning
+AHA_ENTRIES=3

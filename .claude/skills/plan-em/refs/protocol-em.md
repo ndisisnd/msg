@@ -227,15 +227,14 @@ python3 "$S" --fill-files "$PRD_DIR/prd-[n]-[slug].md"
 
 The derivation is **idempotent and re-runnable** — re-run it after any ticket edit, including one made by `plan-review`.
 
-**AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, append one entry under `## Entries` (most recent first) of `devkit/AHA.md`:
+**AHA.md update (conditional).** Before Step 4, capture a learning if any of: a PRD gap catchable in `plan-pm`; an architecture conflict that should inform future PRD templates; an overlap with a prior PRD that required a resolution decision. For each, go through the file's one writer — never hand-append. Each field is one terse clause (≤140 chars; the writer rejects longer):
 
-```
-### [YYYY-MM-DD] <Summary title>
-**Why**: <Root cause>
-**Note**: <Concrete action or warning for future runs>
+```bash
+A=.claude/scripts/script-aha.sh; [ -f "$A" ] || A="$HOME/.claude/scripts/script-aha.sh"
+bash "$A" devkit/AHA.md --tag "em:<class>" --summary "<what happened>" --why "<root cause>" --note "<action or warning for future runs>"
 ```
 
-Write only when ≥1 qualifying learning exists — never an empty entry.
+`--tag` names the class (e.g. `em:prd-gap`, `em:arch-conflict`, `em:prd-overlap`) — same tag for the same class every time, so recurrences count. Exit 3 (no `devkit/AHA.md`) → skip silently. Write only when ≥1 qualifying learning exists — never an empty entry.
 
 ---
 
@@ -274,7 +273,7 @@ The `engineering_agents` comparison is therefore doing two jobs at once: it is t
 Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--build`; `fused` dispatches both, in order). The `plan` wave writes each agent's `## Engineering — <Agent>` section **and** its `## Todos — <Agent>` tickets in **one pass** — there is no separate todo wave.
 
 **Subagent context injection (compile/read once, share many).** plan-em already read the full PRD + devkit (Step 1) and compiled per-stack standards payloads (Step 3a). It passes each `eng` subagent only what it needs, so siblings do **not** each re-read the whole PRD, re-read every devkit file, or re-invoke `/cook`. Every dispatch prompt below therefore also includes:
-- **Scoped context** — this agent's exec-table rows, the PRD **feature sections** those rows map to, and a **devkit digest** (canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows — distilled from the Step 1 pre-flight). Plus the **escape hatch**: *"The full PRD is at `<prd-path>`; read it (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve a row."*
+- **Scoped context** — this agent's exec-table rows, the PRD **feature sections** those rows map to, and a **devkit digest** (canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows — distilled from the Step 1 pre-flight — plus an **AHA slice**: at most 5 `devkit/AHA.md` entries whose tag or content matches this agent's rows/stack, selected from the pre-flight's AHA warnings; never the whole ledger). Plus the **escape hatch**: *"The full PRD is at `<prd-path>`; read it (or a specific devkit file) on demand only if a scoped excerpt is insufficient to resolve a row."*
 - **The resolved size tier** *(plan dispatches only)* — `$SIZE` and the `C:` band behind it, from Step 1e, stated as `intake grade C:<band> → write the <medium|large> shape`. The planner tiers its `## Engineering — <Agent>` section on exactly this (`eng/refs/plan/protocol.md` § Which shape) and **must not re-read `INTAKE.md` itself**: one resolution per run, injected, so a sibling planner cannot reach a different answer than the run it belongs to.
 - **Standards payload** *(build mode only)* — the compiled `/cook` output for this agent's stack, retained from Step 3a. The build agent uses it and **does not call `/cook` itself**. (`--plan` agents pull no standards → no payload.)
 

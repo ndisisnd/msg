@@ -102,7 +102,7 @@ Act only on what your assigned rows specify — no additional refactors, no unre
 
 ## AHA.md and OPEN-QUESTIONS.md
 
-You judge *when* to write and *what* it says; the shared writers own the entry shape. **Exit 3 = no such file in this project → skip silently, not a failure.** Exit 2 → note it in Warnings and continue.
+You judge *when* to write and *what* it says; the shared writers own the entry shape. AHA fields are one terse clause each (≤140 chars, single line — the writer rejects longer). **Exit 3 = no such file in this project → skip silently, not a failure.** Exit 2 → note it in Warnings and continue.
 
 **AHA** — when the codebase reveals a pattern the standards payload lacks, a ticket cannot be implemented as written, an unmarked cross-agent dependency surfaces, a non-obvious decision is made, or a debug cycle runs (whatever its outcome):
 

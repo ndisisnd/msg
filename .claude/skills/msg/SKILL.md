@@ -7,8 +7,9 @@ description: >
   to set up project structure in an empty repo. Other modes: `--init-staging`
   (add a staging branch), `--update` (re-scan a bootstrapped repo), `--gui`
   (local PRD board), `--doctor` (tally and triage the harness-incident ledger),
+  `--aha` (sweep, triage, and compact the devkit/AHA.md learnings ledger),
   `--help` (guided skill picker).
-argument-hint: "[--init | --init-staging | --update | --gui | --doctor | --help]"
+argument-hint: "[--init | --init-staging | --update | --gui | --doctor | --aha | --help]"
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -34,6 +35,7 @@ Check the invocation before running any picker. First match wins.
 | `/msg --update` | "check for msg updates", "reinitialise this project", "resync my init setup", "are there new init components" | [`refs/protocol-update.md`](refs/protocol-update.md) |
 | `/msg --gui`, or the bare word `gui` | "open gui for PRDs", "show me the PRD board", "visualize my PRDs", "open kanban" | [`refs/protocol-gui.md`](refs/protocol-gui.md) — render directly, never call `AskUserQuestion` first |
 | `/msg --doctor` | "check the harness", "what keeps failing", "run the doctor", "triage the incident log" | [`refs/protocol-doctor.md`](refs/protocol-doctor.md) — tallies and triages `devkit/DOCTOR.md`; **never fixes** |
+| `/msg --aha` | "prune the learnings", "sweep AHA", "trim the aha log", "triage the learnings ledger" | [`refs/protocol-aha.md`](refs/protocol-aha.md) — triages and compacts `devkit/AHA.md`; only write is the ledger itself, promotions stay recommendations |
 | `/msg --help` | — | **Protocol: --help** below |
 | `/msg` (no args) | — | **Protocol: default** below |
 
@@ -45,12 +47,12 @@ natural-language phrasing — all of them land on the protocol's mode gate**, wh
 default: NL phrasing correlates with the less-technical user, who is exactly who cto mode is for.
 An **unrecognised sub-flag** (`--init --foo`) is never silently ignored — it also falls to the gate.
 
-**Closing message.** `--init`, `--update`, `--init-staging`, and `--doctor` runs end with the closing message
+**Closing message.** `--init`, `--update`, `--init-staging`, `--doctor`, and `--aha` runs end with the closing message
 per [`../shared/refs/closing-message.md`](../shared/refs/closing-message.md) — the last chat
 output, after the protocol's own output. The pure-emission modes (default picker, `--gui`,
 `--help`) are exempt: their "Stop. Do not emit anything else." / render contracts stand unchanged.
 
-**Harness incidents.** The same four modes log unexpected script failures, tool errors, retries,
+**Harness incidents.** The same five modes log unexpected script failures, tool errors, retries,
 and missed writes to `devkit/DOCTOR.md` per
 [`../shared/refs/doctor-logging.md`](../shared/refs/doctor-logging.md) — logging never changes what
 the run does next. `--doctor` is the reader, never a writer of incident rows.

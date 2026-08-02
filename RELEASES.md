@@ -2,6 +2,18 @@
 
 What's new for you, release by release.
 
+## v5.6.0 — 2026-08-02
+
+> Your project's learnings log (`devkit/AHA.md`) now stays short enough to actually help. Every agent that records a lesson is held to a terse two-to-three-line format — the shared writer script simply refuses anything longer — and a new `/msg --aha` mode sweeps the log on demand: it merges repeats, prunes entries that no longer earn their lines, and flags lessons that keep recurring as things to fix at the source (a workflow change, a note in your project memory, or a real code fix). Agents reading the log now carry only the handful of entries relevant to their assigned work, so past lessons inform new work without crowding it out.
+
+### ✨ New
+- `/msg --aha` — sweeps `devkit/AHA.md`, shows a per-entry triage table (keep / merge / prune / promote), and after one confirmation rewrites the ledger in compact form. Like `--doctor`, it never fixes anything itself: promotions are handed to you as briefs.
+- `script-aha.sh --list` — a deterministic sweep of the ledger with recurrence counts, so the triage never re-counts by hand.
+
+### 🔧 Improved
+- Terse entries at the source: every writer (eng builds, plan-pm, plan-em, plan-review) goes through the shared writer, which now rejects any field over 140 characters — one clause per field, no narrative.
+- Targeted reads: orchestrated build agents receive at most 5 row-relevant AHA entries in their injected digest; direct runs scan for relevant entries instead of carrying the whole file.
+
 ## v5.5.0 — 2026-08-01
 
 > When a run fans work out to parallel agents, it no longer goes dark until they all come back. You now get a status update roughly every five minutes for the whole stretch, and every agent is watched for signs of life: one that has produced nothing is mentioned at 5 minutes, flagged at 10, and declared stuck at 15 — at which point the run asks you whether to stop it or let it ride. Nothing is ever killed automatically; that call is always yours.
