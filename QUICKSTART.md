@@ -185,6 +185,7 @@ Then start the feature loop with `/intake`.
 | `/msg --init-staging` stops immediately | No `devkit/policy.json` — repo was never bootstrapped | `/msg --init` first |
 | Coding standards never load | cook isn't installed | `curl -fsSL https://raw.githubusercontent.com/ndisisnd/cook/main/install.sh \| bash` |
 | The same harness glitch keeps happening | Skills log harness incidents to `devkit/DOCTOR.md` | `/msg --doctor` — it reports which problems have recurred enough to be worth fixing (it never fixes them itself) |
+| `devkit/AHA.md` has grown long and noisy | Agents append a learning every time one surfaces | `/msg --aha` — sweeps the ledger, merges repeats, prunes noise, and flags recurring lessons to fix at the source (its only write is the ledger itself) |
 | A repo set up before v5 is missing a devkit file | Components added after it was bootstrapped | `/msg --update` — additive, preview-gated, and it also adds the `devkit/DOCTOR.md` line to `.gitignore` |
 
 ---

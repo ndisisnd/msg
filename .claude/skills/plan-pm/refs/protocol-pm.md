@@ -190,18 +190,20 @@ open-questions batch; it fires even when there are no open questions.
 
 ## Step 5/5 — Stamp the intake lifecycle, then terminate
 
-**AHA.md update (conditional).** Append a learning to `devkit/AHA.md` when this run
+**AHA.md update (conditional).** Record a learning in `devkit/AHA.md` when this run
 surfaced one (a CLAUDE.md rule invalidated a feature; prior-PRD overlap recorded; a safety
-pause fired). Format:
+pause fired). Create `devkit/AHA.md` from
+`.claude/skills/msg/refs/init/templates/template-AHA.md` if absent, then go through the
+file's one writer — never hand-append. Each field is one terse clause (≤140 chars; the
+writer rejects longer):
 
-```
-### [YYYY-MM-DD] <Summary title>
-**Why**: <Root cause>
-**Note**: <Concrete action or warning for future runs>
+```bash
+A=.claude/scripts/script-aha.sh; [ -f "$A" ] || A="$HOME/.claude/scripts/script-aha.sh"
+bash "$A" devkit/AHA.md --tag "pm:<class>" --summary "<what happened>" --why "<root cause>" --note "<action or warning for future runs>"
 ```
 
-Under `## Entries`, most recent first. Create `devkit/AHA.md` from
-`.claude/skills/msg/refs/init/templates/template-AHA.md` if absent. Write only on a real learning.
+`--tag` names the class (e.g. `pm:claude-md-conflict`, `pm:prd-overlap`, `pm:safety-pause`) —
+same tag for the same class every time, so recurrences count. Write only on a real learning.
 
 **Intake lifecycle stamp (F4).** Always stamp the source row — every PRD has one (Step 1).
 Write it in `INTAKE.md` via the shared ledger writer — set its `status` cell to `in-progress`

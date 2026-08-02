@@ -104,7 +104,7 @@ There are ~58 scripts. Grouped by what they own:
 
 | Script | Purpose |
 |--------|---------|
-| `script-aha.sh` | Writer for `devkit/AHA.md` |
+| `script-aha.sh` | Writer for `devkit/AHA.md` — terse-capped appends (≤140 chars per field), `--count` recurrence, `--list` sweep |
 | `script-openq.sh` | Writer for `devkit/OPEN-QUESTIONS.md` |
 | `script-doctor-log.sh` | Writer for `devkit/DOCTOR.md`, the harness-incident ledger |
 | `script-doctor-tally.sh` | Reader for `devkit/DOCTOR.md` — everything decidable about the ledger, including which incidents have recurred enough to graduate |
@@ -116,7 +116,7 @@ There are ~58 scripts. Grouped by what they own:
 
 | File | Role |
 |------|------|
-| `devkit/AHA.md` | Institutional knowledge log — past learnings agents must not repeat |
+| `devkit/AHA.md` | Institutional knowledge log — past learnings agents must not repeat. Entries are terse (2–3 lines, enforced by `script-aha.sh`); `/msg --aha` sweeps and compacts the ledger on demand, promoting recurring lessons into workflow/memory/code recommendations |
 | `devkit/DOCTOR.md` | Harness-incident ledger — one row per time the harness itself misbehaved (a script that failed, a write that did not land, a validator that misfired). Written by every skill via `script-doctor-log.sh`, read by `/msg --doctor`. **Gitignored**: it describes this machine, not the product |
 | `devkit/ENV.md` | The project's environment contract — the commands, tools, and variables a run may assume, so a skill never guesses how to build or test |
 | `devkit/GLOSSARY.md` | Canonical domain terms — consistent naming across all agents |

@@ -1,0 +1,12 @@
+# script-aha.sh --list: the sweep reads the ledger without writing it — one
+# AHA_ENTRY=<date>|<tag>|<recurrence>|<summary> line per entry, most recent
+# first, legacy untagged entries reported as `-` with recurrence 1.
+set -e
+. "$REPO/evals/lib/properties.sh"
+A="$REPO/.claude/scripts/script-aha.sh"
+
+"$A" AHA.md --tag "tune:vague-criteria" --summary "A recurring learning" \
+  --why "Same class twice" --note "Recurrence must count" --date 2026-01-15 >/dev/null
+
+prop_idempotent AHA.md -- "$A" AHA.md --list
+"$A" AHA.md --list

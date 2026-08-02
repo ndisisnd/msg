@@ -1,0 +1,16 @@
+# script-aha.sh terse cap: a field over 140 chars is narrative, not a learning —
+# documented rejection (exit 2, file untouched). A multiline field is refused the
+# same way. Both properties assert the ledger stays byte-identical.
+set -e
+. "$REPO/evals/lib/properties.sh"
+A="$REPO/.claude/scripts/script-aha.sh"
+LONG="$(printf 'x%.0s' $(seq 1 150))"
+
+prop_refuses 2 AHA.md -- "$A" AHA.md --tag "eval:cap" --summary "$LONG" \
+  --why "Short why" --note "Short note" --date 2026-01-15
+
+prop_refuses 2 AHA.md -- "$A" AHA.md --tag "eval:cap" --summary "line one
+line two" --why "Short why" --note "Short note" --date 2026-01-15
+
+"$A" AHA.md --tag "eval:cap" --summary "A field at the cap still lands" \
+  --why "Caps bound narrative, not learnings" --note "Terse entries append normally" --date 2026-01-15

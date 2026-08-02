@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-08-02
+
+### [142] — Release v5.6.0
+
+- `RELEASES.md`: Added — v5.6.0 notes covering [138]–[141] (AHA terse write contract, `script-aha.sh --list` sweep, the `/msg --aha` compaction mode, targeted AHA read slices, docs).
+
+### [141] — v5.6 docs
+
+- `README.md`: Added — `/msg --aha` mode-table row.
+- `ARCHITECTURE.md`: Changed — `script-aha.sh` row now names the terse cap, `--count` and `--list`; `devkit/AHA.md` row now names the 2–3-line contract and the `--aha` compaction pass.
+- `QUICKSTART.md`: Added — troubleshooting row for a long/noisy `devkit/AHA.md` → `/msg --aha`.
+
+### [140] — every AHA writer terse, every AHA reader targeted
+
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/plan-em/refs/protocol-em.md`: Changed — the two remaining hand-append AHA paths now go through `script-aha.sh` (tags `pm:<class>` / `em:<class>`), so the terse cap and recurrence counting cover every writer.
+- `.claude/skills/eng/refs/build/protocol.md`, `protocol-packet.md`: Added — one-line terse-cap note (writer rejects oversize; compress, never hand-append around it).
+- `.claude/skills/msg/refs/init/templates/template-AHA.md`: Changed — states the 2–3-line one-clause-per-field contract and the tagged entry shape.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Added — the devkit digest injected into build/plan subagents now carries an AHA slice: ≤5 entries matched to the agent's rows/stack, never the whole ledger.
+- `.claude/skills/eng/SKILL.md`: Changed — direct (non-orchestrated) runs scan `devkit/AHA.md` for row-relevant entries only.
+
+### [139] — `/msg --aha` — sweep, triage, compact the learnings ledger
+
+- `.claude/skills/msg/refs/protocol-aha.md`: Added — new harness mode: `script-aha.sh --list` sweep, per-entry triage (keep / merge / prune / promote with a workflow/memory/code route), inline triage table, one gate, then the rewrite of `devkit/AHA.md` in terse form. Hard boundary mirrors `--doctor`: promotions stay recommendations; the ledger is the mode's only write.
+- `.claude/skills/msg/SKILL.md`: Added — `--aha` dispatch row, argument-hint, closing-message and harness-incident coverage.
+
+### [138] — `script-aha.sh`: terse cap + `--list` sweep
+
+- `.claude/scripts/script-aha.sh`: Added — 140-char single-line cap per field (`--summary`/`--why`/`--note`; exit 2 on violation, file untouched) and a `--list` read mode emitting `AHA_ENTRY=<date>|<tag>|<recurrence>|<summary>` per entry plus `AHA_ENTRIES=<n>`; legacy untagged entries report `-`/1.
+- `evals/cases/aha-append-reject-oversize/`, `evals/cases/aha-list/`: Added — cap-refusal properties (oversize + multiline, ledger byte-identical) and a golden idempotent sweep over tagged, recurring, and legacy entries. Suite: 100/100.
+
 ## 2026-08-01
 
 ### [137] — Release v5.5.0
