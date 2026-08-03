@@ -52,6 +52,13 @@ other step is identical in both lanes.
 | `--team` (default) | **Team** | one **orchestrator engineer agent on Opus** decomposes the wave below the roster/stack level into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents. |
 | `--solo` | **Solo** | **one leaf `eng` subagent per roster stack**, whole-stack scope each, on the inherited model. |
 
+In `--team` mode plan-em is a **thin dispatcher**: it spawns the orchestrator
+**backgrounded**, registers it as one watched leaf, and polls on the heartbeat cadence,
+relaying the orchestrator's own `REPORT` blocks from `<prd-dir>/reports/heartbeat.log`.
+Run-ids stay disjoint — plan-em's `emteam-<epoch>` and the orchestrator's `em-<epoch>`
+never mix. Same contract as `pre-merge`'s gate dispatch; see
+`.claude/skills/shared/refs/status-heartbeat.md` § *Relaying across a subagent boundary*.
+
 The mode is a **persisted preference**, not just a per-run flag. Resolution precedence and
 the flag-parse rule live in `refs/protocol-em.md` Step 0; the pref file itself lives in
 `.claude/skills/shared/refs/exec-mode-pref.md`.

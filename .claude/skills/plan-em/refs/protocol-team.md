@@ -23,8 +23,9 @@ branch resolution + lane move (build wave). The orchestrator **consumes** those;
 re-runs a certification, re-resolves the branch, or re-invokes `/cook`.
 
 **The one exception is `$MODE = fused`** (a medium PRD — `refs/protocol-em.md` Step 1e),
-where a single orchestrator spawn owns both halves of the run. Because plan-em is blocked
-while its orchestrator works, the mid-run steps between planning and building — the Files
+where a single orchestrator spawn owns both halves of the run. plan-em cannot interject
+mid-spawn: it watches you, it does not reach into you. So the mid-run steps between
+planning and building — the Files
 derivation, the plan-shape check, the branch cut, the lane move and the status stamps —
 belong to the orchestrator in that mode, per § Fused wave. Certifications are still never
 the orchestrator's: a fused run pays exactly one, and plan-em already ran it at Step 2.
@@ -32,7 +33,7 @@ the orchestrator's: a fused run pays exactly one, and plan-em already ran it at 
 ## Input contract (what plan-em injects)
 
 plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
-`run_in_background: false`, and a prompt carrying:
+`run_in_background: true`, and a prompt carrying:
 
 | Field | Value |
 |-------|-------|
@@ -44,6 +45,7 @@ plan-em spawns the orchestrator via the `Agent` tool with `model: opus`,
 | `$SIZE` + `C:` band | the size tier plan-em resolved once at Step 1e (`medium` / `large`) and the intake complexity band behind it. Pass the band into every `--plan` leaf's scoped context — it selects the eng-section shape, and a leaf must never re-resolve it. |
 | `standards payloads` | the compiled `/cook` output **per stack** (**build and fused waves**), retained from plan-em Step 3a |
 | `$TIMING_RUN_ID` | the run id plan-em fixed for its stage-timing log (§ Stage timing) — reuse it verbatim; never mint a second one |
+| `$STATUS_RELAY` | path plan-em fixed for the tick relay (`<prd-dir>/reports/heartbeat.log`) — append every rendered `REPORT` block here, per § Wave dispatch. It is a **path**, not a run id: your heartbeat `RUN_ID` stays your own and you never learn plan-em's |
 | `devkit digest` | canonical GLOSSARY terms, ARCHITECTURE constraints, DESIGN-SYSTEM components relevant to the rows (from plan-em's Step 1 pre-flight) |
 | `house rules` | **plan wave and the plan half of a fused wave** — the two plan-authoring rules from `refs/protocol-em.md` Step 4 (*one innovation token per plan, max*; *extract on the third occurrence, not the second*). Pass them verbatim into every `--plan` leaf's scoped context. |
 
@@ -206,6 +208,20 @@ until-loop: never busy-wait, never foreground-`sleep`. Never branch on either sc
 exit code, and never add a step purely to create a checkpoint — the poll wake **is** the
 checkpoint. **Close both states on every exit path** — `--end` on the heartbeat and
 `--close` on the watch — on a clean wave, a hard failure, and a red plan-shape check alike.
+
+**Tick relay — append every `REPORT` block to `$STATUS_RELAY`.** Each rendered `REPORT`
+you emit is also appended to the path plan-em injected
+(`<prd-dir>/reports/heartbeat.log`) as it is produced. You run inside a subagent, so your
+ticks are recorded but invisible: only your final return payload reaches the user. This
+file is the **only** way your mid-wave progress gets there — plan-em folds the newest
+block into its own `--note` on each poll wake, and the same file is the evidence glob its
+watch measures your liveness against
+(`../../shared/refs/status-heartbeat.md` § *Relaying across a subagent boundary*).
+Best-effort: a failed append never fails, blocks, or re-verdicts the run.
+
+The `$RUN_ID` above stays **yours**. plan-em runs a second, disjoint heartbeat on its own
+`emteam-<epoch>` and never injects it; sharing one id would drain the notes bank into
+whichever side ticked first and let either side's `--end` delete the other's state.
 
 ## Plan wave (`$MODE = plan`)
 

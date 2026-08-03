@@ -2,6 +2,15 @@
 
 ## 2026-08-03
 
+### [148] — `plan-em --team`: orchestrator spawn goes backgrounded, progress relays through a file
+
+- `.claude/skills/shared/refs/status-heartbeat.md`: Added — § *Relaying across a subagent boundary*, the single statement of the two rules any nested-orchestrator dispatch obeys: run-ids stay disjoint, and the relay is a file in the run's artifact directory. Spells out why sharing a heartbeat run-id destroys progress rather than relaying it — a reporting `--tick` drains the notes bank and resets the report window, so whichever side ticks first takes everything, and `--end` deletes the state file outright.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — § *Team lane* spawns the orchestrator with `run_in_background: true` (was `false`, which held the session's turn for the whole wave and made the ~5-minute heartbeat unreachable). Added — plan-em mints its own `emteam-<epoch>` for a dispatcher heartbeat and a single-leaf watch, registers the orchestrator against `<prd-dir>/reports/heartbeat.log`, polls on cadence folding the newest relayed `REPORT` block in as a `--note`, and closes both states on every exit path. The fused-mode rationale no longer rests on plan-em being blocked; the spawn/return progress note is retired in favour of the heartbeat.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — input-contract preamble documents the backgrounded spawn. Added — `$STATUS_RELAY` contract row and the § *Wave dispatch* tick-relay paragraph: append every rendered `REPORT` block to the path plan-em injected, which is also the evidence glob its watch measures liveness against. The orchestrator's own `RUN_ID=em-<epoch>` mints are deliberately untouched.
+- `.claude/skills/shared/refs/gate-dispatch.md`: Changed — § *Register and watch* points at the new heartbeat section as the canonical statement of both rules instead of implying they are gate-specific.
+- `.claude/skills/plan-em/SKILL.md`: Added — `--team` lane note naming the thin-dispatcher shape and the disjoint run-ids.
+- `ARCHITECTURE.md`: Added — § *Run visibility* records that v5.6.2 extends the v5.5 backgrounded-and-watched shape to `plan-em --team`, and why the relay is a file and never a shared run-id.
+
 ### [147] — Release v5.6.1
 
 - `RELEASES.md`: Added — v5.6.1 notes covering [143]–[146] (gate runs in `pre-merge` and `merge` dispatch to a subagent, `merge` phase-split between mechanical steps and human-gate steps, verdict always written to disk, docs).

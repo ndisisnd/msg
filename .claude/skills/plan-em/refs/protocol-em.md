@@ -410,13 +410,67 @@ resolution, the `planned/ → wip/` lane move, and the create-or-checkout of `$B
 **instead of** plan-em fanning out the leaf subagents itself, spawn **one orchestrator
 engineer agent** to own the fan-out:
 
-- Spawn it via the `Agent` tool with `model: opus`, `run_in_background: false`, and a
+- **Open the dispatcher heartbeat and watch first.** plan-em mints its **own** run id for
+  this — `TEAM_RUN_ID=emteam-$(date +%s)` — and the orchestrator keeps its own
+  `em-<epoch>` untouched. The two ids are disjoint and that is load-bearing
+  (`../../shared/refs/status-heartbeat.md` § *Relaying across a subagent boundary*):
+  sharing one would let whichever side ticks first drain the notes bank and reset the
+  window, and let either side's `--end` delete the other's state.
+
+  ```bash
+  S=.claude/scripts/script-status-tick.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-status-tick.sh"
+  W=.claude/scripts/script-agent-watch.sh; [ -f "$W" ] || W="$HOME/.claude/scripts/script-agent-watch.sh"
+  TEAM_RUN_ID=emteam-$(date +%s)
+  "$S" --start --phase plan-em-team --run-id "$TEAM_RUN_ID" --total 1 --label "team orchestrator — $MODE"
+  "$S" --tick  --run-id "$TEAM_RUN_ID" --next "team wave — one orchestrator, <n> leaves"
+  ```
+
+- Spawn it via the `Agent` tool with `model: opus`, `run_in_background: true`, and a
   prompt that (a) tells it to *"Read `.claude/skills/plan-em/refs/protocol-team.md` fully
   and follow it"* and (b) injects the input contract that file defines: `$MODE`
   (`plan` / `build` / `fused` from mode detection), `prd-path`, the approved `roster`, the
   `exec_table` rows (with the `Files` column on the build wave), `$BRANCH` **and** the
   compiled per-stack `standards payloads` (build wave only), the devkit digest, the
-  resolved `$SIZE` + intake `C:` band, `$TIMING_RUN_ID`, and the PRD-path escape hatch.
+  resolved `$SIZE` + intake `C:` band, `$TIMING_RUN_ID`, `$STATUS_RELAY` (below), and the
+  PRD-path escape hatch. **Never inject `$TEAM_RUN_ID`** — the orchestrator must not see it.
+- **Register the orchestrator as one watched leaf**, immediately after the spawn message,
+  per `../../shared/refs/agent-watch.md`. `$STATUS_RELAY` is
+  `<prd-dir>/reports/heartbeat.log` — plan-em dictates the path, the orchestrator appends
+  its rendered `REPORT` blocks there, and the same file doubles as the liveness evidence:
+
+  ```bash
+  "$W" --register --run-id "$TEAM_RUN_ID" --leaf orchestrator \
+       --evidence "<prd-dir>/reports/heartbeat.log" --evidence "<prd-dir>/reports/*" \
+       --label "team orchestrator — $MODE"
+  ```
+
+- **Hold the turn and poll.** Wake on the harness's task notification for the backgrounded
+  spawn where it delivers one, otherwise a Monitor or until-loop at the resolved interval —
+  never a foreground `sleep`. On each wake, read the **newest** `REPORT` block appended to
+  `$STATUS_RELAY` and fold it in as plan-em's own `--note`, then `--check` and `--tick`.
+  Fold the block's **content** lines only — its `done:` / `now:` / `issues:` / `next:` — and
+  drop its `⏱` header line: plan-em renders its own header, and passing the inner one
+  through just prints the phase name twice inside a single report.
+
+  ```bash
+  "$W" --check --run-id "$TEAM_RUN_ID"
+  "$S" --tick  --run-id "$TEAM_RUN_ID" --note "<newest block from $STATUS_RELAY>" --step "team wave — orchestrator running"
+  ```
+
+  Quote the tick's output verbatim; a `QUIET` produces no chat output at all. The
+  escalation ladder is unchanged — `NOTICE` banks a note, `WARN` adds `--finding low`,
+  `STALL` adds `--finding high` plus the one sanctioned visible line naming the
+  orchestrator and its idle age. **The watch stays observational**: a stalled orchestrator
+  is reported to the human, never killed. An empty or missing `$STATUS_RELAY` is not a
+  fault — tick without a `--note` and let the watch speak to liveness.
+- **Close both states on every exit path** — clean return, hard failure, spawn error,
+  mid-run stop:
+
+  ```bash
+  "$W" --done  --run-id "$TEAM_RUN_ID" --leaf orchestrator
+  "$S" --end   --run-id "$TEAM_RUN_ID" --outcome "<the consolidated summary's headline>"
+  "$W" --close --run-id "$TEAM_RUN_ID"
+  ```
 - The orchestrator decomposes the wave into file-disjoint, model-tiered packets and fans
   out leaf `eng` subagents (`--plan` planners on Opus; `--build` packets on Opus or Sonnet
   per complexity), respecting the `Files`-disjoint collision rule and committing all build
@@ -427,16 +481,19 @@ engineer agent** to own the fan-out:
   stack planners, then the Files derivation, the plan-shape check, the branch cut and the
   status stamps, then the build packets — without returning to plan-em in between. This is
   the **one** documented exception to *"the orchestrator never resolves the branch"*, and
-  it exists because the alternative costs what the fusion was meant to save: plan-em is
-  blocked while its orchestrator runs, so keeping the branch cut on plan-em's side would
-  force a second orchestrator spawn for the build half. The invariant that actually
+  it exists because the alternative costs what the fusion was meant to save: plan-em
+  cannot interject mid-spawn — backgrounding lets it *watch* the orchestrator, not reach
+  into it — so keeping the branch cut on plan-em's side would force a second orchestrator
+  spawn for the build half. The invariant that actually
   protects the tree is unchanged — **leaves never touch branches; exactly one agent cuts
   it, once.** plan-em passes no `$BRANCH` for a fused wave and does not pre-move the lane.
 - When the orchestrator returns its consolidated summary, proceed to Step 5 with it as the
   wave's output — Step 5 synthesis reads the written engineering sections / build result
   the same way regardless of lane.
 
-Emit a short progress note when the orchestrator is spawned and when it returns.
+The heartbeat now carries the run's progress, so there is no separate spawn/return note to
+emit — the `--start` line announces the spawn, the poll-wake ticks carry the orchestrator's
+own relayed blocks, and `--end` closes it.
 
 ---
 
