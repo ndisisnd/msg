@@ -2,6 +2,14 @@
 
 ## 2026-08-03
 
+### [150] — `/msg --version`: an installed copy can now name its own release
+
+- `package.json`: Added — new file, and the single version field for the repo. No JS build exists here; it is present so `/kermit --release` (which bumps `package.json` when it finds one) advances the version as part of the release itself, leaving no manual step that could drift from the tag.
+- `install.sh`: Added — reads the version out of the clone's `package.json` with `sed` (not `node` — the installer must not require a JS toolchain for one field), captures the short commit, and writes a one-line stamp to `~/.claude/skills/msg/VERSION`. Written *after* the skill copy, since copying `msg/` deletes the destination directory first. The version read is guarded with `|| true`: under `set -euo pipefail` a clone predating `package.json` would otherwise abort the whole install over a cosmetic stamp, and such a clone is labelled `msg (unversioned)` rather than `vunknown`. Changed — the clone line, the success line, and the next-steps list now name the version and point at `/msg --version`.
+- `.claude/skills/msg/SKILL.md`: Added — `--version` dispatch row (plus the bare word `version` and the natural-language "did the reinstall land" phrasings), and the **Protocol: --version** section: one `cat` of the global stamp, emit the line verbatim, stop. Reads the global path even when a project ships its own `.claude/skills/msg/`, because the installed copy is what other repos load. Explicitly forbids inferring a version from a tag, changelog, or the repo's own `package.json` — those describe the source, not the install. An absent stamp is itself an answer (the copy predates v5.6.3) and returns the reinstall command. Changed — frontmatter description and `argument-hint`; `--version` joins the pure-emission modes exempt from the closing message.
+- `README.md`: Added — `/msg --version` row in the mode table, and a `VERSION` check in the post-install verification block with the reason it matters (skills live in `~/.claude`, so a half-failed reinstall leaves every project looking unchanged).
+- `ARCHITECTURE.md`: Added — install-layer paragraph covering the stamp, why `package.json` exists, and the write-after-copy ordering.
+
 ### [149] — Release v5.6.2
 
 - `RELEASES.md`: Added — v5.6.2 notes covering [148] (`plan-em --team` orchestrator spawn goes backgrounded, progress relays through a file rather than a shared heartbeat run-id).

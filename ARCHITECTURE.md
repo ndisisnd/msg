@@ -12,6 +12,8 @@ Shallow-clones this repo into a temp directory, then copies:
 
 The installer copies but never overwrites by deletion, so a **renamed** skill or script would otherwise leave its old copy behind forever — and a stale `~/.claude/skills/<old-name>/` shadows its replacement. Two explicit sweeps run before the copy: retired skill directories (`plan-tune`, `post-merge` — both renamed in v5) are removed, and every pre-v5 script filename is deleted so nothing can resolve an old copy through a fallback path. Only names msg itself shipped are ever listed.
 
+After the copy the installer writes a one-line stamp to `~/.claude/skills/msg/VERSION` — the version read out of the clone's `package.json`, the short commit it was cut from, and the install date. `package.json` exists for this reason alone (there is no JS build here); it is the single version field, and `/kermit --release` bumps it as part of every release, so the stamp cannot drift from the release it claims. An installed tree is a plain copy rather than a git checkout, so this file is the only thing that can answer "which msg is this?" — which is exactly what `/msg --version` reads. The stamp is written *after* the skill copy, since copying `msg/` clears the destination directory first.
+
 Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook) dependency, which provides the `/cook` skill MSG skills call for domain-specific coding standards.
 
 ### 2. Skill layer — `~/.claude/skills/<name>/SKILL.md`

@@ -41,7 +41,21 @@ command -v curl >/dev/null 2>&1 || die "curl is required but not installed"
 echo
 info "Cloning msg..."
 git clone --depth 1 --quiet "${MSG_REPO}" "${TMP_DIR}/msg" || die "Failed to clone msg"
-success "Cloned msg"
+
+# Stamp material for `/msg --version`. Parsed with sed, not node — the installer
+# must not require a JS toolchain just to read one field.
+# The `|| true` matters: under `set -euo pipefail` a missing package.json would
+# otherwise abort the whole install over a cosmetic stamp.
+MSG_VERSION="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "${TMP_DIR}/msg/package.json" 2>/dev/null | head -1 || true)"
+MSG_COMMIT="$(git -C "${TMP_DIR}/msg" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+# A clone with no readable version predates package.json — say so rather than
+# printing "vunknown", which reads like a real version number.
+if [[ -n "${MSG_VERSION}" ]]; then
+  MSG_LABEL="msg v${MSG_VERSION}"
+else
+  MSG_LABEL="msg (unversioned)"
+fi
+success "Cloned ${MSG_LABEL}"
 
 # ── Install skills ────────────────────────────────────────────────────────────
 info "Installing skills to ${SKILLS_DIR}..."
@@ -74,6 +88,12 @@ for skill_dir in "${SRC}"/*/; do
 done
 
 success "Installed ${installed} skill(s)"
+
+# Version stamp — written after the copy, because copying msg/ wipes the dest dir.
+# This file is the only thing that tells an installed copy which release it is:
+# ~/.claude/skills is not a git checkout, so there is nothing else to ask.
+printf '%s — %s, installed %s\n' \
+  "${MSG_LABEL}" "${MSG_COMMIT}" "$(date +%F)" > "${SKILLS_DIR}/msg/VERSION"
 
 # ── Install scripts ───────────────────────────────────────────────────────────
 SRC_SCRIPTS="${TMP_DIR}/msg/.claude/scripts"
@@ -133,10 +153,11 @@ fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 echo
-success "msg installed successfully"
+success "${MSG_LABEL} installed successfully"
 echo "  Skills: ${SKILLS_DIR}"
 echo
 echo "  Next steps:"
+echo "    • Run /msg --version in any project to confirm which release is live"
 echo "    • Run /msg --init in a project to scaffold devkit files"
 echo "    • Run /msg to see the full menu of skills"
 echo

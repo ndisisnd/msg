@@ -1,0 +1,8 @@
+{
+  "name": "msg",
+  "version": "5.6.2",
+  "private": true,
+  "description": "An agentic engineering harness for Claude Code — skills that plan, build, gate, and ship.",
+  "repository": "https://github.com/ndisisnd/msg",
+  "license": "MIT"
+}

@@ -8,8 +8,8 @@ description: >
   (add a staging branch), `--update` (re-scan a bootstrapped repo), `--gui`
   (local PRD board), `--doctor` (tally and triage the harness-incident ledger),
   `--aha` (sweep, triage, and compact the devkit/AHA.md learnings ledger),
-  `--help` (guided skill picker).
-argument-hint: "[--init | --init-staging | --update | --gui | --doctor | --aha | --help]"
+  `--version` (print the installed release in one line), `--help` (guided skill picker).
+argument-hint: "[--init | --init-staging | --update | --gui | --doctor | --aha | --version | --help]"
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -36,6 +36,7 @@ Check the invocation before running any picker. First match wins.
 | `/msg --gui`, or the bare word `gui` | "open gui for PRDs", "show me the PRD board", "visualize my PRDs", "open kanban" | [`refs/protocol-gui.md`](refs/protocol-gui.md) — render directly, never call `AskUserQuestion` first |
 | `/msg --doctor` | "check the harness", "what keeps failing", "run the doctor", "triage the incident log" | [`refs/protocol-doctor.md`](refs/protocol-doctor.md) — tallies and triages `devkit/DOCTOR.md`; **never fixes** |
 | `/msg --aha` | "prune the learnings", "sweep AHA", "trim the aha log", "triage the learnings ledger" | [`refs/protocol-aha.md`](refs/protocol-aha.md) — triages and compacts `devkit/AHA.md`; only write is the ledger itself, promotions stay recommendations |
+| `/msg --version`, or the bare word `version` | "which msg is this", "what version of msg do I have", "did the reinstall land", "is msg up to date" | **Protocol: --version** below |
 | `/msg --help` | — | **Protocol: --help** below |
 | `/msg` (no args) | — | **Protocol: default** below |
 
@@ -50,7 +51,7 @@ An **unrecognised sub-flag** (`--init --foo`) is never silently ignored — it a
 **Closing message.** `--init`, `--update`, `--init-staging`, `--doctor`, and `--aha` runs end with the closing message
 per [`../shared/refs/closing-message.md`](../shared/refs/closing-message.md) — the last chat
 output, after the protocol's own output. The pure-emission modes (default picker, `--gui`,
-`--help`) are exempt: their "Stop. Do not emit anything else." / render contracts stand unchanged.
+`--version`, `--help`) are exempt: their "Stop. Do not emit anything else." / render contracts stand unchanged.
 
 **Harness incidents.** The same five modes log unexpected script failures, tool errors, retries,
 and missed writes to `devkit/DOCTOR.md` per
@@ -121,6 +122,46 @@ Emit exactly:
 ```
 /<skill> — <description>
 ```
+
+Stop. Do not emit anything else.
+
+---
+
+## Protocol: --version
+
+The one question this answers: **which release of msg is actually installed on this machine?**
+It exists because `~/.claude/skills` is a plain copy, not a git checkout — after an install or a
+reinstall there is otherwise no way to tell a fresh copy from a stale one, in this repo or any other.
+
+**Step 1 — Read the stamp**
+
+Run exactly one command:
+
+```
+cat ~/.claude/skills/msg/VERSION 2>/dev/null || echo "no stamp"
+```
+
+`install.sh` writes that file on every install. It is deliberately the *global* path even when a
+project ships its own `.claude/skills/msg/` — the installed copy is what other repos load, so the
+installed copy is what this mode reports.
+
+**Step 2 — Emit**
+
+Emit the file's single line verbatim, and nothing else:
+
+```
+msg v<version> — <commit>, installed <YYYY-MM-DD>
+```
+
+If the command printed `no stamp`, emit exactly this instead:
+
+```
+msg is installed but unstamped — reinstall to record a version: curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
+```
+
+An unstamped install means the copy predates `--version`, which is itself the answer: it is older
+than v5.6.3. Never guess a version from a changelog, a tag, or this repo's `package.json` — those
+describe the source, not what is installed.
 
 Stop. Do not emit anything else.
 
