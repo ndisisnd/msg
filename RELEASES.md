@@ -2,6 +2,14 @@
 
 What's new for you, release by release.
 
+## v5.6.2 — 2026-08-03
+
+> Running a team of agents no longer goes quiet. When you kick off a team build, your session stays responsive and you get a steady stream of progress from the agents doing the work, instead of one long silence until everything finishes.
+
+### 🐛 Fixed
+- Team builds now report progress while they run. Previously the whole wave took over your session until it was done, which also meant the periodic progress updates never reached you — so a long build looked indistinguishable from a stalled one.
+- Progress from a team's agents is no longer lost on the way to you. Each layer of the run now keeps its own separate progress track, so updates from the inner agents get passed along rather than overwritten by whichever one reported first.
+
 ## v5.6.1 — 2026-08-03
 
 > Gate runs — the checks `pre-merge` and `merge` do before shipping — now happen in a background subagent instead of your main conversation. Your conversation stays lean and you still see live progress, but you're only pulled in for the decisions that are actually yours to make.

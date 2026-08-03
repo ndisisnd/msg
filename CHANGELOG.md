@@ -2,6 +2,10 @@
 
 ## 2026-08-03
 
+### [149] — Release v5.6.2
+
+- `RELEASES.md`: Added — v5.6.2 notes covering [148] (`plan-em --team` orchestrator spawn goes backgrounded, progress relays through a file rather than a shared heartbeat run-id).
+
 ### [148] — `plan-em --team`: orchestrator spawn goes backgrounded, progress relays through a file
 
 - `.claude/skills/shared/refs/status-heartbeat.md`: Added — § *Relaying across a subagent boundary*, the single statement of the two rules any nested-orchestrator dispatch obeys: run-ids stay disjoint, and the relay is a file in the run's artifact directory. Spells out why sharing a heartbeat run-id destroys progress rather than relaying it — a reporting `--tick` drains the notes bank and resets the report window, so whichever side ticks first takes everything, and `--end` deletes the state file outright.
