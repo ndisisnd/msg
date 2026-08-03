@@ -203,6 +203,16 @@ Smoke's default-liveness floor means the check can never pass vacuously
 
 ## 3 · Run the waves + fail-fast
 
+**Nesting — this section is unchanged when the gate runs in a subagent.** Gate runs
+are dispatched into a subagent (`../../shared/refs/gate-dispatch.md`), so the
+component subagents this section spawns are **nested** one level deeper. That was
+verified against the harness at v5.6.1 and it works: a spawned agent can itself call
+the `Agent` tool, so parallel waves, backgrounded dispatch and the inner watch all
+run exactly as written below, whether the executor is running inline or inside the
+gate subagent. Nothing here forks on execution location. The **only** requirement is
+run-id disjointness: this section's `premerge-<epoch>` and the dispatcher's
+`gate-<epoch>` are separate watch states and neither reads the other's.
+
 Run waves **in order**. For every edge `A depends_on B`, B fully completes before
 A starts — true under every flag combination. Within a wave:
 
@@ -230,6 +240,15 @@ W=.claude/scripts/script-agent-watch.sh; [ -f "$W" ] || W="$HOME/.claude/scripts
 "$W" --register --run-id premerge-<epoch> --leaf <check id> \
      --evidence ".pre-merge/<ts>/<check>.json" --evidence ".pre-merge/<ts>/<check>.log" --label "<check>"
 ```
+
+**Tick relay — write every `REPORT` block to the artifact dir.** Each rendered
+`REPORT` the executor emits is also appended to `.pre-merge/<ts>/heartbeat.log` as it
+is produced. When the gate runs inline this file is a harmless extra artifact; when
+the gate runs in a subagent it is the **only** way its progress reaches a human,
+because a leaf does not narrate and only the dispatcher's ticks are seen. The
+dispatcher folds the newest block into its own `--note` on each poll wake
+(`../../shared/refs/gate-dispatch.md` § *Register and watch*). Best-effort: a failed
+append never fails, blocks, or re-verdicts the run.
 
 The per-check **result report and its log** (§4) are the evidence globs — every
 component writes both on every run, pass, fail or skip, so a component's liveness is
@@ -627,6 +646,14 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
   selection-capable check's line also carries `selected/total`, the tier, and any
   `fallback_reason` (§3c.3); on a full or selection-off run the lines are
   unchanged.
+- **Write the verdict to `.pre-merge/<ts>/verdict.json`** — the same JSON §5b emits to
+  stdout, byte-for-byte, written to disk before it is printed. On **every** verdict
+  including `refused` and `skipped`. This file is the dispatcher's transport: a gate
+  run in a subagent has no stdout the main thread can trust, so the dispatcher `cat`s
+  this file and re-emits it verbatim rather than paraphrasing the subagent's return
+  text (`../../shared/refs/gate-dispatch.md` § *Relay, don't rewrite*). Unlike the run
+  report this write is **not** best-effort — a missing `verdict.json` means the run
+  failed its emission contract and the dispatcher reports it as such.
 - **Heartbeat and watch end here.** After the terminal issue summary and run report are
   written, call `--end --run-id premerge-<epoch> --outcome "<verdict>"` on the tick
   script and `--close --run-id premerge-<epoch>` on the watch script — before the verdict

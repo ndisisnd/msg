@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-08-03
+
+### [146] — v5.6.1 docs
+
+- `README.md`: Added — FAQ entry explaining why a gate run reports itself as running in a subagent (leaner conversation, live progress, no output or approval change).
+- `ARCHITECTURE.md`: Changed — the composition bullet now names gate self-delegation and nesting as a supported shape; § *Run visibility* gains the dispatcher paragraph (probe → spawn → `gate-<epoch>` watch → verdict-file relay, merge's phase split, interview modes inline).
+
+### [145] — `merge` phase-split: mechanical phases in subagents, every human gate main-thread
+
+- `.claude/skills/merge/SKILL.md`: Added — `Agent` to `allowed_tools`; § *Dispatch — the phase split* with the per-mode phase table, the structured gate-request hand-back, and the restatement that sanctioned writes execute inside the subagent while the dispatcher writes nothing. `--staging` phase 2 (the sign-off stamp) runs inline — one script call is cheaper than a spawn. `--init` stays inline.
+- `.claude/skills/merge/refs/staging.md`: Added — phase markers at the existing boundaries: Steps 1–6 are subagent phase 1, the Step 6 STOP and Step 7's approval ask are main thread. No step re-ordered.
+- `.claude/skills/merge/refs/production.md`: Added — phase markers: release identity through Step 2 is subagent phase 1, Step 3's double-confirmation and the `direct`-flow inline human-test approval are main thread, lock acquire through Step 10 is subagent phase 2, and the failed-ship rollback offer stays main thread. No step re-ordered.
+
+### [144] — `pre-merge` dispatches its gate run to a subagent
+
+- `.claude/skills/pre-merge/SKILL.md`: Added — § *Dispatch* now opens with the subagent-execution stanza (cheap refusal probe inline, backgrounded spawn, `gate-<epoch>` watch, relay); interview modes stay inline; new `verdict_file` output row; emission step 3 names the verdict file as the dispatcher's transport; `gate-dispatch.md` added to references.
+- `.claude/skills/pre-merge/refs/executor.md`: Added — §3 nesting note recording the v5.6.1 spike outcome (nested `Agent` spawns work, so parallel waves run unchanged inside the gate subagent; only run-id disjointness is required); the tick-relay rule writing every `REPORT` block to `.pre-merge/<ts>/heartbeat.log` so the dispatcher can fold inner progress into its own notes; §6 now writes `verdict.json` to the artifact dir on every verdict, not best-effort.
+
+### [143] — `shared/refs/gate-dispatch.md` — the gate dispatcher contract
+
+- `.claude/skills/shared/refs/gate-dispatch.md`: Added — new cross-skill contract: pre-spawn refusal probe → one backgrounded `Agent` spawn → `script-agent-watch.sh` registration under a gate-scoped `gate-<epoch>` run-id disjoint from the inner `premerge-<epoch>` → byte-identical verdict relay read from the artifact file (never paraphrased from the subagent's return text) → `--end` + `--close` on every exit path. Carries the phase-split rule (every `AskUserQuestion` stays main-thread, same wording, same order) and the six invariants: dispatcher does no work, byte-identical output, no gate weakens, observational watch, disjoint run-ids, both states close.
+
 ## 2026-08-02
 
 ### [142] — Release v5.6.0

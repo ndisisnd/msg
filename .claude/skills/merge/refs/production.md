@@ -26,6 +26,16 @@ S=.claude/scripts/script-intake-stamp.sh --find-row   # PRD id → ledger row # 
 (Resolution form — repo copy first, global install second — is stated once in
 `SKILL.md` § *Sanctioned writes*.)
 
+**Phase markers.** Release identity through Step 2 is **subagent phase 1**; Step 3's
+double-confirmation and the `direct`-flow inline human-test approval are **main
+thread**; the release lock acquire through Step 10 is **subagent phase 2**; the
+failed-ship rollback / rollout-halt offer and the fix-loop handoff are **main thread**
+(they already were). See `SKILL.md` § *Dispatch — the phase split* and
+`../../shared/refs/gate-dispatch.md`. Step order, wording and refusals below are
+unchanged — the markers name where each step executes, nothing more.
+
+## ▸ PHASE 1 (subagent) — release identity, Step 1, Step 2
+
 ## Release identity (resolved early)
 
 Before the double-confirm, so the human sees exactly what will be tagged:
@@ -148,6 +158,14 @@ proceeds; `skip` doesn't verify; `NO_GH`/`NO_REMOTE` refuse regardless). Under
 "$S" --tick --run-id "$RUN_ID" --note "branch protection verified" --step "double-confirmation"
 ```
 
+## ▸ PHASE 1 ENDS — hand back to the main thread
+
+Phase 1 returns the verdict-so-far (preconditions, sign-off coverage, protection,
+lock status, the resolved release identity) plus a gate request naming Step 3's two
+asks. Everything from here to the lock acquire runs in the **main thread**; both
+approvals and the `direct`-flow attestation are `AskUserQuestion` calls a subagent
+cannot make.
+
 ## Step 3 — Double-confirmation (two separate asks)
 
 Two **separately-asked** `AskUserQuestion` calls — never one combined question,
@@ -220,6 +238,15 @@ inline attestation under `direct` flow) — the heartbeat may speak again:
 ```bash
 "$S" --tick --run-id "$RUN_ID" --note "release confirmed by human" --step "acquire release lock"
 ```
+
+## ▸ PHASE 2 (subagent) — lock acquire through Step 10
+
+With both approvals in hand the dispatcher spawns phase 2, passing the approvals and
+the resolved release identity forward. Phase 2 executes the ship: lock acquire →
+release PR → merge → deploy → verify + provenance → intake stamp → tag → PRD lane
+move. It ends by handing back the verdict; on a **failed** ship the rollback /
+rollout-halt offer and the fix-loop handoff run in the **main thread**, exactly as
+`SKILL.md` § *Failed-ship loop* already specifies.
 
 ## Release lock (acquire before Step 4, release on every exit)
 
