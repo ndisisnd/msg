@@ -100,6 +100,35 @@ age, and the human's options — out of band, between reports. It is defined in
 asks a human to decide, and never stops anything itself. No other out-of-band line
 is sanctioned.
 
+## Relaying across a subagent boundary
+
+When the orchestrator itself runs inside a subagent — a gate behind a dispatcher
+([`gate-dispatch.md`](gate-dispatch.md)), a `plan-em --team` orchestrator behind
+plan-em — its ticks are real and recorded but **nobody sees them**. Only a
+subagent's final return payload reaches the user; its intermediate output does
+not. Two rules make the inner run's progress visible, and both are load-bearing.
+
+**Run-ids stay disjoint.** The outer dispatcher mints its own id; the inner run
+keeps its own. Never reuse the inner id, and never let the inner run see the
+outer one. Sharing an id does **not** relay anything — it destroys it. A `--tick`
+that reports drains the notes bank (`--start`'s state is emptied) and resets the
+report window, so whichever process ticks first takes everything and leaves the
+other with `QUIET` against an empty bank; and `--end` deletes the state file
+outright, so the inner run's close tears down the outer run's state mid-flight.
+
+**The relay is a file, not shared state.** The inner run appends every rendered
+`REPORT` block to a relay log in the run's artifact directory as it is produced —
+`.pre-merge/<ts>/heartbeat.log` for a gate, `<prd-dir>/reports/heartbeat.log` for
+a team wave. The **outer** run dictates the path and injects it; the inner run
+never learns the outer id. On each poll wake the dispatcher reads the newest
+block and folds it in as its own `--note`. Progress the human sees is real inner
+progress, one relay hop later.
+
+The relay file doubles as the inner run's liveness evidence for
+[`agent-watch.md`](agent-watch.md): the same append that gives the dispatcher
+something to say also proves the run is alive. Appending is best-effort — a
+failed append never fails, blocks, or re-verdicts a run.
+
 ## Long blocking steps
 
 A single component — a full test suite, an e2e run, a deploy — can outlast the

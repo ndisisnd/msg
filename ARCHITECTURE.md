@@ -217,6 +217,14 @@ it fans out but because its phases now *are* leaves: the dispatcher below watche
 the one phase in flight. Loop + ladder contract: `shared/refs/agent-watch.md`;
 thresholds per project: `policies.agent_watch`.
 
+From v5.6.2 the same shape covers `plan-em --team`, whose orchestrator spawn used to
+block the session for the whole wave. plan-em now backgrounds it, watches it as one
+leaf, and relays the orchestrator's `REPORT` blocks from a file the orchestrator appends
+to. The relay is a **file**, never a shared run-id: a shared heartbeat state drains into
+whichever side ticks first and is deleted by whichever side closes first, so the two
+run-ids stay disjoint by rule (`shared/refs/status-heartbeat.md` § *Relaying across a
+subagent boundary*).
+
 **Gate runs execute in a subagent (v5.6.1).** A `/pre-merge` or `/merge` gate run is
 the heaviest token consumer in a session, and almost none of what it produces is
 content a human reads. So the run itself moved out of the main conversation: the main

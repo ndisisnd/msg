@@ -90,6 +90,11 @@ subagent's `REPORT` blocks land in the run artifact directory as they are produc
 and the dispatcher folds the newest one into its own `--note` on each wake. Progress
 the human sees is therefore the real inner progress, one relay hop later.
 
+Both rules — disjoint ids, file relay — are stated once in
+[`status-heartbeat.md`](status-heartbeat.md) § *Relaying across a subagent
+boundary*, which also spells out why a shared run-id destroys the notes bank
+instead of relaying it. This section is that contract applied to a gate.
+
 ### 4 · Relay, don't rewrite
 
 On return the dispatcher re-emits, in the mode's normal order:
