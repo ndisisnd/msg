@@ -2,6 +2,14 @@
 
 What's new for you, release by release.
 
+## v5.6.3 — 2026-08-03
+
+> You can now check which version of msg you're running. Type `/msg --version` in any project and you get one line back. This matters most right after you install or update — msg lives outside your projects, so an update that quietly failed used to look exactly like one that worked.
+
+### ✨ New
+- `/msg --version` tells you which release is installed, from any repo. Alongside the version it shows the exact build and the date you installed it, so you can tell a fresh copy from one that's been sitting there — the version number alone wouldn't change if you reinstalled the same release.
+- Installing now confirms the version as it goes, so you see what you're getting at the moment you get it rather than hoping it took.
+
 ## v5.6.2 — 2026-08-03
 
 > Running a team of agents no longer goes quiet. When you kick off a team build, your session stays responsive and you get a steady stream of progress from the agents doing the work, instead of one long silence until everything finishes.

@@ -2,6 +2,11 @@
 
 ## 2026-08-03
 
+### [151] — Release v5.6.3
+
+- `RELEASES.md`: Added — v5.6.3 notes covering [150] (`/msg --version` reports the installed release, install-time version stamp).
+- `package.json`: Changed — version bumped to `5.6.3`, which is what the installer stamps from here on.
+
 ### [150] — `/msg --version`: an installed copy can now name its own release
 
 - `package.json`: Added — new file, and the single version field for the repo. No JS build exists here; it is present so `/kermit --release` (which bumps `package.json` when it finds one) advances the version as part of the release itself, leaving no manual step that could drift from the tag.
