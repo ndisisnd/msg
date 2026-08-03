@@ -76,12 +76,28 @@ Shapes and JSON in `refs/refusal-patterns.md`. Pre-merge:
 | Out | run_report | `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (first `--prd`'s `reports/`, else `features/reports/report-<K>.md`) |
 | Out | issues_file | the run report's paired `.json`, on a non-clean verdict — consumed by `eng --build report=` |
 | Out | run_artifacts | raw stage logs → `.pre-merge/<timestamp>/<stage>.log` |
+| Out | verdict_file | `.pre-merge/<timestamp>/verdict.json` — the verdict JSON written to disk, byte-identical to the stdout emission; the dispatcher's transport (`../shared/refs/gate-dispatch.md`) |
 | Out | pr | PR feature→staging (the OPEN-PR terminal) |
 
 Schema: `refs/output-schema.md` · finding shape: `refs/finding-schema.md` (canonical
 `../shared/refs/finding-schema.md`) · severity: `refs/severity-rubric.md`.
 
 ## Dispatch
+
+**The gate run executes in a subagent.** The main thread is a thin dispatcher:
+it runs the cheap refusal probes inline (`no_manifest`, `no_diff` — so a refusal
+costs no spawn), then spawns one backgrounded subagent that runs the whole pipeline,
+watches it under a gate-scoped run-id `gate-<epoch>`, and relays the result. The
+contract — probe, spawn, register + watch, relay, close — is
+`../shared/refs/gate-dispatch.md`; nothing about it is restated here. The dispatcher
+runs no check, writes no artifact, and never touches git.
+
+The **interview modes stay inline**, unchanged: `--init`, `--update`,
+`--update-criticality` are cheap and conversational, and dispatching them would buy
+nothing. Everything else — the bare gate run with any combination of run flags
+(`--flaky`, `--minified`, `--full`, `--prd`, `--changed-only`, `--quiet`,
+`--status`) — goes to the subagent. Output is unaffected either way: the verdict
+JSON and every report file are byte-identical to an inline run.
 
 The gate is a **preflight-driven executor** — it runs the resolved `components[]`
 pipeline from `devkit/policy.json`, not a fixed step list. Load and validate the
@@ -126,7 +142,7 @@ verdict and the run report are *derived*, never authored separately
 
 1. **Run report** — `report-prd-<N>-<K>.md` per `../shared/refs/report-schema.md` (`skill: pre-merge`). Best-effort; skipped on `refused` / `skipped`.
 2. **Terminal `Issue summary` block** — every verdict; format owned by `../shared/refs/report-schema.md`, counts from the canonical `findings[]`. A clean run prints exactly `Issue summary — 0 issues`.
-3. **The verdict JSON** per `refs/output-schema.md`, shape **unchanged**: `fail` (any blocker/high) · `pass_with_warnings` (only medium/low) · `pass` (zero) · `refused` / `skipped`. Additive: `pipeline` (the resolved order) and, only when selection ran, `test_selection`.
+3. **The verdict JSON** per `refs/output-schema.md`, shape **unchanged**: `fail` (any blocker/high) · `pass_with_warnings` (only medium/low) · `pass` (zero) · `refused` / `skipped`. Additive: `pipeline` (the resolved order) and, only when selection ran, `test_selection`. The same JSON is **also written to `.pre-merge/<ts>/verdict.json`** — that file is the dispatcher's transport, `cat`-ed and re-emitted byte-identically, never paraphrased from the subagent's return text (`../shared/refs/gate-dispatch.md` § *Relay, don't rewrite*).
 4. **Closing message** — end the run (every verdict, including `refused` / `skipped`) with the closing message per `../shared/refs/closing-message.md` as the last **chat** output; the step-3 JSON stays the final **machine** emission, byte-identical.
 
 **Harness incidents (every run):** log unexpected script failures, tool errors,
@@ -171,6 +187,7 @@ branch comes back through the gate.
 - `../shared/refs/component-catalog.md` — the component metadata the manifest + executor key off
 - `../shared/refs/check-report-schema.md` — the `detect` + `result` sections the executor writes per check and aggregates
 - `../shared/refs/env-contract.md` — the `devkit/ENV.md` `provision`/`seed`/`reset`/`teardown` block read at executor §3b (gate runs never write it)
+- `../shared/refs/gate-dispatch.md` — the dispatcher contract: gate runs execute in a subagent behind a thin main-thread dispatcher (probe → backgrounded spawn → `gate-<epoch>` watch → byte-identical verdict relay → close)
 - `../shared/refs/fix-loop.md` · `../shared/refs/closing-message.md` · `../shared/refs/doctor-logging.md` · `../shared/refs/safety-floor.md` · `../shared/refs/finding-schema.md` · `../shared/refs/report-schema.md` · `../shared/refs/verify-prelude.md` · `../shared/refs/status-heartbeat.md`
 - `.claude/scripts/script-preflight-*.sh` — the per-check detect+normalize family (C4), ingested into `components[]` by `--init`/`--update`. **These + the manifest are the detector now (v3 P3)**
 - `.claude/scripts/script-pipeline-resolve.py` — **the pipeline resolver**: join → prune → C12 coverage-gap correlation → topo-sorted waves → plan JSON; `--check-complete` verifies every planned component reported

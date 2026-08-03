@@ -20,7 +20,7 @@ Each skill is a directory containing a `SKILL.md` — a structured prompt consum
 
 Skills compose in two ways:
 - **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-review` or `plan-em` directly)
-- **Subagent delegation** via the `Agent` tool (e.g. `/pre-merge` fans out `/cook` sub-agents in parallel for its security stage)
+- **Subagent delegation** via the `Agent` tool (e.g. `/pre-merge` fans out `/cook` sub-agents in parallel for its security stage). Since v5.6.1 the gate skills also delegate *themselves*: a `/pre-merge` or `/merge` gate run executes inside a subagent behind a thin main-thread dispatcher (`shared/refs/gate-dispatch.md`), so nesting — a subagent spawning its own subagents — is a supported and exercised shape.
 
 The `shared/` skill holds common prompt fragments imported by multiple skills, including
 `shared/refs/component-catalog.md` — the single source of pre-merge/merge component
@@ -211,9 +211,29 @@ and grades it NOTICE / WARN / STALL at 5 / 10 / 15 minutes idle. A leaf idle 15
 minutes is assumed stuck and said so, with the decision handed to the human —
 **no auto-stop exists in any configuration**. The watch is observational under
 the same discipline as the heartbeat: it never changes a verdict, never breaks
-a run, and single-agent phases (eng's per-packet build, merge) skip it — there
-is nothing to watch. Loop + ladder contract: `shared/refs/agent-watch.md`;
+a run, and a phase with nothing fanned out (eng's per-packet build) skips it —
+there is nothing to watch. From v5.6.1 `merge` is watched after all, not because
+it fans out but because its phases now *are* leaves: the dispatcher below watches
+the one phase in flight. Loop + ladder contract: `shared/refs/agent-watch.md`;
 thresholds per project: `policies.agent_watch`.
+
+**Gate runs execute in a subagent (v5.6.1).** A `/pre-merge` or `/merge` gate run is
+the heaviest token consumer in a session, and almost none of what it produces is
+content a human reads. So the run itself moved out of the main conversation: the main
+thread is now a thin **dispatcher** that probes for a cheap refusal, spawns the run
+backgrounded, watches it under its own `gate-<epoch>` run-id, relays progress, and
+re-emits the result — the issue summary, the verdict JSON, the closing message. It
+runs no check, writes no artifact and never touches git. The verdict travels as a
+**file** (`.pre-merge/<ts>/verdict.json`), read and re-emitted byte-identically,
+because a subagent's prose summary of a machine emission is a different machine
+emission. Nested spawning works, so pre-merge's component waves run unchanged inside
+the gate subagent; the two watch states are namespaced apart (`gate-*` vs
+`premerge-*`) and neither reads the other's. `/merge` cannot be monolithic — its
+identity is its human gates and `AskUserQuestion` does not exist inside a subagent —
+so it runs **phase-split**: mechanical phases in subagents, every human gate in the
+main thread with the same wording and the same order, the dispatcher choosing only
+*when* to ask. Interview modes (`--init`, `--update`, `--update-criticality`) stay
+inline. Contract: `shared/refs/gate-dispatch.md`.
 
 ## Review evidence
 

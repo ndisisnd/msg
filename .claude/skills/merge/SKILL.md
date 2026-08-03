@@ -12,6 +12,7 @@ allowed_tools:
   - Bash
   - Read
   - Write
+  - Agent
   - AskUserQuestion
 ---
 
@@ -215,6 +216,38 @@ the terminal `Issue summary` block — every verdict, clean ships included (form
 owned by `../shared/refs/report-schema.md`; counts derive from the run's
 `findings[]`). On a failed ship, follow the loop below.
 
+### Dispatch — the phase split
+
+Merge's mechanical work runs in **subagents**; every human gate stays in the **main
+thread**. The mechanics — probe, backgrounded spawn, `gate-<epoch>` watch, relay,
+close — are `../shared/refs/gate-dispatch.md` and are not restated here. What is
+merge-specific is *where the seams fall*, and they fall exactly where the protocols
+already break for a human:
+
+| Mode | Subagent phase | Main-thread gate that follows |
+|---|---|---|
+| `--staging` | **phase 1** — protection → staging-readiness → in-flight-lock read → locate PR + green CI → merge → deploy → verify → derive the human test script | the protocol's existing **STOP** (Step 6, human tests staging), then Step 7's `AskUserQuestion` — "Did staging pass testing?" |
+| `--staging` | **phase 2 runs inline** — the sign-off stamp is one `script-prd-stamp.sh` call after approval; spawning a subagent for a single sanctioned write costs more than it saves | — |
+| `--production` | **phase 1** — preconditions (incl. sign-off coverage) → branch protection → lock read | Step 3's **double-confirmation** (both approvals) and, under `direct` flow, the **inline human-test approval** |
+| `--production` | **phase 2** — lock acquire → release PR → merge on green CI → deploy → verify + provenance → intake stamp → tag → PRD lane move to `done` | on a **failed ship only**: the rollback / rollout-halt offer, then the fix-loop handoff — both already main-thread |
+
+Each subagent phase returns a small structured hand-back — the verdict-so-far plus a
+**gate request** naming which question comes next — not prose. The dispatcher asks
+that question **verbatim per the mode ref's existing wording**, then feeds the answer
+into the next phase. It chooses *when* to ask, never *what* to ask and never whether.
+
+**Ship gates never collapse, and the split does not touch them.** Every
+`AskUserQuestion` in `refs/staging.md` and `refs/production.md` still fires, in the
+main thread, in the same order, with the same wording. Phase-splitting changes where
+the mechanical steps execute — nothing else.
+
+**`--init` stays inline**, unchanged: it is an interview, it is cheap, and it
+performs no merge, PR, or deploy.
+
+**Sanctioned writes are unaffected.** The enumeration above is complete and does not
+change; the phases simply execute those writes **inside the subagent**. The
+dispatcher writes nothing and never touches git.
+
 ## Failed-ship loop
 
 When a ship **fails** — a non-zero deploy or a verification failure, verdict
@@ -293,6 +326,7 @@ chat output after the mode's own emissions.
 - `refs/output-schema.md` — finding/verdict emission
 - `../shared/refs/policy-schema.md` — the shared core of `devkit/policy.json` (§0 `init`, §1 `release_flow`, §2b `github_actions`)
 - `../shared/refs/policy-schema-merge.md` — merge's half: §2 `branch_protection`, `steps.<key>` + §3, §4 `release_model`, §5 `staging_ready`, §6 the release lock
+- `../shared/refs/gate-dispatch.md` — the dispatcher contract behind the phase split: probe → backgrounded spawn → `gate-<epoch>` watch → byte-identical relay → close, and the rule that every human gate stays main-thread
 - `../shared/refs/fix-loop.md`, `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`, `../shared/refs/status-heartbeat.md`
 - `.claude/scripts/` — `script-branch-protection.sh` · `script-signoff-coverage.sh` · `script-release-lock.sh` · `script-release-identity.sh` · `script-prd-stamp.sh` · `script-intake-stamp.sh` (incl. `--find-row`, PRD id → ledger row)
 - `.claude/scripts/` — the resolvers: `script-policy-read.py` (every policy mode + its `?? default`) · `script-ci-status.py` (PR resolution + the one CI verdict) · `script-platforms-parse.py` (the one `PLATFORMS.md` parse) · `script-smoke-run.sh` (the v2 smoke loops + the macOS checks) · `script-ts-miss.py` (test-selection-miss, CI-backstop half)

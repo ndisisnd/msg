@@ -11,6 +11,14 @@ human a test script, and — only on the human's explicit approval — stamps th
 sign-off that `--production` requires. Merge **never self-certifies
 staging**: Step 6 STOPS and waits for a human.
 
+**Phase markers.** Steps 1–6 are **subagent phase 1**; the STOP at the end of Step 6
+and the approval ask at Step 7 are **main thread**; the sign-off stamp itself runs
+**inline** (`SKILL.md` § *Dispatch — the phase split*,
+`../../shared/refs/gate-dispatch.md`). The step order below is unchanged — the markers
+name where each step executes, nothing more.
+
+## ▸ PHASE 1 (subagent) — Steps 1 through 6
+
 ## Step 1 — Branch protection (policy-conditional)
 
 Per `refs/protection.md` + `../shared/refs/policy-schema-merge.md` §2. Resolve
@@ -262,6 +270,11 @@ undeclared.
 "$S" --tick --run-id "$RUN_ID" --note "deploy verified" --step "human test hand-off"
 "$S" --end  --run-id "$RUN_ID" --outcome "staging verified — awaiting human test"
 ```
+
+## ▸ PHASE 1 ENDS — hand back to the main thread
+
+Phase 1 returns the verdict-so-far plus the derived human test script and a gate
+request naming Step 7's question. Everything below runs in the **main thread**.
 
 ## Step 6 — Human test script + STOP
 

@@ -174,6 +174,10 @@ Because `/pre-merge --init` hasn't run in this repo yet. Bootstrapping with `/ms
 
 Deliberately. The human look at a running build belongs to `/merge --staging`, where you get a real test script against a deployed build. Putting a gate in both places would mean testing the same content twice, so pre-merge holds none.
 
+**Why does the gate say it's running "in a subagent"?**
+
+Because it is, since v5.6.1. A `/pre-merge` or `/merge` run generates thousands of lines of machinery — tool logs, per-check reports, aggregation trails — and none of it is something you read. Running it in a subagent keeps that out of your conversation, so what comes back is just the verdict, the issue summary and what to do next. You also stop staring at a dark screen: the run reports progress every few minutes instead of going silent. Nothing about the output changes, and no approval moves — every question `/merge` asks you still gets asked by the main conversation, in the same order, with the same wording.
+
 **Do I need cook?**
 
 No. cook supplies the domain-specific coding standards msg loads before generating code. Without it every skill still works — it just skips the standards-loading step. It's recommended, not required, which is why the installer makes it a flag.
