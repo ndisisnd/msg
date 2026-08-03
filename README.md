@@ -74,9 +74,14 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 **Verify it worked:**
 
 ```bash
-ls ~/.claude/skills     # msg intake plan-pm plan-review plan-em eng pre-merge merge shared
-ls ~/.claude/scripts    # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
+cat ~/.claude/skills/msg/VERSION   # msg v5.6.3 — 7a0967e, installed 2026-08-03
+ls ~/.claude/skills                # msg intake plan-pm plan-review plan-em eng pre-merge merge shared
+ls ~/.claude/scripts               # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
 ```
+
+Inside Claude Code, `/msg --version` prints that same line from any repo. Check it after every
+install or update: the skills live in `~/.claude`, not in your projects, so a reinstall that failed
+halfway leaves every project looking exactly as it did before.
 
 Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session.
 
@@ -122,6 +127,7 @@ Eight slash commands. Run `/msg` to browse them interactively, or invoke any one
 | `/msg --update` | Adds anything msg gained since you set the project up. Shows you the change before making it, and never rewrites a line you already have. |
 | `/msg --init-staging` | Adds a staging branch to a project that currently ships straight to production. The only skill that creates one. |
 | `/msg --doctor` | Tells you when msg itself is misbehaving. Every skill logs its own glitches; this reads that log and reports what keeps recurring, so a broken tool is visible instead of quietly absorbed. |
+| `/msg --version` | Tells you which release of msg is installed, in one line. Run it in any repo after installing or updating to confirm the new version actually landed — the skills live outside your projects, so a reinstall that silently failed otherwise looks identical to one that worked. |
 | `/msg --aha` | Keeps the learnings log worth reading. Agents append lessons to `devkit/AHA.md` as they work; this sweeps the log, merges repeats, drops noise, and flags recurring lessons that should become a workflow, memory, or code change instead. |
 | `/intake` | Where every idea and bug starts. It interviews you, fleshes out the thin ideas, suggests ones you hadn't thought of, splits anything too big to build in one go, and grades each for complexity and cost. |
 | `/intake --update` | Changes an idea you already captured. A real change to the idea re-grades it; a wording fix doesn't. |
