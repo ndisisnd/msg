@@ -2,6 +2,18 @@
 
 What's new for you, release by release.
 
+## v5.6.1 — 2026-08-03
+
+> Gate runs — the checks `pre-merge` and `merge` do before shipping — now happen in a background subagent instead of your main conversation. Your conversation stays lean and you still see live progress, but you're only pulled in for the decisions that are actually yours to make.
+
+### 📈 Improved
+- Gate runs in `pre-merge` and `merge` execute in a dedicated subagent, keeping your main conversation short while still streaming live progress — what you see and every approval you're asked for work exactly as before.
+- `merge` now splits its work so mechanical steps run in the background while every human decision — approvals, sign-offs — stays in your main conversation, so you're only interrupted when a call is genuinely yours.
+- Progress from nested work is folded into one coherent stream of updates instead of surfacing as separate, overlapping status reports.
+
+### 🐛 Fixed
+- A gate run's verdict is now always written to disk, so its outcome can never go missing after the run finishes.
+
 ## v5.6.0 — 2026-08-02
 
 > Your project's learnings log (`devkit/AHA.md`) now stays short enough to actually help. Every agent that records a lesson is held to a terse two-to-three-line format — the shared writer script simply refuses anything longer — and a new `/msg --aha` mode sweeps the log on demand: it merges repeats, prunes entries that no longer earn their lines, and flags lessons that keep recurring as things to fix at the source (a workflow change, a note in your project memory, or a real code fix). Agents reading the log now carry only the handful of entries relevant to their assigned work, so past lessons inform new work without crowding it out.

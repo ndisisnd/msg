@@ -2,6 +2,10 @@
 
 ## 2026-08-03
 
+### [147] — Release v5.6.1
+
+- `RELEASES.md`: Added — v5.6.1 notes covering [143]–[146] (gate runs in `pre-merge` and `merge` dispatch to a subagent, `merge` phase-split between mechanical steps and human-gate steps, verdict always written to disk, docs).
+
 ### [146] — v5.6.1 docs
 
 - `README.md`: Added — FAQ entry explaining why a gate run reports itself as running in a subagent (leaner conversation, live progress, no output or approval change).
