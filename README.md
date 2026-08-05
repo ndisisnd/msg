@@ -19,7 +19,7 @@
   <a href="LICENSE"><img src="https://badgen.net/badge/license/MIT/blue" alt="License"></a>
   <a href="https://github.com/ndisisnd/msg/releases"><img src="https://badgen.net/github/release/ndisisnd/msg" alt="Release"></a>
   <a href="https://github.com/ndisisnd/msg/commits/main"><img src="https://badgen.net/github/last-commit/ndisisnd/msg" alt="Last commit"></a>
-  <img src="https://badgen.net/badge/skills/8/8B5CF6" alt="Skills">
+  <img src="https://badgen.net/badge/skills/9/8B5CF6" alt="Skills">
   <a href="https://github.com/ndisisnd/msg/stargazers"><img src="https://badgen.net/github/stars/ndisisnd/msg" alt="Stars"></a>
 </p>
 
@@ -36,13 +36,27 @@
   <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>llms.txt</code></a>.
 </sub></p>
 
+<!-- mkpub:release v5.6.4 -->
+<div style="background: #1a1a1a; padding: 12px; color: white">
+<h4 align="center">
+  <strong>🚀 New in v5.6.4 · Run your app on a simulator with one command</strong>
+</h4>
+
+<p align="center"><sub>
+  <code>/emulate</code> builds and launches your app on a local simulator or emulator, from the branch you're on.<br/>
+  It stops the leftover build processes from your last attempt first, so a launch fails for your code's reasons and not the last run's.<br/>
+  Update with <code>curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook</code> · <a href="RELEASES.md">Release notes</a>
+</sub></p>
+</div>
+<!-- /mkpub:release -->
+
 ---
 
 ## What it does
 
 msg is the counterpart that relies on [`/cook`](https://github.com/ndisisnd/cook) — a heavily opinionated coding agent workflow and harness that depends on human approvals more than autonomy. You describe a feature, and msg walks it through capture, planning, engineering, building, a CI gate, a staging sign-off, and a production release. You approve at each gate; nothing ships on the agent's own judgment.
 
-It installs as eight slash commands in Claude Code. There is no server and no account — every skill runs locally against your own repository.
+It installs as nine slash commands in Claude Code. There is no server and no account — every skill runs locally against your own repository.
 
 - **Plan** — `/intake` captures and grades ideas into a backlog, `/plan-pm` writes the PRD, `/plan-review` certifies it, `/plan-em` writes the engineering sections.
 - **Build** — `/eng --plan` proposes the file changes, `/eng --build` writes the code on a feature branch, `/eng --review` runs an adversarial pass over the diff.

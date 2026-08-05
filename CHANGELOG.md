@@ -2,6 +2,10 @@
 
 ## 2026-08-05
 
+### [154] — README header: v5.6.4 release blurb, and two stale counts
+
+- `README.md`: Added — `mkpub:release` card in the header announcing `/emulate`, with the recommended installer as the update CTA (the same command `## How to update` gives, because re-running it upgrades an existing install rather than erroring). Changed — skills badge `8` → `9`, and "installs as eight slash commands" → "nine" in § *What it does*; the same claim further down the page was corrected in [152], and this second occurrence was missed.
+
 ### [153] — Release v5.6.4
 
 - `RELEASES.md`: Added — v5.6.4 notes covering [152] (`/emulate` runs the app on a local simulator or emulator from the current branch, clearing the previous attempt's stale build processes first; optional `emulate_cmd` column; `/msg --update` offers both new settings to repos bootstrapped earlier).
