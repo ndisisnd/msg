@@ -2,6 +2,11 @@
 
 ## 2026-08-05
 
+### [153] — Release v5.6.4
+
+- `RELEASES.md`: Added — v5.6.4 notes covering [152] (`/emulate` runs the app on a local simulator or emulator from the current branch, clearing the previous attempt's stale build processes first; optional `emulate_cmd` column; `/msg --update` offers both new settings to repos bootstrapped earlier).
+- `package.json`: Unchanged — the version was already bumped to `5.6.4` alongside the feature in [152].
+
 ### [152] — `/emulate`: the local run lane — boot a simulator on this branch and open the window
 
 - `.claude/skills/emulate/SKILL.md`: Added — new skill, and the first leaf outside the planning→build→gate→ship spine: it launches, it never ships. Router with the dispatch table (`--ios` / `--adr` / `--expo` / `--device` / `--dry-run`), the "two axes, not one" statement (`--ios`/`--adr` pin the **platform**, a product fact read from `devkit/PLATFORMS.md`; `--expo` pins the **runner**, a repo fact), and the two contracts the lane is built on: fail loudly where the answer is knowable and wrong to guess, ask only where the answer is genuinely the user's.

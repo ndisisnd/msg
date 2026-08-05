@@ -2,6 +2,22 @@
 
 What's new for you, release by release.
 
+## v5.6.4 — 2026-08-05
+
+> You can now run your app on a simulator or emulator with one command: `/emulate`. It takes whatever branch you're on, clears out the leftover build processes from your last attempt, and opens the window on your desktop. That last part is the reason it exists — a half-dead build server from the run before is the most common cause of a launch that fails for reasons that have nothing to do with your code.
+
+### ✨ New
+- Type `/emulate` in any project and the app launches locally, on the branch you're standing on. You don't have to remember the right build command, stop last time's dev server, or pick a device — it works out all three and tells you what it chose.
+- Say which platform you want with `/emulate --ios` or `/emulate --adr`. Leave the flag off and it reads the platforms you actually ship from your project's setup. If you ship both, it asks; if you ship neither, it stops and says so rather than guessing and booting the wrong thing.
+- Choose a device with `/emulate --device "iPhone 17"`, or let it suggest one. It prefers a simulator you already have running, then one you've set as your own default, then the newest you have installed — so the common case needs no decision from you.
+- Preview a run without touching anything using `/emulate --dry-run`. It shows you exactly which processes it would stop, so you can see what it's about to do before it does it.
+- If you'd rather it ran a specific command, you can now write one into your project's platform setup and `/emulate` will use that instead of working one out. Leave it blank and nothing changes.
+
+### 📈 Improved
+- `/emulate` never writes to your repository — no commits, no branches, no files. The only thing it changes on your machine is stopping stale build processes, and it will only ever stop ones belonging to *this* project. A dev server from another project is never touched, even if it looks identical.
+- Failures tell you what went wrong and what to do about it. A missing toolchain, a device name that doesn't exist, a project with nothing to emulate — each one stops immediately with the fix, instead of surfacing as an obscure error several minutes into a build.
+- Projects you set up before this release can pick up the new settings by running `/msg --update`, which offers them to you rather than changing anything on its own.
+
 ## v5.6.3 — 2026-08-03
 
 > You can now check which version of msg you're running. Type `/msg --version` in any project and you get one line back. This matters most right after you install or update — msg lives outside your projects, so an update that quietly failed used to look exactly like one that worked.
