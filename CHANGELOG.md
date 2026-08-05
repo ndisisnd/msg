@@ -2,6 +2,11 @@
 
 ## 2026-08-05
 
+### [156] — Release v5.6.5
+
+- `RELEASES.md`: Added — v5.6.5 notes covering [155] (resumable orchestration runs via the run-state checkpoint, the persistent standards-payload cache, and cache-aligned leaf dispatch), with [154] folded into a documentation touch-up line.
+- `package.json`: Unchanged — the version was already bumped to `5.6.5` alongside the feature in [155].
+
 ### [155] — v5.6.5: the memory-layer patch — resumable runs, persisted standards, cache-aligned dispatch
 
 - `.claude/scripts/script-em-state.py`: Added — plan-em run-state checkpoint file (`<prd-dir>/reports/em-state.json`): atomic `--init`/`--set`/`--get`/`--close`/`--archive`, written at wave boundaries only; an open state lets a fresh session resume an interrupted run (skip completed waves and already-returned build agents) instead of restarting. Missing or corrupt state is never a hard failure; the file is resumability only — heartbeat and agent-watch keep observability, and mode selection stays PRD-evidence-driven with the state file never overriding it.

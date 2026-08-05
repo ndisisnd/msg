@@ -2,6 +2,19 @@
 
 What's new for you, release by release.
 
+## v5.6.5 — 2026-08-05
+
+> Long engineering runs now survive interruptions. If a session dies or you close your laptop mid-run, the orchestrator picks up where it left off — finished work is kept, only the unfinished agents are re-dispatched. Runs also got cheaper: compiled coding standards are remembered between runs, and agent briefings are arranged so the shared portion is billed at cache rates instead of full price.
+
+### ✨ New
+- An interrupted orchestration run is no longer lost. Start the same plan again and you'll be offered a resume: waves that finished stay finished, engineers who already returned aren't sent out again, and only the remaining work runs. If the checkpoint is ever missing or damaged, nothing breaks — the run simply starts fresh.
+- Your coding standards are now compiled once and remembered. Every later run — orchestrated or a solo build — reuses the saved copy instantly instead of recompiling it. Edit any standards file and the copy invalidates itself automatically, so you can never be served stale rules.
+
+### 📈 Improved
+- Parallel engineering runs cost less. Each agent's briefing now leads with the material every agent shares and ends with what's unique to them, so the shared part hits the provider's prompt cache for every agent after the first instead of being paid for in full each time.
+- Resuming never guesses. What kind of run to make is always decided from the plan document itself — the checkpoint only records progress, and if the two ever disagree, the plan wins and the stale checkpoint is set aside.
+- Various small documentation touch-ups.
+
 ## v5.6.4 — 2026-08-05
 
 > You can now run your app on a simulator or emulator with one command: `/emulate`. It takes whatever branch you're on, clears out the leftover build processes from your last attempt, and opens the window on your desktop. That last part is the reason it exists — a half-dead build server from the run before is the most common cause of a launch that fails for reasons that have nothing to do with your code.
