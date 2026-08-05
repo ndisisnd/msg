@@ -2,6 +2,10 @@
 
 ## 2026-08-05
 
+### [157] — README header: v5.6.5 release blurb, in GitHub alert syntax
+
+- `README.md`: Changed — the header's `mkpub:release` card now uses GitHub's native `> [!NOTE]` alert syntax instead of a hand-styled `<div>`, so it renders as a tinted block on github.com itself rather than only in editor previews. Content updated to announce v5.6.5 (resumable orchestration runs via the run-state checkpoint, the persisted standards cache, and cache-aligned leaf dispatch), with the same install command as the update CTA.
+
 ### [156] — Release v5.6.5
 
 - `RELEASES.md`: Added — v5.6.5 notes covering [155] (resumable orchestration runs via the run-state checkpoint, the persistent standards-payload cache, and cache-aligned leaf dispatch), with [154] folded into a documentation touch-up line.

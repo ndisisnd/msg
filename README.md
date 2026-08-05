@@ -36,18 +36,12 @@
   <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>llms.txt</code></a>.
 </sub></p>
 
-<!-- mkpub:release v5.6.4 -->
-<div style="background: #1a1a1a; padding: 12px; color: white">
-<h4 align="center">
-  <strong>🚀 New in v5.6.4 · Run your app on a simulator with one command</strong>
-</h4>
-
-<p align="center"><sub>
-  <code>/emulate</code> builds and launches your app on a local simulator or emulator, from the branch you're on.<br/>
-  It stops the leftover build processes from your last attempt first, so a launch fails for your code's reasons and not the last run's.<br/>
-  Update with <code>curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook</code> · <a href="RELEASES.md">Release notes</a>
-</sub></p>
-</div>
+<!-- mkpub:release v5.6.5 -->
+> [!NOTE]
+> **🚀 New in v5.6.5 · Long runs now survive interruptions, and cost less**
+>
+> If a session dies or you close your laptop mid-run, `plan-em` picks up where it left off instead of starting over — finished work stays finished, only the unfinished agents are re-dispatched. Compiled coding standards are also remembered between runs, and agent briefings are now ordered so the shared portion hits the prompt cache instead of being billed in full each time.
+> Update with `curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook` · [Release notes](RELEASES.md)
 <!-- /mkpub:release -->
 
 ---
