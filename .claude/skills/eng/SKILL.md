@@ -139,7 +139,14 @@ Ask up to 3 focused questions, one at a time — each naming the specific row or
 Coding standards come from `/cook`, pulled via **explicit flags** (never a prose summary) so the call is cacheable and the P0 floor always loads. **Runs on `--build` only:** `--plan` does not call `/cook` — its design doc + todo tickets are grounded in the `CLAUDE.md` + `devkit/ARCHITECTURE.md` stack constraints read in Step 2; standards are pulled later, at build time. On `--build`, resolve standards one of two ways:
 
 - **Orchestrated (payload injected):** when the prompt carries a **`standards payload`** section (an orchestrator compiled it once for this stack and injected it), use it and **do not call `/cook`**. Default on orchestrated runs.
-- **Standalone (call cook yourself):** when no payload is injected, call `/cook` once with explicit flags — stack→flag table in `refs/build/protocol.md`. Always include `--global` (guarantees the P0 floor + 8 concern refs); an identical flag set repeats as a cook cache hit. Read fully; surface any uncovered stack as a named gap in the build summary.
+- **Standalone (call cook yourself):** when no payload is injected, derive the explicit flag set — stack→flag table in `refs/build/protocol.md`, always including `--global` (guarantees the P0 floor + 8 concern refs) — then **consult the persistent standards cache before calling `/cook` (v5.6.5)**, the same cache the orchestrated lane fills, so the two paths stay in agreement:
+
+  ```bash
+  C=.claude/scripts/script-standards-cache.py; [ -f "$C" ] || C="$HOME/.claude/scripts/script-standards-cache.py"
+  python3 "$C" --check --flags "<the derived flag set>"
+  ```
+
+  `HIT <payload-path>` → read that file as the compiled standards; skip the `/cook` call. `MISS` → call `/cook` once with those flags, write the returned payload to a temp file, then `python3 "$C" --store --flags "<same flag set>" --payload <temp-file> || true` (best-effort — a failed store never blocks the run). Read the standards fully either way; surface any uncovered stack as a named gap in the build summary. Cache contract: `../shared/refs/session-cache.md` § Consumers.
 
 ---
 

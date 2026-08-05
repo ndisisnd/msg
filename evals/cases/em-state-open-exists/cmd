@@ -1,0 +1,1 @@
+python3 "$REPO/.claude/scripts/script-em-state.py" --init --file em-state.json --mode build

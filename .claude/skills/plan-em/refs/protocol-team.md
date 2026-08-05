@@ -457,7 +457,7 @@ things:
 A **standalone** human `eng --build` also keeps reading `SKILL.md` — the packet doc's
 assumptions are false outside an orchestrated run.
 
-Then the leaf's fields, by wave:
+Then the leaf's fields, by wave. **Prompt-field ordering (v5.6.5):** render every dispatch prompt *stable head first, varying tail last* — the fields identical across sibling leaves (protocol pointer, mode flag, `prd-path`, `branch`, devkit digest, house rules, the stack's standards payload) precede the per-leaf fields (`agent`, `rows`, mapped feature sections, row-matched AHA slice, review identity, escape hatch), byte-identical across siblings, with same-stack leaves spawned contiguously — so Anthropic's prefix-match prompt cache serves the shared bytes to every leaf after the first. Leaves parse fields by name, never by position; the ordering serves the cache only, and spawning stays parallel. The table below lists *what* is injected per wave; the ordering rule above governs *how* it is laid out:
 
 | Wave | Invocation | Injected |
 |------|-----------|----------|

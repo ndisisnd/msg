@@ -66,6 +66,17 @@ same way, so the persisted pref carries the choice across waves without re-passi
 - Derive `n` = first numeric segment of that parent dir name (`prd-3-habit-tracking` → `n=3`; `prd-2.1-streak-freeze` → `n=2`, the parent's number for a sub-PRD).
 - On failure: refuse, emit the rule, produce no output.
 
+**1a′. Run-state resume check (v5.6.5).** Before any pre-flight work, read the run-state file:
+
+```bash
+S=.claude/scripts/script-em-state.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-state.py"; python3 "$S" --get --file "$PRD_DIR/reports/em-state.json"
+```
+
+- `NO_STATE`, `CORRUPT`, or a state with `"status": "closed"` → fresh run; continue to 1b. (Corrupt is never a hard failure — session-cache rule 4 applies; log one DOCTOR row `validator-fail:script-em-state` only if the file existed and would not parse.)
+- An **open** state → summarise it in one line from the JSON (e.g. `Open run found: mode build, plan wave done, 2 of 4 build agents returned.`) and ask via `AskUserQuestion`: **Resume** (default; skip work the state marks done — the existing Step 3 resume rules already govern the plan-wave artifacts, and § Step 4 skips build agents marked `done`) / **Start fresh** (`--archive` the file to `em-state.json.prev`, then continue as a fresh run) / **Abort**. *(Under an autonomy contract — orchestrator running hands-off — Resume is pre-approved; do not fire the gate.)*
+
+The state file is **resumability only**: it never carries a verdict, never substitutes for the heartbeat or agent-watch (those stay observational), and every later write in this protocol rides a step that already exists — never add a step to create a checkpoint.
+
 **1b. Mandatory pre-flight scan (devkit + PRD).** Devkit files live in `devkit/` (created by `/msg --init`); `CLAUDE.md` is at project root. Read all, in order:
 
 | # | Source | Read for / action |
@@ -179,11 +190,19 @@ No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its
 
 - **Exec table already present** — the reserved `## 6. Feature execution table` section holds real rows rather than its `_To be populated by plan-em …_` placeholder. **Verify, do not render:** confirm (i) that section is the table's only home — no second `## Execution Table` heading was appended alongside it — and (ii) every row's Feature cell keys on an F-ID that still exists in the PRD's §3 Features & acceptance criteria table. Verified → skip the skeleton render entirely; **never append a second table.** A verification failure (a duplicate table, or a row keying on an F-ID §3 no longer carries) is a hard stop — surface it and let the user reconcile; do not re-render over it.
 - **Roster already approved** — the digest's `engineering_agents` field (the same field Step 4 mode-detection reads) already lists every agent the roster in 3b would propose. This is the build-wave case: the gate is a **per-PRD approval, not a per-wave one**, and it already happened. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan wave: backend-eng, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-fire the approval `AskUserQuestion`.
-- **3a still runs either way.** The compiled `/cook` standards payloads are per-run, not persisted, and the build wave's dispatch (Step 4) needs them — only 3b's approval interview and the skeleton render are resumable.
+- **3a still runs either way — but consult the standards cache first (v5.6.5).** The build wave's dispatch (Step 4) needs the compiled `/cook` payloads; since v5.6.5 they persist across runs under `.claude/msg/cache/` (§ 3a cache check below), so "runs either way" usually means a cache hit, not a recompile. Only 3b's approval interview and the skeleton render are resumable.
 
 **3a — Compile coding standards (flags) to confirm agent types.** Before proposing any roster, derive platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — using the stack→flag derivation in `.claude/skills/eng/refs/build/protocol.md` (§ Coding-standards flags): `--global` (mandatory, unscoped — guarantees the P0 floor) plus, for each platform, **diff-scoped domain sub-ref flags** rather than the bare domain flag.
 - **Scope each domain, don't over-load.** A bare domain flag (`--macos`, `--react`) compiles the domain's `SKILL.md` **plus every** `refs/*.md` — the full shelf. Instead, mirror the eng derivation so the orchestrator-compiled payload is scoped too (both paths must agree — standalone `eng` and orchestrated runs): enumerate the domain's refs (`<cook>/standards/<domain>/refs/` or its `_INDEX.md` — never a hardcoded list), keep every ref by default, and **drop a ref only when the PRD/devkit provably excludes its subject** (e.g. `distribution.md` when `CLAUDE.md` defers distribution; `localization.md` with no i18n in scope; `sandbox-and-tcc.md` with no entitlements/sandbox). Signals: the exec-table **Files** column, the row **concerns**, and the devkit's provable exclusions. **Never under-load — missing a relevant standard is worse than loading an extra one:** on any uncertainty keep the ref, and if a whole domain can't be confidently scoped fall back to the **bare** domain flag (full shelf). Always keep the domain `SKILL.md` floor (emit the bare `--<domain>` flag to anchor it), then emit `--<domain>:<ref>` for each kept ref (e.g. `--global --macos --macos:architecture-and-state --macos:windows-and-scenes --macos:performance-accessibility --macos:hig-conventions`). This scoping applies to **domain** flags only; `--global` stays whole.
-- Read each result fully and **retain the compiled payload per stack** — this is the *compile-once, share-many* standards payload injected into build subagents at Step 4. Cook is called **at most once per distinct stack per run** (a repeated identical flag set is a cache hit).
+- **Cache check before every cook call (v5.6.5).** Once the flag set for a stack is derived, ask the persistent cache before invoking `/cook`:
+
+  ```bash
+  C=.claude/scripts/script-standards-cache.py; [ -f "$C" ] || C="$HOME/.claude/scripts/script-standards-cache.py"
+  python3 "$C" --check --flags "<the derived flag set>"
+  ```
+
+  `HIT <payload-path>` → read that file as the compiled payload for this stack and **skip the `/cook` call**. `MISS` (any reason) → call `/cook` exactly as above, write the returned payload to a temp file, then `python3 "$C" --store --flags "<same flag set>" --payload <temp-file> || true` (best-effort; a failed store never blocks the run). The cache is hash-keyed on cook's own source files, so a standards edit invalidates it automatically — see `../../shared/refs/session-cache.md` § Consumers.
+- Read each result fully (cache hit or fresh compile) and **retain the compiled payload per stack** — this is the *compile-once, share-many* standards payload injected into build subagents at Step 4. Cook is called **at most once per distinct stack per run**, and with a warm cache, zero times.
 - A platform whose flags `/cook` accepts is covered; its flag names the canonical agent identifier (`eng-<platform>`). Do not derive agent names from the PRD alone — `/cook`'s flag set is the authority on supported platforms.
 - If `/cook` has no flag for an implied platform (rejects the flag with the valid-flag list): surface as a blocking gap — emit a warning, list the uncovered platform, and ask via `AskUserQuestion` before continuing.
 
@@ -268,7 +287,17 @@ Compare `engineering_agents` against the **approved roster** (Step 3b), then cro
 | `large` | some roster agent missing (or the list is empty) | `plan` | The plan wave. The run ends after it; the build wave arrives as a second `/plan-em`. |
 | `large` | **every** roster agent present | `build` | The build wave of the two-wave path. |
 
-The `engineering_agents` comparison is therefore doing two jobs at once: it is the wave selector for a large PRD and the **resume detector** for a medium one. That is deliberate — an interrupted fused run leaves exactly the same on-disk evidence a completed plan wave does, so the same signal recovers it with no run-state file to keep honest.
+The `engineering_agents` comparison is therefore doing two jobs at once: it is the wave selector for a large PRD and the **resume detector** for a medium one. That is deliberate — an interrupted fused run leaves exactly the same on-disk evidence a completed plan wave does, so the same signal recovers it from the PRD itself. The v5.6.5 run-state file never overrides this: **mode selection is always PRD-evidence-driven**, and `em-state.json` only adds what the PRD cannot show — which build agents of an open wave already returned. If the state file and the PRD evidence disagree, the PRD wins and the stale state is archived (`--archive`).
+
+**Run-state init (v5.6.5).** With `$MODE` now resolved, seed the state file for a fresh run (a resumed run already has one — `OPEN_EXISTS` on stdout is the expected no-op then, exit 3 is not an error here):
+
+```bash
+S=.claude/scripts/script-em-state.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-state.py"
+python3 "$S" --init --file "$PRD_DIR/reports/em-state.json" --mode "$MODE" --size "$SIZE" || true
+python3 "$S" --set --file "$PRD_DIR/reports/em-state.json" --key roster --value "<approved agent names, comma-separated>" || true
+```
+
+On a build dispatch, also record the resolved branch the same way (`--key branch --value "$BRANCH"`) once the resolver returns. All state writes are best-effort (`|| true`) — a failed write is one DOCTOR row, never a changed verdict.
 
 Each mode dispatches its agents to the `eng` skill with the matching flag (`--plan` / `--build`; `fused` dispatches both, in order). The `plan` wave writes each agent's `## Engineering — <Agent>` section **and** its `## Todos — <Agent>` tickets in **one pass** — there is no separate todo wave.
 
@@ -283,18 +312,35 @@ Scope-enforcement and the branch contract in the numbered fields are unchanged �
 - **One innovation token per plan, max.** If the plan introduces more than one unfamiliar technology, split it or pick one.
 - **Extract on the third occurrence, not the second.** Duplication is cheaper than premature abstraction.
 
-**Plan mode (`$MODE = plan`, and the plan half of `$MODE = fused`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — since v5.4 it is the only index to the tickets, so every agent's block must hang off one shared heading. Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode. Prompt fields:
+**Plan mode (`$MODE = plan`, and the plan half of `$MODE = fused`).** First, append the `## Todos` umbrella heading **once** (if absent) after the exec-table skeleton — since v5.4 it is the only index to the tickets, so every agent's block must hang off one shared heading. Creating it here (not in the parallel agents) avoids a write race on the shared heading. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the plan wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent via the `Agent` tool, each running `eng` in `--plan` mode.
+
+Prompt fields are ordered **stable head first, varying tail last (v5.6.5)** — every field identical across sibling leaves precedes every per-agent field, so Anthropic's prefix-match prompt cache can serve the shared bytes to each leaf after the first. Keep the shared fields **byte-identical** across siblings (verbatim, same order, same whitespace) — a paraphrase is a cache miss:
+
+*Stable head (identical for every leaf in this wave):*
 1. "Read `.claude/skills/eng/SKILL.md` fully and follow its protocol."
 2. Mode flag: `--plan`
 3. `prd-path`: the PRD file path
-4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
-5. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
-6. **Scoped context** (per § Subagent context injection): rows, the mapped PRD feature sections, devkit digest, PRD-path escape hatch, and the two **house rules** verbatim. (`--plan` pulls no standards → no payload.)
+4. The two **house rules** verbatim
+5. Devkit digest (the shared GLOSSARY/ARCHITECTURE/DESIGN-SYSTEM distillate — run-scoped, not row-scoped)
+
+*Varying tail (per-agent):*
+6. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
+7. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
+8. **Row-scoped context** (per § Subagent context injection): the mapped PRD feature sections and the row-matched AHA slice — these vary per agent, which is why they live in the tail
+9. The PRD-path escape hatch line
+
+(`--plan` pulls no standards → no payload. Leaves parse fields by name, never by position — the ordering serves the cache only.)
 
 Each agent writes its `## Engineering — <Agent>` section **and**, in the same pass, its `## Todos — <Agent>` block (one `### F<n>` per owned feature, under the `## Todos` umbrella — schema in `eng/refs/plan/template-todo.md`) directly to the PRD. Emit a short progress note per completion. When every agent has written both, the plan phase is complete — stamp the PRD's lifecycle field (the § PRD status lifecycle trigger "eng sections written to PRD"):
 
 ```bash
 S=.claude/scripts/script-prd-stamp.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-stamp.sh"; bash "$S" "$PRD_DIR/prd-[n]-[slug].md" status specced
+```
+
+Record the wave boundary in the run state (rides the stamp step — no new step):
+
+```bash
+S=.claude/scripts/script-em-state.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-state.py"; python3 "$S" --set --file "$PRD_DIR/reports/em-state.json" --key waves.plan.status --value done || true
 ```
 
 `specced` is the v5.4 lifecycle value for "execution table + todos written" — the rung that used to be called `eng`. On a PRD written before v5.4 the frontmatter still reads `status: eng`; leave it, every consumer normalises the two to the same rung.
@@ -353,17 +399,28 @@ The checker reads **both** table shapes — v5.4's 3-column `Feature — concern
 
 Exit 1 (collisions) → the `COLLISION`-named rows must **not** be dispatched to concurrent agents; keep each colliding pair on one agent (serial). **Exit 3** (`ERROR=no-files-column` on stderr) → the exec table has no `Files` column *at all*, so nothing was checked; both shapes carry Files, so the table is malformed — restore the column from `refs/template-exec-table.md`, re-run the Files derivation, log the DOCTOR row, and never read exit 3 as "no collisions". A `MISSING_FILES` line on any in-scope row is a **hard failure** — stop and **run the Files derivation** (`script-em-exec-skeleton.py --fill-files`, § Execution table skeleton above) before the build wave, and log one DOCTOR row (`validator-fail:script-em-exec-collision`) per § Harness incidents. If the derivation itself then reports `MISSING_TICKETS`, the plan wave — not the table — is what is incomplete. A collision-only exit 1 is a documented outcome and is **not** an incident — serialise and carry on without logging. (In `team` mode the orchestrator runs the same check per `refs/protocol-team.md`.)
 
-Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode. Prompt fields:
+Build agents run in parallel and must not each try to create it (concurrent creation from `main` corrupts the tree) — they hard-fail if it is missing. Then — **`$TEAM_MODE = solo` fan-out** (in `team` mode, skip this direct fan-out and hand the build wave to the orchestrator per § Team lane) — activate each approved agent as a parallel subagent, each running `eng` in `--build` mode.
+
+Prompt fields are ordered **stable head first, varying tail last (v5.6.5)** — identical-across-siblings content precedes per-agent content so the prompt cache serves the shared bytes (the standards payload is the largest win) to every leaf after the first. Byte-identical means byte-identical: verbatim, same order, same whitespace. When stacks differ, spawn leaves of the same stack contiguously so they share the payload prefix:
+
+*Stable head (identical for every leaf of this stack in this wave):*
 1. "Read `.claude/skills/eng/refs/build/protocol-packet.md` fully and follow it." — the **orchestrated build leaf's fast path**: everything a leaf needs (tickets, TDD loop, full-suite gate, the Step-5 review artifact, commit gates, db-touch pause, output contract) and nothing it is forbidden to do. It assumes exactly what this lane guarantees — branch already checked out, standards payload injected, scoped context injected, gates pre-approved except the db-touch safety floor — so the leaf reads ~11KB instead of `SKILL.md` + `refs/build/protocol.md` (~48KB). A **standalone** `eng --build` run still reads `SKILL.md`.
 2. Mode flag: `--build`
 3. `prd-path`: the PRD file path (engineering sections already appended)
-4. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
-5. `branch`: `$BRANCH` (resolved/created above — the parent's branch for a sub-PRD)
-6. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
-7. **Scoped context + standards payload** (per § Subagent context injection): rows, the mapped PRD feature sections, devkit digest, PRD-path escape hatch, **and** the compiled `/cook` **standards payload** for this agent's stack (retained from Step 3a). The build agent uses the injected payload and **does not call `/cook` itself**; cook is invoked at most once per distinct stack per run.
-8. **Review-artifact identity:** `<K>` = this agent's name (the solo lane runs one leaf per stack, so the agent name *is* the packet key) and `built_by` = the same name. The leaf passes both through to its Step 5a reviewer, which writes `<prd-dir>/reports/review-prd-<N>-<K>.json` (`.claude/skills/eng/refs/review/protocol.md` § Artifact). A leaf never invents the key.
+4. `branch`: `$BRANCH` (resolved/created above — the parent's branch for a sub-PRD)
+5. Devkit digest (the shared GLOSSARY/ARCHITECTURE/DESIGN-SYSTEM distillate — run-scoped, not row-scoped)
+6. The compiled `/cook` **standards payload** for this agent's stack (retained from Step 3a, cache-served when warm). The build agent uses the injected payload and **does not call `/cook` itself**; cook is invoked at most once per distinct stack per run, and with a warm cache, zero times.
 
-Emit a short progress note per completion.
+*Varying tail (per-agent):*
+7. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
+8. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
+9. **Row-scoped context** (per § Subagent context injection): the mapped PRD feature sections and the row-matched AHA slice — per-agent by construction, so they live in the tail
+10. **Review-artifact identity:** `<K>` = this agent's name (the solo lane runs one leaf per stack, so the agent name *is* the packet key) and `built_by` = the same name. The leaf passes both through to its Step 5a reviewer, which writes `<prd-dir>/reports/review-prd-<N>-<K>.json` (`.claude/skills/eng/refs/review/protocol.md` § Artifact). A leaf never invents the key.
+11. The PRD-path escape hatch line
+
+(Leaves parse fields by name, never by position — the ordering serves the cache only. Do **not** serialize spawns for cache reasons; parallel spawn stays.)
+
+Emit a short progress note per completion, and record each returned agent in the run state (rides the progress note — no new step): `python3 "$S" --set --file "$PRD_DIR/reports/em-state.json" --key waves.build.agents.<agent> --value done || true` (same `script-em-state.py` two-path resolution as § Run-state init). **On a resumed run** (1a′ chose Resume), dispatch only the agents the state does **not** mark `done` — a returned leaf's work is already on the branch, and leaves are idempotent per their branch/ticket contract, so re-dispatching a done agent is waste, not safety.
 
 **Review coverage before consolidating (solo fan-out).** The solo lane has exactly the exposure the team lane does — one leaf per stack, each of which is required to spawn a reviewer and any of which can skip it silently. So when the build agents return, and **before** Step 5 synthesis, ask the script, not the agents:
 
@@ -372,7 +429,7 @@ R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/sc
 bash "$R" --reports-dir "$PRD_DIR/reports" --expect "<the dispatched agent names, comma-separated>"
 ```
 
-Exit 0 → quote its coverage line in the synthesis. Exit 1 → **repair, don't rebuild**: spawn one `eng --review` over that agent's rows and diff (never the agent that wrote the code), injecting `built_by=<agent>` and `<K>=<agent>`, then re-check once. Still missing → surface the uncovered agents in the synthesis and log one `tool-error:review-<agent>` DOCTOR row per § Harness incidents. Exit 2 or an absent script is a harness fault (`validator-fail:script-eng-review-check`), never coverage. **The synthesis must state coverage** — `reviewed <n>/<n> agents` — and one that cannot state it is a hard failure, not a footnote. Review findings gate nothing: presence is reported, `pre-merge` remains the safety floor.
+Exit 0 → quote its coverage line in the synthesis and record it: `python3 "$S" --set --file "$PRD_DIR/reports/em-state.json" --key waves.build.review_coverage --value "<n>/<n>" || true`. Exit 1 → **repair, don't rebuild**: spawn one `eng --review` over that agent's rows and diff (never the agent that wrote the code), injecting `built_by=<agent>` and `<K>=<agent>`, then re-check once. Still missing → surface the uncovered agents in the synthesis and log one `tool-error:review-<agent>` DOCTOR row per § Harness incidents. Exit 2 or an absent script is a harness fault (`validator-fail:script-eng-review-check`), never coverage. **The synthesis must state coverage** — `reviewed <n>/<n> agents` — and one that cannot state it is a hard failure, not a footnote. Review findings gate nothing: presence is reported, `pre-merge` remains the safety floor.
 
 **Fused mode (`$MODE = fused` — the medium-PRD path).** One invocation carries the PRD from "certified product spec" to "code on a branch". It is **composed of the two halves above, not a third implementation** — every precondition, script and failure arm is the one already written; what changes is that nothing returns to the user in between, and one certification round-trip is replaced by one mechanical check. Run in this order:
 
@@ -517,6 +574,14 @@ own relayed blocks, and `--end` closes it.
    ```
 
    Example: `feat/prd-3-habit-tracking`. Engineers cut this from `main` before starting work.
+
+**Close the run state (v5.6.5).** Before the closing message, stamp the state file terminal so the next invocation starts clean:
+
+```bash
+S=.claude/scripts/script-em-state.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-state.py"; python3 "$S" --close --file "$PRD_DIR/reports/em-state.json" --outcome ok || true
+```
+
+(`--outcome failed` when the run ends on an unresolved hard failure; a run the user abandons mid-gate simply stays `open` and is what 1a′ recovers. A `plan`-mode run of the two-wave path closes here too — the build wave is a *new* invocation and seeds its own state at § Run-state init.)
 
 **Next steps.** There is **no next-steps menu.** plan-em recommends the next command; it never invokes the next stage itself. The run ends with the closing message per `../../shared/refs/closing-message.md` — the last chat output, after the synthesis above — taking its next step verbatim from the registry's `plan-em` row **for the wave that just finished** — `plan-em — plan wave` when `$MODE = plan` (🟢 `Run /plan-em <prd> again to start the build wave`), `plan-em — fused wave` when `$MODE = fused` and `plan-em — build wave` when `$MODE = build` (both 🟢 `Run /pre-merge now`, because both end with code on a branch). Never compose the step.
 

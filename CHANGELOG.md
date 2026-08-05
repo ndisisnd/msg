@@ -2,6 +2,18 @@
 
 ## 2026-08-05
 
+### [155] — v5.6.5: the memory-layer patch — resumable runs, persisted standards, cache-aligned dispatch
+
+- `.claude/scripts/script-em-state.py`: Added — plan-em run-state checkpoint file (`<prd-dir>/reports/em-state.json`): atomic `--init`/`--set`/`--get`/`--close`/`--archive`, written at wave boundaries only; an open state lets a fresh session resume an interrupted run (skip completed waves and already-returned build agents) instead of restarting. Missing or corrupt state is never a hard failure; the file is resumability only — heartbeat and agent-watch keep observability, and mode selection stays PRD-evidence-driven with the state file never overriding it.
+- `.claude/scripts/script-standards-cache.py`: Added — persistent cache for compiled `/cook` standards payloads under `.claude/msg/cache/` (`standards-<key>.payload.md` + meta), keyed by the canonical flag set with a source hash over cook's SKILL.md, refs, and every flagged domain's `standards/` tree; `--check` prints `HIT <path>`/`MISS <key>`, `--store` writes atomically. Any doubt is a MISS; a standards edit invalidates automatically.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 1a′ run-state resume check (Resume / Start fresh / Abort; Resume pre-approved under an autonomy contract); Step 3 resume bullet and Step 3a now consult the standards cache before every `/cook` call and store on a miss (the payloads are no longer per-run); Step 4 seeds the run state after mode detection and records the plan-wave boundary, each returned build agent, and review coverage; both fan-out prompt-field lists reordered **stable head first, varying tail last** (shared: protocol pointer, mode, prd-path, branch, house rules, devkit digest, standards payload; per-agent: agent, rows, feature sections + AHA slice, review identity, escape hatch) so Anthropic's prefix-match prompt cache serves the shared bytes to every sibling leaf after the first — leaves parse fields by name, so the order serves the cache only; Step 5 closes the state file before the closing message.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the leaf-dispatch input contract carries the same stable-head/varying-tail ordering rule (byte-identical shared fields, same-stack leaves spawned contiguously, spawning stays parallel).
+- `.claude/skills/eng/SKILL.md`: Changed — Step 4's standalone lane consults the same standards cache before calling `/cook` and stores on a miss, so the standalone and orchestrated paths fill and read one cache.
+- `.claude/skills/shared/refs/session-cache.md`: Changed — standards payloads added to § Consumers, with the sanctioned exception to rule 5 recorded (script-based freshness check; regeneration is a `/cook` invocation).
+- `ARCHITECTURE.md`: Changed — the two new scripts added to the engineering scripts table.
+- `evals/cases/`: Added — `em-state-lifecycle`, `em-state-open-exists`, `em-state-corrupt`, `standards-cache-roundtrip`, `standards-cache-stale` (suite: 125/125).
+- `package.json`: Changed — version `5.6.4` → `5.6.5`.
+
 ### [154] — README header: v5.6.4 release blurb, and two stale counts
 
 - `README.md`: Added — `mkpub:release` card in the header announcing `/emulate`, with the recommended installer as the update CTA (the same command `## How to update` gives, because re-running it upgrades an existing install rather than erroring). Changed — skills badge `8` → `9`, and "installs as eight slash commands" → "nine" in § *What it does*; the same claim further down the page was corrected in [152], and this second occurrence was missed.

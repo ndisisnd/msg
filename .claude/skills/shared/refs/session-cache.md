@@ -52,3 +52,11 @@ use(art)                                         # or fall back to sources on pa
 - **devkit digest** — `scan-devkit-digest.py` → `devkit.digest.json`.
 - **verify prelude** — diff-resolve + tooling-detect →
   `verify-prelude.json`, produced and consumed by pre-merge.
+- **standards payloads** (v5.6.5) — `script-standards-cache.py` →
+  `standards-<key>.payload.md` + `standards-<key>.meta.json`, keyed by the
+  canonical `/cook` flag set with `source_hash` over cook's SKILL.md, refs, and
+  the full `standards/<domain>/` tree per flagged domain. Consumed by plan-em
+  Step 3a and standalone `eng --build` Step 4. **Sanctioned exception to rule 5:**
+  the freshness *check* is script-based, but regeneration on a miss is a `/cook`
+  invocation — determinism holds because cook with explicit flags is a fixed
+  composition of exactly the files the hash covers.
