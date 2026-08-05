@@ -1,0 +1,10 @@
+# Two guarantees in one case. New file: emulate_cmd is emitted per platform,
+# matched by header NAME (it sits in the middle here, not last), and `—` reads
+# as empty. Legacy file: a PLATFORMS.md written before v5.6.4 has no such
+# column at all and must still parse clean, yielding an empty value — that is
+# what makes the column additive and the upgrade a no-op until someone fills
+# a cell in.
+python3 "$REPO/.claude/scripts/script-platforms-parse.py" --file new.md 2>/dev/null | grep 'emulate_cmd'
+echo "--- legacy ---"
+python3 "$REPO/.claude/scripts/script-platforms-parse.py" --file legacy.md 2>/dev/null | grep 'emulate_cmd'
+echo "legacy exit=$?"

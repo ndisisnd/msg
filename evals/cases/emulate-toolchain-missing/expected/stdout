@@ -1,0 +1,3 @@
+ERROR=toolchain-missing
+script-emulate-preflight: `emulator` is not on PATH — the Android SDK emulator is not installed or not exported
+script-emulate-preflight: fix: install it in Android Studio (SDK Tools → Android Emulator) and add $ANDROID_HOME/emulator to PATH

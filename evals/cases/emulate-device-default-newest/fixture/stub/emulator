@@ -1,0 +1,7 @@
+#!/bin/sh
+if [ "$1" = "-list-avds" ]; then
+  echo Legacy_Tablet
+  echo Pixel_4_API_30
+  echo Pixel_7_API_34
+fi
+exit 0

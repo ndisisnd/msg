@@ -1,0 +1,5 @@
+# A web/backend-only project has nothing to emulate. This is the fail-loud
+# contract: exit 2, a named cause on stdout, and a fix on stderr that names
+# the rows actually found — never a silent fallback to some default platform.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+bash "$REPO/.claude/scripts/script-emulate-preflight.sh" --platforms-file PLATFORMS.md 2>&1

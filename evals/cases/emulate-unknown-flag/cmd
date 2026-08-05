@@ -1,0 +1,8 @@
+# A typo'd flag must never fall through to auto-detection: a user who typed
+# --isos meant a specific platform, and silently resolving a different one from
+# the file would boot the wrong simulator. Same for a platform value the script
+# does not know. Both exit 2 before anything is read.
+bash "$REPO/.claude/scripts/script-emulate-preflight.sh" --isos --platforms-file PLATFORMS.md 2>&1
+echo "exit=$?"
+bash "$REPO/.claude/scripts/script-emulate-preflight.sh" --platform desktop --platforms-file PLATFORMS.md 2>&1
+echo "exit=$?"

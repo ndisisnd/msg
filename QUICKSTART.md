@@ -35,7 +35,7 @@ Drop `-s -- --with-cook` for msg only. [cook](https://github.com/ndisisnd/cook) 
 **Verify:**
 
 ```bash
-ls ~/.claude/skills     # msg intake plan-pm plan-review plan-em eng pre-merge merge shared
+ls ~/.claude/skills     # msg intake plan-pm plan-review plan-em eng pre-merge merge emulate shared
 ls ~/.claude/scripts    # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
 ```
 

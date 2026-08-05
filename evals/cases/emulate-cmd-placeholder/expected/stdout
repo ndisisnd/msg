@@ -1,0 +1,3 @@
+RUNNER=expo
+EMULATE_CMD=
+EMULATE_CMD_SOURCE=detected

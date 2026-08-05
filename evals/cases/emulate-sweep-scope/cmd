@@ -1,0 +1,29 @@
+# The scope rule, proved against two processes of the SAME shape: one started
+# inside this repo, one outside it. Only the in-repo one is a candidate. This
+# is the guarantee that /emulate never kills the Metro server belonging to
+# somebody else's project — the single worst thing this lane could do.
+OUTSIDE="$(mktemp -d)"
+( cd "$PWD" && exec -a "expo start --decoy-in-repo" sleep 30 ) &
+IN_PID=$!
+( cd "$OUTSIDE" && exec -a "expo start --decoy-outside" sleep 30 ) &
+OUT_PID=$!
+sleep 1
+
+OUTPUT="$(bash "$REPO/.claude/scripts/script-emulate-sweep.sh" \
+  --platform android --runner expo --port 8199 --dry-run)"
+
+if printf '%s\n' "$OUTPUT" | grep -q "^SWEEP_CANDIDATE=$IN_PID|"; then
+  echo "in-repo decoy is a candidate: yes"
+else
+  echo "in-repo decoy is a candidate: no"
+fi
+if printf '%s\n' "$OUTPUT" | grep -q "^SWEEP_CANDIDATE=$OUT_PID|"; then
+  echo "outside-repo decoy is a candidate: yes"
+else
+  echo "outside-repo decoy is a candidate: no"
+fi
+printf '%s\n' "$OUTPUT" | grep -E '^(SWEEP_MODE|SWEEP_CANDIDATE_COUNT)='
+
+kill "$IN_PID" "$OUT_PID" 2>/dev/null
+rm -rf "$OUTSIDE"
+exit 0

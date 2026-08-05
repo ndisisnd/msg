@@ -1,0 +1,5 @@
+ios.emulate_cmd=npx expo run:ios --device "$EMULATE_DEVICE_ID"
+android.emulate_cmd=
+--- legacy ---
+ios.emulate_cmd=
+legacy exit=0

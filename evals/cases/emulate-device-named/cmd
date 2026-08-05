@@ -1,0 +1,7 @@
+# --device names an existing AVD: it is taken exactly, no prompt is raised, and
+# the suggested default is ignored. DEVICE_SOURCE=flag is how the banner tells
+# the user their choice was honoured rather than a default applied.
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android --device Pixel_5_API_31 \
+  | grep -E '^(DEVICE_NAME|DEVICE_ID|DEVICE_SOURCE|ASK_DEVICE|DEVICE_DEFAULT_NAME)='

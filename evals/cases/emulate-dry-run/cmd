@@ -1,0 +1,14 @@
+# --dry-run is the rehearsal: it reports exactly the list a live run would
+# signal, and signals none of it. The decoy is still alive afterwards, and the
+# device shutdown is skipped too — nothing about a dry run touches the machine.
+( cd "$PWD" && exec -a "expo start --decoy-dry" sleep 30 ) &
+DECOY=$!
+sleep 1
+
+bash "$REPO/.claude/scripts/script-emulate-sweep.sh" \
+  --platform android --runner expo --port 8199 --dry-run --cold-boot --device-id Pixel_7_API_34 \
+  | sed -E "s/^SWEEP_CANDIDATE=$DECOY\|/SWEEP_CANDIDATE=<decoy>|/"
+
+kill -0 "$DECOY" 2>/dev/null && echo "decoy still running after dry run: yes" || echo "decoy still running after dry run: no"
+kill "$DECOY" 2>/dev/null
+exit 0

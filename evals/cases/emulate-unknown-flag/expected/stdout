@@ -1,0 +1,6 @@
+ERROR=usage
+script-emulate-preflight: unknown flag: --isos
+exit=2
+ERROR=usage
+script-emulate-preflight: unknown platform: desktop (expected ios or android)
+exit=2

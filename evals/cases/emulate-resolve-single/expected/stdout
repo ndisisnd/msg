@@ -1,0 +1,6 @@
+PLATFORM=android
+PLATFORM_SOURCE=platforms-file
+PLATFORM_CANDIDATES=android
+ASK_PLATFORM=false
+RUNNER=expo
+RUNNER_SOURCE=detected

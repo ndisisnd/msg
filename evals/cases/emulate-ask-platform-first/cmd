@@ -1,0 +1,11 @@
+# Two emulatable rows and no flag: the answer is the user's, so the preflight
+# asks rather than guessing. It stops the moment it knows that — the runner,
+# the toolchain and the device list are all platform-specific, so none of them
+# can be resolved yet, and NONE of their keys appear below. That is the whole
+# point: an abandoned prompt has cost nothing, because nothing was killed,
+# booted or built before the question. The protocol re-runs this script with
+# --platform once the user answers.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platforms-file PLATFORMS.md

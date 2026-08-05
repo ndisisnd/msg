@@ -1,0 +1,3 @@
+ERROR=no-devices
+script-emulate-preflight: no Android AVDs are defined on this machine
+script-emulate-preflight: fix: create one: `avdmanager create avd -n Pixel_7_API_34 -k "system-images;android-34;google_apis;arm64-v8a"`

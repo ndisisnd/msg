@@ -1,0 +1,6 @@
+# The platform resolved fine — this is a machine problem, not a project one, so
+# it gets its own exit code (4) and a fix that installs something rather than
+# one that edits the repo. PATH is scrubbed to prove the check reads PATH.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+PATH="/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android --platforms-file PLATFORMS.md 2>&1

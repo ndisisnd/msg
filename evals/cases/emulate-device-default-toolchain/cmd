@@ -1,0 +1,7 @@
+# A device the user has already nominated to their own toolchain
+# ($ANDROID_AVD_DEFAULT) beats the newest-wins heuristic — a declared
+# preference is evidence, a heuristic is a guess.
+chmod +x stub/*
+ANDROID_AVD_DEFAULT=Pixel_4_API_30 PATH="$PWD/stub:/usr/bin:/bin" \
+  bash "$REPO/.claude/scripts/script-emulate-preflight.sh" --platform android \
+  | grep -E '^(DEVICE_DEFAULT_NAME|DEVICE_DEFAULT_SOURCE)='

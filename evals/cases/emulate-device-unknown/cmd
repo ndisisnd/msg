@@ -1,0 +1,6 @@
+# A --device that matches nothing is exit 5, never a fuzzy match: booting a
+# device the user did not name is the exact failure --device exists to prevent.
+# The error lists what IS installed so the fix is a copy-paste away.
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android --device Pixel_7 2>&1

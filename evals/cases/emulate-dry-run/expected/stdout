@@ -1,0 +1,6 @@
+SWEEP_MODE=dry-run
+SWEEP_CANDIDATE=<decoy>|expo start|cwd-in-repo
+SWEEP_CANDIDATE_COUNT=1
+SWEEP_KILLED_COUNT=0
+SWEEP_DEVICE_SHUTDOWN=skipped
+decoy still running after dry run: yes
