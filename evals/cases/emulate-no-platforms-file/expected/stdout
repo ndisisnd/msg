@@ -1,0 +1,3 @@
+ERROR=no-platforms-file
+script-emulate-preflight: PLATFORMS.md not found and no platform flag given
+script-emulate-preflight: fix: run `/emulate --ios` or `/emulate --adr`, or bootstrap the repo with `/msg --init`

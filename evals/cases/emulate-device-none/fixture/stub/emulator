@@ -1,0 +1,4 @@
+#!/bin/sh
+if [ "$1" = "-list-avds" ]; then
+fi
+exit 0

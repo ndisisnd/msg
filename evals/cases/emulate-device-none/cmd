@@ -1,0 +1,6 @@
+# The toolchain is installed but no AVD has ever been created. Left to the raw
+# toolchain this surfaces as an opaque launch failure much later; here it is a
+# named exit 5 up front, with the create command as the fix.
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android 2>&1

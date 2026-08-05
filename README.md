@@ -75,7 +75,7 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 ```bash
 cat ~/.claude/skills/msg/VERSION   # msg v5.6.3 — 7a0967e, installed 2026-08-03
-ls ~/.claude/skills                # msg intake plan-pm plan-review plan-em eng pre-merge merge shared
+ls ~/.claude/skills                # msg intake plan-pm plan-review plan-em eng pre-merge merge emulate shared
 ls ~/.claude/scripts               # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
 ```
 
@@ -117,7 +117,7 @@ The gates are ordered on purpose. A skipped step surfaces later as a refusal wit
 
 ## The skills
 
-Eight slash commands. Run `/msg` to browse them interactively, or invoke any one directly. `/msg --gui` opens a local PRD board on `127.0.0.1` — Kanban and table views, PRD editing, todo toggling, the backlog, project docs, and run reports.
+Nine slash commands. Run `/msg` to browse them interactively, or invoke any one directly. `/msg --gui` opens a local PRD board on `127.0.0.1` — Kanban and table views, PRD editing, todo toggling, the backlog, project docs, and run reports.
 
 ### Plan
 
@@ -147,6 +147,7 @@ Eight slash commands. Run `/msg` to browse them interactively, or invoke any one
 | `/pre-merge` | Runs your project's checks — tests, lint, coverage, security, a smoke test — in a throwaway sandbox, then opens the pull request. One-time `/pre-merge --init` first, so it knows what your project actually has. |
 | `/merge --staging` | Merges once CI is green, deploys to staging, and hands you a script to test it by. Your sign-off is pinned to the exact commit you tested. |
 | `/merge --production` | The release. Double-confirms, opens the release PR, merges on green CI and human review, deploys, and tags the version. If the deploy goes wrong it offers you a rollback rather than taking one on its own. |
+| `/emulate` | Runs the app on a simulator or emulator and opens the window on your desktop, from whatever branch you're on. Clears the leftover build processes from your last attempt first. `--ios` / `--adr` / `--expo` pick the lane; with no flag it reads which platform you ship from `devkit/PLATFORMS.md`. It never writes to your repo. |
 
 Every flag and refusal each skill supports is in [ARCHITECTURE.md](./ARCHITECTURE.md).
 

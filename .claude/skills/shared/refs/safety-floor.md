@@ -19,11 +19,20 @@ lanes:
 | `eng` | commits to `feat/prd-<n>-*` **feature branches only** | push to / merge into / open a PR against `staging` or `main` |
 | `pre-merge` | opens **exactly one** PR `feature → staging`, plus the D7 sync-merge commit | merge any PR; touch `main`; modify source |
 | `merge` | the **only** skill that merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `merge/SKILL.md` (Hard refusals) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
+| `emulate` | **nothing in the repo** — no commit, branch, PR, stamp or report; its only writes are its own launch logs under `.emulate/` | modify source; write any tracked file; touch `.gitignore` |
 | all others | their own artifacts (PRDs, reports, tickets, devkit appends) | push, merge, or open PRs |
 
 **Nothing reaches `main` except from `staging`, and only via `merge
 --production`.** That is the single production path; no flag or orchestrator
 opens another.
+
+**Killing processes is a write power too.** `/emulate` is the only skill that
+signals a process it did not start, and the power is bounded three ways: an
+allowlist of build-tool shapes compiled into `script-emulate-sweep.sh` (never a
+user-supplied pattern, never a broad `killall`), attribution to the current repo
+(working directory or command line inside it, or holding the dev-server port
+about to be bound), and TERM before KILL. Every kill is announced with its pid
+and reason, and `--dry-run` prints the same list while signalling nothing.
 
 ## Human gates — never removed
 

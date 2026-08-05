@@ -1,0 +1,7 @@
+# An already-running emulator outranks every other default, even a newer AVD:
+# it is both the likeliest intent and the fastest launch, because it needs no
+# cold boot. Pixel_7_API_34 is the newer device and still loses.
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android \
+  | grep -E '^(DEVICE_BOOTED_NAME|DEVICE_DEFAULT_NAME|DEVICE_DEFAULT_SOURCE)='

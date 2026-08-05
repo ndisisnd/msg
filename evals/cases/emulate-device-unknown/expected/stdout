@@ -1,0 +1,3 @@
+ERROR=unknown-device
+script-emulate-preflight: no device named 'Pixel_7' — available: Pixel_4_API_30; Pixel_7_API_34; 
+script-emulate-preflight: fix: copy one of the names above exactly, or drop --device to be asked

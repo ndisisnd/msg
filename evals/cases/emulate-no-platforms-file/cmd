@@ -1,0 +1,4 @@
+# No PLATFORMS.md and no flag: /emulate refuses to guess, and the fix names
+# both escapes — the flags for a repo msg never bootstrapped, and /msg --init
+# for one that should be.
+bash "$REPO/.claude/scripts/script-emulate-preflight.sh" --platforms-file PLATFORMS.md 2>&1

@@ -42,6 +42,7 @@ out/
 
 # msg skill artifacts
 .pre-merge/
+.emulate/
 INTAKE.md
 INTAKE-UPDATE.md
 features/

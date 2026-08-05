@@ -1,0 +1,3 @@
+ERROR=no-emulatable-platform
+script-emulate-preflight: PLATFORMS.md declares no emulatable platform (rows: web,backend)
+script-emulate-preflight: fix: /emulate runs simulators and emulators only — add an `ios` or `android` row, or pass --ios / --adr

@@ -85,6 +85,20 @@ fi
 if [[ -e "$TARGET/.gitignore" ]] && ! grep -q '^devkit/DOCTOR\.md$' "$TARGET/.gitignore" 2>/dev/null; then
   ROW_GAPS+=(".gitignore:doctor")
 fi
+# `/emulate` writes its launch logs to .emulate/. They are machine-local build
+# noise, so an ignore line is the difference between a clean `git status` after
+# a local run and a repo that invites committing them. /emulate cannot add the
+# line itself — it is barred from touching tracked files, .gitignore included.
+if [[ -e "$TARGET/.gitignore" ]] && ! grep -q '^\.emulate/$' "$TARGET/.gitignore" 2>/dev/null; then
+  ROW_GAPS+=(".gitignore:emulate")
+fi
+# devkit/PLATFORMS.md gained an `emulate_cmd` column — the local launch command
+# /emulate reads. A repo bootstrapped before it has the table without the column.
+# Purely additive: the column is optional (blank ⇒ /emulate detects the runner),
+# so topping it up never changes how an existing deploy or gate behaves.
+if [[ -e "$TARGET/devkit/PLATFORMS.md" ]] && ! grep -q 'emulate_cmd' "$TARGET/devkit/PLATFORMS.md" 2>/dev/null; then
+  ROW_GAPS+=("devkit/PLATFORMS.md:emulate_cmd")
+fi
 
 echo "ALL_COMPLETE=$all_complete"
 echo "PRESENT=${PRESENT[*]:-none}"

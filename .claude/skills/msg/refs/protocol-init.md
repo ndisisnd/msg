@@ -174,7 +174,8 @@ already carries its value.
 | `devkit/PLATFORMS.md` | `PLATFORMS` — no placeholders, but it **selects the default rows** |
 | `devkit/policy.json` | `RELEASE_FLOW`, `PROD_BRANCH`, `STAGING_BRANCH` |
 | row gap `CLAUDE.md:language` | `LANGUAGE` |
-| row gap `.gitignore:doctor` | **none** — fixed line, never asked |
+| row gap `.gitignore:doctor` · `.gitignore:emulate` | **none** — fixed lines, never asked |
+| row gap `devkit/PLATFORMS.md:emulate_cmd` | **none** — fixed column, never asked |
 
 Two variables are free — take them without asking whenever they're needed:
 `PROD_BRANCH` from branch topology, and `LANGUAGE` from `LANG_DEFAULT` when
@@ -261,10 +262,16 @@ lets the never-overwrite guarantee stay absolute.
 |---|---|---|---|
 | `CLAUDE.md:language` | `- **Language**: <LANGUAGE>` | `## Project`, directly under the `- **Platform**:` row (append to the list if that row is absent) | `LANG_DEFAULT` when detection resolved it; otherwise ask once (Q2b) |
 | `.gitignore:doctor` | `devkit/DOCTOR.md` | at the end of the `devkit/` block if there is one, otherwise appended as its own line | fixed — no variable, no question. The ledger is a local incident log; a repo bootstrapped before it existed would start committing one |
+| `.gitignore:emulate` | `.emulate/` | at the end of the `# msg skill artifacts` block if there is one, otherwise appended as its own line | fixed — no variable, no question. `/emulate` writes launch logs there and is barred from editing `.gitignore` itself |
+| `devkit/PLATFORMS.md:emulate_cmd` | `emulate_cmd` — a new **column**: append the header cell, one `---` divider cell, and one **empty** cell to every existing platform row | last column of each pipe table in the file, after the current final column | fixed — no variable, no question. Blank means "not configured", which is exactly right: `/emulate` then detects the runner itself, so the top-up changes no behaviour until someone fills a cell in |
 
 1. **Preview.** Show each proposed insertion as a diff — the file, the row, and the
    line it lands under. Never show a change to an existing line: if a gap can only
    be closed by rewording one, it is **not** a row gap. Drop it and report it.
+   **One narrow exception, and only where the table above declares it:** a *column*
+   top-up appends an empty cell to each existing row of a pipe table. Every existing
+   cell keeps its content and its column, so nothing is reworded — but the lines do
+   change, so show them in the preview like any other edit.
 2. **Confirm** with one `AskUserQuestion`:
 
    > header **Top-up**, question "Add `<n>` missing row(s) to files that already exist? Nothing else in them changes."

@@ -23,6 +23,7 @@ Each is the router for its own behaviour — start here to change what a skill d
 - [eng](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/eng/SKILL.md): `--plan` / `--build` / `--review` — the only skill that writes product code
 - [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the CI gate — manifest-driven pipeline executor, opens the PR to staging
 - [merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/merge/SKILL.md): the ship gate — the only merger; `--staging` sign-off, `--production` release
+- [emulate](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/emulate/SKILL.md): the local run lane — boots a simulator/emulator on the current branch; a leaf, outside the pipeline
 
 ## Reference
 

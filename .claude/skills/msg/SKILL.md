@@ -70,6 +70,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, opens PR feature→staging |
 | Build & Ship | merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
+| Build & Ship | emulate | The local run lane — boots a simulator/emulator on the current branch and opens the window; a leaf, never part of the pipeline |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 
 > **Footnote:** This table is the canonical menu — it MUST list every user-facing skill in the msg workflow and any external skill the pipeline depends on (`kermit`). When a skill is added, removed, or renamed, update this table and the `--help` routing table below in the same change. A skill absent from this table is unreachable through `/msg`.
@@ -227,6 +228,7 @@ and a roadmap route survived unnoticed in this table. Check reachability wheneve
 | Building | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | Code or a diff | A review or audit report | pre-merge |
 | Reviewing | A PRD or spec | A project spec (PRD) | plan-review |
+| Reviewing | Code or a diff | Working code or test results | emulate |
 | Reviewing | Code or a diff | An engineering plan | eng |
 | Wrapping up | Code or a diff | Working code or test results | merge --staging |
 | Wrapping up | Code or a diff | A commit or task list | kermit |

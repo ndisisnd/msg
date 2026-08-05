@@ -1,0 +1,8 @@
+# One emulatable row in PLATFORMS.md and no flag: the platform is a product
+# fact, so the file settles it with no question asked, and says so in
+# PLATFORM_SOURCE. That attribution is what the launch banner credits.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platforms-file PLATFORMS.md \
+  | grep -E '^(PLATFORM|PLATFORM_SOURCE|PLATFORM_CANDIDATES|ASK_PLATFORM|RUNNER|RUNNER_SOURCE)='

@@ -1,0 +1,9 @@
+# An explicit flag is the user's stated intent, so it wins outright: the
+# platform is android even though the file declares only ios, and the ios row's
+# emulate_cmd is never picked up (EMULATE_CMD is empty, source `detected`).
+# The file is consulted for the FLAGGED platform's command only.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android --platforms-file PLATFORMS.md \
+  | grep -E '^(PLATFORM|PLATFORM_SOURCE|EMULATE_CMD|EMULATE_CMD_SOURCE)='

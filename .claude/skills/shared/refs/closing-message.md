@@ -63,6 +63,7 @@ Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from T
 | merge --staging | Work through the test checklist above on staging, then reply **approved** | Resolve each flagged item, then re-run `/merge --staging` | Fix the stated blocker, then re-run `/merge --staging` |
 | merge --production | Nothing to do — you're done. The release is live. | Watch the flagged platform(s) per the rollback notes above | Follow the failed-ship loop step named above, then re-run `/merge --production` |
 | msg (--init / --update / --init-staging) | Run the stage command the pipeline table above points at | Answer the open question(s), then re-run the same `/msg` command | Fix the stated blocker, then re-run the same `/msg` command |
+| emulate | Test the build in the window that just opened — stop it with `kill <pid>` when you're done | Test the build anyway, then resolve the flagged item named above before the next run | Fix the stated blocker (the fix line names it), then re-run `/emulate` |
 | msg --doctor | Nothing to do — the harness is healthy. | Start a new session to fix the graduated issue(s) in `devkit/DOCTOR.md` — this mode never fixes | Fix the stated blocker, then re-run `/msg --doctor` |
 
 Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pure-emission modes — default picker, `--gui`, `--help` — whose strict output contracts ("Stop. Do not emit anything else." / board render) stay untouched.

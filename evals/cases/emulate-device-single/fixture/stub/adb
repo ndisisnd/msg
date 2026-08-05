@@ -1,0 +1,9 @@
+#!/bin/sh
+if [ "$1" = "devices" ]; then
+  echo "List of devices attached"
+  exit 0
+fi
+if [ "$1" = "-s" ] && [ "$3" = "emu" ] && [ "$4" = "avd" ]; then
+  exit 0
+fi
+exit 0

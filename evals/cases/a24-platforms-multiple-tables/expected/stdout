@@ -20,3 +20,4 @@ macos.signing_smoke_cmd=
 macos.appcast_url=
 macos.version_probe=
 macos.required_buckets=e2e, smoke
+macos.emulate_cmd=

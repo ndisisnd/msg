@@ -1,0 +1,8 @@
+# The one outcome that must never happen is running the placeholder text as a
+# shell command. `[USER: …]` normalises to empty, exactly like `—` or a blank
+# cell, so /emulate falls back to detecting the runner itself.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platforms-file PLATFORMS.md \
+  | grep -E '^(EMULATE_CMD|EMULATE_CMD_SOURCE|RUNNER)='

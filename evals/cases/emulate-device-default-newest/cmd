@@ -1,0 +1,7 @@
+# Nothing booted and no toolchain default declared: the highest API level wins.
+# `Legacy_Tablet` carries no API token, so it ranks lowest by construction — a
+# hand-named legacy AVD must never outrank a current one just by listing first.
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android \
+  | grep -E '^(DEVICE_BOOTED_NAME|DEVICE_DEFAULT_NAME|DEVICE_DEFAULT_SOURCE)='

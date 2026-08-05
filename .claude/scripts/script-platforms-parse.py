@@ -29,6 +29,7 @@ Contract:
   .claude/skills/merge/refs/deploy.md         § Resolve
   .claude/skills/merge/refs/verify-deploy.md  § Resolve
   .claude/skills/shared/refs/policy-schema-merge.md §4 release_model
+  .claude/skills/emulate/refs/protocol.md     § Step 0 — resolve the target
   .claude/skills/msg/refs/init/templates/template-PLATFORMS.md § Column contract
 
 Usage:
@@ -60,6 +61,7 @@ Output (stdout, KEY=VALUE lines):
   <p>.appcast_url=<url>
   <p>.version_probe=<cmd>
   <p>.required_buckets=<b,…>
+  <p>.emulate_cmd=<cmd>                 local run lane; "" ⇒ /emulate detects
   WARN=<text>                          zero or more
   ERROR=<text>                         only on a malformed table (exit 3)
 
@@ -118,6 +120,7 @@ COLUMNS = {
     "rollout_halt_cmd": "rollout_halt_cmd",
     "version_probe": "version_probe",
     "required_buckets": "required_buckets",
+    "emulate_cmd": "emulate_cmd",
 }
 
 EMIT_ORDER = ["release_model", "release_model_source", "rollback_possible",
@@ -125,7 +128,7 @@ EMIT_ORDER = ["release_model", "release_model_source", "rollback_possible",
               "staging_deploy_cmd", "production_deploy_cmd", "staging_config",
               "smoke_cmd", "smoke_watch_window", "smoke_poll", "smoke_mode",
               "notarize_status_cmd", "signing_smoke_cmd", "appcast_url",
-              "version_probe", "required_buckets"]
+              "version_probe", "required_buckets", "emulate_cmd"]
 
 WARNS = []
 
@@ -322,7 +325,7 @@ def main():
         for k in ("rollback_possible", "tolerance", "staging_deploy_cmd",
                   "staging_config", "production_deploy_cmd", "smoke_cmd",
                   "smoke_watch_window", "smoke_poll", "version_probe",
-                  "required_buckets"):
+                  "required_buckets", "emulate_cmd"):
             out[k] = row.get(k, "")
 
         # The rollback lever is model-keyed — one lever per platform.

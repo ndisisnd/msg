@@ -1,0 +1,3 @@
+RUNNER=expo
+EMULATE_CMD=./gradlew installDebug && adb shell am start -n com.acme/.MainActivity
+EMULATE_CMD_SOURCE=platforms-file

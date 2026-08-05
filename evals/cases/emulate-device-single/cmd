@@ -1,0 +1,7 @@
+# One device is not a choice. Asking here would be a question with one possible
+# answer, so the device is taken and DEVICE_SOURCE=single tells the banner to
+# name it rather than claim the user picked it.
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platform android \
+  | grep -E '^(DEVICE_COUNT|DEVICE_NAME|DEVICE_SOURCE|ASK_DEVICE)='

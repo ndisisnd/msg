@@ -1,0 +1,4 @@
+in-repo decoy is a candidate: yes
+outside-repo decoy is a candidate: no
+SWEEP_MODE=dry-run
+SWEEP_CANDIDATE_COUNT=1

@@ -1,0 +1,8 @@
+# A declared emulate_cmd is a product fact and beats detection outright: this
+# repo looks like an Expo project, and the declared native gradle command still
+# wins. EMULATE_CMD_SOURCE is what lets the banner say which one it obeyed.
+mkdir -p .claude/scripts && cp "$REPO/.claude/scripts/script-platforms-parse.py" .claude/scripts/
+chmod +x stub/*
+PATH="$PWD/stub:/usr/bin:/bin" bash "$REPO/.claude/scripts/script-emulate-preflight.sh" \
+  --platforms-file PLATFORMS.md \
+  | grep -E '^(RUNNER|EMULATE_CMD|EMULATE_CMD_SOURCE)='
