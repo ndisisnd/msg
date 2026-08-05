@@ -66,6 +66,8 @@ There are ~58 scripts. Grouped by what they own:
 | `script-em-exec-collision.py` | Exec-table collision checker (`COLLISION`/`MISSING_FILES`) + `--waves` packet decomposition consumed by the team orchestrator; reads both the 3-column and the legacy 5-column table |
 | `script-em-branch-resolve.sh` | Read-only parent-aware branch resolver — emits `BRANCH`/`ACTION`/`LANE_MOVE` for the build wave (reusing a merged branch is impossible) |
 | `script-em-timing.sh` | Append-only stage-boundary log for a plan-em run (`reports/timings-<date>.log`) — one line per boundary with elapsed-within-run-id; best-effort, never affects control flow |
+| `script-em-state.py` | plan-em run-state checkpoint (`reports/em-state.json`) — atomic init/set/get/close/archive at wave boundaries so an interrupted run resumes instead of restarting; resumability only, never observability, missing/corrupt is never a hard failure |
+| `script-standards-cache.py` | Persistent cache for compiled `/cook` standards payloads under `.claude/msg/cache/` — `--check` (HIT/MISS by flag set + source hash over cook's files) and `--store`; consumed by plan-em Step 3a and standalone `eng --build` Step 4 |
 | `script-eng-plan-shape.py` | Mechanical validator for an `eng --plan` pass — the three coupled artifacts it writes must agree |
 | `script-eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
 | `script-eng-commit-cap.sh` | A5 small-commit cap — measures a staged diff against 500 changed LOC (300 with `--breaking`); pairs the cap with the prepared message and its `Oversize-reason:` trailer |

@@ -1,0 +1,1 @@
+C="$REPO/.claude/scripts/script-standards-cache.py"; python3 "$C" --store --flags "--global --toy" --payload payload.md --cache-dir cache --cook-root cook > /dev/null; echo changed >> cook/standards/toy/SKILL.md; python3 "$C" --check --flags "--global --toy" --cache-dir cache --cook-root cook
