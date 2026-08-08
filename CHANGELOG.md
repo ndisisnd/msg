@@ -2,6 +2,13 @@
 
 ## 2026-08-08
 
+### [169] — v6.0.0: the Codex-only verification written down as a runnable plan
+
+- `evals/codex-shakedown.md`: Added — the part of v6 no Claude session can verify, as a document an agent can execute inside a Codex CLI session rather than as prose someone has to interpret. The whole dual-harness leg was designed and built from Claude Code, and the orchestration bindings in `harness-map.md` are specified, not evidenced. Shipping a release that claims a working Codex leg without ever having run one would be the one dishonest thing in this port, so the claims are recorded as tests.
+- Structure: four spikes (frontmatter tolerance, depth-2 nesting, spawn-by-role, mid-run skill chaining), the six release-blocking shakedown items, and a table of things currently shipped as educated guesses — chiefly `codex exec --full-auto` as the GUI runner, where a wrong flag means a job that exits 0 having silently written nothing. Every item states its claim, what to run, what PASS and FAIL look like, and which already-designed fallback to engage — so a failure produces a decision rather than an improvisation.
+- Two items carry warnings the rest of the plan depends on. The commit-gate item spells out its own false negative: if `CHANGELOG.md` is already staged, a live gate and a dead gate are indistinguishable, so skipping the staging check makes the result BLOCKED rather than PASS. The human-gate item is release-blocking with **no** fallback — if the prose rendering of `AskUserQuestion` answers its own question or continues on silence, it is not a gate, and no amount of matching wording redeems that.
+- `BLOCKED` is defined as a first-class outcome alongside PASS and FAIL. An item that could not be run is not an item that passed, and reporting it as one is the only way this document could cause harm. The safety rules are equally blunt: never install against the real `$HOME`, never run the destructive items in this repo, never grant hook trust to make the trust test pass.
+
 ### [168] — v6.0.0 Phase 3 follow-up: `protocol-init.md` describes what the scaffolder now writes
 
 - `.claude/skills/msg/refs/protocol-init.md`: Changed — the emitted-files table, the frontmatter summary, the no-placeholder row and the template inventory all still described the pre-v6 file set. Commit C8 taught `/msg --init` to emit `AGENTS.md` and the `.codex/` layer, but the protocol an agent reads to learn what bootstrap leaves behind never heard about it. A doc that undercounts the scaffolder's output is worse than a missing doc: an agent reads the table, concludes the Codex artifacts are not msg's, and treats them as somebody else's stray files.
