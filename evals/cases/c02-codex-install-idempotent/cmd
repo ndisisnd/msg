@@ -1,0 +1,45 @@
+# A7 / AC1.2 — `install.sh --codex` is idempotent.
+#
+# Re-running the installer is the documented way to upgrade, so the second run
+# on an unchanged source has to be a no-op: same exit code, byte-identical tree.
+# A lane built with `ln -s` rather than `ln -sfn` would fail here by nesting a
+# link inside the directory it already points at, which is exactly the failure
+# that is invisible until a skill stops loading weeks later.
+#
+# The snapshot is a manifest rather than a `cp -R` of the tree: every regular
+# file by content hash, every symlink by its literal target, sorted. That
+# catches a changed byte and a repointed link, and it stays cheap.
+set -u
+export HOME="$PWD/home"
+mkdir -p "$HOME"
+export MSG_REPO="$REPO"
+
+snap() {
+  (
+    cd "$HOME" || exit 1
+    find . \( -type f -o -type l \) -print | LC_ALL=C sort | while IFS= read -r p; do
+      if [ -L "$p" ]; then
+        printf 'L %s -> %s\n' "$p" "$(readlink "$p")"
+      else
+        printf 'F %s %s\n' "$p" "$(shasum "$p" | cut -d' ' -f1)"
+      fi
+    done
+  )
+}
+
+bash "$REPO/install.sh" --codex >/dev/null 2>&1
+echo "RUN1_EXIT $?"
+snap > "$PWD/snap1.txt"
+
+bash "$REPO/install.sh" --codex >/dev/null 2>&1
+echo "RUN2_EXIT $?"
+snap > "$PWD/snap2.txt"
+
+echo "SNAPSHOT_LINES $([ -s "$PWD/snap1.txt" ] && echo non-empty || echo EMPTY)"
+if diff -u "$PWD/snap1.txt" "$PWD/snap2.txt" > "$PWD/snap.diff" 2>&1; then
+  echo "TREE_DIFF empty"
+else
+  echo "TREE_DIFF changed"
+  head -n 10 "$PWD/snap.diff"
+fi
+echo "LINK_COUNT $(ls -A "$HOME/.agents/skills" | wc -l | tr -d ' ')"
