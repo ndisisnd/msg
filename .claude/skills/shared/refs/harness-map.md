@@ -103,8 +103,12 @@ the project's `.codex/` layer trusted. Edit the hook and the hash changes, so tr
 must be granted again. An untrusted hook does not error; it simply does not run.
 
 That failure mode is the dangerous one: a silently untrusted changelog gate is a
-silently *open* changelog gate, and a release ships without its entry. So `merge`
-runs a liveness preflight on the Codex leg before it relies on the gate.
+silently *open* changelog gate, and a release ships without its entry. **So on the
+Codex leg, prove the gate is alive before relying on it** — run the probe below at
+the start of any run that treats the gate as a safety net, `merge` above all. This
+is an instruction to you, the agent reading this map, not a step already wired into
+`merge`'s protocol: the gate is a Claude-side hook, and nothing in msg's protocol
+text knows it might be untrusted.
 
 **The probe.** Run a command whose text contains `git commit` but which does
 nothing:
@@ -115,7 +119,7 @@ true # git commit probe
 
 A live gate denies it (CHANGELOG.md is not staged). A dead gate lets it through.
 
-**Its one false negative:** if `CHANGELOG.md is already staged`, the live gate
+**Its one false negative:** if CHANGELOG.md is already staged, the live gate
 allows the probe too, and a dead gate is indistinguishable from a live one. So
 check the staging state **first** — if the changelog is already staged, either
 unstage it for the probe or treat the result as inconclusive and say so. Never

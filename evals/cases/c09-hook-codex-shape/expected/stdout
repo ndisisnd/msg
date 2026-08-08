@@ -1,0 +1,10 @@
+BASELINE v5.6.5
+CHECKSUM matches-v5.6.5
+SHAPE claude rc=0 decision=deny stdout-sha=4fcc1c174043
+SHAPE codex rc=0 decision=deny stdout-sha=4fcc1c174043
+SHAPE future rc=0 decision=deny stdout-sha=4fcc1c174043
+PARITY codex-vs-claude byte-identical
+PARITY future-vs-claude byte-identical
+NO_FIELD_LEAK clean
+ALLOW_PARITY claude=[] codex=[]
+ALLOW_PARITY byte-identical

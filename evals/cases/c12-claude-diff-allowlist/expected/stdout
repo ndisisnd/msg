@@ -24,6 +24,8 @@ INIT msg/refs/init/templates/template-codex-agent-lead.md new
 INIT msg/refs/init/templates/template-codex-agent-leaf.md new
 INIT msg/refs/init/templates/template-codex-config.md new
 INIT msg/refs/init/templates/template-codex-hooks.md new
+GUI msg/refs/gui/server.py modified
+GUI msg/refs/protocol-gui.md modified
 MODIFIED all-allowlisted
 NEW all-allowlisted
 REMOVED none

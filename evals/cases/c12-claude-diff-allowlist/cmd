@@ -11,18 +11,21 @@
 #
 # The defence is scope, not review. `evals/manifests/claude-diff-allowlist.txt`
 # is the closed list of differences v6 is allowed to introduce under
-# `.claude/skills/`, in four categories: `preamble` (C5's harness-map one-liner),
+# `.claude/skills/`, in five categories: `preamble` (C5's harness-map one-liner),
 # `memory` (C7's D9 reader-site sentence), `new` (additive files Claude never
-# reads), and `init` (C8's scaffolder). This case diffs the live tree against the
-# `v5.6.5` tag and fails on anything the manifest does not name.
+# reads), `init` (C8's scaffolder) and `gui` (C9's board server). This case diffs
+# the live tree against the `v5.6.5` tag and fails on anything the manifest does
+# not name.
 #
-# `init` is the one category that is a genuine exclusion rather than a bounded
-# licence, so it gets stated plainly: `/msg --init`'s template writer ships under
-# `.claude/skills/` for packaging reasons but is never read as protocol text by a
-# Claude run — it writes files into other repos. The plan places it outside A8 by
-# name and covers it with `c13-init-emits-codex-leg` instead. It is scoped to exact
-# paths, never globs, and every entry is echoed as an `INIT` line below so the hole
-# is visible in the golden rather than implied by silence.
+# Two of the five are genuine exclusions rather than bounded licences, so they get
+# stated plainly. `/msg --init`'s template writer ships under `.claude/skills/` for
+# packaging reasons but is never read as protocol text by a Claude run — it writes
+# files into other repos, and `c13-init-emits-codex-leg` covers it. `/msg --gui`'s
+# server and protocol carry msg's only hard dependency on a coding CLI, and the one
+# fact there a Claude session can regress — the default runner string — is pinned
+# byte-for-byte by `c14-gui-default-runner`. Both are scoped to exact paths, never
+# globs, and every entry is echoed as an `INIT`/`GUI` line below so the holes are
+# visible in the golden rather than implied by silence.
 #
 # What it catches that a human diff read does not:
 #   - a listed file edited beyond its licence — the `preamble` check compares diff
@@ -67,6 +70,7 @@ preambles="$(cat_of preamble)"
 memories="$(cat_of memory)"
 news="$(cat_of new)"
 inits="$(cat_of init)"
+guis="$(cat_of gui)"
 
 # --- live diff vs the baseline tree -------------------------------------------
 # `git diff <tag> -- <path>` compares the tag to the WORKING TREE, so uncommitted
@@ -152,43 +156,53 @@ $memories
 EOF
 fi
 
-# --- 3. the init-scaffolder exclusion, kept visible ---------------------------
-# The one hole in A8: `/msg --init`'s template writer ships under `.claude/skills/`
-# but is never read as protocol text by a Claude run — it writes files into other
-# repos. The plan puts it outside this allowlist deliberately and covers it with
-# `c13-init-emits-codex-leg` instead.
+# --- 3. the two exclusions, kept visible --------------------------------------
+# Unlike `preamble` and `memory`, these two categories are holes rather than
+# bounded licences: the files are simply out of A8's scope and covered by another
+# case each. `init` is `/msg --init`'s template writer, which ships under
+# `.claude/skills/` but is never read as protocol text by a Claude run — it writes
+# files into other repos (covered by `c13-init-emits-codex-leg`). `gui` is the
+# `/msg --gui` board server and its protocol, whose one Claude-visible fact is the
+# default runner string (covered by `c14-gui-default-runner`).
 #
 # A hole nobody can see is a hole nobody maintains, so every entry is printed with
 # what it actually is against the baseline: `modified` (existed in v5.6.5 and
 # differs) or `new` (did not exist). An entry that turns out to be UNCHANGED is a
 # failure, not a pass — it means the exclusion is broader than the work needs and
 # the line should be deleted.
-if [ -z "$inits" ]; then
-  echo "INIT none-listed"
-else
+report_exclusion() {
+  label="$1"; paths="$2"
+  if [ -z "$paths" ]; then
+    echo "$label none-listed"
+    return
+  fi
   while IFS= read -r p; do
     [ -n "$p" ] || continue
     if git -C "$REPO" cat-file -e "$BASE:$SCOPE/$p" 2>/dev/null; then
       if [ -n "$(git -C "$REPO" diff --no-renames "$BASE" -- "$SCOPE/$p" || true)" ]; then
-        echo "INIT $p modified"
+        echo "$label $p modified"
       else
-        echo "INIT $p UNCHANGED"
+        echo "$label $p UNCHANGED"
       fi
     elif [ -f "$REPO/$SCOPE/$p" ]; then
-      echo "INIT $p new"
+      echo "$label $p new"
     else
-      echo "INIT $p FILE-MISSING"
+      echo "$label $p FILE-MISSING"
     fi
   done <<EOF
-$inits
+$paths
 EOF
-fi
+}
+
+report_exclusion INIT "$inits"
+report_exclusion GUI "$guis"
 
 # --- 4. nothing modified outside the allowlist --------------------------------
 unlisted=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  if ! in_list "$p" "$preambles" && ! in_list "$p" "$memories" && ! in_list "$p" "$inits"; then
+  if ! in_list "$p" "$preambles" && ! in_list "$p" "$memories" \
+     && ! in_list "$p" "$inits" && ! in_list "$p" "$guis"; then
     unlisted="$unlisted$p
 "
   fi
@@ -209,7 +223,7 @@ fi
 stray=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  matches_glob "$p" "$news" || in_list "$p" "$inits" || stray="$stray$p
+  matches_glob "$p" "$news" || in_list "$p" "$inits" || in_list "$p" "$guis" || stray="$stray$p
 "
 done <<EOF
 $added

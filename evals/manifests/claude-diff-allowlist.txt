@@ -32,6 +32,12 @@
 #             covered instead by eval `c13-init-emits-codex-leg`. Exact paths
 #             only; see the section at the bottom for the full argument.
 #
+#   gui       An exact path belonging to `/msg --gui` — the local board server and
+#             its protocol. Excluded from A8 by the plan and covered instead by
+#             eval `c14-gui-default-runner`, which pins the one thing a Claude
+#             session can regress here: the default runner string. Exact paths
+#             only; see the section at the bottom for the full argument.
+#
 # Anything else — a deletion, a rename, a modified file not listed, a new file
 # outside the globs — is a v6 regression and fails the eval.
 
@@ -111,3 +117,30 @@ init	msg/refs/init/templates/template-codex-agent-lead.md
 init	msg/refs/init/templates/template-codex-agent-leaf.md
 init	msg/refs/init/templates/template-codex-config.md
 init	msg/refs/init/templates/template-codex-hooks.md
+
+# --- gui (C9): the board server, excluded and covered elsewhere ---------------
+# The second and last hole in the A8 check, and it is a different shape from the
+# `init` one, so it gets its own argument rather than borrowing that one.
+#
+# `/msg --gui` shells out to a coding CLI to run the board's Prompts. That makes
+# `server.py` the single place in msg with a hard dependency on `claude` being the
+# binary on the machine — exactly the kind of thing a dual-harness port is tempted
+# to "fix" by flipping the default. Decision D8 says it does not flip: Claude stays
+# the default under both harnesses and Codex is an opt-in preset behind
+# `--runner-codex`. So the risk here is not a wide diff, it is one edited string.
+#
+# `msg/refs/protocol-gui.md` is listed alongside it, and unlike `protocol-init.md`
+# it IS protocol text a Claude session reads — so the exclusion is justified by
+# coverage, not by category. The only claim in that file which can change how a
+# Claude run behaves is the runner default it quotes, and `c14-gui-default-runner`
+# asserts that quote is byte-identical to the string in `server.py`, which is in
+# turn byte-identical to v5.6.5's. A doc that drifts from the code fails c14. The
+# rest of the file's v6 diff is additive prose about a flag Claude never passes.
+#
+# Exact paths, never globs: a third GUI file, or any other `msg/refs/*.md`, still
+# fails c12 as NOT-ALLOWLISTED and has to be argued for here. Entries print as GUI
+# lines below for the same reason the `init` ones do — a hole nobody can see is a
+# hole nobody maintains.
+
+gui	msg/refs/gui/server.py
+gui	msg/refs/protocol-gui.md

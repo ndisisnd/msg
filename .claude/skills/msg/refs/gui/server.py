@@ -47,6 +47,19 @@ from urllib.parse import urlparse, parse_qs
 
 ARGS = None
 TOKEN = secrets.token_hex(16)
+# Prompt runners (v6 decision D8) — the GUI's one hard dependency on a coding CLI.
+# The Prompts button is a fire-and-forget background run: nobody is at the terminal
+# to answer a permission question, so the runner has to be non-interactive AND
+# allowed to edit files, or the job hangs invisibly. Claude Code stays the default
+# under BOTH harnesses; the Codex preset is reachable only via --runner-codex (or
+# by spelling it out in --runner), never by default. Changing that default is a
+# breaking change and eval c14-gui-default-runner exists to catch it.
+#   claude: -p is non-interactive print mode, acceptEdits auto-accepts file edits.
+#   codex:  `exec` is the non-interactive subcommand; --full-auto is its nearest
+#           equivalent to acceptEdits (workspace-write sandbox, no approval
+#           prompts). Bare `codex exec` runs read-only and every edit would fail.
+RUNNER_CLAUDE = "claude -p {prompt} --permission-mode acceptEdits"
+RUNNER_CODEX = "codex exec --full-auto {prompt}"
 READ_EXTS = {".md", ".markdown", ".json", ".txt", ".yaml", ".yml", ".toml"}
 DENY_PARTS = {".git", "node_modules", ".env", "__pycache__", ".venv", "venv"}
 # v2 completion buckets (H1 ladder) — left→right pipeline order.
@@ -1183,8 +1196,7 @@ class Handler(BaseHTTPRequestHandler):
         return self._err("unknown endpoint", 404)
 
 
-def main():
-    global ARGS
+def build_parser():
     ap = argparse.ArgumentParser(description="msg --gui interactive server")
     ap.add_argument("--root", default=".", help="project root (contains features/)")
     ap.add_argument("--gui-dir", default=os.path.dirname(os.path.abspath(__file__)),
@@ -1192,9 +1204,32 @@ def main():
     ap.add_argument("--port", type=int, default=0, help="port (0 = pick a free one)")
     ap.add_argument("--view", default="board", choices=("board", "roadmap"),
                     help="initial tab the served board opens on")
-    ap.add_argument("--runner", default="claude -p {prompt} --permission-mode acceptEdits",
+    ap.add_argument("--runner", default=RUNNER_CLAUDE,
                     help="command template for /api/prompt; {prompt} is replaced argv-safely")
-    ARGS = ap.parse_args()
+    ap.add_argument("--runner-codex", action="store_true",
+                    help="use the OpenAI Codex preset instead of the default runner "
+                         "(%s)" % RUNNER_CODEX)
+    return ap
+
+
+def resolve_runner(args):
+    """Pick the runner template. Claude is the default under BOTH harnesses.
+
+    `--runner-codex` is sugar for spelling RUNNER_CODEX out by hand; combining it
+    with an explicit `--runner` is a contradiction, so it fails loudly rather than
+    silently picking a winner.
+    """
+    if not args.runner_codex:
+        return args.runner
+    if args.runner != RUNNER_CLAUDE:
+        raise SystemExit("--runner-codex and --runner are mutually exclusive")
+    return RUNNER_CODEX
+
+
+def main():
+    global ARGS
+    ARGS = build_parser().parse_args()
+    ARGS.runner = resolve_runner(ARGS)
     if not os.path.isdir(root_path()):
         raise SystemExit("root does not exist: %s" % ARGS.root)
 
