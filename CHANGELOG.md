@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-08-08
+
+### [158] — v6.0.0 Phase 0: drop the broken Codex scaffold, root-anchor the AGENTS.md ignore
+
+- `.agents/`, `.codex/`: Removed — the abandoned first-pass Codex scaffold, which was never committed. It had sed-rewritten eight SKILL.md files onto a wrongly capitalised home directory that exists on no harness (58 dead paths), left all 309 `.claude/` references in the refs untouched, and carried an `ANTHROPIC_BASE_URL` override in its `config.toml`. It is replaced wholesale in [159] rather than repaired.
+- `.gitignore`: Changed — the machine-local agent-notes entry `AGENTS.md` is now root-anchored as `/AGENTS.md`. The bare pattern ignored the filename at every depth, which is fine while msg's own root file is `headroom learn` scratch, but Codex reads `AGENTS.md` as project memory — so eval fixtures and scaffolded sample projects need to be able to commit their own nested copies.
+- `evals/cases/`: Added — `c04-no-ghost-paths`: asserts the ghost prefix has zero hits across every tracked and non-ignored untracked file (`git grep --untracked`, scoped that way because the gitignored `update/` planning docs quote the dead path deliberately), and that `git check-ignore` now reports a nested `AGENTS.md` as *not* ignored while the root one stays ignored (suite: 126/126).
+
 ## 2026-08-05
 
 ### [157] — README header: v5.6.5 release blurb, in GitHub alert syntax
