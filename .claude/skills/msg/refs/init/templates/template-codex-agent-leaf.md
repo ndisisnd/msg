@@ -25,5 +25,5 @@ specified packet and executes it; it does not plan.
 
 name = "msg-leaf"
 description = "msg worker: executes one fully-specified packet — a bounded file scope with its rows, standards payload and escape hatch — and returns a structured result. Delegated to explicitly by msg protocols — never auto-selected."
-reasoning_effort = "low"
+model_reasoning_effort = "low"
 ```

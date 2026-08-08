@@ -2,6 +2,13 @@
 
 ## 2026-08-08
 
+### [170] — v6.0.0: the agent roles were being silently ignored — wrong TOML key
+
+- `.codex/agents/msg-{lead,leaf}.toml` and `refs/init/templates/template-codex-agent-{lead,leaf}.md`: Fixed — the reasoning-effort key is `model_reasoning_effort`, not `reasoning_effort`. Codex rejects the file outright on an unrecognised field: `Ignoring malformed agent role definition: ... unknown field 'reasoning_effort'`. Both roles were therefore not loading at all, which means the orchestrator and worker tiers that `harness-map.md` binds `model: opus` and `model: sonnet` to did not exist at runtime — on this repo's own dogfood config and in every project `/msg --init` had scaffolded.
+- Found by running `codex doctor` against a real binary, which needs no authentication and reads the repo's `.codex/` directly. This is spike S3 failing on first contact, and it is the case the draft PR's "specified, not evidenced" warning was written for: the binding was designed correctly — a named role really is the durable mechanism — and the file expressing it was wrong in a way no amount of Claude-side review could have caught.
+- The correct key was established empirically rather than guessed, by substituting candidates and counting `codex doctor`'s warnings: five candidates, one of which took the warning count from 2 to 1. Worth recording for the next person: role definitions appear to load only for a **trusted** project, so the same malformed file in an untrusted scratch directory produces no warning at all. A clean `codex doctor` is not evidence that roles are valid unless the project is trusted.
+- `evals/cases/c13-init-emits-codex-leg`: Changed — the parse assertion now reads `model_reasoning_effort`, so a template that reverts to the old key fails on a `KeyError` rather than passing quietly. The golden is unchanged: the *values* (`high`, `low`) were always right, only the key naming them was wrong (suite: 140/140).
+
 ### [169] — v6.0.0: the Codex-only verification written down as a runnable plan
 
 - `evals/codex-shakedown.md`: Added — the part of v6 no Claude session can verify, as a document an agent can execute inside a Codex CLI session rather than as prose someone has to interpret. The whole dual-harness leg was designed and built from Claude Code, and the orchestration bindings in `harness-map.md` are specified, not evidenced. Shipping a release that claims a working Codex leg without ever having run one would be the one dishonest thing in this port, so the claims are recorded as tests.

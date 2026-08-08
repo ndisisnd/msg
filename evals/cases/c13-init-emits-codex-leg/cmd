@@ -116,7 +116,7 @@ for name in ("msg-lead", "msg-leaf"):
         ok = role["name"] == name and role["description"].strip()
         # No `model` key on purpose: a role that pinned a model would override the
         # developer's own choice on every spawn.
-        print(f"PARSE {path} toml-ok", role["reasoning_effort"],
+        print(f"PARSE {path} toml-ok", role["model_reasoning_effort"],
               "named" if ok else "NAME-MISMATCH",
               "no-model-pin" if "model" not in role else "MODEL-PINNED")
     except Exception as exc:

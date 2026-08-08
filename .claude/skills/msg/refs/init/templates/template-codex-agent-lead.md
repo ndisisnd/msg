@@ -28,5 +28,5 @@ binds the two together.
 
 name = "msg-lead"
 description = "msg orchestrator: plans waves, decomposes work into file-disjoint packets, dispatches leaf agents, and synthesises their returns. Delegated to explicitly by msg protocols — never auto-selected."
-reasoning_effort = "high"
+model_reasoning_effort = "high"
 ```
