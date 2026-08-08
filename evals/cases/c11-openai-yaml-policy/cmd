@@ -1,0 +1,118 @@
+# A9 / AC2.3 — no msg skill may be invoked implicitly under Codex.
+#
+# Codex can activate a skill on its own when the user's prompt happens to match
+# that skill's description, and that behaviour is ON unless a skill opts out.
+# msg's nine skills are explicit commands with real consequences — a PRD gets
+# rewritten, production code gets written, a branch gets merged and deployed.
+# The opt-out lives in one line of one file per skill:
+# `policy.allow_implicit_invocation: false` in `agents/openai.yaml`.
+#
+# That makes this a single-point-of-failure check, and it can fail in three
+# distinct ways this case has to separate:
+#
+# 1. The file is missing for a skill. Nothing errors — the skill just silently
+#    goes back to the permissive default. So the check enumerates skill
+#    directories from the filesystem (anything holding a SKILL.md) rather than
+#    from a hardcoded list, which means a tenth skill added later without an
+#    `openai.yaml` fails here instead of shipping wide open. The COUNT line
+#    pins the roster at 9 so an addition is a deliberate, visible edit.
+# 2. The key is present but the value is the *string* "false" rather than the
+#    boolean. A YAML consumer reading a non-empty string as truthy would turn
+#    implicit invocation back on, which is the worst possible failure: it looks
+#    correct in a diff. Hence the check is `is False`, not `== False` and not a
+#    truthiness test.
+# 3. The key is nested somewhere other than under `policy`, or misspelled. Both
+#    read as "absent" and are reported as such.
+#
+# On parsing: pyyaml is not in the stock macOS python3 that runs these evals, so
+# this walks a deliberately tiny YAML subset — top-level `key: value` plus one
+# level of two-space-indented mapping, which is exactly the shape these files
+# are allowed to have. The parser is strict on purpose: any line it does not
+# recognise is reported as UNPARSEABLE rather than skipped, so nobody can widen
+# the file's shape past what this check actually understands.
+set -u
+
+python3 - "$REPO/.claude/skills" <<'PY'
+import sys
+from pathlib import Path
+
+MISSING = object()
+
+
+def parse(text):
+    """Tiny YAML subset: `key: value` and one level of 2-space nesting.
+
+    Returns (mapping, errors). Scalars are typed only enough for this check:
+    bare true/false become booleans, quoted values stay strings.
+    """
+    out, errors, section = {}, [], None
+    for lineno, raw in enumerate(text.splitlines(), 1):
+        line = raw.split("#", 1)[0].rstrip() if raw.lstrip().startswith("#") else raw.rstrip()
+        if not line.strip():
+            continue
+        if line.startswith("  ") and not line.startswith("   "):
+            body, indented = line[2:], True
+        elif line.startswith(" "):
+            errors.append(f"line {lineno}: unexpected indent")
+            continue
+        else:
+            body, indented = line, False
+        if body.lstrip().startswith("#"):
+            continue
+        if ":" not in body:
+            errors.append(f"line {lineno}: not a key")
+            continue
+        key, _, value = body.partition(":")
+        key, value = key.strip(), value.strip()
+        if indented:
+            if section is None:
+                errors.append(f"line {lineno}: nested key with no parent")
+                continue
+            target = out.setdefault(section, {})
+        else:
+            target = out
+            if value == "":
+                section = key
+                out.setdefault(key, {})
+                continue
+            section = None
+        if value == "":
+            errors.append(f"line {lineno}: empty value")
+            continue
+        if value in ("true", "false"):
+            target[key] = value == "true"
+        elif len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+            target[key] = value[1:-1]
+        else:
+            target[key] = value
+    return out, errors
+
+
+root = Path(sys.argv[1])
+skills = sorted(p.parent.name for p in root.glob("*/SKILL.md"))
+print("COUNT", len(skills))
+
+for name in skills:
+    path = root / name / "agents" / "openai.yaml"
+    if not path.is_file():
+        print(name, "MISSING agents/openai.yaml")
+        continue
+    doc, errors = parse(path.read_text())
+    if errors:
+        print(name, "UNPARSEABLE", errors[0])
+        continue
+    policy = doc.get("policy")
+    if not isinstance(policy, dict):
+        print(name, "NO-POLICY-BLOCK")
+        continue
+    value = policy.get("allow_implicit_invocation", MISSING)
+    display = doc.get("display_name")
+    if value is MISSING:
+        print(name, "KEY-ABSENT")
+    elif value is not False:
+        print(name, "NOT-BOOLEAN-FALSE", repr(value))
+    elif not isinstance(display, str) or not display.strip():
+        print(name, "NO-DISPLAY-NAME")
+    else:
+        print(name, "explicit-only")
+PY
