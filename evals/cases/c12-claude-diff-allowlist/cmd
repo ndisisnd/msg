@@ -11,10 +11,18 @@
 #
 # The defence is scope, not review. `evals/manifests/claude-diff-allowlist.txt`
 # is the closed list of differences v6 is allowed to introduce under
-# `.claude/skills/`, in three categories: `preamble` (C5's harness-map one-liner),
+# `.claude/skills/`, in four categories: `preamble` (C5's harness-map one-liner),
 # `memory` (C7's D9 reader-site sentence), `new` (additive files Claude never
-# reads). This case diffs the live tree against the `v5.6.5` tag and fails on
-# anything the manifest does not name.
+# reads), and `init` (C8's scaffolder). This case diffs the live tree against the
+# `v5.6.5` tag and fails on anything the manifest does not name.
+#
+# `init` is the one category that is a genuine exclusion rather than a bounded
+# licence, so it gets stated plainly: `/msg --init`'s template writer ships under
+# `.claude/skills/` for packaging reasons but is never read as protocol text by a
+# Claude run — it writes files into other repos. The plan places it outside A8 by
+# name and covers it with `c13-init-emits-codex-leg` instead. It is scoped to exact
+# paths, never globs, and every entry is echoed as an `INIT` line below so the hole
+# is visible in the golden rather than implied by silence.
 #
 # What it catches that a human diff read does not:
 #   - a listed file edited beyond its licence — the `preamble` check compares diff
@@ -58,6 +66,7 @@ cat_of() { printf '%s\n' "$entries" | awk -F'\t' -v c="$1" '$1==c {print $2}' | 
 preambles="$(cat_of preamble)"
 memories="$(cat_of memory)"
 news="$(cat_of new)"
+inits="$(cat_of init)"
 
 # --- live diff vs the baseline tree -------------------------------------------
 # `git diff <tag> -- <path>` compares the tag to the WORKING TREE, so uncommitted
@@ -143,11 +152,43 @@ $memories
 EOF
 fi
 
-# --- 3. nothing modified outside the allowlist --------------------------------
+# --- 3. the init-scaffolder exclusion, kept visible ---------------------------
+# The one hole in A8: `/msg --init`'s template writer ships under `.claude/skills/`
+# but is never read as protocol text by a Claude run — it writes files into other
+# repos. The plan puts it outside this allowlist deliberately and covers it with
+# `c13-init-emits-codex-leg` instead.
+#
+# A hole nobody can see is a hole nobody maintains, so every entry is printed with
+# what it actually is against the baseline: `modified` (existed in v5.6.5 and
+# differs) or `new` (did not exist). An entry that turns out to be UNCHANGED is a
+# failure, not a pass — it means the exclusion is broader than the work needs and
+# the line should be deleted.
+if [ -z "$inits" ]; then
+  echo "INIT none-listed"
+else
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if git -C "$REPO" cat-file -e "$BASE:$SCOPE/$p" 2>/dev/null; then
+      if [ -n "$(git -C "$REPO" diff --no-renames "$BASE" -- "$SCOPE/$p" || true)" ]; then
+        echo "INIT $p modified"
+      else
+        echo "INIT $p UNCHANGED"
+      fi
+    elif [ -f "$REPO/$SCOPE/$p" ]; then
+      echo "INIT $p new"
+    else
+      echo "INIT $p FILE-MISSING"
+    fi
+  done <<EOF
+$inits
+EOF
+fi
+
+# --- 4. nothing modified outside the allowlist --------------------------------
 unlisted=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  if ! in_list "$p" "$preambles" && ! in_list "$p" "$memories"; then
+  if ! in_list "$p" "$preambles" && ! in_list "$p" "$memories" && ! in_list "$p" "$inits"; then
     unlisted="$unlisted$p
 "
   fi
@@ -162,13 +203,13 @@ else
   done
 fi
 
-# --- 4. every new file matches an expected glob --------------------------------
+# --- 5. every new file matches an expected glob --------------------------------
 # Counted, never enumerated: commit C6 adds nine `agents/openai.yaml` files while
 # this case may be running, and the verdict must not depend on that race.
 stray=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  matches_glob "$p" "$news" || stray="$stray$p
+  matches_glob "$p" "$news" || in_list "$p" "$inits" || stray="$stray$p
 "
 done <<EOF
 $added
@@ -181,7 +222,7 @@ else
   done
 fi
 
-# --- 5. no deletions, no renames ----------------------------------------------
+# --- 6. no deletions, no renames ----------------------------------------------
 if [ -z "$other" ]; then
   echo "REMOVED none"
 else

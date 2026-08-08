@@ -8,7 +8,7 @@
 #
 # The point is scope, not style. A reviewer reading a 40-file v6 diff cannot tell
 # "additive Codex metadata" from "someone quietly reworded a gate". This manifest
-# makes that judgement mechanical: three categories, nothing else.
+# makes that judgement mechanical: four categories, nothing else.
 #
 # Format: <category> <TAB> <path or glob, relative to .claude/skills/>
 #
@@ -25,6 +25,12 @@
 #   new       A file that does not exist in the v5.6.5 tree at all. New files
 #             cannot regress Claude behaviour by definition, but they still have
 #             to be expected, so each one matches a glob below or the case fails.
+#
+#   init      An exact path under `msg/refs/init/` — the `/msg --init` scaffolder,
+#             which writes files into OTHER repos and is never read as protocol
+#             text by a Claude run here. Excluded from A8 by the plan itself and
+#             covered instead by eval `c13-init-emits-codex-leg`. Exact paths
+#             only; see the section at the bottom for the full argument.
 #
 # Anything else — a deletion, a rename, a modified file not listed, a new file
 # outside the globs — is a v6 regression and fails the eval.
@@ -74,3 +80,34 @@ memory	plan-pm/SKILL.md
 
 new	*/agents/openai.yaml
 new	shared/refs/harness-map.md
+
+# --- init (C8): the scaffolder, excluded and covered elsewhere ----------------
+# This is the one hole in the A8 check, so it is worth being explicit about what
+# it is and why it is safe.
+#
+# `/msg --init`'s scaffolder lives under `.claude/skills/` for packaging reasons —
+# it ships inside the msg skill — but it is not protocol text a Claude session
+# reads. It is a template writer that runs once, in someone ELSE's repo, and
+# writes files there. Changing it cannot change how a Claude run behaves in this
+# repo, which is the only thing A8 is defending. The plan says as much: assertion
+# A8 places the init templates explicitly outside this allowlist.
+#
+# The exclusion is therefore scoped to exact paths, never globs — the two scripts
+# plus the five new Codex-leg templates — so a sixth template, or an edit to any
+# other file under `msg/refs/`, still fails c12 as NOT-ALLOWLISTED and has to be
+# argued for here. `msg/refs/protocol-init.md` is deliberately NOT listed: it is
+# protocol text an agent reads, so it stays inside the A8 net.
+#
+# What covers these files instead is `c13-init-emits-codex-leg`, which runs
+# `init.sh` in a throwaway fixture repo and asserts the four Codex artifacts
+# appear, parse, and carry no unportable paths. c12 prints one INIT line per
+# entry so the hole is visible in the golden rather than implied by silence, and
+# an entry that stops being modified must be deleted from this list.
+
+init	msg/refs/init/init-setup.sh
+init	msg/refs/init/init.sh
+init	msg/refs/init/templates/template-AGENTS.md
+init	msg/refs/init/templates/template-codex-agent-lead.md
+init	msg/refs/init/templates/template-codex-agent-leaf.md
+init	msg/refs/init/templates/template-codex-config.md
+init	msg/refs/init/templates/template-codex-hooks.md

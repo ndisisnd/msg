@@ -1,4 +1,4 @@
-CLASSIFIED 16
+CLASSIFIED 17
 READER eng/SKILL.md pinned
 READER eng/refs/build/protocol-packet.md pinned
 READER eng/refs/build/protocol.md pinned
@@ -8,6 +8,7 @@ EMITTER msg/refs/gui/index.html untouched
 EMITTER msg/refs/gui/server.py untouched
 EMITTER msg/refs/init/init-setup.sh untouched
 EMITTER msg/refs/init/init.sh untouched
+EMITTER msg/refs/init/templates/template-AGENTS.md untouched
 EMITTER msg/refs/init/templates/template-CLAUDE.md untouched
 EMITTER msg/refs/init/templates/template-README.md untouched
 EMITTER msg/refs/protocol-eng.md untouched

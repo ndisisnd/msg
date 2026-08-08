@@ -18,7 +18,7 @@
 # lost it.
 #
 # Hence: manifest-driven, exact-match, no prose interpretation anywhere.
-# `evals/manifests/memory-file-sites.txt` classifies all sixteen mentions as
+# `evals/manifests/memory-file-sites.txt` classifies all seventeen mentions as
 # `reader`, `emitter` or `referent`. This case asserts three things:
 #
 #   1. every `reader` path contains the pinned sentence exactly once — once, not
@@ -29,7 +29,7 @@
 #      still exists and still mentions `CLAUDE.md`, and every file under
 #      `.claude/skills/` that mentions `CLAUDE.md` is classified.
 #
-# Check 3 is what keeps this case alive after v6 ships. A seventeenth mention
+# Check 3 is what keeps this case alive after v6 ships. An eighteenth mention
 # added by some later commit fails here as UNCLASSIFIED, forcing whoever adds it
 # to decide which half of the split it belongs to, instead of defaulting to
 # Claude-only by omission.

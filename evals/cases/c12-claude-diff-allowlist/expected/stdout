@@ -17,6 +17,13 @@ MEMORY eng/refs/build/protocol-packet.md ok
 MEMORY eng/refs/build/protocol.md ok
 MEMORY plan-em/refs/protocol-em.md ok
 MEMORY plan-pm/SKILL.md ok
+INIT msg/refs/init/init-setup.sh modified
+INIT msg/refs/init/init.sh modified
+INIT msg/refs/init/templates/template-AGENTS.md new
+INIT msg/refs/init/templates/template-codex-agent-lead.md new
+INIT msg/refs/init/templates/template-codex-agent-leaf.md new
+INIT msg/refs/init/templates/template-codex-config.md new
+INIT msg/refs/init/templates/template-codex-hooks.md new
 MODIFIED all-allowlisted
 NEW all-allowlisted
 REMOVED none

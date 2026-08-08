@@ -1,8 +1,8 @@
 # D9 — the project memory file: who reads it, who writes it.
 #
 # Claude Code reads `CLAUDE.md` at a project's root before every session. Codex
-# reads `AGENTS.md`. msg's skills mention `CLAUDE.md` in sixteen files, and those
-# sixteen mentions are two different things wearing the same name:
+# reads `AGENTS.md`. msg's skills mention `CLAUDE.md` in seventeen files, and
+# those seventeen mentions are two different things wearing the same name:
 #
 #   reader    Protocol text telling an agent to GO READ the project's memory file
 #             to learn the project's stack and conventions. Under Codex that file
@@ -21,7 +21,7 @@
 #             example in an escalation rule, a destination label in a triage
 #             taxonomy, a "never edit this" prohibition. No read instruction to
 #             correct, so no sentence; listed here so the classification of all
-#             sixteen is on the record rather than implied by absence.
+#             seventeen is on the record rather than implied by absence.
 #
 # Format: <category> <TAB> <path, relative to .claude/skills/>
 #
@@ -29,7 +29,7 @@
 # directions. Every `reader` path must contain the pinned sentence; every
 # `emitter` and `referent` path must not. And the union of the three categories
 # must equal the set of files under `.claude/skills/` that mention `CLAUDE.md`
-# at all — so a seventeenth mention added later fails this case as UNCLASSIFIED
+# at all — so an eighteenth mention added later fails this case as UNCLASSIFIED
 # instead of quietly inheriting whichever behaviour its author assumed.
 #
 # `shared/refs/harness-map.md` is excluded by the eval, not listed here: it is
@@ -59,6 +59,12 @@ emitter	msg/refs/gui/index.html
 emitter	msg/refs/gui/server.py
 emitter	msg/refs/init/init-setup.sh
 emitter	msg/refs/init/init.sh
+# template-AGENTS.md (added by C8) is the Codex-leg memory file's source text. It
+# names `CLAUDE.md` on purpose and in the strongest terms available: the AGENTS.md
+# it emits is a pointer whose whole job is to send the agent to `CLAUDE.md`.
+# Giving it the canonical "read whichever exists" sentence would be circular — the
+# file IS the else-branch.
+emitter	msg/refs/init/templates/template-AGENTS.md
 emitter	msg/refs/init/templates/template-CLAUDE.md
 emitter	msg/refs/init/templates/template-README.md
 emitter	msg/refs/protocol-eng.md
