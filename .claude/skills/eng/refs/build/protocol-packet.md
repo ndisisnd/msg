@@ -35,6 +35,8 @@ Each ticket carries `id`, `title`, `objective`, `type` (`code | test | config | 
 
 Before writing any test: scan existing test files in the feature area for the runner and framework, assertion style, file naming and layout, factory/fixture/mock patterns, and shared setup helpers. Apply them to every test you write. With no existing tests, take the declared stack from `CLAUDE.md` / `devkit/ARCHITECTURE.md`.
 
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
+
 ## Step 3 — Execute tickets in TDD order
 
 Group by F-ID; complete all four phases for a group before the next. **Unit and integration tests only** — e2e, visual, perf, a11y and coverage belong to pre-merge.

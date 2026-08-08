@@ -79,6 +79,8 @@ The state file is **resumability only**: it never carries a verdict, never subst
 
 **1b. Mandatory pre-flight scan (devkit + PRD).** Devkit files live in `devkit/` (created by `/msg --init`); `CLAUDE.md` is at project root. Read all, in order:
 
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
+
 | # | Source | Read for / action |
 |---|--------|-------------------|
 | 1 | `devkit/AHA.md` | Past learnings applicable to this PRD's domain/feature type. Note every directly-relevant entry. |

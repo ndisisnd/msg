@@ -1,0 +1,18 @@
+CLASSIFIED 16
+READER eng/SKILL.md pinned
+READER eng/refs/build/protocol-packet.md pinned
+READER eng/refs/build/protocol.md pinned
+READER plan-em/refs/protocol-em.md pinned
+READER plan-pm/SKILL.md pinned
+EMITTER msg/refs/gui/index.html untouched
+EMITTER msg/refs/gui/server.py untouched
+EMITTER msg/refs/init/init-setup.sh untouched
+EMITTER msg/refs/init/init.sh untouched
+EMITTER msg/refs/init/templates/template-CLAUDE.md untouched
+EMITTER msg/refs/init/templates/template-README.md untouched
+EMITTER msg/refs/protocol-eng.md untouched
+EMITTER msg/refs/protocol-gui.md untouched
+EMITTER msg/refs/protocol-init.md untouched
+REFERENT msg/refs/protocol-aha.md untouched
+REFERENT plan-pm/refs/protocol-pm.md untouched
+COVERAGE complete

@@ -89,11 +89,25 @@ EOF
 # A `preamble` entry buys exactly two added lines (the canonical line and the
 # blank after it) and zero removed lines. Anything else is an unrelated edit
 # riding along on an allowlisted path.
+#
+# Three C5 preamble files are also C7 reader sites, so their licence is the union
+# of the two categories: preamble line + memory sentence, both additive. For a
+# dual-listed path the content assertion relaxes to "the preamble line is present
+# exactly once and nothing was removed" — the added sentence is c15's to pin, and
+# the `memory` loop below still holds the additive-only line on the same file.
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   d="$(git -C "$REPO" diff -U0 --no-renames "$BASE" -- "$SCOPE/$p" || true)"
   if [ -z "$d" ]; then
     echo "PREAMBLE $p MISSING"
+    continue
+  fi
+  if in_list "$p" "$memories"; then
+    echo "PREAMBLE $p $(printf '%s\n' "$d" | awk -v want="$PREAMBLE" '
+      /^--- / || /^\+\+\+ / { next }
+      /^\+/ { if (substr($0, 2) == want) hit++ }
+      /^-/  { rm++ }
+      END { print (rm || hit != 1) ? "OTHER-EDITS" : "ok+memory" }')"
     continue
   fi
   # `--- a/x` and `+++ b/x` are diff headers, not content; a removed markdown

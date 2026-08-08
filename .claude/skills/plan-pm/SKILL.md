@@ -42,6 +42,8 @@ Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply it
 
 Before Step 1, stat-check and read the following in parallel via `Bash`. Written to `devkit/` by `/msg --init`; `CLAUDE.md` stays at project root.
 
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
+
 | File | How to apply |
 |------|-------------|
 | `devkit/AHA.md` | Surface relevant entries in the Open questions section; **apply self-healing learnings (G5) to the draft** so a category-tagged pattern (e.g. `[tune:error-cases] …`) is avoided this run |

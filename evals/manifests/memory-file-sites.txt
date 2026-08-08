@@ -1,0 +1,77 @@
+# D9 — the project memory file: who reads it, who writes it.
+#
+# Claude Code reads `CLAUDE.md` at a project's root before every session. Codex
+# reads `AGENTS.md`. msg's skills mention `CLAUDE.md` in sixteen files, and those
+# sixteen mentions are two different things wearing the same name:
+#
+#   reader    Protocol text telling an agent to GO READ the project's memory file
+#             to learn the project's stack and conventions. Under Codex that file
+#             may be `AGENTS.md`, so these sites are the ones that are wrong as
+#             written. Each carries the canonical sentence pinned in eval c15,
+#             verbatim, once.
+#
+#   emitter   Code, templates or prose that CREATES or SERVES the `CLAUDE.md`
+#             artifact — init scripts, init templates, `protocol-init.md`,
+#             `protocol-eng.md`'s init-variable table, the GUI's file browser.
+#             These are correct as written and must NOT gain the sentence: telling
+#             a scaffolder to "read whichever file exists" is meaningless at the
+#             point it writes one. Emitting the Codex leg is commit C8's job.
+#
+#   referent  A passing mention that neither reads nor writes the file — an
+#             example in an escalation rule, a destination label in a triage
+#             taxonomy, a "never edit this" prohibition. No read instruction to
+#             correct, so no sentence; listed here so the classification of all
+#             sixteen is on the record rather than implied by absence.
+#
+# Format: <category> <TAB> <path, relative to .claude/skills/>
+#
+# Eval `c15-memory-file-rule` is exact-match and manifest-driven, in both
+# directions. Every `reader` path must contain the pinned sentence; every
+# `emitter` and `referent` path must not. And the union of the three categories
+# must equal the set of files under `.claude/skills/` that mention `CLAUDE.md`
+# at all — so a seventeenth mention added later fails this case as UNCLASSIFIED
+# instead of quietly inheriting whichever behaviour its author assumed.
+#
+# `shared/refs/harness-map.md` is excluded by the eval, not listed here: it is
+# the map row the canonical sentence is derived from, so counting it as a site
+# would make the rule its own evidence.
+
+# --- reader: gets the canonical sentence -------------------------------------
+# All five are pre-flight reads. eng and plan-em read the memory file for
+# tech-stack constraints before writing code or scoping agents; the two build
+# protocols read it for the declared test stack and the suite/lint commands;
+# plan-pm reads it to constrain an autonomous PRD draft.
+
+reader	eng/SKILL.md
+reader	eng/refs/build/protocol-packet.md
+reader	eng/refs/build/protocol.md
+reader	plan-em/refs/protocol-em.md
+reader	plan-pm/SKILL.md
+
+# --- emitter: must stay untouched --------------------------------------------
+# `init.sh` and `init-setup.sh` write and gap-check the file; the two templates
+# are its source text (and README's cross-reference to it); `protocol-init.md`
+# specifies the write, down to the row-level substitutions; `protocol-eng.md`
+# explains which init variables reach it; the GUI lists and renders it as a
+# project doc, and renders whatever it finds.
+
+emitter	msg/refs/gui/index.html
+emitter	msg/refs/gui/server.py
+emitter	msg/refs/init/init-setup.sh
+emitter	msg/refs/init/init.sh
+emitter	msg/refs/init/templates/template-CLAUDE.md
+emitter	msg/refs/init/templates/template-README.md
+emitter	msg/refs/protocol-eng.md
+emitter	msg/refs/protocol-gui.md
+emitter	msg/refs/protocol-init.md
+
+# --- referent: mentioned, neither read nor written ---------------------------
+# `protocol-aha.md` names the file twice: once in the hard boundary forbidding
+# aha mode from editing it, once as the `memory` destination label of a promote
+# verdict — a routing recommendation a human acts on later, not a read.
+# `protocol-pm.md` names it inside an example of what makes a run worth logging
+# to AHA.md ("a CLAUDE.md rule invalidated a feature"); the actual read
+# instruction for that run lives in `plan-pm/SKILL.md`, which is a reader.
+
+referent	msg/refs/protocol-aha.md
+referent	plan-pm/refs/protocol-pm.md

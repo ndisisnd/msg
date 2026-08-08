@@ -105,6 +105,8 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 
 **Devkit files** (read in parallel with the PRD, unless a digest was injected): `devkit/AHA.md` (scan for entries whose tag or content matches the assigned rows — carry at most the ~5 relevant ones forward, never the whole ledger), `devkit/GLOSSARY.md` (canonical terms; flag PRD deviations), `CLAUDE.md` at project root (tech-stack constraints on every file-path/approach decision), `devkit/ARCHITECTURE.md` (validate scope against system layers; flag conflicts as gaps), `devkit/DESIGN-SYSTEM.md` (reusable components). If `devkit/` does not exist, emit a single warning and continue; a missing individual file is a per-file warning, then continue.
 
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
+
 **Codebase scan** (in parallel): read files relevant to the assigned rows, matched by concern type (schema migration → migrations/schema; API contract → handlers, routes, OpenAPI; client mobile/web → screens/pages, components, services/clients; tests → existing test files; webhook → event emitters, queue handlers). For each, determine **Modify** (exists) or **Create** (does not), and note naming conventions, patterns, and constraints — they constrain the output. Eng derives all implementation paths from this scan and the spec; `report`'s `issues[].file` marks where a *symptom* was observed, not a path to blindly edit.
 
 Complete pre-flight before Step 3; emit no output during it.

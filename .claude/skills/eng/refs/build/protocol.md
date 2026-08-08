@@ -163,6 +163,8 @@ RUN_ID=build-$(date +%s)
 
    Apply the findings to every test file written in step 4. With no existing test files, check `CLAUDE.md` and `devkit/ARCHITECTURE.md` for the declared test stack.
 
+   **Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
+
 4. **Execute tickets in TDD order.** Take tickets in **Spec source** order (`depends-on`, then ticket id), grouped by F-ID; complete all four phases (a–d) for a group before the next. Phase follows ticket `type` (`code | test | config | migration | doc`): a `test` ticket is phase (a); `code`, `migration`, `config`, `doc` are phase (c); every ticket ends at its own `done-when` in phase (d).
 
    **Test surface — unit + integration only.** The TDD loop runs unit and integration tests only; e2e, visual, perf, a11y and coverage belong to pre-merge, not the inner loop.

@@ -49,12 +49,23 @@ preamble	shared/refs/agent-watch.md
 preamble	shared/refs/gate-dispatch.md
 
 # --- memory (C7): D9 reader sites --------------------------------------------
-# Deliberately empty until commit C7 classifies the 16 `CLAUDE.md` mentions into
-# reader sites (which get the sentence) and emitter sites (which must not be
-# touched). The section is present-but-empty on purpose: an empty category is a
-# valid state the eval passes on, so C5 does not have to pre-guess C7's answer.
+# The five protocol files that tell an agent to GO READ the project's memory file
+# for stack constraints and conventions. They are the sites that are wrong under
+# Codex, where that file may be `AGENTS.md`, so each one gains the canonical
+# sentence and nothing else. The other eleven `CLAUDE.md` mentions are emitters
+# (init templates, init scripts, protocol-init, protocol-eng, GUI) or bare
+# referents, and are deliberately absent — see `evals/manifests/memory-file-sites.txt`
+# for the full 16-file classification and the pinned sentence.
+#
+# Three of the five are also `preamble` entries above. A dual-listed path's
+# licence is the union of the two: the harness preamble line plus the memory
+# sentence, both additive, nothing removed.
 
-# (no entries yet)
+memory	eng/SKILL.md
+memory	eng/refs/build/protocol-packet.md
+memory	eng/refs/build/protocol.md
+memory	plan-em/refs/protocol-em.md
+memory	plan-pm/SKILL.md
 
 # --- new: additive files Claude never reads ----------------------------------
 # `agents/openai.yaml` is Codex-only metadata (D4) — one per shipped skill,
