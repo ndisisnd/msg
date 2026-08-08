@@ -19,6 +19,8 @@ allowed_tools:
   - Write
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # plan-pm
 
 ## Usage

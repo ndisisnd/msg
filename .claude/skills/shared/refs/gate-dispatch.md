@@ -4,6 +4,8 @@ description: Cross-skill contract for running a gate in a subagent behind a thin
 type: reference
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # Gate dispatch — the gate runs in a subagent, the main thread only dispatches
 
 A gate run is the heaviest thing a session does. Component protocols, tool logs,

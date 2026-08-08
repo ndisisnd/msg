@@ -1,0 +1,65 @@
+# A8 — the Claude non-regression allowlist.
+#
+# msg v6 adds a second harness (OpenAI Codex) without forking the skills. The
+# whole bet only holds if the Claude side comes out of v6 behaving exactly as it
+# did in v5.6.5, so this file is the closed list of every difference the v6 work
+# is allowed to introduce under `.claude/skills/`. Eval `c12-claude-diff-allowlist`
+# diffs the live tree against the `v5.6.5` tag and fails on anything not named here.
+#
+# The point is scope, not style. A reviewer reading a 40-file v6 diff cannot tell
+# "additive Codex metadata" from "someone quietly reworded a gate". This manifest
+# makes that judgement mechanical: three categories, nothing else.
+#
+# Format: <category> <TAB> <path or glob, relative to .claude/skills/>
+#
+#   preamble  A file modified ONLY by the harness-map one-liner from commit C5.
+#             The eval checks the diff content, not just the path: the added
+#             lines must be exactly the canonical preamble plus one blank line,
+#             and no line may be removed. Adding a path here does not license
+#             any other edit to that file.
+#
+#   memory    A file modified ONLY by the D9 memory-file sentence at a reader
+#             site (commit C7). Additive-only, same rule. The exact sentence is
+#             pinned by eval c15, not here — c12 only polices scope.
+#
+#   new       A file that does not exist in the v5.6.5 tree at all. New files
+#             cannot regress Claude behaviour by definition, but they still have
+#             to be expected, so each one matches a glob below or the case fails.
+#
+# Anything else — a deletion, a rename, a modified file not listed, a new file
+# outside the globs — is a v6 regression and fails the eval.
+
+# --- preamble (C5): 9 shipping SKILL.md + 4 subagent entry-point refs ---------
+# The SKILL.md nine are the harness's front doors. The four refs are the places a
+# spawned worker starts reading WITHOUT having seen a SKILL.md, which is why the
+# line has to be repeated there — see harness-map.md, "Rule 1 — spawn propagation".
+
+preamble	emulate/SKILL.md
+preamble	eng/SKILL.md
+preamble	eng/refs/build/protocol-packet.md
+preamble	intake/SKILL.md
+preamble	merge/SKILL.md
+preamble	msg/SKILL.md
+preamble	plan-em/SKILL.md
+preamble	plan-em/refs/protocol-team.md
+preamble	plan-pm/SKILL.md
+preamble	plan-review/SKILL.md
+preamble	pre-merge/SKILL.md
+preamble	shared/refs/agent-watch.md
+preamble	shared/refs/gate-dispatch.md
+
+# --- memory (C7): D9 reader sites --------------------------------------------
+# Deliberately empty until commit C7 classifies the 16 `CLAUDE.md` mentions into
+# reader sites (which get the sentence) and emitter sites (which must not be
+# touched). The section is present-but-empty on purpose: an empty category is a
+# valid state the eval passes on, so C5 does not have to pre-guess C7's answer.
+
+# (no entries yet)
+
+# --- new: additive files Claude never reads ----------------------------------
+# `agents/openai.yaml` is Codex-only metadata (D4) — one per shipped skill,
+# invisible to Claude Code. `harness-map.md` is the single translation ref the
+# whole port rests on (D3).
+
+new	*/agents/openai.yaml
+new	shared/refs/harness-map.md

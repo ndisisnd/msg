@@ -22,6 +22,8 @@ allowed_tools:
   - Write
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # plan-em
 
 **This file is a router.** The five-step protocol lives in `refs/protocol-em.md` and the

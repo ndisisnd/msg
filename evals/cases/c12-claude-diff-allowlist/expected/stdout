@@ -1,0 +1,18 @@
+BASELINE v5.6.5
+PREAMBLE emulate/SKILL.md ok
+PREAMBLE eng/SKILL.md ok
+PREAMBLE eng/refs/build/protocol-packet.md ok
+PREAMBLE intake/SKILL.md ok
+PREAMBLE merge/SKILL.md ok
+PREAMBLE msg/SKILL.md ok
+PREAMBLE plan-em/SKILL.md ok
+PREAMBLE plan-em/refs/protocol-team.md ok
+PREAMBLE plan-pm/SKILL.md ok
+PREAMBLE plan-review/SKILL.md ok
+PREAMBLE pre-merge/SKILL.md ok
+PREAMBLE shared/refs/agent-watch.md ok
+PREAMBLE shared/refs/gate-dispatch.md ok
+MEMORY none-listed
+MODIFIED all-allowlisted
+NEW all-allowlisted
+REMOVED none

@@ -4,6 +4,8 @@ description: Cross-skill contract for dispatching a leaf wave backgrounded and w
 type: reference
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # Agent watch — a wave in flight is observed, not awaited blindly
 
 When a mode fans out leaf subagents it used to hand the turn away for the whole

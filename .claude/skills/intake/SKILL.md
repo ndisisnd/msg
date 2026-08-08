@@ -23,6 +23,8 @@ allowed_tools:
   - Write
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # intake
 
 The front-door of the msg planning pipeline. Ideas and bugs enter here, get

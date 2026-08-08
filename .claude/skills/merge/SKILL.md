@@ -16,6 +16,8 @@ allowed_tools:
   - AskUserQuestion
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # merge
 
 **The** ship gate. Runs after `/pre-merge` opened a feature→staging PR and takes

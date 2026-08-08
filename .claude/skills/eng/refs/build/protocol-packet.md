@@ -4,6 +4,8 @@ description: The complete contract for one orchestrated build leaf — tickets, 
 type: reference
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # Build packet — the orchestrated leaf's whole protocol
 
 You are **one packet** of a parallel build coordinated by an orchestrator. This file is everything you need and nothing you do not. Do **not** read `eng/SKILL.md` or `refs/build/protocol.md` — they carry the standalone-run paths (branch creation, the `report=` fix source, `/cook` resolution, sub-branch PRs, the status heartbeat) that are **forbidden or already handled** here.

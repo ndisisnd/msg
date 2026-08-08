@@ -18,6 +18,8 @@ allowed_tools:
   - Bash
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # msg
 
 **This file is a router.** Every mode's protocol lives in a ref; the only protocols written

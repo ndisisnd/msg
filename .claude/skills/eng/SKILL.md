@@ -13,6 +13,8 @@ allowed_tools:
   - Agent
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # eng
 
 Platform-agnostic engineering agent with three modes — `--plan`, `--build`, `--review` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
