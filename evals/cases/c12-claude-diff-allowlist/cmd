@@ -11,21 +11,23 @@
 #
 # The defence is scope, not review. `evals/manifests/claude-diff-allowlist.txt`
 # is the closed list of differences v6 is allowed to introduce under
-# `.claude/skills/`, in five categories: `preamble` (C5's harness-map one-liner),
+# `.claude/skills/`, in six categories: `preamble` (C5's harness-map one-liner),
 # `memory` (C7's D9 reader-site sentence), `new` (additive files Claude never
-# reads), `init` (C8's scaffolder) and `gui` (C9's board server). This case diffs
-# the live tree against the `v5.6.5` tag and fails on anything the manifest does
-# not name.
+# reads), `init` (C8's scaffolder), `initdoc` (the scaffolder's protocol text) and
+# `gui` (C9's board server). This case diffs the live tree against the `v5.6.5` tag
+# and fails on anything the manifest does not name.
 #
-# Two of the five are genuine exclusions rather than bounded licences, so they get
+# Three of the six are genuine exclusions rather than bounded licences, so they get
 # stated plainly. `/msg --init`'s template writer ships under `.claude/skills/` for
 # packaging reasons but is never read as protocol text by a Claude run — it writes
-# files into other repos, and `c13-init-emits-codex-leg` covers it. `/msg --gui`'s
+# files into other repos, and `c13-init-emits-codex-leg` covers it. `protocol-init.md`
+# IS read as protocol text, so it is excluded on the narrower ground that c13 now
+# asserts the file list it documents matches what the scaffolder writes. `/msg --gui`'s
 # server and protocol carry msg's only hard dependency on a coding CLI, and the one
 # fact there a Claude session can regress — the default runner string — is pinned
-# byte-for-byte by `c14-gui-default-runner`. Both are scoped to exact paths, never
-# globs, and every entry is echoed as an `INIT`/`GUI` line below so the holes are
-# visible in the golden rather than implied by silence.
+# byte-for-byte by `c14-gui-default-runner`. All three are scoped to exact paths,
+# never globs, and every entry is echoed as an `INIT`/`INITDOC`/`GUI` line below so
+# the holes are visible in the golden rather than implied by silence.
 #
 # What it catches that a human diff read does not:
 #   - a listed file edited beyond its licence — the `preamble` check compares diff
@@ -70,6 +72,7 @@ preambles="$(cat_of preamble)"
 memories="$(cat_of memory)"
 news="$(cat_of new)"
 inits="$(cat_of init)"
+initdocs="$(cat_of initdoc)"
 guis="$(cat_of gui)"
 
 # --- live diff vs the baseline tree -------------------------------------------
@@ -195,6 +198,7 @@ EOF
 }
 
 report_exclusion INIT "$inits"
+report_exclusion INITDOC "$initdocs"
 report_exclusion GUI "$guis"
 
 # --- 4. nothing modified outside the allowlist --------------------------------
@@ -202,7 +206,8 @@ unlisted=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
   if ! in_list "$p" "$preambles" && ! in_list "$p" "$memories" \
-     && ! in_list "$p" "$inits" && ! in_list "$p" "$guis"; then
+     && ! in_list "$p" "$inits" && ! in_list "$p" "$initdocs" \
+     && ! in_list "$p" "$guis"; then
     unlisted="$unlisted$p
 "
   fi
@@ -223,7 +228,8 @@ fi
 stray=""
 while IFS= read -r p; do
   [ -n "$p" ] || continue
-  matches_glob "$p" "$news" || in_list "$p" "$inits" || in_list "$p" "$guis" || stray="$stray$p
+  matches_glob "$p" "$news" || in_list "$p" "$inits" || in_list "$p" "$initdocs" \
+    || in_list "$p" "$guis" || stray="$stray$p
 "
 done <<EOF
 $added

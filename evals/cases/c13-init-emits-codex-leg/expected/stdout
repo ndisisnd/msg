@@ -24,3 +24,5 @@ TOPUP .codex/agents/msg-lead.toml tracked
 TOPUP .codex/agents/msg-leaf.toml tracked
 GATE_FROM_INSTALLED_ROOT deny
 GATE_ABSENT rc=0 output=[]
+DOC_TARGETS all-documented
+DOC_TEMPLATES all-present

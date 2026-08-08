@@ -206,3 +206,44 @@ echo "GATE_FROM_INSTALLED_ROOT ${decision:-UNPARSEABLE}"
 absent="$(printf '%s' "$EVENT" | HOME="$BARE_HOME" sh -c "$CMD" 2>/dev/null)"
 rc=$?
 echo "GATE_ABSENT rc=$rc output=[$absent]"
+
+# --- 8. the protocol documents what the scaffolder actually writes -------------
+# `protocol-init.md` is the file an agent reads to learn what `/msg --init` leaves
+# behind, and it is the one part of the init surface a Claude run genuinely reads.
+# That is why `c12-claude-diff-allowlist` excludes it by coverage rather than by
+# category: the exclusion is only honest if something asserts the doc matches the
+# code, which is this block.
+#
+# Forward: every path in `TARGETS` — the same list section 6 checks for top-up —
+# must be named somewhere in the protocol. A file the scaffolder writes but the
+# protocol never mentions is a file nobody knows they have.
+PROTO="$REPO/.claude/skills/msg/refs/protocol-init.md"
+targets="$(awk -F'[()]' '/^TARGETS=\(/ {print $2}' "$SETUP" | tr ' ' '\n' | grep . | sort)"
+undocumented=""
+while IFS= read -r t; do
+  [ -n "$t" ] || continue
+  grep -qF "${t%/}" "$PROTO" || undocumented="$undocumented$t
+"
+done <<EOF
+$targets
+EOF
+if [ -z "$undocumented" ]; then
+  echo "DOC_TARGETS all-documented"
+else
+  printf '%s' "$undocumented" | while IFS= read -r t; do echo "DOC_TARGETS $t UNDOCUMENTED"; done
+fi
+
+# Reverse: every template the protocol names has to exist. The forward check alone
+# would pass a protocol still describing a template that was renamed or deleted,
+# and a stale reference is the failure mode here — it sends a reader to a file that
+# is not there, which reads as a broken install rather than a stale doc.
+missing=""
+for tpl in $(grep -o 'templates/[A-Za-z0-9._-]*\.md' "$PROTO" | sort -u); do
+  [ -f "$REPO/.claude/skills/msg/refs/init/$tpl" ] || missing="$missing$tpl
+"
+done
+if [ -z "$missing" ]; then
+  echo "DOC_TEMPLATES all-present"
+else
+  printf '%s' "$missing" | while IFS= read -r t; do echo "DOC_TEMPLATES $t MISSING"; done
+fi

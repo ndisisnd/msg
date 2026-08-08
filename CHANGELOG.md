@@ -2,6 +2,12 @@
 
 ## 2026-08-08
 
+### [168] — v6.0.0 Phase 3 follow-up: `protocol-init.md` describes what the scaffolder now writes
+
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — the emitted-files table, the frontmatter summary, the no-placeholder row and the template inventory all still described the pre-v6 file set. Commit C8 taught `/msg --init` to emit `AGENTS.md` and the `.codex/` layer, but the protocol an agent reads to learn what bootstrap leaves behind never heard about it. A doc that undercounts the scaffolder's output is worse than a missing doc: an agent reads the table, concludes the Codex artifacts are not msg's, and treats them as somebody else's stray files.
+- `evals/cases/c13-init-emits-codex-leg`: Changed — a bidirectional coverage check, so the table above is mechanically true rather than remembered. Forward, every path in `init-setup.sh`'s `TARGETS` must appear somewhere in the protocol; a file the scaffolder writes but the protocol never names fails. Reverse, every `templates/*.md` the protocol references must exist on disk, because the forward check alone would happily pass a protocol still pointing at a template that was renamed away — and a stale pointer reads to whoever follows it as a broken install rather than a stale doc.
+- `evals/manifests/claude-diff-allowlist.txt`: Changed — a sixth category, `initdoc`, holding exactly one exact path. It could not join `init`: that category's whole argument is that the scaffolder is never read as protocol text by a Claude run, and `protocol-init.md` plainly is — the manifest previously said so in as many words. It could not be a bounded additive licence either, since the edit rewrote table rows rather than only appending them. So it takes the `gui` shape of argument instead, excluded by coverage rather than by category, with the c13 check above as the thing that earns the exclusion (suite: 140/140).
+
 ### [167] — v6.0.0 Phase 3: the docs say msg runs on two harnesses
 
 - `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `llms.txt`: Changed — every entry point now tells a reader msg runs under OpenAI Codex CLI as well as Claude Code, and tells them the two things that are genuinely different rather than burying them. Until this commit the whole Codex leg was invisible from outside the repo: a developer could install `--codex`, watch nothing happen when they described a task, and reasonably conclude the install was broken.

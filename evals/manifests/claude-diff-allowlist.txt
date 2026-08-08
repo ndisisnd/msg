@@ -32,6 +32,11 @@
 #             covered instead by eval `c13-init-emits-codex-leg`. Exact paths
 #             only; see the section at the bottom for the full argument.
 #
+#   initdoc   `msg/refs/protocol-init.md` — the protocol text describing the
+#             scaffolder. Unlike the `init` scripts it IS read by a Claude run, so
+#             it is excluded by coverage, not by category: `c13-init-emits-codex-leg`
+#             asserts the file list it documents matches what `init.sh` writes.
+#
 #   gui       An exact path belonging to `/msg --gui` — the local board server and
 #             its protocol. Excluded from A8 by the plan and covered instead by
 #             eval `c14-gui-default-runner`, which pins the one thing a Claude
@@ -101,8 +106,9 @@ new	shared/refs/harness-map.md
 # The exclusion is therefore scoped to exact paths, never globs — the two scripts
 # plus the five new Codex-leg templates — so a sixth template, or an edit to any
 # other file under `msg/refs/`, still fails c12 as NOT-ALLOWLISTED and has to be
-# argued for here. `msg/refs/protocol-init.md` is deliberately NOT listed: it is
-# protocol text an agent reads, so it stays inside the A8 net.
+# argued for here. `msg/refs/protocol-init.md` is NOT in this category: it is
+# protocol text an agent reads, so the category's argument does not cover it and it
+# gets its own — see `initdoc` at the bottom.
 #
 # What covers these files instead is `c13-init-emits-codex-leg`, which runs
 # `init.sh` in a throwaway fixture repo and asserts the four Codex artifacts
@@ -144,3 +150,21 @@ init	msg/refs/init/templates/template-codex-hooks.md
 
 gui	msg/refs/gui/server.py
 gui	msg/refs/protocol-gui.md
+
+# --- initdoc (C10 follow-up): the scaffolder's protocol text -------------------
+# `protocol-init.md` documents what `/msg --init` leaves behind, and v6 changed
+# that answer: the scaffolder now also emits `AGENTS.md` and the `.codex/` layer.
+# Leaving the doc alone would have kept c12 green while making the protocol wrong,
+# which is the worse outcome — an agent reading it would not know the files exist.
+#
+# This is not an additive-only licence, because the edit rewrote rows rather than
+# only appending them, and it is not the `init` category's exclusion either, since
+# that rests on "never read as protocol text" and this file plainly is. It is the
+# `gui` shape of argument: excluded by coverage. `c13-init-emits-codex-leg` now
+# asserts in both directions that the doc matches the code — every path in
+# `init-setup.sh`'s TARGETS appears in the protocol, and every template the
+# protocol names exists on disk. A doc that drifts from the scaffolder fails there.
+#
+# One exact path, never a glob. Any other `msg/refs/*.md` still fails c12.
+
+initdoc	msg/refs/protocol-init.md
