@@ -1,0 +1,14 @@
+# Codex project config for the msg repo (dogfooding leg).
+#
+# Deliberately minimal. Only the subagent limits are set here: everything else —
+# model, provider, sandbox policy — stays whatever the developer's own Codex
+# profile says, because msg must not reach into a user's harness settings.
+#
+# max_depth = 2 is the one non-default: msg's gate dispatch nests one level
+# (dispatcher -> gate run -> component wave), which Codex's default depth of 1
+# would refuse. If depth-2 nesting turns out not to work, gates run inline on
+# the Codex leg — an orchestration optimisation, not a contract change.
+
+[agents]
+max_threads = 6
+max_depth = 2

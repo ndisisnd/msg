@@ -1,0 +1,14 @@
+# msg-lead — the orchestrator role.
+#
+# msg's protocols name a model tier directly ("model: opus") when they spawn an
+# orchestrator. Codex's per-spawn model override is not a durable mechanism, so
+# on the Codex leg that tier is expressed as this named role instead, and
+# harness-map.md binds the two together.
+#
+# No `model` key on purpose: msg dropped per-skill model pins in v4 so a run
+# stays on whichever model the developer already chose. Reasoning effort is the
+# part that actually has to differ between orchestrator and leaf.
+
+name = "msg-lead"
+description = "msg orchestrator: plans waves, decomposes work into file-disjoint packets, dispatches leaf agents, and synthesises their returns. Delegated to explicitly by msg protocols — never auto-selected."
+reasoning_effort = "high"
