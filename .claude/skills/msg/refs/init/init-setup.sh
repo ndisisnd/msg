@@ -20,7 +20,11 @@ TARGET="${1:-.}"
 # file missing from it can never be noticed on an already-bootstrapped repo — the
 # protocol stops at "nothing to initialise" before init.sh gets a chance to write
 # it. Anything init.sh (or the skill) creates MUST be listed here.
-TARGETS=(devkit/AHA.md devkit/DOCTOR.md devkit/ENV.md devkit/GLOSSARY.md devkit/ARCHITECTURE.md devkit/DESIGN-SYSTEM.md devkit/OPEN-QUESTIONS.md devkit/PLATFORMS.md devkit/policy.json .claude/msg/pref.json README.md .gitignore CLAUDE.md CHANGELOG.md INTAKE.md features/planned/ features/wip/ features/done/)
+# The AGENTS.md + .codex/ entries are the OpenAI Codex harness layer. Listing them
+# here is what makes /msg --update top up a repo bootstrapped before msg grew a
+# second harness — without it, an existing project would report ALL_COMPLETE and
+# never gain a Codex leg.
+TARGETS=(devkit/AHA.md devkit/DOCTOR.md devkit/ENV.md devkit/GLOSSARY.md devkit/ARCHITECTURE.md devkit/DESIGN-SYSTEM.md devkit/OPEN-QUESTIONS.md devkit/PLATFORMS.md devkit/policy.json .claude/msg/pref.json README.md .gitignore CLAUDE.md AGENTS.md CHANGELOG.md INTAKE.md .codex/hooks.json .codex/config.toml .codex/agents/msg-lead.toml .codex/agents/msg-leaf.toml features/planned/ features/wip/ features/done/)
 STACK_FILES=(package.json tsconfig.json Cargo.toml go.mod pyproject.toml Gemfile pom.xml build.gradle Podfile pubspec.yaml)
 
 PRESENT=(); MISSING=(); STACK_DETECTED=()

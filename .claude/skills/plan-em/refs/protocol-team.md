@@ -4,6 +4,8 @@ description: The orchestrator engineer agent (Opus) plan-em spawns in --team mod
 type: reference
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # Team Orchestrator Protocol
 
 Loaded when `plan-em` runs in **`--team`** mode (the default — see `refs/protocol-em.md`

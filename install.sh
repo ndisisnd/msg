@@ -6,6 +6,11 @@ MSG_REPO="${MSG_REPO:-https://github.com/ndisisnd/msg.git}"
 COOK_INSTALL="curl -fsSL https://raw.githubusercontent.com/ndisisnd/cook/main/install.sh | bash"
 CLAUDE_DIR="${HOME}/.claude"
 SKILLS_DIR="${CLAUDE_DIR}/skills"
+# The Codex lane. Codex CLI reads user-level skills from ~/.agents/skills — not
+# from ~/.codex/skills, and not from ~/.claude/skills. Only ever touched when
+# --codex is passed.
+AGENTS_DIR="${HOME}/.agents"
+CODEX_SKILLS_DIR="${AGENTS_DIR}/skills"
 TMP_DIR="$(mktemp -d)"
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -19,16 +24,22 @@ trap cleanup EXIT
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 WITH_COOK=0
+WITH_CODEX=0
 for arg in "$@"; do
   case "$arg" in
     --help|-h)
-      echo "Usage: install.sh [--with-cook]"
+      echo "Usage: install.sh [--with-cook] [--codex]"
       echo
       echo "  Installs the msg skills into ~/.claude/skills."
       echo "  --with-cook   Also install the cook dependency (coding standards)."
+      echo "  --codex       Also expose the skills to OpenAI Codex CLI, by"
+      echo "                symlinking ~/.agents/skills/<name> at the installed"
+      echo "                ~/.claude/skills/<name>. Without this flag nothing"
+      echo "                under ~/.agents is created or touched."
       exit 0
       ;;
     --with-cook) WITH_COOK=1 ;;
+    --codex) WITH_CODEX=1 ;;
     *) die "Unknown flag: $arg" ;;
   esac
 done
@@ -76,6 +87,10 @@ done
 
 SRC="${TMP_DIR}/msg/.claude/skills"
 installed=0
+# The shipping set, recorded as it is installed. The Codex lane below sweeps
+# against this rather than a second hand-maintained list, so the two roots can
+# never disagree about what msg currently ships.
+SHIPPED_SKILLS=()
 
 for skill_dir in "${SRC}"/*/; do
   skill_name="$(basename "${skill_dir}")"
@@ -84,6 +99,7 @@ for skill_dir in "${SRC}"/*/; do
   dest="${SKILLS_DIR}/${skill_name}"
   rm -rf "${dest}"
   cp -r "${skill_dir}" "${dest}"
+  SHIPPED_SKILLS+=("${skill_name}")
   ((installed++)) || true
 done
 
@@ -94,6 +110,68 @@ success "Installed ${installed} skill(s)"
 # ~/.claude/skills is not a git checkout, so there is nothing else to ask.
 printf '%s — %s, installed %s\n' \
   "${MSG_LABEL}" "${MSG_COMMIT}" "$(date +%F)" > "${SKILLS_DIR}/msg/VERSION"
+
+# ── Optional Codex lane ───────────────────────────────────────────────────────
+# Codex CLI discovers user-level skills under ~/.agents/skills and follows
+# symlinked skill folders. So the Codex leg is symlinks, not a second copy:
+# one set of bytes, one version stamp, and no way for the two harnesses to
+# drift apart between releases. Without --codex this block does not run, and
+# nothing under ~/.agents is created, read or touched.
+if [[ "${WITH_CODEX}" -eq 1 ]]; then
+  # Nothing installed means the clone was empty or the layout moved. Building a
+  # lane of links to nowhere would be worse than stopping here.
+  [[ "${#SHIPPED_SKILLS[@]}" -gt 0 ]] || die "No skills were installed — refusing to build the Codex lane"
+  info "Linking skills for Codex into ${CODEX_SKILLS_DIR}..."
+  mkdir -p "${CODEX_SKILLS_DIR}"
+
+  # shared/ is a ref library reached by path from the protocols, not an
+  # invokable skill — it has no SKILL.md and must not appear in a skill picker.
+  # improve/ never reached ~/.claude/skills in the first place.
+  CODEX_SKILLS=()
+  for skill_name in "${SHIPPED_SKILLS[@]}"; do
+    [[ "${skill_name}" == "shared" ]] && continue
+    CODEX_SKILLS+=("${skill_name}")
+  done
+
+  # Same copy-never-delete problem the ~/.claude sweep solves, one root over:
+  # a retired name left behind keeps offering a dead skill in Codex's picker.
+  # Two passes, in widening order of confidence about ownership.
+  #   1. Names msg itself retired — removed whatever shape they are in.
+  #   2. Links msg itself created (they point into ~/.claude/skills) whose
+  #      name is no longer shipped. A plain directory that msg never wrote is
+  #      someone else's skill and is left strictly alone.
+  swept=0
+  for retired in "${RETIRED_SKILLS[@]}"; do
+    if [[ -e "${CODEX_SKILLS_DIR}/${retired}" || -L "${CODEX_SKILLS_DIR}/${retired}" ]]; then
+      rm -rf "${CODEX_SKILLS_DIR:?}/${retired}"
+      ((swept++)) || true
+    fi
+  done
+  for existing in "${CODEX_SKILLS_DIR}"/*; do
+    [[ -L "${existing}" ]] || continue
+    name="$(basename "${existing}")"
+    target="$(readlink "${existing}")"
+    [[ "${target}" == *"/.claude/skills/${name}" ]] || continue
+    shipped=0
+    for skill_name in "${CODEX_SKILLS[@]}"; do
+      [[ "${skill_name}" == "${name}" ]] && { shipped=1; break; }
+    done
+    if [[ "${shipped}" -eq 0 ]]; then
+      rm -f "${existing}"
+      ((swept++)) || true
+    fi
+  done
+  [[ "${swept}" -gt 0 ]] && warn "Removed ${swept} retired skill link(s) from ${CODEX_SKILLS_DIR}"
+
+  # Relative targets, so the pair survives a home directory that moves or is
+  # mounted at a different path. From ~/.agents/skills, ../.. is ~.
+  linked=0
+  for skill_name in "${CODEX_SKILLS[@]}"; do
+    ln -sfn "../../.claude/skills/${skill_name}" "${CODEX_SKILLS_DIR}/${skill_name}"
+    ((linked++)) || true
+  done
+  success "Linked ${linked} skill(s) for Codex"
+fi
 
 # ── Install scripts ───────────────────────────────────────────────────────────
 SRC_SCRIPTS="${TMP_DIR}/msg/.claude/scripts"
@@ -155,6 +233,7 @@ fi
 echo
 success "${MSG_LABEL} installed successfully"
 echo "  Skills: ${SKILLS_DIR}"
+[[ "${WITH_CODEX}" -eq 1 ]] && echo "  Codex:  ${CODEX_SKILLS_DIR} (symlinks — one copy, one version stamp)"
 echo
 echo "  Next steps:"
 echo "    • Run /msg --version in any project to confirm which release is live"

@@ -1,0 +1,15 @@
+BASELINE v5.6.5
+BASELINE_DEFAULT 'claude -p {prompt} --permission-mode acceptEdits'
+DEFAULT byte-identical
+RESOLVED_DEFAULT same-as-default
+PRESET codex exec --full-auto {prompt}
+PRESET_IS_CONSTANT True
+PRESET_NOT_DEFAULT True
+PRESET_CONTRACT non-interactive auto-accept
+PLACEHOLDER default True
+PLACEHOLDER preset True
+OVERRIDE x {prompt}
+CONFLICT rejected
+DOC quotes-default True
+DOC quotes-preset True
+DOC documents-flag True

@@ -1,0 +1,12 @@
+# msg-leaf — the worker role.
+#
+# The Codex-leg binding for msg's "model: sonnet" leaf dispatch. A leaf receives
+# a fully-specified packet (rows, file scope, standards payload) and executes it;
+# it does not plan. Low effort is the point — the thinking already happened in
+# the lead.
+#
+# No `model` key, for the same reason as msg-lead.toml.
+
+name = "msg-leaf"
+description = "msg worker: executes one fully-specified packet — a bounded file scope with its rows, standards payload and escape hatch — and returns a structured result. Delegated to explicitly by msg protocols — never auto-selected."
+model_reasoning_effort = "low"

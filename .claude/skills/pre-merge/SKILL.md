@@ -17,6 +17,8 @@ allowed_tools:
   - AskUserQuestion
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # pre-merge
 
 **The** CI gate. Runs after `eng --build` says a feature branch is done and takes it

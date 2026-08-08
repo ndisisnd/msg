@@ -1,0 +1,106 @@
+# A3 / AC2.6 — every SKILL.md still meets the open frontmatter minimum.
+#
+# The whole port rests on msg's SKILL.md files being loadable by a harness msg
+# did not write. The agent-skills standard asks for very little: valid YAML
+# frontmatter carrying a non-empty `name` and a non-empty `description`, with
+# the description capped at 1024 characters. Everything else msg puts up there
+# — `argument-hint`, `allowed_tools`, `model` — is extra metadata a foreign
+# reader is expected to ignore.
+#
+# The drift this catches is ordinary editing damage, and it is quiet damage:
+# msg's descriptions are long folded blocks that get appended to whenever a
+# skill grows a mode, and a description that creeps past 1024 characters, or a
+# stray unindented line that breaks the block, does not announce itself. The
+# skill simply stops loading on the strict harness while continuing to work on
+# the lenient one.
+#
+# Deliberately *not* asserted here: the exact text of any description. Those
+# change constantly and a golden over them would be a tripwire, not a test.
+# This case only ever prints a verdict per skill, so it stays green through
+# ordinary copy edits and red only on a real structural break.
+#
+# Files are enumerated from disk, so a skill added later is covered without
+# anyone remembering to update this case; the COUNT line makes the addition
+# itself visible.
+#
+# On parsing: pyyaml is not in the stock macOS python3 that runs these evals,
+# so this walks the small YAML subset msg's frontmatter is allowed to use —
+# plain scalars, folded (`>`) and literal (`|`) blocks, and block sequences.
+# Any line outside that subset is reported as UNPARSEABLE rather than skipped,
+# which is the conservative direction: an unrecognised construct is exactly the
+# thing a foreign harness might also choke on.
+set -u
+
+python3 - "$REPO/.claude/skills" <<'PY'
+import sys
+from pathlib import Path
+
+LIMIT = 1024
+
+
+def frontmatter(text):
+    """Return (mapping, error). Parses the YAML subset msg's frontmatter uses."""
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None, "no opening ---"
+    try:
+        end = next(i for i, l in enumerate(lines[1:], 1) if l.strip() == "---")
+    except StopIteration:
+        return None, "no closing ---"
+
+    out, i, body = {}, 1, lines[1:end]
+    while i - 1 < len(body):
+        line = body[i - 1]
+        i += 1
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        if line.startswith(" "):
+            return None, f"line {i}: unexpected indent"
+        if ":" not in line:
+            return None, f"line {i}: not a key"
+        key, _, value = line.partition(":")
+        key, value = key.strip(), value.strip()
+
+        if value in (">", "|", ">-", "|-"):
+            chunk = []
+            while i - 1 < len(body) and (not body[i - 1].strip() or body[i - 1].startswith(" ")):
+                chunk.append(body[i - 1].strip())
+                i += 1
+            joiner = "\n" if value.startswith("|") else " "
+            out[key] = joiner.join(c for c in chunk if c)
+        elif value == "":
+            items = []
+            while i - 1 < len(body) and body[i - 1].lstrip().startswith("- "):
+                items.append(body[i - 1].lstrip()[2:].strip())
+                i += 1
+            if not items:
+                return None, f"line {i}: empty value"
+            out[key] = items
+        else:
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "\"'":
+                value = value[1:-1]
+            out[key] = value
+    return out, None
+
+
+root = Path(sys.argv[1])
+paths = sorted(root.glob("*/SKILL.md"))
+print("COUNT", len(paths))
+
+for path in paths:
+    slug = path.parent.name
+    doc, error = frontmatter(path.read_text())
+    if error:
+        print(slug, "UNPARSEABLE", error)
+        continue
+    name = doc.get("name")
+    desc = doc.get("description")
+    if not isinstance(name, str) or not name.strip():
+        print(slug, "NAME-MISSING")
+    elif not isinstance(desc, str) or not desc.strip():
+        print(slug, "DESCRIPTION-MISSING")
+    elif len(desc) > LIMIT:
+        print(slug, "DESCRIPTION-TOO-LONG", len(desc))
+    else:
+        print(slug, "frontmatter-ok")
+PY

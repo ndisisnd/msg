@@ -1,0 +1,28 @@
+INIT_EXIT 0
+ARTIFACT AGENTS.md present
+ARTIFACT .codex/config.toml present
+ARTIFACT .codex/hooks.json present
+ARTIFACT .codex/agents/msg-lead.toml present
+ARTIFACT .codex/agents/msg-leaf.toml present
+PARSE .codex/hooks.json json-ok Bash 1
+PARSE .codex/config.toml toml-ok 6 2
+PARSE .codex/agents/msg-lead.toml toml-ok high named no-model-pin
+PARSE .codex/agents/msg-leaf.toml toml-ok low named no-model-pin
+SCAN CLAUDE_PROJECT_DIR 0
+SCAN /Users/ 0
+SCAN /home/ 0
+ROOT_RESOLUTION rev-parse
+INSTALLED_ROOT_FALLBACK present
+GATE_WIRED changelog-gate.py
+AGENTS_MD names-claude-md
+AGENTS_MD duplicated-sections 0
+RERUN unchanged
+TOPUP AGENTS.md tracked
+TOPUP .codex/config.toml tracked
+TOPUP .codex/hooks.json tracked
+TOPUP .codex/agents/msg-lead.toml tracked
+TOPUP .codex/agents/msg-leaf.toml tracked
+GATE_FROM_INSTALLED_ROOT deny
+GATE_ABSENT rc=0 output=[]
+DOC_TARGETS all-documented
+DOC_TEMPLATES all-present

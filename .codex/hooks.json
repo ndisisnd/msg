@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.claude/scripts/changelog-gate.py\"",
+            "statusMessage": "Checking CHANGELOG.md…"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+# D9 / AC2.4 — the project memory file says one thing, in one wording, in the
+# right half of the codebase.
+#
+# Claude Code reads `CLAUDE.md`; Codex reads `AGENTS.md`. msg does not fork its
+# protocols per harness, so a protocol that hardcodes "read `CLAUDE.md`" is
+# simply wrong on the Codex leg — the agent looks for a file that may not exist,
+# finds nothing, and builds without the project's stack constraints. That is a
+# silent failure: nothing errors, the code just ignores conventions it was never
+# shown.
+#
+# The fix is one sentence, pinned below, added at the sites that READ the file.
+# The trap this case exists to catch is the other half: the sites that WRITE it.
+# `init.sh`, the init templates, `protocol-init.md` and the GUI all name
+# `CLAUDE.md` too, and "read whichever exists" is meaningless in code whose job
+# is to create one. A well-meaning sweep that adds the sentence everywhere the
+# string appears would look thorough in a diff and be wrong — so this case fails
+# on an emitter that gained the sentence exactly as loudly as on a reader that
+# lost it.
+#
+# Hence: manifest-driven, exact-match, no prose interpretation anywhere.
+# `evals/manifests/memory-file-sites.txt` classifies all seventeen mentions as
+# `reader`, `emitter` or `referent`. This case asserts three things:
+#
+#   1. every `reader` path contains the pinned sentence exactly once — once, not
+#      "at least once", because a duplicate means two sweeps ran and one of them
+#      was not read before it was applied;
+#   2. no `emitter` or `referent` path contains it at all;
+#   3. the manifest and reality agree in both directions — every classified path
+#      still exists and still mentions `CLAUDE.md`, and every file under
+#      `.claude/skills/` that mentions `CLAUDE.md` is classified.
+#
+# Check 3 is what keeps this case alive after v6 ships. An eighteenth mention
+# added by some later commit fails here as UNCLASSIFIED, forcing whoever adds it
+# to decide which half of the split it belongs to, instead of defaulting to
+# Claude-only by omission.
+#
+# The sentence is pinned HERE, not in the manifest, for the same reason c12 pins
+# its preamble string in the case file: a wording change should have to touch an
+# eval, not just a data file the sweep itself is editing.
+#
+# Exclusions: `shared/refs/harness-map.md` carries the binding row the sentence
+# is derived from, so counting it as a site would make the rule its own evidence.
+set -u
+
+S="$REPO/.claude/skills"
+MANIFEST="$REPO/evals/manifests/memory-file-sites.txt"
+SENTENCE='**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.'
+MEMORY_FILE='CLAUDE.md'
+MAP='shared/refs/harness-map.md'
+
+if [ ! -f "$MANIFEST" ]; then
+  echo "MANIFEST MISSING"
+  exit 1
+fi
+
+entries="$(grep -v '^[[:space:]]*#' "$MANIFEST" | grep -v '^[[:space:]]*$' || true)"
+cat_of() { printf '%s\n' "$entries" | awk -F'\t' -v c="$1" '$1==c {print $2}' | sort; }
+
+readers="$(cat_of reader)"
+emitters="$(cat_of emitter)"
+referents="$(cat_of referent)"
+classified="$(printf '%s\n%s\n%s\n' "$readers" "$emitters" "$referents" | grep . | sort || true)"
+
+echo "CLASSIFIED $(printf '%s\n' "$classified" | grep -c . | tr -d ' ')"
+
+# --- 1. every reader carries the pinned sentence, exactly once -----------------
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  if [ ! -f "$S/$p" ]; then
+    echo "READER $p FILE-MISSING"
+    continue
+  fi
+  n="$(grep -cF -e "$SENTENCE" "$S/$p" | tr -d ' ')"
+  case "$n" in
+    0) echo "READER $p SENTENCE-MISSING" ;;
+    1) echo "READER $p pinned" ;;
+    *) echo "READER $p SENTENCE-DUPLICATED x$n" ;;
+  esac
+done <<EOF
+$readers
+EOF
+
+# --- 2. no emitter or referent was swept ---------------------------------------
+# One loop, two labels, so the output stays a single sorted-by-category block and
+# an emitter that drifts into the referent list still reads the same verdict.
+for kind in emitter referent; do
+  case "$kind" in
+    emitter) paths="$emitters"; label="EMITTER" ;;
+    *)       paths="$referents"; label="REFERENT" ;;
+  esac
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if [ ! -f "$S/$p" ]; then
+      echo "$label $p FILE-MISSING"
+    elif grep -qF -e "$SENTENCE" "$S/$p"; then
+      echo "$label $p UNEXPECTED-SENTENCE"
+    else
+      echo "$label $p untouched"
+    fi
+  done <<EOF
+$paths
+EOF
+done
+
+# --- 3. manifest and tree agree in both directions -----------------------------
+# `grep -rlF` over the whole skills tree, minus the map. Path-relative and sorted
+# so the verdict does not depend on filesystem order. `-I` and the `__pycache__`
+# exclusion drop the GUI's compiled bytecode, which is a build artifact of an
+# emitter already classified and would otherwise make the verdict depend on
+# whether anyone had run `server.py` on this machine.
+live="$(grep -rlIF --exclude-dir=__pycache__ -e "$MEMORY_FILE" "$S" 2>/dev/null \
+        | sed "s|^$S/||" | grep -vxF "$MAP" | sort || true)"
+
+stale="$(comm -23 <(printf '%s\n' "$classified" | grep . || true) \
+                  <(printf '%s\n' "$live" | grep . || true))"
+unclassified="$(comm -13 <(printf '%s\n' "$classified" | grep . || true) \
+                         <(printf '%s\n' "$live" | grep . || true))"
+
+if [ -z "$stale" ] && [ -z "$unclassified" ]; then
+  echo "COVERAGE complete"
+else
+  printf '%s\n' "$stale" | grep . | while IFS= read -r p; do
+    echo "COVERAGE $p STALE"
+  done
+  printf '%s\n' "$unclassified" | grep . | while IFS= read -r p; do
+    echo "COVERAGE $p UNCLASSIFIED"
+  done
+fi

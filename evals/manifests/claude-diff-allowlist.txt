@@ -1,0 +1,170 @@
+# A8 — the Claude non-regression allowlist.
+#
+# msg v6 adds a second harness (OpenAI Codex) without forking the skills. The
+# whole bet only holds if the Claude side comes out of v6 behaving exactly as it
+# did in v5.6.5, so this file is the closed list of every difference the v6 work
+# is allowed to introduce under `.claude/skills/`. Eval `c12-claude-diff-allowlist`
+# diffs the live tree against the `v5.6.5` tag and fails on anything not named here.
+#
+# The point is scope, not style. A reviewer reading a 40-file v6 diff cannot tell
+# "additive Codex metadata" from "someone quietly reworded a gate". This manifest
+# makes that judgement mechanical: four categories, nothing else.
+#
+# Format: <category> <TAB> <path or glob, relative to .claude/skills/>
+#
+#   preamble  A file modified ONLY by the harness-map one-liner from commit C5.
+#             The eval checks the diff content, not just the path: the added
+#             lines must be exactly the canonical preamble plus one blank line,
+#             and no line may be removed. Adding a path here does not license
+#             any other edit to that file.
+#
+#   memory    A file modified ONLY by the D9 memory-file sentence at a reader
+#             site (commit C7). Additive-only, same rule. The exact sentence is
+#             pinned by eval c15, not here — c12 only polices scope.
+#
+#   new       A file that does not exist in the v5.6.5 tree at all. New files
+#             cannot regress Claude behaviour by definition, but they still have
+#             to be expected, so each one matches a glob below or the case fails.
+#
+#   init      An exact path under `msg/refs/init/` — the `/msg --init` scaffolder,
+#             which writes files into OTHER repos and is never read as protocol
+#             text by a Claude run here. Excluded from A8 by the plan itself and
+#             covered instead by eval `c13-init-emits-codex-leg`. Exact paths
+#             only; see the section at the bottom for the full argument.
+#
+#   initdoc   `msg/refs/protocol-init.md` — the protocol text describing the
+#             scaffolder. Unlike the `init` scripts it IS read by a Claude run, so
+#             it is excluded by coverage, not by category: `c13-init-emits-codex-leg`
+#             asserts the file list it documents matches what `init.sh` writes.
+#
+#   gui       An exact path belonging to `/msg --gui` — the local board server and
+#             its protocol. Excluded from A8 by the plan and covered instead by
+#             eval `c14-gui-default-runner`, which pins the one thing a Claude
+#             session can regress here: the default runner string. Exact paths
+#             only; see the section at the bottom for the full argument.
+#
+# Anything else — a deletion, a rename, a modified file not listed, a new file
+# outside the globs — is a v6 regression and fails the eval.
+
+# --- preamble (C5): 9 shipping SKILL.md + 4 subagent entry-point refs ---------
+# The SKILL.md nine are the harness's front doors. The four refs are the places a
+# spawned worker starts reading WITHOUT having seen a SKILL.md, which is why the
+# line has to be repeated there — see harness-map.md, "Rule 1 — spawn propagation".
+
+preamble	emulate/SKILL.md
+preamble	eng/SKILL.md
+preamble	eng/refs/build/protocol-packet.md
+preamble	intake/SKILL.md
+preamble	merge/SKILL.md
+preamble	msg/SKILL.md
+preamble	plan-em/SKILL.md
+preamble	plan-em/refs/protocol-team.md
+preamble	plan-pm/SKILL.md
+preamble	plan-review/SKILL.md
+preamble	pre-merge/SKILL.md
+preamble	shared/refs/agent-watch.md
+preamble	shared/refs/gate-dispatch.md
+
+# --- memory (C7): D9 reader sites --------------------------------------------
+# The five protocol files that tell an agent to GO READ the project's memory file
+# for stack constraints and conventions. They are the sites that are wrong under
+# Codex, where that file may be `AGENTS.md`, so each one gains the canonical
+# sentence and nothing else. The other eleven `CLAUDE.md` mentions are emitters
+# (init templates, init scripts, protocol-init, protocol-eng, GUI) or bare
+# referents, and are deliberately absent — see `evals/manifests/memory-file-sites.txt`
+# for the full 16-file classification and the pinned sentence.
+#
+# Three of the five are also `preamble` entries above. A dual-listed path's
+# licence is the union of the two: the harness preamble line plus the memory
+# sentence, both additive, nothing removed.
+
+memory	eng/SKILL.md
+memory	eng/refs/build/protocol-packet.md
+memory	eng/refs/build/protocol.md
+memory	plan-em/refs/protocol-em.md
+memory	plan-pm/SKILL.md
+
+# --- new: additive files Claude never reads ----------------------------------
+# `agents/openai.yaml` is Codex-only metadata (D4) — one per shipped skill,
+# invisible to Claude Code. `harness-map.md` is the single translation ref the
+# whole port rests on (D3).
+
+new	*/agents/openai.yaml
+new	shared/refs/harness-map.md
+
+# --- init (C8): the scaffolder, excluded and covered elsewhere ----------------
+# This is the one hole in the A8 check, so it is worth being explicit about what
+# it is and why it is safe.
+#
+# `/msg --init`'s scaffolder lives under `.claude/skills/` for packaging reasons —
+# it ships inside the msg skill — but it is not protocol text a Claude session
+# reads. It is a template writer that runs once, in someone ELSE's repo, and
+# writes files there. Changing it cannot change how a Claude run behaves in this
+# repo, which is the only thing A8 is defending. The plan says as much: assertion
+# A8 places the init templates explicitly outside this allowlist.
+#
+# The exclusion is therefore scoped to exact paths, never globs — the two scripts
+# plus the five new Codex-leg templates — so a sixth template, or an edit to any
+# other file under `msg/refs/`, still fails c12 as NOT-ALLOWLISTED and has to be
+# argued for here. `msg/refs/protocol-init.md` is NOT in this category: it is
+# protocol text an agent reads, so the category's argument does not cover it and it
+# gets its own — see `initdoc` at the bottom.
+#
+# What covers these files instead is `c13-init-emits-codex-leg`, which runs
+# `init.sh` in a throwaway fixture repo and asserts the four Codex artifacts
+# appear, parse, and carry no unportable paths. c12 prints one INIT line per
+# entry so the hole is visible in the golden rather than implied by silence, and
+# an entry that stops being modified must be deleted from this list.
+
+init	msg/refs/init/init-setup.sh
+init	msg/refs/init/init.sh
+init	msg/refs/init/templates/template-AGENTS.md
+init	msg/refs/init/templates/template-codex-agent-lead.md
+init	msg/refs/init/templates/template-codex-agent-leaf.md
+init	msg/refs/init/templates/template-codex-config.md
+init	msg/refs/init/templates/template-codex-hooks.md
+
+# --- gui (C9): the board server, excluded and covered elsewhere ---------------
+# The second and last hole in the A8 check, and it is a different shape from the
+# `init` one, so it gets its own argument rather than borrowing that one.
+#
+# `/msg --gui` shells out to a coding CLI to run the board's Prompts. That makes
+# `server.py` the single place in msg with a hard dependency on `claude` being the
+# binary on the machine — exactly the kind of thing a dual-harness port is tempted
+# to "fix" by flipping the default. Decision D8 says it does not flip: Claude stays
+# the default under both harnesses and Codex is an opt-in preset behind
+# `--runner-codex`. So the risk here is not a wide diff, it is one edited string.
+#
+# `msg/refs/protocol-gui.md` is listed alongside it, and unlike `protocol-init.md`
+# it IS protocol text a Claude session reads — so the exclusion is justified by
+# coverage, not by category. The only claim in that file which can change how a
+# Claude run behaves is the runner default it quotes, and `c14-gui-default-runner`
+# asserts that quote is byte-identical to the string in `server.py`, which is in
+# turn byte-identical to v5.6.5's. A doc that drifts from the code fails c14. The
+# rest of the file's v6 diff is additive prose about a flag Claude never passes.
+#
+# Exact paths, never globs: a third GUI file, or any other `msg/refs/*.md`, still
+# fails c12 as NOT-ALLOWLISTED and has to be argued for here. Entries print as GUI
+# lines below for the same reason the `init` ones do — a hole nobody can see is a
+# hole nobody maintains.
+
+gui	msg/refs/gui/server.py
+gui	msg/refs/protocol-gui.md
+
+# --- initdoc (C10 follow-up): the scaffolder's protocol text -------------------
+# `protocol-init.md` documents what `/msg --init` leaves behind, and v6 changed
+# that answer: the scaffolder now also emits `AGENTS.md` and the `.codex/` layer.
+# Leaving the doc alone would have kept c12 green while making the protocol wrong,
+# which is the worse outcome — an agent reading it would not know the files exist.
+#
+# This is not an additive-only licence, because the edit rewrote rows rather than
+# only appending them, and it is not the `init` category's exclusion either, since
+# that rests on "never read as protocol text" and this file plainly is. It is the
+# `gui` shape of argument: excluded by coverage. `c13-init-emits-codex-leg` now
+# asserts in both directions that the doc matches the code — every path in
+# `init-setup.sh`'s TARGETS appears in the protocol, and every template the
+# protocol names exists on disk. A doc that drifts from the scaffolder fails there.
+#
+# One exact path, never a glob. Any other `msg/refs/*.md` still fails c12.
+
+initdoc	msg/refs/protocol-init.md

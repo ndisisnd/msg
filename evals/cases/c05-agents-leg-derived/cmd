@@ -1,0 +1,42 @@
+# A2 — the Codex dogfooding leg is derived, never a second copy.
+#
+# `.agents/skills/` is a real committed directory holding one relative symlink
+# per shipped skill, each pointing at the matching `.claude/skills/<name>`. That
+# is what keeps the two harnesses on literally the same bytes: there is no sync
+# step to forget. This case fails the moment someone re-materialises the leg as
+# copied files, adds a skill to one side only, or leaks `shared/` or `improve/`
+# into it (neither is an invokable skill).
+set -u
+A="$REPO/.agents/skills"
+
+echo "ENTRIES $(ls -A "$A" | wc -l | tr -d ' ')"
+
+for name in emulate eng intake merge msg plan-em plan-pm plan-review pre-merge; do
+  link="$A/$name"
+  if [ ! -L "$link" ]; then
+    echo "$name NOT-A-SYMLINK"
+    continue
+  fi
+  target="$(readlink "$link")"
+  if [ "$target" != "../../.claude/skills/$name" ]; then
+    echo "$name BAD-TARGET $target"
+    continue
+  fi
+  if [ ! -f "$link/SKILL.md" ]; then
+    echo "$name UNRESOLVED"
+    continue
+  fi
+  if diff -r "$link/" "$REPO/.claude/skills/$name/" >/dev/null 2>&1; then
+    echo "$name derived"
+  else
+    echo "$name DIVERGED"
+  fi
+done
+
+for excluded in shared improve; do
+  if [ -e "$A/$excluded" ] || [ -L "$A/$excluded" ]; then
+    echo "$excluded PRESENT"
+  else
+    echo "$excluded absent"
+  fi
+done

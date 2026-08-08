@@ -129,12 +129,16 @@ fi
 
 # ── Root-level templates (fenced ## Template body blocks) ─────────────────────
 # README.md and CLAUDE.md stay at project root; .gitignore and CHANGELOG.md too.
+# AGENTS.md is the Codex-leg project memory file, emitted beside CLAUDE.md (D9):
+# a pointer, not a copy, so the two harnesses cannot read drifted instructions —
+# the reasoning is in templates/template-AGENTS.md and restated in the file itself.
 # INTAKE.md is the root backlog ledger (D13 — repo root, not devkit); the block
 # has no placeholders, so apply_subs is a harmless no-op.
 
 for pair in \
   "README.md:template-README.md" \
   "CLAUDE.md:template-CLAUDE.md" \
+  "AGENTS.md:template-AGENTS.md" \
   "INTAKE.md:TEMPLATE-INTAKE.md"
 do
   f="${pair%%:*}"; t="${pair##*:}"
@@ -314,6 +318,46 @@ elif mkdir -p "$TARGET/.claude/msg" && printf '%s\n' '{"exec_mode": "team"}' > "
 else
   FAILED+=(".claude/msg/pref.json")
 fi
+
+# ── .codex/ — the OpenAI Codex harness layer ──────────────────────────────────
+# msg runs on two harnesses off one set of skills. Claude Code reads CLAUDE.md and
+# ~/.claude/settings.json; Codex reads AGENTS.md (written above) and this .codex/
+# layer. Scaffolding both in one pass is the whole point: whichever harness the
+# developer opens the repo in second still finds a working project.
+#
+# Three files, all committed (they are shared project config, like any other):
+#   hooks.json          the CHANGELOG commit gate, wired portably — see the
+#                       template for why it resolves the script locally first and
+#                       falls back to the installed root
+#   config.toml         one non-default key (agent nesting depth), nothing else
+#   agents/*.toml       msg-lead / msg-leaf, the Codex-leg stand-ins for the
+#                       "model: opus" / "model: sonnet" tiers msg's protocols name
+#
+# Idempotent, like everything else here: an existing file is skipped, never
+# overwritten. That matters more than usual for hooks.json — Codex trust-gates
+# hooks per content hash, so silently rewriting one would revoke the developer's
+# trust and quietly stop the gate running.
+
+for sub in .codex .codex/agents; do
+  if [[ -d "$TARGET/$sub" ]]; then
+    SKIPPED+=("$sub/")
+  elif mkdir -p "$TARGET/$sub"; then
+    CREATED+=("$sub/|—")
+  else
+    FAILED+=("$sub/")
+  fi
+done
+
+for pair in \
+  "hooks.json:template-codex-hooks.md:.codex" \
+  "config.toml:template-codex-config.md:.codex" \
+  "msg-lead.toml:template-codex-agent-lead.md:.codex/agents" \
+  "msg-leaf.toml:template-codex-agent-leaf.md:.codex/agents"
+do
+  IFS=':' read -r f t d <<< "$pair"
+  content=$(extract_body "$REFS/$t")
+  write_file "$f" "$content" "$d"
+done
 
 # ── features/ flat-PRD migration (change 6) ───────────────────────────────────
 # One-time sort of any pre-lane flat PRD dirs — features/prd-<n>-<slug>/ sitting

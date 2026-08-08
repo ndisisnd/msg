@@ -1,0 +1,115 @@
+# A11 / AC3.2 / D8 — the GUI's default runner does not become `codex`.
+#
+# `/msg --gui` serves a local board whose Prompts button shells out to a coding
+# CLI. That one line is msg's only hard dependency on a specific binary, which
+# makes it the most tempting line in the repo for a dual-harness port to "fix":
+# someone porting msg to Codex sees `claude -p …` hardcoded as a default and
+# flips it, and every existing user's board stops working the next time they
+# update. Decision D8 says the default does not move. Claude stays the default
+# under BOTH harnesses, because which harness is driving the board says nothing
+# about which CLI is installed on the machine, and Codex becomes an opt-in preset
+# behind `--runner-codex`.
+#
+# So this case is a lock, not a survey. It pins three things:
+#
+#   1. The default string is byte-identical to v5.6.5's. Not "starts with claude",
+#      not "contains -p" — the exact bytes, read out of the `v5.6.5` tag at run
+#      time rather than pasted here, so the assertion cannot rot into a copy of
+#      whatever the code happens to say today.
+#   2. Reaching the Codex preset requires the flag. The preset string itself is
+#      printed verbatim into the golden, so a silent change to how msg drives
+#      Codex is a diff rather than a shrug.
+#   3. The doc agrees with the code. `protocol-gui.md` quotes the default runner
+#      to the agent that launches the server, and a doc that drifts from the code
+#      is worse than no doc: the agent passes the stale string as an explicit
+#      `--runner` and reintroduces the behaviour by hand. This check is also what
+#      earns `protocol-gui.md` its place in the `gui` exclusion of
+#      `evals/manifests/claude-diff-allowlist.txt` — the only Claude-visible fact
+#      in that file is pinned right here.
+#
+# On both presets carrying the same contract: the Prompts button starts a
+# background job with nobody at the terminal. A runner that can stop and ask a
+# permission question hangs forever, invisibly. `claude -p … acceptEdits` is
+# non-interactive with edits auto-accepted; `codex exec --full-auto` is the same
+# contract in Codex's vocabulary. The tokens that carry that meaning are asserted
+# rather than assumed, because dropping `--full-auto` leaves a command that still
+# runs, still exits 0, and silently fails every edit inside a read-only sandbox.
+#
+# Method: the parser and the preset resolution are module-level functions, so this
+# imports `server.py` and exercises the real argparse wiring. A grep would pass on
+# a file where the default was overridden three lines later.
+set -u
+
+SERVER=".claude/skills/msg/refs/gui/server.py"
+DOC=".claude/skills/msg/refs/protocol-gui.md"
+BASE="v5.6.5"
+
+if ! git -C "$REPO" rev-parse -q --verify "refs/tags/$BASE" >/dev/null; then
+  echo "BASELINE MISSING $BASE"
+  exit 1
+fi
+echo "BASELINE $BASE"
+
+git -C "$REPO" show "$BASE:$SERVER" > baseline-server.py
+
+python3 - "$REPO/$SERVER" "$REPO/$DOC" <<'PY'
+import importlib.util
+import re
+import sys
+from pathlib import Path
+
+server_path, doc_path = sys.argv[1], sys.argv[2]
+
+# --- the v5.6.5 default, read from the tag ------------------------------------
+# v5.6.5 spelled the default inline in the `--runner` argument; v6 moved it to a
+# named constant. Both are matched by pulling the first double-quoted literal that
+# follows `--runner` in the baseline source, so the comparison survives that move
+# without being told about it.
+baseline_src = Path("baseline-server.py").read_text()
+m = re.search(r'"--runner",\s*default="([^"]*)"', baseline_src)
+baseline = m.group(1) if m else None
+print("BASELINE_DEFAULT", repr(baseline))
+
+spec = importlib.util.spec_from_file_location("msg_gui_server", server_path)
+server = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(server)
+parser = server.build_parser()
+
+# --- 1. the default has not moved ---------------------------------------------
+default = parser.parse_args([]).runner
+resolved = server.resolve_runner(parser.parse_args([]))
+print("DEFAULT", "byte-identical" if default == baseline else f"DRIFTED {default!r}")
+print("RESOLVED_DEFAULT", "same-as-default" if resolved == default else f"DRIFTED {resolved!r}")
+
+# --- 2. the Codex preset is reachable only by flag ----------------------------
+preset = server.resolve_runner(parser.parse_args(["--runner-codex"]))
+print("PRESET", preset)
+print("PRESET_IS_CONSTANT", preset == server.RUNNER_CODEX)
+print("PRESET_NOT_DEFAULT", preset != default)
+
+# The two tokens that make the preset usable at all: `exec` is Codex's
+# non-interactive subcommand, `--full-auto` is its acceptEdits equivalent.
+print("PRESET_CONTRACT",
+      "non-interactive" if re.search(r'\bexec\b', preset) else "INTERACTIVE",
+      "auto-accept" if "--full-auto" in preset else "NO-AUTO-ACCEPT")
+
+# Both templates must carry the placeholder; without it the prompt is appended as
+# a trailing argv element, which is right for `claude -p` and wrong for anything
+# that takes flags after the prompt.
+for label, value in (("default", default), ("preset", preset)):
+    print("PLACEHOLDER", label, "{prompt}" in value)
+
+# --- 3. an explicit --runner still wins, and the two flags cannot be combined --
+print("OVERRIDE", server.resolve_runner(parser.parse_args(["--runner", "x {prompt}"])))
+try:
+    server.resolve_runner(parser.parse_args(["--runner", "x {prompt}", "--runner-codex"]))
+    print("CONFLICT ACCEPTED-SILENTLY")
+except SystemExit:
+    print("CONFLICT rejected")
+
+# --- 4. the doc quotes what the code does -------------------------------------
+doc = Path(doc_path).read_text()
+print("DOC quotes-default", default in doc)
+print("DOC quotes-preset", preset in doc)
+print("DOC documents-flag", "--runner-codex" in doc)
+PY

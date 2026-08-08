@@ -1,0 +1,77 @@
+# A4 / AC2.1 / AC3.4 — every Claude-only construct the protocols still speak has
+# a binding row in the harness map.
+#
+# msg's protocol prose is deliberately NOT rewritten into harness-neutral
+# vocabulary: it keeps saying `AskUserQuestion`, `Agent`, `run_in_background`,
+# `model: opus`. That is ~1,800 sites msg does not want to churn, so the entire
+# port rests on one file — `shared/refs/harness-map.md` — telling a Codex-side
+# reader what each of those words means on its harness. The failure mode this
+# case exists to catch is drift in one direction only: a construct that is still
+# used in the protocols but no longer (or never was) explained in the map. A
+# reader hits the word, finds nothing, and improvises.
+#
+# So the check is a subset test, not an equality test: for every construct the
+# grep finds in live protocol text, the map must carry a row naming it. A row for
+# a construct that has fallen out of the prose is harmless and stays.
+#
+# Scope of the "protocol text" grep: everything under `.claude/skills/` except
+# the map itself (which would otherwise be its own evidence) and except the
+# `refs/gui/` tree (an HTML/Python app, not protocol prose).
+#
+# The last two checks are text-presence assertions for the two rules the map
+# carries beyond the table: the spawn-propagation rule (a SKILL.md preamble
+# never reaches a spawned leaf, so the map has to make orchestrators re-emit it)
+# and the merge hook-liveness probe with its staged-CHANGELOG false negative.
+set -u
+S="$REPO/.claude/skills"
+MAP="$S/shared/refs/harness-map.md"
+
+if [ ! -f "$MAP" ]; then
+  echo "MAP MISSING"
+  exit 1
+fi
+
+# Table rows only — the map's prose mentions these words too, and a mention is
+# not a binding.
+rows="$(grep '^|' "$MAP" || true)"
+
+check() {
+  # $1 = construct label, $2 = grep pattern over protocol text, $3 = pattern the
+  # map's table must carry.
+  label="$1"; used="$2"; bound="$3"
+  hits="$(grep -rlF -e "$used" "$S" \
+            --exclude=harness-map.md 2>/dev/null \
+          | grep -v '/refs/gui/' | wc -l | tr -d ' ')"
+  if [ "$hits" -eq 0 ]; then
+    echo "CONSTRUCT $label unused"
+    return
+  fi
+  if printf '%s\n' "$rows" | grep -qF -e "$bound"; then
+    echo "CONSTRUCT $label bound"
+  else
+    echo "CONSTRUCT $label UNBOUND"
+  fi
+}
+
+check ask               'AskUserQuestion'        'AskUserQuestion'
+check agent-spawn       'Agent'                  'spawn_agent'
+check background        'run_in_background'      'run_in_background'
+check model-tier        'model: opus'            'msg-lead'
+check skill-chaining    'Skill('                 'Skill('
+check monitor           'Monitor'                'Monitor'
+check project-dir       'CLAUDE_PROJECT_DIR'     'git rev-parse --show-toplevel'
+check slash-invocation  '/msg --init'            '$name'
+check project-memory    'CLAUDE.md'              'AGENTS.md'
+
+for phrase in \
+  'every spawn prompt you compose must include this preamble line' \
+  'Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.' \
+  'true # git commit probe' \
+  'CHANGELOG.md is already staged'
+do
+  if grep -qF -e "$phrase" "$MAP"; then
+    echo "RULE present"
+  else
+    echo "RULE MISSING — $phrase"
+  fi
+done

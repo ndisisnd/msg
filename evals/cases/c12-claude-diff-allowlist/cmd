@@ -1,0 +1,252 @@
+# A8 / AC2.2 — Claude non-regression. The v6 Codex port must be invisible to the
+# Claude harness, and this is the case that proves it.
+#
+# v6's central claim is that both harnesses run the same bytes: the Codex leg is
+# symlinks into `.claude/skills/`, never a fork. That claim cuts both ways. It is
+# what stops the two legs drifting, and it is also what puts every Codex-driven
+# edit directly into the file a Claude run reads. So the risk v6 actually carries
+# is not "Codex is broken" — that is loud and local — it is "Claude quietly
+# changed", which is silent, ships, and only shows up as a gate behaving
+# differently than it did in v5.6.5.
+#
+# The defence is scope, not review. `evals/manifests/claude-diff-allowlist.txt`
+# is the closed list of differences v6 is allowed to introduce under
+# `.claude/skills/`, in six categories: `preamble` (C5's harness-map one-liner),
+# `memory` (C7's D9 reader-site sentence), `new` (additive files Claude never
+# reads), `init` (C8's scaffolder), `initdoc` (the scaffolder's protocol text) and
+# `gui` (C9's board server). This case diffs the live tree against the `v5.6.5` tag
+# and fails on anything the manifest does not name.
+#
+# Three of the six are genuine exclusions rather than bounded licences, so they get
+# stated plainly. `/msg --init`'s template writer ships under `.claude/skills/` for
+# packaging reasons but is never read as protocol text by a Claude run — it writes
+# files into other repos, and `c13-init-emits-codex-leg` covers it. `protocol-init.md`
+# IS read as protocol text, so it is excluded on the narrower ground that c13 now
+# asserts the file list it documents matches what the scaffolder writes. `/msg --gui`'s
+# server and protocol carry msg's only hard dependency on a coding CLI, and the one
+# fact there a Claude session can regress — the default runner string — is pinned
+# byte-for-byte by `c14-gui-default-runner`. All three are scoped to exact paths,
+# never globs, and every entry is echoed as an `INIT`/`INITDOC`/`GUI` line below so
+# the holes are visible in the golden rather than implied by silence.
+#
+# What it catches that a human diff read does not:
+#   - a listed file edited beyond its licence — the `preamble` check compares diff
+#     CONTENT, so "while I was in there" reword of a gate fails even though the
+#     path is allowlisted;
+#   - a new file outside the expected globs, e.g. a Codex-specific fork of a
+#     protocol that would silently become a second source of truth;
+#   - any deletion or rename under `.claude/skills/`, which the allowlist has no
+#     category for at all.
+#
+# Baseline: the `v5.6.5` tag — the last release before the v6 line, and the tree
+# every other Claude-side eval was green against. Untracked files are included
+# deliberately (via `ls-files --others`), so a work-in-progress Codex artifact is
+# policed the moment it lands, not only once it is committed.
+#
+# Output is path-relative and sorted, and says nothing about how many `new` files
+# exist — commit C6 adds nine `agents/openai.yaml` files, and this case must give
+# the same answer before, during and after that.
+set -u
+
+BASE="v5.6.5"
+MANIFEST="$REPO/evals/manifests/claude-diff-allowlist.txt"
+SCOPE=".claude/skills"
+PREAMBLE='Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.'
+
+if [ ! -f "$MANIFEST" ]; then
+  echo "MANIFEST MISSING"
+  exit 1
+fi
+if ! git -C "$REPO" rev-parse -q --verify "refs/tags/$BASE" >/dev/null; then
+  echo "BASELINE MISSING $BASE"
+  exit 1
+fi
+echo "BASELINE $BASE"
+
+# --- manifest ----------------------------------------------------------------
+# Tab-separated `<category>\t<path-or-glob>`; `#` comments and blanks ignored.
+entries="$(grep -v '^[[:space:]]*#' "$MANIFEST" | grep -v '^[[:space:]]*$' || true)"
+cat_of() { printf '%s\n' "$entries" | awk -F'\t' -v c="$1" '$1==c {print $2}' | sort; }
+
+preambles="$(cat_of preamble)"
+memories="$(cat_of memory)"
+news="$(cat_of new)"
+inits="$(cat_of init)"
+initdocs="$(cat_of initdoc)"
+guis="$(cat_of gui)"
+
+# --- live diff vs the baseline tree -------------------------------------------
+# `git diff <tag> -- <path>` compares the tag to the WORKING TREE, so uncommitted
+# edits are in scope. Untracked-but-not-ignored files are added separately since
+# diff cannot see them. `--no-renames` keeps a rename visible as delete + add
+# rather than hiding a moved protocol behind an R status.
+changes="$(git -C "$REPO" diff --no-renames --name-status "$BASE" -- "$SCOPE" || true)"
+untracked="$(git -C "$REPO" ls-files --others --exclude-standard -- "$SCOPE" || true)"
+
+modified="$(printf '%s\n' "$changes" | awk -F'\t' '$1=="M" {print $2}' | sed "s|^$SCOPE/||" | sort)"
+added="$( { printf '%s\n' "$changes" | awk -F'\t' '$1=="A" {print $2}'
+            printf '%s\n' "$untracked"; } | grep . | sed "s|^$SCOPE/||" | sort || true)"
+other="$(printf '%s\n' "$changes" | awk -F'\t' '$1!="M" && $1!="A" && NF {print $1" "$2}' \
+         | sed "s| $SCOPE/| |" | sort || true)"
+
+in_list() { printf '%s\n' "$2" | grep -qxF "$1"; }
+matches_glob() {
+  # shellcheck disable=SC2254 — the glob is a pattern on purpose.
+  while IFS= read -r g; do
+    [ -n "$g" ] || continue
+    case "$1" in $g) return 0 ;; esac
+  done <<EOF
+$2
+EOF
+  return 1
+}
+
+# --- 1. every allowlisted modification is real and stayed inside its licence ---
+# A `preamble` entry buys exactly two added lines (the canonical line and the
+# blank after it) and zero removed lines. Anything else is an unrelated edit
+# riding along on an allowlisted path.
+#
+# Three C5 preamble files are also C7 reader sites, so their licence is the union
+# of the two categories: preamble line + memory sentence, both additive. For a
+# dual-listed path the content assertion relaxes to "the preamble line is present
+# exactly once and nothing was removed" — the added sentence is c15's to pin, and
+# the `memory` loop below still holds the additive-only line on the same file.
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  d="$(git -C "$REPO" diff -U0 --no-renames "$BASE" -- "$SCOPE/$p" || true)"
+  if [ -z "$d" ]; then
+    echo "PREAMBLE $p MISSING"
+    continue
+  fi
+  if in_list "$p" "$memories"; then
+    echo "PREAMBLE $p $(printf '%s\n' "$d" | awk -v want="$PREAMBLE" '
+      /^--- / || /^\+\+\+ / { next }
+      /^\+/ { if (substr($0, 2) == want) hit++ }
+      /^-/  { rm++ }
+      END { print (rm || hit != 1) ? "OTHER-EDITS" : "ok+memory" }')"
+    continue
+  fi
+  # `--- a/x` and `+++ b/x` are diff headers, not content; a removed markdown
+  # `---` frontmatter fence renders as `----`, so the trailing space in the
+  # header patterns is what keeps the two apart.
+  echo "PREAMBLE $p $(printf '%s\n' "$d" | awk -v want="$PREAMBLE" '
+    /^--- / || /^\+\+\+ / { next }
+    /^\+/ { add++; t = substr($0, 2); if (t != "") { body++; if (t != want) bad++ } }
+    /^-/  { rm++ }
+    END { print (rm || add != 2 || body != 1 || bad) ? "OTHER-EDITS" : "ok" }')"
+done <<EOF
+$preambles
+EOF
+
+# --- 2. D9 reader sites (C7) --------------------------------------------------
+# Additive-only is all c12 asserts; the exact sentence is c15's job. Empty until
+# C7 lands, and an empty section is a pass, not a hole.
+if [ -z "$memories" ]; then
+  echo "MEMORY none-listed"
+else
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    d="$(git -C "$REPO" diff -U0 --no-renames "$BASE" -- "$SCOPE/$p" || true)"
+    if [ -z "$d" ]; then
+      echo "MEMORY $p MISSING"
+    elif [ "$(printf '%s\n' "$d" | awk '/^--- /{next} /^-/{n++} END{print n+0}')" -ne 0 ]; then
+      echo "MEMORY $p OTHER-EDITS"
+    else
+      echo "MEMORY $p ok"
+    fi
+  done <<EOF
+$memories
+EOF
+fi
+
+# --- 3. the two exclusions, kept visible --------------------------------------
+# Unlike `preamble` and `memory`, these two categories are holes rather than
+# bounded licences: the files are simply out of A8's scope and covered by another
+# case each. `init` is `/msg --init`'s template writer, which ships under
+# `.claude/skills/` but is never read as protocol text by a Claude run — it writes
+# files into other repos (covered by `c13-init-emits-codex-leg`). `gui` is the
+# `/msg --gui` board server and its protocol, whose one Claude-visible fact is the
+# default runner string (covered by `c14-gui-default-runner`).
+#
+# A hole nobody can see is a hole nobody maintains, so every entry is printed with
+# what it actually is against the baseline: `modified` (existed in v5.6.5 and
+# differs) or `new` (did not exist). An entry that turns out to be UNCHANGED is a
+# failure, not a pass — it means the exclusion is broader than the work needs and
+# the line should be deleted.
+report_exclusion() {
+  label="$1"; paths="$2"
+  if [ -z "$paths" ]; then
+    echo "$label none-listed"
+    return
+  fi
+  while IFS= read -r p; do
+    [ -n "$p" ] || continue
+    if git -C "$REPO" cat-file -e "$BASE:$SCOPE/$p" 2>/dev/null; then
+      if [ -n "$(git -C "$REPO" diff --no-renames "$BASE" -- "$SCOPE/$p" || true)" ]; then
+        echo "$label $p modified"
+      else
+        echo "$label $p UNCHANGED"
+      fi
+    elif [ -f "$REPO/$SCOPE/$p" ]; then
+      echo "$label $p new"
+    else
+      echo "$label $p FILE-MISSING"
+    fi
+  done <<EOF
+$paths
+EOF
+}
+
+report_exclusion INIT "$inits"
+report_exclusion INITDOC "$initdocs"
+report_exclusion GUI "$guis"
+
+# --- 4. nothing modified outside the allowlist --------------------------------
+unlisted=""
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  if ! in_list "$p" "$preambles" && ! in_list "$p" "$memories" \
+     && ! in_list "$p" "$inits" && ! in_list "$p" "$initdocs" \
+     && ! in_list "$p" "$guis"; then
+    unlisted="$unlisted$p
+"
+  fi
+done <<EOF
+$modified
+EOF
+if [ -z "$unlisted" ]; then
+  echo "MODIFIED all-allowlisted"
+else
+  printf '%s' "$unlisted" | sort | while IFS= read -r p; do
+    echo "MODIFIED $p NOT-ALLOWLISTED"
+  done
+fi
+
+# --- 5. every new file matches an expected glob --------------------------------
+# Counted, never enumerated: commit C6 adds nine `agents/openai.yaml` files while
+# this case may be running, and the verdict must not depend on that race.
+stray=""
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  matches_glob "$p" "$news" || in_list "$p" "$inits" || in_list "$p" "$initdocs" \
+    || in_list "$p" "$guis" || stray="$stray$p
+"
+done <<EOF
+$added
+EOF
+if [ -z "$stray" ]; then
+  echo "NEW all-allowlisted"
+else
+  printf '%s' "$stray" | sort | while IFS= read -r p; do
+    echo "NEW $p NOT-ALLOWLISTED"
+  done
+fi
+
+# --- 6. no deletions, no renames ----------------------------------------------
+if [ -z "$other" ]; then
+  echo "REMOVED none"
+else
+  printf '%s\n' "$other" | while IFS= read -r row; do
+    echo "REMOVED $row"
+  done
+fi

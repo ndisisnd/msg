@@ -1,0 +1,34 @@
+# A1 — no ghost paths. The abandoned first-pass Codex scaffold sed-rewrote skill
+# paths to a home directory that does not exist on any harness. This case pins
+# that the capitalised ghost prefix never comes back.
+#
+# Scope: `git grep --untracked` over the repo — every tracked file plus every
+# untracked file that is not gitignored. Deliberately NOT a bare `grep -r`:
+# `update/` is a gitignored scratch tree whose planning docs quote the ghost
+# path on purpose, and `.git/` holds the objects of the commit that removed it.
+#
+# The needle is assembled at runtime so this file is not its own first hit.
+#
+# Also carries AC0.4: the `.gitignore` entry for the machine-local agent notes is
+# root-anchored, so a project's own nested AGENTS.md fixture stays committable.
+set -u
+NEEDLE=".$(echo Codex)"
+
+if git -C "$REPO" grep --untracked -I -F -e "$NEEDLE" -- . >/dev/null 2>&1; then
+  echo "GHOST_PATHS found"
+  git -C "$REPO" grep --untracked -I -F -e "$NEEDLE" -- . | head -n 5
+else
+  echo "GHOST_PATHS none"
+fi
+
+if git -C "$REPO" check-ignore -q AGENTS.md; then
+  echo "ROOT_AGENTS_MD ignored"
+else
+  echo "ROOT_AGENTS_MD not-ignored"
+fi
+
+if git -C "$REPO" check-ignore -q evals/cases/x/fixture/AGENTS.md; then
+  echo "NESTED_AGENTS_MD ignored"
+else
+  echo "NESTED_AGENTS_MD not-ignored"
+fi

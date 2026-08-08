@@ -13,6 +13,8 @@ allowed_tools:
   - Agent
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # eng
 
 Platform-agnostic engineering agent with three modes — `--plan`, `--build`, `--review` — each a distinct protocol in its own ref file, selected by the invocation flag. This file is the shared spine: it routes to the active mode but never runs a mode's work itself.
@@ -102,6 +104,8 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 `ROWS_OK` on stdout (exit 0) means every named row exists and this agent owns it. Exit 1 prints one `Hard failure:` line per offending row — a `rows` identifier matching no Feature cell, or a matched row owned by another agent. Emit those lines verbatim and stop. On the `report` source there is no exec-table, no `rows`, and no ownership to confirm — read the file and project its `issues[]` per `refs/build/fix-build.md`.
 
 **Devkit files** (read in parallel with the PRD, unless a digest was injected): `devkit/AHA.md` (scan for entries whose tag or content matches the assigned rows — carry at most the ~5 relevant ones forward, never the whole ledger), `devkit/GLOSSARY.md` (canonical terms; flag PRD deviations), `CLAUDE.md` at project root (tech-stack constraints on every file-path/approach decision), `devkit/ARCHITECTURE.md` (validate scope against system layers; flag conflicts as gaps), `devkit/DESIGN-SYSTEM.md` (reusable components). If `devkit/` does not exist, emit a single warning and continue; a missing individual file is a per-file warning, then continue.
+
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
 
 **Codebase scan** (in parallel): read files relevant to the assigned rows, matched by concern type (schema migration → migrations/schema; API contract → handlers, routes, OpenAPI; client mobile/web → screens/pages, components, services/clients; tests → existing test files; webhook → event emitters, queue handlers). For each, determine **Modify** (exists) or **Create** (does not), and note naming conventions, patterns, and constraints — they constrain the output. Eng derives all implementation paths from this scan and the spec; `report`'s `issues[].file` marks where a *symptom* was observed, not a path to blindly edit.
 

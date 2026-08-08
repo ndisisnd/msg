@@ -1,0 +1,11 @@
+BASELINE v5.6.5
+CHECKSUM matches-v5.6.5
+EXIT 0
+EVENT_NAME PreToolUse
+DECISION deny
+REASON CHANGELOG gate: before this commit, read the staged diff (`rtk git diff --cached`), append a concise summary of these changes to CHANGELOG.md under the Unreleased section, then run `git add CHANGELOG.md` and re-run the commit. This check passes automatically once CHANGELOG.md is staged.
+ENVELOPE_KEYS hookEventName,permissionDecision,permissionDecisionReason
+STAGED_CHANGELOG rc=0 output=[]
+INLINE_ADD rc=0 output=[]
+UNRELATED rc=0 output=[]
+MALFORMED rc=0 output=[]

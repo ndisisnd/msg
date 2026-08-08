@@ -1,0 +1,129 @@
+# A5 / AC3.1 — one gate script, two harnesses, byte-identical decisions.
+#
+# This is the case that says msg does not need a Codex fork of its commit gate.
+#
+# The temptation v6 has to resist is a `changelog-gate-codex.py`. It would work on
+# day one and it is the single worst outcome available here, because two copies of
+# an enforcement script drift, and the copy that drifts is the one nobody is
+# looking at. Six months later one harness blocks a release without a changelog
+# entry and the other waves it through, and the failure is invisible: the release
+# just ships. So the port's claim is stronger than "we ported the hook" — it is
+# that the SAME bytes serve both, because Codex's hook contract is a superset of
+# Claude's rather than a different one.
+#
+# The claim is testable, and the test is a comparison rather than a golden. Both
+# events are built here and run against the same script in the same repo state,
+# and their stdout is compared as bytes. A golden alone would prove each shape
+# produces the expected output; comparing them proves neither shape can drift from
+# the other without the case failing, which is the property that actually matters
+# once someone edits the script later.
+#
+# What "Codex shape" means in practice. Codex sends the same `PreToolUse` event
+# with the same `tool_name`/`tool_input` fields, plus extras of its own — `model`
+# and `turn_id` here. Two ways that could break a naive hook: reading positionally
+# instead of by key, or validating strictly and rejecting unknown fields. The gate
+# does neither — it reaches for exactly `tool_input.command` and ignores the rest,
+# which is why the extras cost nothing. This case is what keeps that true, since
+# adding a strict schema check would look entirely reasonable in review.
+#
+# The unknown-fields probe goes further than Codex's real payload on purpose: a
+# nested object, a null, an array. Today's Codex event is not the last version of
+# the Codex event, and a hook that only tolerates the two extras it was tested
+# against will break on the third.
+#
+# The checksum is repeated from c08 rather than shared. These two cases are the
+# entire evidence for "the gate ships unchanged" (A5), and each has to stand on
+# its own — c08 could be deleted or skipped and this one would still catch a gate
+# that had been quietly rewritten to satisfy it.
+set -u
+
+GATE=".claude/scripts/changelog-gate.py"
+BASE="v5.6.5"
+
+if ! git -C "$REPO" rev-parse -q --verify "refs/tags/$BASE" >/dev/null; then
+  echo "BASELINE MISSING $BASE"
+  exit 1
+fi
+echo "BASELINE $BASE"
+
+want="$(git -C "$REPO" show "$BASE:$GATE" | shasum -a 256 | cut -d' ' -f1)"
+got="$(shasum -a 256 "$REPO/$GATE" | cut -d' ' -f1)"
+if [ "$want" = "$got" ]; then
+  echo "CHECKSUM matches-$BASE"
+else
+  echo "CHECKSUM DRIFTED from-$BASE"
+fi
+
+# --- identical repo state for every shape -------------------------------------
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+git init -q . 2>/dev/null
+printf 'print("hi")\n' > app.py
+git add app.py
+
+COMMAND='git commit -m "feat: thing"'
+
+python3 - "$REPO/$GATE" "$COMMAND" <<'PY'
+import hashlib
+import json
+import subprocess
+import sys
+
+gate, command = sys.argv[1], sys.argv[2]
+
+claude = {
+    "hook_event_name": "PreToolUse",
+    "tool_name": "Bash",
+    "tool_input": {"command": command},
+}
+# Codex's own extras, as documented for its PreToolUse payload.
+codex = dict(claude, model="gpt-5-codex", turn_id="turn_01")
+# A future Codex that adds fields nobody has seen yet.
+future = dict(codex, sandbox={"mode": "workspace-write", "network": None},
+              approvals=None, tags=["a", "b"])
+
+
+def run(event):
+    proc = subprocess.run([sys.executable, gate], input=json.dumps(event),
+                          capture_output=True, text=True)
+    return proc.returncode, proc.stdout
+
+
+results = {name: run(event) for name, event in
+           (("claude", claude), ("codex", codex), ("future", future))}
+
+for name in ("claude", "codex", "future"):
+    rc, out = results[name]
+    digest = hashlib.sha256(out.encode()).hexdigest()[:12]
+    decision = json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else "allow-silent"
+    print(f"SHAPE {name} rc={rc} decision={decision} stdout-sha={digest}")
+
+base_rc, base_out = results["claude"]
+for name in ("codex", "future"):
+    rc, out = results[name]
+    same = "byte-identical" if (rc, out) == (base_rc, base_out) else "DIVERGED"
+    print(f"PARITY {name}-vs-claude {same}")
+
+# The extension fields must not leak into what the agent is told. A reason string
+# that mentioned the model or the turn would make the two harnesses' output differ
+# in a way the byte comparison above already catches — this names the failure so a
+# future reader knows which property broke.
+reason = json.loads(results["codex"][1])["hookSpecificOutput"]["permissionDecisionReason"]
+leaked = [f for f in ("gpt-5-codex", "turn_01") if f in reason]
+print("NO_FIELD_LEAK", "clean" if not leaked else f"LEAKED {leaked}")
+PY
+
+# --- the allow side has to agree too ------------------------------------------
+# Parity on deny alone is a weak result: a script that ignored stdin entirely and
+# always denied would pass everything above. Stage the changelog and confirm both
+# shapes flip together.
+git add app.py
+printf '# Changelog\n' > CHANGELOG.md
+git add CHANGELOG.md
+claude_allow="$(printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m x"}}' | python3 "$REPO/$GATE")"
+codex_allow="$(printf '%s' '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m x"},"model":"gpt-5-codex","turn_id":"turn_01"}' | python3 "$REPO/$GATE")"
+echo "ALLOW_PARITY claude=[$claude_allow] codex=[$codex_allow]"
+if [ "$claude_allow" = "$codex_allow" ]; then
+  echo "ALLOW_PARITY byte-identical"
+else
+  echo "ALLOW_PARITY DIVERGED"
+fi

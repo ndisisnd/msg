@@ -1,0 +1,68 @@
+# A7 / AC1.1, AC1.4, AC1.5 — `install.sh --codex` builds the Codex lane as
+# symlinks, and a flagless install still touches nothing outside ~/.claude.
+#
+# The install runs against a throwaway HOME, and clones msg from this working
+# copy (MSG_REPO) rather than from GitHub — offline, and it tests the code in
+# front of us instead of the last release.
+#
+# What matters, in order: the lane is nine links and only nine (no `shared`,
+# which has no SKILL.md and is reached by path, and no `improve`, which never
+# ships); each link resolves into the real ~/.claude/skills install; and the
+# version stamp exists exactly once in the whole home, readable through the
+# Codex link. One stamp is the point of the symlink design — two copies of msg
+# would mean two stamps that disagree after a partial upgrade.
+set -u
+export HOME="$PWD/home"
+mkdir -p "$HOME"
+export MSG_REPO="$REPO"
+
+bash "$REPO/install.sh" --codex >/dev/null 2>&1 || { echo "INSTALL failed $?"; exit 1; }
+
+A="$HOME/.agents/skills"
+echo "LINK_COUNT $(ls -A "$A" | wc -l | tr -d ' ')"
+
+for name in emulate eng intake merge msg plan-em plan-pm plan-review pre-merge; do
+  if [ ! -L "$A/$name" ]; then
+    echo "$name NOT-A-SYMLINK"
+  elif [ "$(cd "$A/$name" && pwd -P)" != "$(cd "$HOME/.claude/skills/$name" && pwd -P)" ]; then
+    echo "$name RESOLVES-ELSEWHERE"
+  elif [ ! -f "$A/$name/SKILL.md" ]; then
+    echo "$name NO-SKILL-MD"
+  else
+    echo "$name linked"
+  fi
+done
+
+for excluded in shared improve; do
+  if [ -e "$A/$excluded" ] || [ -L "$A/$excluded" ]; then
+    echo "$excluded PRESENT"
+  else
+    echo "$excluded absent"
+  fi
+done
+
+# AC1.4 — one stamp, in the Claude root, reachable through the Codex link.
+echo "VERSION_FILES $(find "$HOME" -name VERSION -type f | wc -l | tr -d ' ')"
+echo "VERSION_VIA_LINK $(head -c 3 "$A/msg/VERSION")"
+pkg="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$REPO/package.json" | head -1)"
+case "$(cat "$A/msg/VERSION")" in
+  "msg v${pkg} "*) echo "VERSION_MATCHES_PACKAGE_JSON yes" ;;
+  *) echo "VERSION_MATCHES_PACKAGE_JSON NO" ;;
+esac
+if [ -f "$HOME/.claude/skills/msg/VERSION" ]; then
+  echo "VERSION_HOME claude"
+else
+  echo "VERSION_HOME MISSING"
+fi
+
+# AC1.5 — the Claude-only install is unchanged: a flagless run must not so much
+# as create ~/.agents. Fresh HOME, because the check is about creation.
+export HOME="$PWD/home-flagless"
+mkdir -p "$HOME"
+bash "$REPO/install.sh" >/dev/null 2>&1 || { echo "FLAGLESS_INSTALL failed $?"; exit 1; }
+if [ -e "$HOME/.agents" ]; then
+  echo "FLAGLESS_AGENTS_DIR CREATED"
+else
+  echo "FLAGLESS_AGENTS_DIR absent"
+fi
+echo "FLAGLESS_SKILLS $([ -f "$HOME/.claude/skills/msg/SKILL.md" ] && echo installed || echo MISSING)"

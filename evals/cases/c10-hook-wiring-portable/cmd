@@ -1,0 +1,53 @@
+# A6 / AC0.3 / AC0.5 — the committed Codex layer is portable and parseable.
+#
+# Three things are being pinned here.
+#
+# 1. Portability. `$CLAUDE_PROJECT_DIR` is set by Claude Code and by nothing
+#    else, so a Codex hook wired through it resolves to an empty path and the
+#    changelog gate silently stops running. The repo root is resolved with
+#    `git rev-parse --show-toplevel` instead. Absolute user paths (`/Users/...`,
+#    `/home/...`, a literal `$HOME` or `~/`) are equally unshippable — they are
+#    one developer's machine baked into a committed file.
+# 2. No provider override. The abandoned first-pass scaffold set
+#    `ANTHROPIC_BASE_URL` in its config. msg never redirects anyone's model
+#    provider.
+# 3. It parses. A malformed hooks.json or agent role TOML fails at harness
+#    startup, far from here, with a message that does not mention msg.
+#
+# Grep scope: the committed `.codex/` tree only. The `/msg --init` templates that
+# emit the same files into scaffolded projects are a later commit's problem and
+# get their own case.
+set -u
+C="$REPO/.codex"
+
+for pattern in 'CLAUDE_PROJECT_DIR' 'ANTHROPIC_BASE_URL' '/Users/' '/home/' '$HOME' '~/'; do
+  hits="$(grep -rF -e "$pattern" "$C" | wc -l | tr -d ' ')"
+  echo "SCAN $pattern $hits"
+done
+
+if grep -qF 'git rev-parse --show-toplevel' "$C/hooks.json"; then
+  echo "ROOT_RESOLUTION rev-parse"
+else
+  echo "ROOT_RESOLUTION MISSING"
+fi
+
+python3 - "$C" <<'PY'
+import json, sys, tomllib
+from pathlib import Path
+
+root = Path(sys.argv[1])
+
+hooks = json.loads((root / "hooks.json").read_text())
+pre = hooks["hooks"]["PreToolUse"]
+entry = pre[0]
+cmd = entry["hooks"][0]["command"]
+print("HOOKS_JSON parsed", entry["matcher"], len(pre))
+print("GATE_WIRED", "changelog-gate.py" in cmd)
+
+for name in ("config.toml", "agents/msg-lead.toml", "agents/msg-leaf.toml"):
+    tomllib.loads((root / name).read_text())
+    print("TOML_OK", name)
+
+agents = tomllib.loads((root / "config.toml").read_text())["agents"]
+print("AGENTS_LIMITS", agents["max_threads"], agents["max_depth"])
+PY

@@ -19,6 +19,8 @@ allowed_tools:
   - Write
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # plan-pm
 
 ## Usage
@@ -39,6 +41,8 @@ allowed_tools:
 ## Pre-run — devkit reads
 
 Before Step 1, stat-check and read the following in parallel via `Bash`. Written to `devkit/` by `/msg --init`; `CLAUDE.md` stays at project root.
+
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
 
 | File | How to apply |
 |------|-------------|

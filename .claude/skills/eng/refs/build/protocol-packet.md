@@ -4,6 +4,8 @@ description: The complete contract for one orchestrated build leaf — tickets, 
 type: reference
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # Build packet — the orchestrated leaf's whole protocol
 
 You are **one packet** of a parallel build coordinated by an orchestrator. This file is everything you need and nothing you do not. Do **not** read `eng/SKILL.md` or `refs/build/protocol.md` — they carry the standalone-run paths (branch creation, the `report=` fix source, `/cook` resolution, sub-branch PRs, the status heartbeat) that are **forbidden or already handled** here.
@@ -32,6 +34,8 @@ Each ticket carries `id`, `title`, `objective`, `type` (`code | test | config | 
 ## Step 2 — Discover the testing tools
 
 Before writing any test: scan existing test files in the feature area for the runner and framework, assertion style, file naming and layout, factory/fixture/mock patterns, and shared setup helpers. Apply them to every test you write. With no existing tests, take the declared stack from `CLAUDE.md` / `devkit/ARCHITECTURE.md`.
+
+**Project memory file:** where this file says `CLAUDE.md`, read `CLAUDE.md` if present, else `AGENTS.md` — see `shared/refs/harness-map.md`.
 
 ## Step 3 — Execute tickets in TDD order
 

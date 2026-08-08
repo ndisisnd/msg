@@ -1,0 +1,249 @@
+# D5 / D9 / A6 / AC2.5 — `/msg --init` scaffolds BOTH harnesses in one pass.
+#
+# Before v6, `/msg --init` bootstrapped a project for Claude Code only. A developer
+# who opened that repo in Codex got a working checkout and a harness that knew
+# nothing: no project memory file it reads (`AGENTS.md`), no commit gate, no agent
+# roles. Nothing errored — the run was simply ungoverned, which is the failure mode
+# msg exists to prevent. So the scaffolder now emits the Codex leg too, and this
+# case is the proof that it does.
+#
+# It runs the real `init.sh` in a throwaway git repo with a throwaway `$HOME`.
+# Never against this repo and never against the developer's home: the script writes
+# files, and an eval that writes into the tree it is validating is not a test.
+#
+# Five artifacts, four assertions each:
+#
+#   1. They appear. `AGENTS.md`, `.codex/hooks.json`, `.codex/config.toml`, and the
+#      two `.codex/agents/*.toml` roles.
+#   2. They parse. A malformed hooks.json or role TOML does not fail here — it fails
+#      at harness startup in someone else's project, with a message that never
+#      mentions msg. So the JSON is loaded and both TOMLs are parsed, and the values
+#      that carry meaning (`max_depth`, the role names and efforts) are printed
+#      rather than merely validated, so a silent value drift shows up as a diff.
+#   3. They are portable (assertion A6). `$CLAUDE_PROJECT_DIR` is set by Claude Code
+#      and by nothing else, so a Codex hook wired through it resolves to an empty
+#      path and the gate silently stops running. `/Users/...` and `/home/...` are one
+#      developer's machine baked into a file that ships to everyone. Both are scanned
+#      for across all five artifacts and must be absent.
+#   4. They are idempotent. Re-running `init.sh` must not rewrite them. This matters
+#      more for `.codex/hooks.json` than for anything else msg writes: Codex trusts a
+#      hook per content hash, so silently rewriting one revokes the developer's trust
+#      and stops the gate running until they re-approve it.
+#
+# On `$HOME` — the one absolute-ish path that is allowed, and why.
+#
+# `changelog-gate.py` is not vendored into scaffolded projects. msg's installer puts
+# it in `$HOME/.claude/scripts/`, so a downstream `.codex/hooks.json` that resolved
+# the gate only through `git rev-parse --show-toplevel` — the shape THIS repo's own
+# committed `.codex/hooks.json` uses, because this repo is where the script is
+# authored — would point at a file that does not exist. The emitted wiring therefore
+# tries the repo copy first and falls back to the installed root, which is the same
+# locally-first idiom the rest of msg uses for its scripts. `$HOME` resolves on
+# whoever's machine runs it; `/Users/andy/...` would not. That distinction is the
+# whole of the exception, so the case asserts the fallback is present rather than
+# looking away from it.
+#
+# The last two checks are behavioural, because "the JSON parses" is a weak claim
+# about a hook. The emitted command is extracted and actually run against a staged
+# CHANGELOG-less commit, once with the gate installed in the fake `$HOME` (expect a
+# deny envelope — the wiring reaches a script that lives outside the repo) and once
+# with nothing installed anywhere (expect a silent allow — a project without msg's
+# scripts must not have every Bash call blocked by a broken hook).
+#
+# Scope note: this case also stands in for the A8 non-regression check on the
+# scaffolder. `evals/manifests/claude-diff-allowlist.txt` excludes
+# `msg/refs/init/` from `c12-claude-diff-allowlist` by exact path, on the grounds
+# that the scaffolder writes files into other repos and is never read as protocol
+# text by a Claude run here. This is the case that covers it instead.
+set -u
+
+INIT="$REPO/.claude/skills/msg/refs/init/init.sh"
+SETUP="$REPO/.claude/skills/msg/refs/init/init-setup.sh"
+ARTIFACTS="AGENTS.md .codex/config.toml .codex/hooks.json .codex/agents/msg-lead.toml .codex/agents/msg-leaf.toml"
+
+# Throwaway everything. cwd is already the runner's temp dir; HOME is redirected so
+# nothing the scaffolder or the gate does can reach the developer's real home, and
+# git is cut off from user/system config so the result cannot depend on whose
+# machine this runs on.
+FAKE_HOME="$(mktemp -d)"
+BARE_HOME="$(mktemp -d)"
+export HOME="$FAKE_HOME"
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+trap 'rm -rf "$FAKE_HOME" "$BARE_HOME"' EXIT
+
+git init -q . 2>/dev/null
+
+PROJECT_NAME="fixture-project" \
+PROJECT_DESCRIPTION="A throwaway repo used by eval c13." \
+PLATFORM="CLI" \
+LANGUAGE="Rust" \
+bash "$INIT" . >/dev/null 2>&1
+echo "INIT_EXIT $?"
+
+# --- 1. the five artifacts exist ----------------------------------------------
+for a in $ARTIFACTS; do
+  if [ -L "$a" ]; then
+    echo "ARTIFACT $a SYMLINK"        # D9 chose a pointer file, not a symlink
+  elif [ -f "$a" ]; then
+    echo "ARTIFACT $a present"
+  else
+    echo "ARTIFACT $a MISSING"
+  fi
+done
+
+# --- 2. they parse, and their load-bearing values are printed -----------------
+python3 - <<'PY'
+import json, tomllib
+from pathlib import Path
+
+try:
+    hooks = json.loads(Path(".codex/hooks.json").read_text())
+    pre = hooks["hooks"]["PreToolUse"]
+    print("PARSE .codex/hooks.json json-ok", pre[0]["matcher"], len(pre))
+except Exception as exc:
+    print("PARSE .codex/hooks.json FAILED", type(exc).__name__)
+
+try:
+    agents = tomllib.loads(Path(".codex/config.toml").read_text())["agents"]
+    print("PARSE .codex/config.toml toml-ok", agents["max_threads"], agents["max_depth"])
+except Exception as exc:
+    print("PARSE .codex/config.toml FAILED", type(exc).__name__)
+
+for name in ("msg-lead", "msg-leaf"):
+    path = Path(f".codex/agents/{name}.toml")
+    try:
+        role = tomllib.loads(path.read_text())
+        ok = role["name"] == name and role["description"].strip()
+        # No `model` key on purpose: a role that pinned a model would override the
+        # developer's own choice on every spawn.
+        print(f"PARSE {path} toml-ok", role["model_reasoning_effort"],
+              "named" if ok else "NAME-MISMATCH",
+              "no-model-pin" if "model" not in role else "MODEL-PINNED")
+    except Exception as exc:
+        print(f"PARSE {path} FAILED", type(exc).__name__)
+PY
+
+# --- 3. portability (A6) -------------------------------------------------------
+for pattern in 'CLAUDE_PROJECT_DIR' '/Users/' '/home/'; do
+  hits=0
+  for a in $ARTIFACTS; do
+    n="$(grep -cF -e "$pattern" "$a" 2>/dev/null || true)"
+    hits=$((hits + n))
+  done
+  echo "SCAN $pattern $hits"
+done
+
+CMD="$(python3 -c 'import json;print(json.load(open(".codex/hooks.json"))["hooks"]["PreToolUse"][0]["hooks"][0]["command"])')"
+case "$CMD" in
+  *'git rev-parse --show-toplevel'*) echo "ROOT_RESOLUTION rev-parse" ;;
+  *)                                 echo "ROOT_RESOLUTION MISSING" ;;
+esac
+case "$CMD" in
+  *'$HOME/.claude/scripts/changelog-gate.py'*) echo "INSTALLED_ROOT_FALLBACK present" ;;
+  *)                                           echo "INSTALLED_ROOT_FALLBACK MISSING" ;;
+esac
+case "$CMD" in
+  *changelog-gate.py*) echo "GATE_WIRED changelog-gate.py" ;;
+  *)                   echo "GATE_WIRED MISSING" ;;
+esac
+
+# --- 4. AGENTS.md is a pointer, not a copy (D9 / O4) --------------------------
+# The whole reason to emit a pointer rather than duplicating CLAUDE.md is that two
+# copies drift and a stale memory file fails silently. So: it must name CLAUDE.md,
+# and it must NOT contain CLAUDE.md's own section headings.
+if grep -qF 'CLAUDE.md' AGENTS.md; then
+  echo "AGENTS_MD names-claude-md"
+else
+  echo "AGENTS_MD NO-POINTER"
+fi
+dupes=0
+while IFS= read -r heading; do
+  [ -n "$heading" ] || continue
+  grep -qxF "$heading" AGENTS.md && dupes=$((dupes + 1))
+done <<EOF
+$(grep '^## ' CLAUDE.md || true)
+EOF
+echo "AGENTS_MD duplicated-sections $dupes"
+
+# --- 5. idempotent re-run ------------------------------------------------------
+before="$(cat $ARTIFACTS | shasum | cut -d' ' -f1)"
+bash "$INIT" . >/dev/null 2>&1
+after="$(cat $ARTIFACTS | shasum | cut -d' ' -f1)"
+if [ "$before" = "$after" ]; then
+  echo "RERUN unchanged"
+else
+  echo "RERUN REWRITTEN"
+fi
+
+# --- 6. the top-up path knows about them --------------------------------------
+# `init-setup.sh`'s TARGETS list is what makes `/msg --update` notice a missing
+# file on an already-bootstrapped repo. An artifact absent from that list can never
+# be topped up: the protocol stops at "nothing to initialise" first.
+for a in $ARTIFACTS; do
+  if grep -qF -e " $a" "$SETUP"; then
+    echo "TOPUP $a tracked"
+  else
+    echo "TOPUP $a UNTRACKED"
+  fi
+done
+
+# --- 7. the wiring actually runs -----------------------------------------------
+# A Codex-shape PreToolUse event (note the `model`/`turn_id` extras) for a commit
+# with no CHANGELOG staged. With the gate installed only in the fake HOME, the
+# fallback has to find it and deny.
+EVENT='{"tool_name":"Bash","tool_input":{"command":"git commit -m x"},"model":"gpt-5-codex","turn_id":"t1"}'
+mkdir -p "$FAKE_HOME/.claude/scripts"
+cp "$REPO/.claude/scripts/changelog-gate.py" "$FAKE_HOME/.claude/scripts/"
+
+decision="$(printf '%s' "$EVENT" | sh -c "$CMD" 2>/dev/null \
+  | python3 -c 'import json,sys
+raw = sys.stdin.read().strip()
+print(json.loads(raw)["hookSpecificOutput"]["permissionDecision"] if raw else "allow-silent")' 2>/dev/null)"
+echo "GATE_FROM_INSTALLED_ROOT ${decision:-UNPARSEABLE}"
+
+# Same event, a HOME with nothing installed: a project that never installed msg's
+# scripts must not have every Bash call blocked by a hook pointing at nothing.
+absent="$(printf '%s' "$EVENT" | HOME="$BARE_HOME" sh -c "$CMD" 2>/dev/null)"
+rc=$?
+echo "GATE_ABSENT rc=$rc output=[$absent]"
+
+# --- 8. the protocol documents what the scaffolder actually writes -------------
+# `protocol-init.md` is the file an agent reads to learn what `/msg --init` leaves
+# behind, and it is the one part of the init surface a Claude run genuinely reads.
+# That is why `c12-claude-diff-allowlist` excludes it by coverage rather than by
+# category: the exclusion is only honest if something asserts the doc matches the
+# code, which is this block.
+#
+# Forward: every path in `TARGETS` — the same list section 6 checks for top-up —
+# must be named somewhere in the protocol. A file the scaffolder writes but the
+# protocol never mentions is a file nobody knows they have.
+PROTO="$REPO/.claude/skills/msg/refs/protocol-init.md"
+targets="$(awk -F'[()]' '/^TARGETS=\(/ {print $2}' "$SETUP" | tr ' ' '\n' | grep . | sort)"
+undocumented=""
+while IFS= read -r t; do
+  [ -n "$t" ] || continue
+  grep -qF "${t%/}" "$PROTO" || undocumented="$undocumented$t
+"
+done <<EOF
+$targets
+EOF
+if [ -z "$undocumented" ]; then
+  echo "DOC_TARGETS all-documented"
+else
+  printf '%s' "$undocumented" | while IFS= read -r t; do echo "DOC_TARGETS $t UNDOCUMENTED"; done
+fi
+
+# Reverse: every template the protocol names has to exist. The forward check alone
+# would pass a protocol still describing a template that was renamed or deleted,
+# and a stale reference is the failure mode here — it sends a reader to a file that
+# is not there, which reads as a broken install rather than a stale doc.
+missing=""
+for tpl in $(grep -o 'templates/[A-Za-z0-9._-]*\.md' "$PROTO" | sort -u); do
+  [ -f "$REPO/.claude/skills/msg/refs/init/$tpl" ] || missing="$missing$tpl
+"
+done
+if [ -z "$missing" ]; then
+  echo "DOC_TEMPLATES all-present"
+else
+  printf '%s' "$missing" | while IFS= read -r t; do echo "DOC_TEMPLATES $t MISSING"; done
+fi

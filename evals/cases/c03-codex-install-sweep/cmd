@@ -1,0 +1,46 @@
+# A7 / AC1.3 — the Codex lane sweeps its own stale entries, and only its own.
+#
+# The installer writes but never deletes, so a skill that msg renames or retires
+# would otherwise keep offering itself in Codex's picker forever. The sweep runs
+# in two passes, and this case pins both plus the line between them:
+#
+#   plan-tune      a name msg itself retired, seeded here as a real directory —
+#                  removed whatever shape it is in.
+#   test           a v4-era name, seeded as a link msg's own installer would
+#                  have written (it points into ~/.claude/skills) — removed
+#                  because the name is no longer shipped.
+#   someone-elses  a directory msg never wrote — left strictly alone. The
+#                  installer does not get to garbage-collect another tool's
+#                  skills out of a shared root.
+#   elsewhere      a link that points outside ~/.claude/skills — same reasoning,
+#                  left alone.
+set -u
+export HOME="$PWD/home"
+export MSG_REPO="$REPO"
+A="$HOME/.agents/skills"
+mkdir -p "$A/plan-tune" "$A/someone-elses" "$HOME/elsewhere-target"
+echo "stale" > "$A/plan-tune/SKILL.md"
+echo "theirs" > "$A/someone-elses/SKILL.md"
+ln -s "../../.claude/skills/test" "$A/test"
+ln -s "../../elsewhere-target" "$A/elsewhere"
+
+bash "$REPO/install.sh" --codex >/dev/null 2>&1 || { echo "INSTALL failed $?"; exit 1; }
+
+for stale in plan-tune test; do
+  if [ -e "$A/$stale" ] || [ -L "$A/$stale" ]; then
+    echo "$stale STILL-PRESENT"
+  else
+    echo "$stale swept"
+  fi
+done
+
+for keep in someone-elses elsewhere; do
+  if [ -e "$A/$keep" ] || [ -L "$A/$keep" ]; then
+    echo "$keep kept"
+  else
+    echo "$keep WRONGLY-SWEPT"
+  fi
+done
+
+echo "TOTAL_ENTRIES $(ls -A "$A" | wc -l | tr -d ' ')"
+echo "SHIPPED_LINKS $(find "$A" -maxdepth 1 -type l -lname '../../.claude/skills/*' | wc -l | tr -d ' ')"

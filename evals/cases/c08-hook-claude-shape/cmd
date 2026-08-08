@@ -1,0 +1,113 @@
+# A5 / AC3.1 — the changelog gate, pinned exactly as v5.6.5 left it.
+#
+# `changelog-gate.py` is msg's only enforcement that runs OUTSIDE an agent's
+# reasoning. Everything else in msg is a protocol an agent chooses to follow; this
+# is a hook the harness executes whether the agent cooperates or not, and it is
+# what stops a release shipping without its CHANGELOG entry. v6 adds a second
+# harness, and the whole v6 bet is that this file needs no Codex fork — same event
+# names, same stdin JSON, same decision envelope on both sides.
+#
+# A claim of "unchanged" is only worth as much as its evidence, so this case makes
+# two separate assertions rather than one vague one:
+#
+#   1. The bytes are unchanged. A checksum against the `v5.6.5` tag, computed at
+#      run time from the tag itself rather than pasted here as a hex string that
+#      someone would eventually update to match a change. This is the assertion
+#      that has no commit behind it in the v6 plan — there IS no gate commit, and
+#      this line is the proof of that absence.
+#   2. The behaviour is unchanged, checked against the real script rather than
+#      re-derived from reading it. A Claude-shape `PreToolUse` event for a commit
+#      with nothing staged but code, and the full deny envelope pinned below.
+#
+# Why the reason text is in the golden in full. The gate denies by returning a
+# message the agent then acts on, so the message IS the mechanism — an edit that
+# softened it from an instruction ("append a summary, stage it, re-run") to a
+# complaint ("missing changelog") would leave every assertion about exit codes and
+# decision fields green while the loop it closes quietly stopped closing.
+#
+# Why exit 0 on a deny (F2). Denial travels in the JSON envelope, never in the
+# exit code. A hook that exits non-zero is an ERRORING hook, and both harnesses
+# treat that as the hook being broken rather than as a verdict — which fails open,
+# on the one code path where failing open means the gate silently stops existing.
+# So `EXIT 0` below is an assertion, not bookkeeping.
+#
+# The three allow paths are here because a deny golden alone cannot tell a working
+# gate from one that denies everything, and a gate that blocks every commit is not
+# "safe", it is a gate someone rips out by Friday. Staged CHANGELOG allows; a
+# command that stages the changelog inline allows (that is the retry the deny text
+# asks for, and it has to sail through); a non-commit command is ignored entirely.
+set -u
+
+GATE=".claude/scripts/changelog-gate.py"
+BASE="v5.6.5"
+
+if ! git -C "$REPO" rev-parse -q --verify "refs/tags/$BASE" >/dev/null; then
+  echo "BASELINE MISSING $BASE"
+  exit 1
+fi
+echo "BASELINE $BASE"
+
+# --- 1. byte-identical to the last pre-v6 release -----------------------------
+want="$(git -C "$REPO" show "$BASE:$GATE" | shasum -a 256 | cut -d' ' -f1)"
+got="$(shasum -a 256 "$REPO/$GATE" | cut -d' ' -f1)"
+if [ "$want" = "$got" ]; then
+  echo "CHECKSUM matches-$BASE"
+else
+  echo "CHECKSUM DRIFTED from-$BASE"
+fi
+
+# --- a throwaway repo with something staged that is not the changelog ----------
+# cwd is already the runner's temp dir. Git is cut off from user and system config
+# so the result cannot depend on whose machine this runs on.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+git init -q . 2>/dev/null
+printf 'print("hi")\n' > app.py
+git add app.py
+
+# --- 2. Claude-shape PreToolUse event, commit with no CHANGELOG staged ---------
+# Exactly the fields Claude Code sends that the script reads. Extra Claude fields
+# (session_id, cwd, …) are deliberately absent: the script must not depend on them,
+# which is the same property that lets Codex's differently-shaped event through.
+EVENT='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git commit -m \"feat: thing\""}}'
+
+out="$(printf '%s' "$EVENT" | python3 "$REPO/$GATE")"
+rc=$?
+echo "EXIT $rc"
+printf '%s' "$out" | python3 -c '
+import json, sys
+raw = sys.stdin.read().strip()
+if not raw:
+    print("DECISION allow-silent")
+    raise SystemExit
+env = json.loads(raw)["hookSpecificOutput"]
+print("EVENT_NAME", env["hookEventName"])
+print("DECISION", env["permissionDecision"])
+print("REASON", env["permissionDecisionReason"])
+print("ENVELOPE_KEYS", ",".join(sorted(env)))
+'
+
+# --- 3. the allow paths -------------------------------------------------------
+# Staged CHANGELOG.md: the retry the deny text asks for, and it must pass.
+printf '# Changelog\n' > CHANGELOG.md
+git add CHANGELOG.md
+staged="$(printf '%s' "$EVENT" | python3 "$REPO/$GATE")"
+echo "STAGED_CHANGELOG rc=$? output=[$staged]"
+
+# A compound command that stages the changelog itself. Nothing is staged here — the
+# short-circuit on the command text is what stops the gate blocking its own fix.
+git reset -q
+git add app.py
+inline='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git add CHANGELOG.md && git commit -m x"}}'
+out2="$(printf '%s' "$inline" | python3 "$REPO/$GATE")"
+echo "INLINE_ADD rc=$? output=[$out2]"
+
+# A command that is not a commit or a push at all: the gate fires on every Bash
+# call, so "ignores everything else" is load-bearing, not incidental.
+other='{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls -la"}}'
+out3="$(printf '%s' "$other" | python3 "$REPO/$GATE")"
+echo "UNRELATED rc=$? output=[$out3]"
+
+# Malformed stdin: the script's documented fail-open. A gate that crashes on a
+# surprising event would wedge every Bash call in the session.
+out4="$(printf 'not json' | python3 "$REPO/$GATE" 2>/dev/null)"
+echo "MALFORMED rc=$? output=[$out4]"

@@ -41,6 +41,16 @@ to static only when `python3` is unavailable or the user asks for a read-only sn
    `claude -p {prompt} --permission-mode acceptEdits`, run argv-safe with the project root
    as cwd — never through a shell).
 
+   **Runner under Codex (D8).** The default is `claude` under *both* harnesses — the
+   GUI shells out to a coding CLI, and which harness is driving the board says nothing
+   about which CLI is installed. `--runner-codex` selects the Codex preset
+   (`codex exec --full-auto {prompt}`) for a machine where `codex` is the CLI on hand;
+   it is mutually exclusive with `--runner`, which still takes any template. Both
+   presets encode the same contract the Prompts button needs: non-interactive, with
+   file edits auto-accepted. A runner that can stop to ask a permission question hangs
+   the job with nobody watching — `claude` without `-p`, or `codex exec` without
+   `--full-auto` (read-only sandbox, so every edit fails), both break it.
+
 2. Open the default browser at the printed `http://127.0.0.1:<port>/`. If the browser
    can't be opened, print the URL so the user can open it manually (error case 3).
 
@@ -282,8 +292,8 @@ across every project (light + dark, responsive); it is **not** sourced from
 - Malformed PRD frontmatter or an unparseable issues `.json` → `skipped[]`, flagged in the
   board header; the rest still render (error case 2).
 - Browser won't open → print the `127.0.0.1` URL (error case 3).
-- `claude` CLI missing → Prompts runs fail with a visible error in the run's output; the
-  rest of the board is unaffected.
+- Runner CLI missing (`claude`, or `codex` under `--runner-codex`) → Prompts runs fail
+  with a visible error in the run's output; the rest of the board is unaffected.
 
 ---
 

@@ -7,8 +7,9 @@ description: >
   creates a `devkit/` directory containing AHA.md, DOCTOR.md, ENV.md,
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
-  README.md, .gitignore, CLAUDE.md, CHANGELOG.md, and the three `features/`
-  lifecycle lanes (`planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the
+  README.md, .gitignore, CLAUDE.md, AGENTS.md, CHANGELOG.md, the `.codex/`
+  harness layer (hooks.json, config.toml, the two agent roles), and the three
+  `features/` lifecycle lanes (`planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the
   empty lane). `features/` is gitignored — PRDs are local working state.
   Idempotent — skips files that already exist; never overwrites. All other msg
   skills read these files but never create them.
@@ -78,7 +79,11 @@ type: reference
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, `features/`, **and `devkit/DOCTOR.md`** — the ledger files, the PRD lanes and the harness telemetry are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
+| AGENTS.md | Markdown from `refs/init/templates/template-AGENTS.md` — the project memory file the Codex harness reads, emitted beside `CLAUDE.md` so a repo works on either harness. A **pointer** to `CLAUDE.md`, not a copy and not a symlink (D9/O4): a copy drifts the moment either file is edited and a stale memory file fails silently, while a symlink materialises as plain text on Windows checkouts without developer mode. Also carries the Codex-only notes a symlink would have nowhere to put — chiefly the hook-trust step | `<cwd>/AGENTS.md` |
 | CHANGELOG.md | Markdown from `refs/init/templates/template-CHANGELOG.md`, maintained by the `kermit` commit-gate hook (not by msg skills) | `<cwd>/CHANGELOG.md` |
+| .codex/hooks.json | JSON from `refs/init/templates/template-codex-hooks.md` — wires the CHANGELOG commit gate for the Codex harness, the counterpart to the Claude-side hook in `~/.claude/settings.json`. The command resolves the gate script repo-locally first, falls back to the installed `$HOME/.claude/scripts/` root, and exits 0 if neither exists, because `install.sh` never vendors scripts into a scaffolded project. **Never overwritten, and this is load-bearing** — Codex trust-gates hooks per content hash, so rewriting this file would revoke the developer's trust and silently stop the gate | `<cwd>/.codex/hooks.json` |
+| .codex/config.toml | TOML from `refs/init/templates/template-codex-config.md` — the one non-default key msg needs, `[agents] max_depth = 2`, since msg's gate dispatch nests a level deeper than Codex allows out of the box | `<cwd>/.codex/config.toml` |
+| .codex/agents/msg-lead.toml · msg-leaf.toml | TOML from `refs/init/templates/template-codex-agent-lead.md` and `template-codex-agent-leaf.md` — the two roles standing in for the `model: opus` / `model: sonnet` tiers msg's protocols name. They set reasoning effort rather than pinning a model, so a run stays on whichever model the developer already chose. Binding: `shared/refs/harness-map.md` | `<cwd>/.codex/agents/msg-{lead,leaf}.toml` |
 | INTAKE.md | Markdown from `refs/init/templates/TEMPLATE-INTAKE.md` — the root backlog ledger (D13: repo root, **not** devkit/; it is a living ledger written by `/intake`, `plan-pm`, `merge`). Table header + status-lifecycle + grade-cell doc + the row table — no log section. The edit-history log lives in a sibling file, `INTAKE-UPDATE.md`, which `/msg --init` does **not** scaffold — it is lazy-created by `intake --update`/`--delete` on their first write, and gitignored alongside `INTAKE.md` once it exists. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/INTAKE.md` |
 | features/ lanes | Three lifecycle lanes — `planned/`, `wip/`, `done/`, each with a `.gitkeep` marking the empty lane on disk. **Gitignored** (see `.gitignore` row) — created, then ignored. A PRD lives in exactly one lane, matching its pipeline stage (drafted → `planned`, branch cut → `wip`, shipped → `done`) | `<cwd>/features/{planned,wip,done}/` |
 | roadmap/TEMPLATE-roadmap.md | Markdown from `refs/init/templates/TEMPLATE-roadmap.md` — the format guide for `roadmap/roadmap.md`, which is **hand-authored by the human**; no skill generates it. Shipped so there is something to author against and the `/msg --gui` Roadmap tab can parse the result. Copied by the user to `roadmap/roadmap.md` when the project has enough PRDs to sequence | `<cwd>/roadmap/TEMPLATE-roadmap.md` |
@@ -165,7 +170,7 @@ already carries its value.
 
 | Missing artifact | Variables it needs |
 |---|---|
-| `INTAKE.md` · `devkit/AHA.md` · `devkit/DOCTOR.md` · `devkit/ENV.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
+| `INTAKE.md` · `devkit/AHA.md` · `devkit/DOCTOR.md` · `devkit/ENV.md` · `devkit/GLOSSARY.md` · `devkit/OPEN-QUESTIONS.md` · `CHANGELOG.md` · `AGENTS.md` · `.codex/hooks.json` · `.codex/config.toml` · `.codex/agents/msg-lead.toml` · `.codex/agents/msg-leaf.toml` · `features/planned/` · `features/wip/` · `features/done/` · `roadmap/TEMPLATE-roadmap.md` | **none** — no placeholders; pure template |
 | `README.md` | `PROJECT_NAME`, `PROJECT_DESCRIPTION` |
 | `CLAUDE.md` | `PROJECT_NAME`, `PLATFORM`, `LANGUAGE`, `CONVENTIONS` |
 | `.gitignore` | `LANGUAGE`, `PLATFORM` — no placeholders, but they **select the section** (`init.sh` keys on `LANGUAGE` first, `PLATFORM` second) |
@@ -359,6 +364,10 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)
 - `refs/init/templates/template-gitignore.md` — .gitignore content keyed by platform/stack
 - `refs/init/templates/template-CLAUDE.md` — template for CLAUDE.md (Claude Code project instructions)
+- `refs/init/templates/template-AGENTS.md` — template for AGENTS.md (the Codex-leg project memory file; a pointer to CLAUDE.md rather than a copy, plus the Codex-only notes — see the emitted-files table)
+- `refs/init/templates/template-codex-hooks.md` — template for `.codex/hooks.json` (the CHANGELOG commit gate on the Codex leg; never overwritten, because Codex trust is per content hash)
+- `refs/init/templates/template-codex-config.md` — template for `.codex/config.toml` (`[agents] max_depth = 2`, the one non-default key msg's gate dispatch needs)
+- `refs/init/templates/template-codex-agent-lead.md` · `template-codex-agent-leaf.md` — templates for `.codex/agents/msg-lead.toml` and `msg-leaf.toml` (the roles standing in for the `model: opus` / `model: sonnet` tiers; binding in `shared/refs/harness-map.md`)
 - `refs/init/templates/template-ARCHITECTURE.md` — template for ARCHITECTURE.md (architecture stub, populated from Step 2 interview)
 - `refs/init/templates/template-DESIGN-SYSTEM.md` — template for DESIGN-SYSTEM.md (component registry, populated from Step 2 interview)
 - `refs/init/templates/template-CHANGELOG.md` — template for CHANGELOG.md (code change log, maintained by the `kermit` commit-gate hook)

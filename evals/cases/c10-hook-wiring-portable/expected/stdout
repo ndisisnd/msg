@@ -1,0 +1,13 @@
+SCAN CLAUDE_PROJECT_DIR 0
+SCAN ANTHROPIC_BASE_URL 0
+SCAN /Users/ 0
+SCAN /home/ 0
+SCAN $HOME 0
+SCAN ~/ 0
+ROOT_RESOLUTION rev-parse
+HOOKS_JSON parsed Bash 1
+GATE_WIRED True
+TOML_OK config.toml
+TOML_OK agents/msg-lead.toml
+TOML_OK agents/msg-leaf.toml
+AGENTS_LIMITS 6 2

@@ -17,6 +17,8 @@ allowed_tools:
   - Read
 ---
 
+Running under OpenAI Codex? Read `shared/refs/harness-map.md` first and apply its bindings; under Claude Code, skip it.
+
 # emulate
 
 The harness's **local run lane**. `/pre-merge` runs the checks and `/merge`

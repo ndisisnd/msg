@@ -1,0 +1,26 @@
+# Codex-side metadata for the `plan-pm` skill. Claude Code never reads this
+# file; it carries what Codex needs and the open SKILL.md frontmatter has no
+# place for.
+#
+# Why `allow_implicit_invocation` is off — the same reason for all nine msg
+# skills. Codex may activate a skill on its own when a user's prompt happens
+# to match the skill's description, and that behaviour is ON by default. msg's
+# skills are not advisory helpers: they are explicit commands with
+# consequences in the repo and beyond it. In this one's case: it drafts a full
+# PRD directory under features/planned/ and pauses the user on breaking or
+# critical touches. No msg skill should ever fire because a sentence sounded
+# like its description.
+#
+# This is a deliberate safety-over-convenience trade, and it creates a real
+# behavioural divergence between the two harnesses. On Claude Code, describing
+# what you want out loud can activate the right skill. Under Codex, the same
+# words do nothing until the user types `$plan-pm`. That divergence is
+# documented in the README's Codex section rather than left for a user to
+# discover.
+
+display_name: "plan-pm — PRD writer ($plan-pm only)"
+
+policy:
+  # Explicit invocation only. Read the reasoning above before flipping
+  # this to true.
+  allow_implicit_invocation: false
