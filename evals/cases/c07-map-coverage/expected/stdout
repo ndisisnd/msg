@@ -1,0 +1,13 @@
+CONSTRUCT ask bound
+CONSTRUCT agent-spawn bound
+CONSTRUCT background bound
+CONSTRUCT model-tier bound
+CONSTRUCT skill-chaining bound
+CONSTRUCT monitor bound
+CONSTRUCT project-dir bound
+CONSTRUCT slash-invocation bound
+CONSTRUCT project-memory bound
+RULE present
+RULE present
+RULE present
+RULE present
