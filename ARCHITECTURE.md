@@ -1,6 +1,6 @@
 # MSG Architecture
 
-MSG is a Claude Code skill harness — a collection of slash-command skills for structured, agent-driven software development. Skills install globally into `~/.claude/skills/` and are invoked directly from Claude Code sessions.
+MSG is an agent skill harness — a collection of skills for structured, agent-driven software development, invoked directly from a session. Skills install globally into `~/.claude/skills/`. Claude Code is the canonical harness; OpenAI Codex CLI runs the same installed files through a symlink lane (see [Dual-harness layout](#dual-harness-layout--claude-code-and-codex-cli)).
 
 ## Layers
 
@@ -15,6 +15,8 @@ The installer copies but never overwrites by deletion, so a **renamed** skill or
 After the copy the installer writes a one-line stamp to `~/.claude/skills/msg/VERSION` — the version read out of the clone's `package.json`, the short commit it was cut from, and the install date. `package.json` exists for this reason alone (there is no JS build here); it is the single version field, and `/kermit --release` bumps it as part of every release, so the stamp cannot drift from the release it claims. An installed tree is a plain copy rather than a git checkout, so this file is the only thing that can answer "which msg is this?" — which is exactly what `/msg --version` reads. The stamp is written *after* the skill copy, since copying `msg/` clears the destination directory first.
 
 Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook) dependency, which provides the `/cook` skill MSG skills call for domain-specific coding standards.
+
+Pass `--codex` to additionally expose the install to OpenAI Codex CLI: after the ordinary copy, it writes one relative symlink per shipped skill at `~/.agents/skills/<name>` → `~/.claude/skills/<name>`. Nine links, excluding `shared/` (a ref library with no `SKILL.md`, reached by path rather than discovered) and `improve/` (repo-internal). The retired-name sweep extends to that root under the same rule as everywhere else — msg removes only names it shipped and links it wrote, never another tool's skills sharing the directory. Without the flag no `~/.agents` path is created, read, or touched at all.
 
 ### 2. Skill layer — `~/.claude/skills/<name>/SKILL.md`
 
@@ -33,7 +35,7 @@ check-script naming all key off.
 
 Bash and Python helpers invoked by skills at runtime. Skills resolve scripts locally first (`./claude/scripts/`), then fall back to the global install.
 
-**Naming convention.** Every script is named `script-<slug>.<ext>` (v5). The prefix marks the shared script library at a glance, and — deliberately — the slug carries **no owning-skill prefix**, so renaming a skill never cascades into renaming its scripts. The one exception is `changelog-gate.py`, whose path is pinned inside a `PreToolUse` hook in `.claude/settings.json` that Claude Code resolves at session start; renaming it would break the hook for any session already running, so it keeps its pre-v5 name.
+**Naming convention.** Every script is named `script-<slug>.<ext>` (v5). The prefix marks the shared script library at a glance, and — deliberately — the slug carries **no owning-skill prefix**, so renaming a skill never cascades into renaming its scripts. The one exception is `changelog-gate.py`, whose path is pinned inside a `PreToolUse` hook in `.claude/settings.json` that Claude Code resolves at session start — and, since v6, in `.codex/hooks.json` as well; renaming it would break the hook for any session already running, so it keeps its pre-v5 name. The script itself is byte-identical across both harnesses: Codex's hook contract deliberately mirrors Claude's (same event names, same stdin JSON, same `permissionDecision` envelope), so only the wiring differs.
 
 There are ~58 scripts. Grouped by what they own:
 
@@ -135,6 +137,37 @@ There are ~58 scripts. Grouped by what they own:
 `devkit/policy.json` is the one **co-written** devkit file: `/msg --init` seeds it (`version`, `init:false`, `release_flow`, plus `github_actions` when it asked the CI question), `--init` completes it (tooling + branch-protection, flips `init:true`), `/msg --init-staging` flips the flow to `staged`, and `/msg --update` revisits the `github_actions` decision and is the single-run complete off switch for `test_selection` (enabling that key is deferred entirely to pre-merge's own interview — the two keys `/msg --update` writes). It gates the pipeline: a gate run with `init:false` auto-runs `--init` first; with `init:true` it runs the protocol; with no file at all it falls back to today's behavior (unmanaged repo). See the `--init` protocol refs (`{pre,post}-merge/refs/protocol-init.md`).
 
 The root `INTAKE.md` backlog ledger is **not** a devkit file — it is scaffolded by `/msg --init` at the repo root (D13) but, unlike the read-only devkit docs, it is a living ledger written by `intake` (rows), `plan-pm` (status/prd mapping), and `merge --production` (completed status). Both it and its sibling `INTAKE-UPDATE.md` — the append-only edit history `intake --update`/`--delete` write, lazy-created on first edit — are **gitignored** (the shared table was a standing merge-conflict source), so the ledger and the completed stamp are local-only.
+
+## Dual-harness layout — Claude Code and Codex CLI
+
+msg runs on two harnesses. The thing to understand about the shape is what *isn't* there: there is no second install. One set of skill bytes lives in `.claude/skills/` and installs to `~/.claude/skills/`; the Codex leg is a directory of symlinks at `~/.agents/skills/` pointing back at it. Two copies of the same skills always drift, and they drift silently — you update one, forget the other, and a month later two harnesses are running two different versions of a gate. Links cannot do that. There is also exactly one version stamp, at `~/.claude/skills/msg/VERSION`, read identically through either path.
+
+The same reasoning drives what stays put. Every path msg uses — the scripts at `~/.claude/scripts`, the per-project state directory `.claude/msg/`, the VERSION stamp — is identical on both legs, because the Codex leg installs nowhere new. **Under Codex, `.claude/` is simply a directory msg owns.** The name is historical, not a coupling, and "porting" those paths to something harness-neutral would break both legs at once for no gain. This repo dogfoods the arrangement: `.agents/skills/` is committed as nine relative symlinks into `.claude/skills/`, so a Codex session opened here sees the live skills with no sync step.
+
+### The translation layer
+
+msg's protocol prose names Claude Code's tools directly and constantly — `AskUserQuestion` where it means *stop and ask the human*, `Agent` where it means *spawn a worker*, `model: opus` where it means *this one has to think hard*. That vocabulary appears roughly 1,800 times. Rewriting it into harness-neutral wording would be an enormous diff, and it would make the text worse: vaguer for everyone, and further from what a Claude-side reader actually types.
+
+So the prose deliberately keeps speaking Claude, and one file translates. **`shared/refs/harness-map.md` is the single layer the whole Codex port rests on** — a binding table (the ask gate, `spawn_agent`, the unavailable background poll loop, the `msg-lead`/`msg-leaf` role tiers, inline skill chaining, `Monitor`, `$CLAUDE_PROJECT_DIR` → `git rev-parse --show-toplevel`, `/name` → `$name`, `CLAUDE.md`-else-`AGENTS.md`), plus the rules a table can't carry. It also states what must *not* be translated, since the failure mode of a translation layer is over-application.
+
+Two of its rules are structural rather than advisory:
+
+- **Spawn propagation.** msg cuts spawned workers off from `SKILL.md` on purpose — `protocol-packet.md` tells a build leaf not to read `eng/SKILL.md`, and orchestrators compose packet prompts pointing at refs. A preamble on the front door therefore never reaches a leaf. Under Codex, every composed spawn prompt carries the map's preamble line verbatim, recursively; the four places a worker starts reading having never seen a front door (`eng/refs/build/protocol-packet.md`, `plan-em/refs/protocol-team.md`, `shared/refs/gate-dispatch.md`, `shared/refs/agent-watch.md`) carry it too.
+- **Hook liveness.** Codex trust-gates hooks per content hash, and an untrusted hook does not error — it silently doesn't run, which turns the changelog gate into an open door. The map specifies a side-effect-free probe, along with its one false negative (a live gate also allows the probe when `CHANGELOG.md` is already staged) and the staging check that guards against it.
+
+### What differs, and what deliberately doesn't
+
+| Surface | On the Codex leg |
+|---|---|
+| Invocation | `$name` or the `/skills` picker. Every skill ships `agents/openai.yaml` with `policy.allow_implicit_invocation: false` — Codex's description-match activation is on by default, and a gate, a merge or a release should never fire because a prompt sounded like its description. Claude Code never reads these files |
+| Project memory | `CLAUDE.md` if present, else `AGENTS.md`. `/msg --init` emits both, `AGENTS.md` as a pointer rather than a copy so the two cannot drift. Protocol *reader* sites carry the either/or sentence; *emitter* sites (the scaffolding templates) still name `CLAUDE.md`, because writing the file is their whole job |
+| Hooks | Same `changelog-gate.py`, byte-identical, wired through `.codex/hooks.json`. The command resolves the repo with `git rev-parse --show-toplevel`, never `$CLAUDE_PROJECT_DIR` — that variable is set by Claude Code and nothing else, so a hook wired through it would resolve to an empty path and quietly stop firing |
+| Model tiers | Role TOMLs `msg-lead` / `msg-leaf` under `.codex/agents/`, since Codex's per-spawn model override is not durable. The roles set reasoning effort, not a model pin, so a run stays on whichever model the developer chose |
+| Background polling | Not available — a Codex parent cannot hold the turn while children run. The ~5-minute heartbeat and the stall watchdog fall back to the checkpoint contract their own refs already document: report at wave boundaries rather than on a timer. Safe by construction, because the watch is observational and gates nothing |
+| Human gates | Unchanged. `AskUserQuestion` renders as numbered prose options with the same wording and order, and blocks exactly as hard. The [safety floor](#safety-floor) is identical on both harnesses |
+| Non-interactive runs | `codex exec` cannot drive msg's human-gated protocols. With no way to ask, they refuse rather than assume — correct behaviour rather than a gap, since `merge`'s identity is its gates. Interactive sessions are the supported way |
+
+**Verification status.** The parts that hold the two legs to the same bytes are covered by the eval suite: the symlink lane and its sweep, the `.agents` dogfood tree, hook-wiring portability, frontmatter and metadata conformance, the map's coverage of every Claude-only construct still live in protocol text, and a non-regression diff pinning the Claude side to its previous release. The orchestration bindings in the table above — spawn-by-role, nested dispatch under `[agents] max_depth = 2`, inline skill chaining — are specified but **not yet verified against a live Codex run**; treat them as the intended contract rather than a measured one.
 
 ## Skill pipelines
 

@@ -50,7 +50,7 @@
 
 msg is the counterpart that relies on [`/cook`](https://github.com/ndisisnd/cook) — a heavily opinionated coding agent workflow and harness that depends on human approvals more than autonomy. You describe a feature, and msg walks it through capture, planning, engineering, building, a CI gate, a staging sign-off, and a production release. You approve at each gate; nothing ships on the agent's own judgment.
 
-It installs as nine slash commands in Claude Code. There is no server and no account — every skill runs locally against your own repository.
+It installs as nine slash commands in Claude Code, and the same nine skills run under OpenAI Codex CLI. There is no server and no account — every skill runs locally against your own repository.
 
 - **Plan** — `/intake` captures and grades ideas into a backlog, `/plan-pm` writes the PRD, `/plan-review` certifies it, `/plan-em` writes the engineering sections.
 - **Build** — `/eng --plan` proposes the file changes, `/eng --build` writes the code on a feature branch, `/eng --review` runs an adversarial pass over the diff.
@@ -65,7 +65,7 @@ It installs as nine slash commands in Claude Code. There is no server and no acc
 
 ## Install
 
-You need `git`, `curl`, Claude Code, and an authenticated [`gh` CLI](https://cli.github.com) (the gates use it to open and merge PRs).
+You need `git`, `curl`, Claude Code or [OpenAI Codex CLI](#running-under-codex-cli), and an authenticated [`gh` CLI](https://cli.github.com) (the gates use it to open and merge PRs).
 
 ### msg + cook (recommended)
 
@@ -92,6 +92,43 @@ install or update: the skills live in `~/.claude`, not in your projects, so a re
 halfway leaves every project looking exactly as it did before.
 
 Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session.
+
+### Running under Codex CLI
+
+msg is not two products. The same skills that run in Claude Code run in OpenAI Codex CLI, from
+the same files on disk — because the Codex side is a set of symlinks pointing back at the one
+install, not a second copy. Two copies drift apart the first time you update one of them; links
+cannot. Add the `--codex` flag to any of the install commands above:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook --codex
+```
+
+`--codex` runs the ordinary install first and then exposes it to Codex, which looks for skills in
+`~/.agents/skills` rather than `~/.claude/skills`. Nothing about a flagless install changes, and
+nothing under `~/.agents` is touched unless you pass the flag.
+
+**Verify it worked:**
+
+```bash
+ls -l ~/.agents/skills             # nine links, each pointing into ~/.claude/skills/<name>
+```
+
+Then start a new Codex session and type `$msg`.
+
+**One difference you will notice.** Under Claude Code, describing what you want out loud is often
+enough — the harness can match your words to a skill's description and activate it for you. Under
+Codex it does nothing at all until you type `$name`. That is deliberate, and it is the one place
+we chose safety over convenience: every msg skill ships with implicit invocation switched off,
+because these are commands with consequences — a PRD rewritten, a branch merged, a release
+deployed — and none of them should ever fire because a sentence happened to sound like a
+description. Invocation is the only thing that changes; the skills themselves behave the same on
+both harnesses.
+
+The rest of the Claude-shaped vocabulary inside msg's protocols — tool names, spawn syntax, the
+`/name` sigil — is translated in one place, `shared/refs/harness-map.md`, which a Codex-side agent
+is pointed at before it follows any protocol. See [ARCHITECTURE.md § Dual-harness layout](ARCHITECTURE.md#dual-harness-layout--claude-code-and-codex-cli),
+and [QUICKSTART.md Appendix C](QUICKSTART.md#appendix-c--running-under-codex-cli) for the commit-gate trust step Codex adds.
 
 New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/pre-merge` and `/merge` each need their own one-time `--init` before the pipeline runs anything.
 
@@ -192,6 +229,14 @@ Deliberately. The human look at a running build belongs to `/merge --staging`, w
 **Why does the gate say it's running "in a subagent"?**
 
 Because it is, since v5.6.1. A `/pre-merge` or `/merge` run generates thousands of lines of machinery — tool logs, per-check reports, aggregation trails — and none of it is something you read. Running it in a subagent keeps that out of your conversation, so what comes back is just the verdict, the issue summary and what to do next. You also stop staring at a dark screen: the run reports progress every few minutes instead of going silent. Nothing about the output changes, and no approval moves — every question `/merge` asks you still gets asked by the main conversation, in the same order, with the same wording.
+
+**I described what I wanted in Codex and nothing happened. Is msg installed?**
+
+Probably yes — that is expected behaviour, not a broken install. msg's skills never activate
+themselves under Codex; you invoke them by typing `$name`, or by picking one from `/skills`. Check
+the install with `ls ~/.agents/skills`: if it's empty or missing, re-run the installer with
+`--codex`. See [Running under Codex CLI](#running-under-codex-cli) for why the automatic path is
+switched off.
 
 **Do I need cook?**
 

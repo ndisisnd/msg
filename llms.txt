@@ -1,15 +1,15 @@
 # msg
 
-> A Claude Code skill harness for structured software delivery: a gated pipeline from idea to production release, where a human approves at every gate.
+> An agent skill harness for structured software delivery: a gated pipeline from idea to production release, where a human approves at every gate. Runs on Claude Code and OpenAI Codex CLI, from one set of files.
 
-msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt Claude Code loads when the user types `/name` — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` opens a PR but never merges, and `merge` is the only skill that merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
+msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt the harness loads when the user types `/name` under Claude Code, or `$name` under Codex — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The Codex leg is symlinks into the same install rather than a second copy, so the two harnesses cannot drift; the protocol prose keeps naming Claude's tools, and `harness-map.md` is the one file that translates them. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` opens a PR but never merges, and `merge` is the only skill that merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
 
 ## Docs
 
 - [README](https://raw.githubusercontent.com/ndisisnd/msg/main/README.md): what each skill does, install, the pipeline shape
 - [QUICKSTART](https://raw.githubusercontent.com/ndisisnd/msg/main/QUICKSTART.md): install → bootstrap → first shipped feature, with a verify check per step
-- [ARCHITECTURE](https://raw.githubusercontent.com/ndisisnd/msg/main/ARCHITECTURE.md): the four layers (install, skill, script, devkit), the ~58 scripts grouped by what they own
-- [install.sh](https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh): what lands in `~/.claude/skills/` and `~/.claude/scripts/`, including the stale-name sweeps
+- [ARCHITECTURE](https://raw.githubusercontent.com/ndisisnd/msg/main/ARCHITECTURE.md): the four layers (install, skill, script, devkit), the ~58 scripts grouped by what they own, the dual-harness layout
+- [install.sh](https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh): what lands in `~/.claude/skills/` and `~/.claude/scripts/`, including the stale-name sweeps and the `--codex` symlink lane into `~/.agents/skills/`
 
 ## Skills
 
@@ -30,6 +30,7 @@ Each is the router for its own behaviour — start here to change what a skill d
 Shared contracts every skill inherits. Changing one of these changes several skills at once.
 
 - [safety-floor.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/safety-floor.md): the never-relaxed guarantees — read before touching any gate
+- [harness-map.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/harness-map.md): the Claude→Codex binding table — read first if you are running under Codex, and before adding any new Claude-only tool name to protocol text
 - [policy-schema.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/policy-schema.md): `devkit/policy.json` — release flow, components manifest, test selection
 - [component-catalog.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/component-catalog.md): the single source of pipeline component metadata and sequencing
 - [closing-message.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/shared/refs/closing-message.md): the 🟢/🟡/🔴 chat contract every run ends with
