@@ -254,7 +254,7 @@ Probe in priority order:
 |--------|---------|---------|
 | `Dockerfile` or `docker-compose*.yml` found (maxdepth 2), and `trivy` on `$PATH` | trivy image | `trivy image --format json <image>` |
 
-If no secret scanner signal is found, callers that require one (e.g. /pre-merge Step 6 Security Stage 0) emit a `warn` finding rather than blocking.
+If no secret scanner signal is found, callers that require one (e.g. /pre-merge Step 6 Security Stage 0) emit a `blocker` finding — the safety floor requires a secret scanner; absence is never a mere warning.
 
 ---
 

@@ -1,0 +1,1211 @@
+#!/usr/bin/env python3
+"""msg --gui · interactive local server.
+
+Serves the PRD board (refs/gui/index.html filled with live data) plus a small
+JSON API that turns the board into a lightweight Linear/Jira-style tool:
+
+  GET  /                      filled index.html (styles + fresh data + token)
+  GET  /api/ping              liveness + existing job ids
+  GET  /api/data              rebuilt data contract (see protocol-gui.md Step 3)
+  GET  /api/roadmap           roadmap/roadmap.md parsed into phases (Roadmap tab)
+  GET  /api/files             allowlisted project docs (README, CLAUDE.md, devkit/)
+  GET  /api/file?path=…       one doc's content
+  POST /api/prd/save          {path, body}        rewrite a PRD body (frontmatter kept)
+  POST /api/prd/meta          {path, key, value}  set a frontmatter key (status, completion, …)
+  POST /api/todo/toggle       {prd, id, done}     set a ticket's `done:` field in ## Todos
+  POST /api/intake/status     {num, status}       set an INTAKE.md row's status cell (H5)
+  POST /api/prompt            {prompt}            run a Claude prompt against the project
+  GET  /api/jobs              prompt runs + tails of their output
+
+Security posture: binds 127.0.0.1 only; every /api call requires the per-run
+X-Msg-Token header (injected into the served HTML); Host header must be local;
+all file paths are resolved and confined to the project root; reads are
+extension-allowlisted; writes are restricted to PRD markdown in any lifecycle
+lane (features/{planned,wip,done}/prd-*/, or the legacy flat features/prd-*/)
+plus the single root INTAKE.md status-cell carve-out (H5) — nothing else is
+writable.
+
+Stdlib only. Python 3.9+.
+"""
+
+import argparse
+import glob
+import importlib.util
+import json
+import os
+import re
+import secrets
+import subprocess
+import sys
+import threading
+import time
+import shlex
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
+
+# --------------------------------------------------------------------------- config
+
+ARGS = None
+TOKEN = secrets.token_hex(16)
+READ_EXTS = {".md", ".markdown", ".json", ".txt", ".yaml", ".yml", ".toml"}
+DENY_PARTS = {".git", "node_modules", ".env", "__pycache__", ".venv", "venv"}
+# v2 completion buckets (H1 ladder) — left→right pipeline order.
+BUCKETS = ("product", "planned", "building", "gated", "staged", "shipped")
+# Lifecycle lanes (improvement #24): a PRD folder lives in exactly one lane, or at
+# the legacy flat path. Resolution is lane-agnostic — every PRD lookup unions these
+# lanes with the flat path and takes the first hit (a PRD never appears twice).
+LANES = ("planned", "wip", "done")
+META_KEYS = {"completion", "status", "module", "platform", "feature"}
+# Intake ledger (F2/H2) — root INTAKE.md; the GUI's only new write path is a row's
+# status cell (H5). Lifecycle: backlog → in-progress → completed (D14).
+INTAKE_REL = "INTAKE.md"
+INTAKE_STATUSES = ("backlog", "in-progress", "completed")
+
+JOBS = []          # [{id, prompt, status, output, started, finished, reported}]
+JOBS_LOCK = threading.Lock()
+OUTPUT_CAP = 64 * 1024
+
+
+def root_path():
+    return os.path.realpath(ARGS.root)
+
+
+def confine(rel):
+    """Resolve rel against the project root; refuse anything that escapes it."""
+    if not rel or rel.startswith(("/", "~")) or ".." in rel.split("/"):
+        return None
+    full = os.path.realpath(os.path.join(root_path(), rel))
+    if full != root_path() and not full.startswith(root_path() + os.sep):
+        return None
+    if any(part in DENY_PARTS for part in full[len(root_path()):].split(os.sep)):
+        return None
+    return full
+
+
+# --------------------------------------------------------------------------- PRD parsing
+
+FM_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?", re.S)
+
+
+def parse_frontmatter(text):
+    m = FM_RE.match(text)
+    if not m:
+        return None, text
+    fm = {}
+    for line in m.group(1).splitlines():
+        km = re.match(r"^([\w][\w.-]*)\s*:\s*(.*)$", line)
+        if not km:
+            continue
+        key, val = km.group(1), km.group(2).strip()
+        if val.startswith("[") and val.endswith("]"):
+            inner = val[1:-1].strip()
+            fm[key] = [v.strip().strip("'\"") for v in inner.split(",") if v.strip()]
+        else:
+            fm[key] = val.strip("'\"")
+    return fm, text[m.end():]
+
+
+def as_badge(v):
+    if v is None:
+        return None
+    return str(v).strip().lower() in ("true", "yes", "✓", "x")
+
+
+def parse_features(body):
+    """F-ID rows from `## N. Features…` (any leading number, e.g. `## 3. Features &
+    acceptance criteria`) or, failing that, the exec table under its v5 home
+    `## N. Feature execution table` / the legacy `## Execution Table`."""
+    feats, order = {}, []
+
+    def scan(section_re):
+        m = re.search(section_re, body, re.M)
+        if not m:
+            return False
+        seg = body[m.end():]
+        nxt = re.search(r"^## ", seg, re.M)
+        if nxt:
+            seg = seg[:nxt.start()]
+        found = False
+        for row in re.finditer(r"^\|(.+)\|\s*$", seg, re.M):
+            cells = [c.strip() for c in row.group(1).split("|")]
+            fid = None
+            for c in cells:
+                fm2 = re.match(r"^\**\s*(F\d+)\b", c)
+                if fm2:
+                    fid = fm2.group(1)
+                    break
+            if not fid or fid in feats:
+                continue
+            title = ""
+            for c in cells:
+                t = re.sub(r"^\**\s*F\d+\s*[—–:-]?\s*", "", c).strip(" *`")
+                if t and not re.match(r"^F\d+$", t) and t != "---" and not re.match(r"^:?-+:?$", t):
+                    title = t
+                    break
+            feats[fid] = {"id": fid, "title": title, "todos": []}
+            order.append(fid)
+            found = True
+        return found
+
+    if not scan(r"^##\s*\d+\.\s*Features.*$"):
+        if not scan(r"^##\s*\d+\.\s*Feature execution table.*$"):
+            scan(r"^##\s*Execution Table.*$")   # legacy heading, pre-v5 PRDs
+    return feats, order
+
+
+TICKET_RE = re.compile(r"^(\s*)-\s+\*\*([\w][\w.-]*)\s*[—–-]\s*(.+?)\*\*\s*$")
+FIELD_RE = re.compile(r"^\s*-\s+\*\*([\w-]+):\*\*\s*(.*)$")
+
+
+def parse_ticket_fields(field_lines):
+    fields = {}
+    for line in field_lines:
+        if not FIELD_RE.match(line):
+            continue
+        # one physical line may carry several labels: `**kind:** issue · **complexity:** simple`
+        for key, val in re.findall(r"\*\*([\w-]+):\*\*\s*([^·]*)", line):
+            fields[key.lower()] = val.strip()
+    return fields
+
+
+def parse_files_field(val):
+    out = []
+    for piece in re.finditer(r"`([^`]+)`(?:\s*\(([\w-]+)\))?", val or ""):
+        out.append({"path": piece.group(1), "action": piece.group(2) or ""})
+    return out
+
+
+def parse_todos(body, feats, order):
+    m = re.search(r"^##\s*(?:\d+\.\s*)?Todos\s*$", body, re.M)
+    has = bool(m)
+    if not has:
+        return False
+    seg = body[m.end():]
+    cur_f = None
+    lines = seg.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        hm = re.match(r"^###\s+(F\d+)\b", line)
+        if hm:
+            cur_f = hm.group(1)
+            if cur_f not in feats:
+                feats[cur_f] = {"id": cur_f, "title": "", "todos": []}
+                order.append(cur_f)
+            i += 1
+            continue
+        if re.match(r"^##\s", line):  # left the Todos umbrella? only stop at a non-Todos ## heading
+            if not re.match(r"^##\s*(?:\d+\.\s*)?Todos\b", line):
+                break
+            i += 1
+            continue
+        tm = TICKET_RE.match(line)
+        if tm and cur_f:
+            indent = len(tm.group(1))
+            tid, title = tm.group(2), tm.group(3).strip()
+            j = i + 1
+            block = []
+            while j < len(lines):
+                nxt = lines[j]
+                if TICKET_RE.match(nxt) or re.match(r"^#{2,3}\s", nxt):
+                    break
+                if nxt.strip() and (len(nxt) - len(nxt.lstrip())) <= indent and re.match(r"^\s*-\s", nxt) \
+                        and not FIELD_RE.match(nxt):
+                    break
+                block.append(nxt)
+                j += 1
+            f = parse_ticket_fields(block)
+            files = parse_files_field(f.get("files", ""))
+            depends = [d.strip() for d in re.split(r"[,\s]+", f.get("depends-on", "")) if d.strip()]
+            depends = [d for d in depends if d.lower() != "none"]
+            ticket = {
+                "kind": "todo",
+                "id": tid,
+                "title": title,
+                "objective": f.get("objective", ""),
+                "type": f.get("type", ""),
+                "files": files,
+                "file": files[0]["path"] if files else None,
+                "action": files[0]["action"] if files else None,
+                "dependsOn": depends,
+                "doneWhen": f.get("done-when", ""),
+                "done": str(f.get("done", "")).strip().lower() == "true",
+            }
+            feats[cur_f]["todos"].append(ticket)
+            i = j
+            continue
+        i += 1
+    return True
+
+
+def run_cmd(argv, timeout=3):
+    try:
+        r = subprocess.run(argv, cwd=root_path(), capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout or "").strip()
+    except Exception:
+        return 1, ""
+
+
+_GH_READY = None
+
+
+def gh_ready():
+    """gh installed AND a git remote configured — gates the PR-state ladder rungs.
+    Cached across requests (availability is stable); without it the ladder degrades
+    silently down to the frontmatter/branch rungs so the board never errors."""
+    global _GH_READY
+    if _GH_READY is None:
+        code, _ = run_cmd(["gh", "--version"])
+        rcode, rout = run_cmd(["git", "remote"])
+        _GH_READY = (code == 0) and (rcode == 0 and bool(rout.strip()))
+    return _GH_READY
+
+
+_BRANCHES = None
+
+
+def release_branches():
+    """(prod, staging) branch names from devkit/policy.json — the contract both
+    gates read (`shared/refs/policy-schema.md`), with the `?? "main"` / `?? "staging"`
+    fallbacks that schema publishes. Never hardcode these: on a `master` repo the
+    production rung would never fire and every shipped PRD would render un-shipped.
+    Cached across requests; an unreadable/absent policy degrades to the fallbacks so
+    the board never errors."""
+    global _BRANCHES
+    if _BRANCHES is None:
+        prod, stg = "main", "staging"
+        try:
+            with open(os.path.join(root_path(), "devkit", "policy.json")) as fh:
+                flow = (json.load(fh).get("policies") or {}).get("release_flow") or {}
+            prod = (flow.get("prod_branch") or "").strip() or prod
+            stg = (flow.get("staging_branch") or "").strip() or stg
+        except Exception:
+            pass
+        _BRANCHES = (prod, stg)
+    return _BRANCHES
+
+
+def infer_completion(fm, num, slug, lane=None):
+    """H1 completion ladder (msg-v2 Part H1), most-authoritative first:
+        frontmatter completion override
+          -> done/ lane                       = shipped (production, improvement #24)
+          -> PR staging->prod MERGED          = shipped (production)
+          -> staging-signoff: stamp present   = staged (human-approved)
+          -> PR feature->staging MERGED       = staged
+          -> PR feature->staging OPEN         = gated (pre-merge passed)
+          -> branch feat/prd-<n>-* exists     = building (in build)
+          -> status: eng                      = planned
+          -> else                             = product
+    The PR-state rungs come from `gh pr list` when gh + a remote exist; otherwise
+    they are skipped and the ladder falls through (never blocks the board)."""
+    override = (fm.get("completion") or "").strip().lower()
+    if override in BUCKETS:
+        return override, "frontmatter completion override"
+
+    # Lane signal (improvement #24): merge --production moves a PRD into the
+    # done/ lane atomically with stamping status: done, so a PRD physically in
+    # done/ has shipped. This outranks the gh/git rungs (which may lag on a repo
+    # without gh/remote) but yields to an explicit frontmatter override above.
+    if lane == "done":
+        return "shipped", "PRD in done/ lane (shipped to production)"
+
+    prd_id = "prd-%s%s" % (num, ("-" + slug) if slug else "")
+    have_gh = gh_ready()
+    prod_branch, staging_branch = release_branches()
+
+    # Rung 1 — production: a merged staging->prod release PR that names this PRD.
+    if have_gh:
+        code, out = run_cmd(["gh", "pr", "list", "--base", prod_branch, "--state", "merged",
+                             "--search", prd_id, "--json", "number", "--limit", "1"], timeout=5)
+        if code == 0 and out and out != "[]":
+            return "shipped", "staging->%s PR merged (references %s)" % (prod_branch, prd_id)
+
+    # Rung 2 — staged, human-approved: the sign-off stamp (frontmatter, always readable).
+    if (fm.get("staging-signoff") or "").strip():
+        return "staged", "staging-signoff stamp present - human-approved"
+
+    # Rungs 3-5 — feature->staging PR state (gh) then branch existence (git).
+    branch = None
+    code, out = run_cmd(["git", "branch", "--list", "feat/prd-%s-*" % num])
+    if code == 0 and out:
+        branch = out.splitlines()[0].lstrip("* ").strip()
+    if branch and have_gh:
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", staging_branch,
+                             "--state", "merged", "--json", "number", "--limit", "1"], timeout=4)
+        if code == 0 and out and out != "[]":
+            return "staged", "feature->%s PR for %s merged" % (staging_branch, branch)
+        code, out = run_cmd(["gh", "pr", "list", "--head", branch, "--base", staging_branch,
+                             "--state", "open", "--json", "number", "--limit", "1"], timeout=4)
+        if code == 0 and out and out != "[]":
+            return "gated", "feature->%s PR for %s open (pre-merge passed)" % (staging_branch, branch)
+    if branch:
+        return "building", "branch %s exists" % branch
+
+    # Rungs 6-7 — frontmatter fallback. `specced`/`wip` are the v5.4 lifecycle
+    # names for what v5 called `eng`; both spellings mean "past product spec".
+    status = (fm.get("status") or "").strip().lower()
+    if status in ("eng", "engineering", "specced", "wip"):
+        return "planned", "frontmatter status: %s" % status
+    return "product", "frontmatter status: %s" % (status or "absent")
+
+
+def prd_lane_of(rel):
+    """Which lifecycle lane a PRD dir sits in, or None for the legacy flat path.
+    `rel` is the PRD dir relative to root, e.g. features/wip/prd-1-x (lane=wip),
+    features/prd-1-x (flat, None), or a nested sub-PRD whose lane is its parent's
+    (features/done/prd-1-x/prd-1.1-y → done)."""
+    parts = rel.replace(os.sep, "/").split("/")
+    if len(parts) >= 3 and parts[0] == "features" and parts[1] in LANES:
+        return parts[1]
+    return None
+
+
+def parse_prd_dir(d):
+    rel = os.path.relpath(d, root_path())
+    lane = prd_lane_of(rel)
+    mds = sorted(glob.glob(os.path.join(d, "prd-*.md")))
+    if not mds:
+        return None, {"path": rel + "/", "reason": "no prd-*.md file"}
+    text = open(mds[0], encoding="utf-8", errors="replace").read()
+    fm, body = parse_frontmatter(text)
+    if fm is None:
+        return None, {"path": os.path.relpath(mds[0], root_path()), "reason": "missing/unparseable frontmatter"}
+    base = os.path.basename(d)
+    nm = re.match(r"^prd-(\d+)-?(.*)$", base)
+    num = int(nm.group(1)) if nm else 0
+    slug = nm.group(2) if nm else base
+    feats, order = parse_features(body)
+    has_todos = parse_todos(body, feats, order)
+    completion, source = infer_completion(fm, num, slug, lane)
+    # v5.4 dropped module/platform/affects and fused the two tune stamps into one
+    # `reviewed`. A PRD carrying any of the dropped keys is v5-shape and keeps its
+    # three badges; a v5.4 PRD has one, and the board is told which so it does not
+    # render two permanently-blank pills.
+    shape = "v5" if any(k in fm for k in
+                        ("module", "platform", "affects", "depends_on",
+                         "product-tuned", "eng-tuned")) else "v5.4"
+    badges = {
+        "productTuned": as_badge(fm.get("product-tuned", fm.get("tuned"))),
+        "engTuned": as_badge(fm.get("eng-tuned")),
+        "reviewed": as_badge(fm.get("reviewed")),
+    }
+    # v5.4 moved plan-review's findings out of the PRD into a growing ledger beside
+    # it, so the board can no longer find them by parsing the PRD body. Ship the
+    # ledger's text alongside the body and let the client prefer it; a PRD written
+    # before v5.4 has no ledger, and its inline findings section is still parsed.
+    review_findings = None
+    review_findings_path = None
+    ledgers = sorted(glob.glob(os.path.join(d, "reports", "review-prd-*.md")))
+    preferred = os.path.join(d, "reports", "review-%s.md" % base)
+    if preferred in ledgers:
+        ledgers = [preferred]
+    if ledgers:
+        try:
+            review_findings = open(ledgers[0], encoding="utf-8", errors="replace").read()
+            review_findings_path = os.path.relpath(ledgers[0], root_path())
+        except OSError:
+            review_findings = None
+
+    return {
+        "shape": shape,
+        "num": num,
+        "id": base,
+        "path": rel + "/",
+        "lane": lane,
+        "file": os.path.relpath(mds[0], root_path()),
+        "feature": fm.get("feature") or fm.get("name") or slug.replace("-", " ").title(),
+        "summary": fm.get("summary"),
+        "module": fm.get("module"),
+        "platform": fm.get("platform"),
+        "status": fm.get("status"),
+        "created": fm.get("created"),
+        "affects": fm.get("affects") or [],
+        # `deps` is the v5.4 name for `depends_on`; both keys carry the array so
+        # the board reads one field regardless of which shape wrote the file.
+        "deps": fm.get("deps") or fm.get("depends_on") or [],
+        "depends_on": fm.get("deps") or fm.get("depends_on") or [],
+        "badges": badges,
+        "completion": completion,
+        "completionSource": source,
+        "detail": body.strip(),
+        # None on a pre-v5.4 PRD — which is the signal to fall back to the body.
+        "reviewFindings": review_findings,
+        "reviewFindingsPath": review_findings_path,
+        "hasTodos": has_todos,
+        "features": [feats[k] for k in order],
+    }, None
+
+
+# --------------------------------------------------------------------------- test issues
+
+# The finding → issue-ticket projection has exactly ONE implementation:
+# `.claude/scripts/script-project-findings.py`. eng --build/--plan run it as a
+# CLI; the board loads the same file as a module and calls the same function,
+# so the two consumers of a drift-prevention contract cannot themselves drift.
+# Do NOT re-implement the mapping here — change the script instead.
+# That import also carries the legacy-wire-value map (LEGACY_SOURCE in the
+# script): a committed report whose `source` names a retired producer — e.g.
+# `pair-review` before it became `eng:review` — is mapped on read and rendered
+# normally. The board therefore needs no source tolerance of its own, and a
+# future rename is one line in the script, not two.
+
+PROJECTOR_REL = os.path.join(".claude", "scripts", "script-project-findings.py")
+_PROJECTOR = None            # cached module, or the string reason it is missing
+
+
+def load_projector():
+    """Import script-project-findings.py (project copy first, then ~/.claude).
+    Returns the module, or a reason string when it cannot be loaded."""
+    global _PROJECTOR
+    if _PROJECTOR is not None:
+        return _PROJECTOR
+    candidates = [os.path.join(root_path(), PROJECTOR_REL),
+                  os.path.expanduser(os.path.join("~", PROJECTOR_REL))]
+    path = next((p for p in candidates if os.path.isfile(p)), None)
+    if path is None:
+        _PROJECTOR = ("script-project-findings.py not found (looked in %s) — the "
+                      "shared finding→issue-ticket projection is unavailable"
+                      % ", ".join(candidates))
+        print("msg --gui: %s" % _PROJECTOR, file=sys.stderr)
+        return _PROJECTOR
+    spec = importlib.util.spec_from_file_location("script_project_findings", path)
+    mod = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(mod)
+    except Exception as e:                                   # pragma: no cover
+        _PROJECTOR = "script-project-findings.py failed to load: %s" % e
+        print("msg --gui: %s" % _PROJECTOR, file=sys.stderr)
+        return _PROJECTOR
+    _PROJECTOR = mod
+    return _PROJECTOR
+
+
+def normalize_skill(value):
+    """Map a retired producer name onto its current one, via the same
+    LEGACY_SOURCE table the findings path uses. Unknown values pass through."""
+    projector = load_projector()
+    if isinstance(projector, str) or not isinstance(value, str):
+        return value
+    return projector.LEGACY_SOURCE.get(value.strip(), value)
+
+
+def report_glob_pats(leaf):
+    """The colocated report/issue globs for one leaf pattern (e.g. report-*.md),
+    covering the legacy flat path, the flat sub-PRD nest, each lifecycle lane's
+    top-level PRDs and their nested sub-PRDs, plus the no-PRD features/reports
+    fallback. Colocated artifacts travel inside the PRD folder, so the lane prefix
+    is the only thing that changes across a lane move (improvement #24)."""
+    pats = [
+        os.path.join(root_path(), "features", "prd-*", "reports", leaf),
+        os.path.join(root_path(), "features", "prd-*", "prd-*", "reports", leaf),
+    ]
+    for lane in LANES:
+        pats.append(os.path.join(root_path(), "features", lane, "prd-*", "reports", leaf))
+        pats.append(os.path.join(root_path(), "features", lane, "prd-*", "prd-*", "reports", leaf))
+    pats.append(os.path.join(root_path(), "features", "reports", leaf))
+    return pats
+
+
+def collect_gate_issues(skipped):
+    out = []
+    projector = load_projector()
+    if isinstance(projector, str):
+        skipped.append({"path": PROJECTOR_REL, "reason": projector})
+        return out
+    pats = report_glob_pats("report-prd-*-*.json") + [
+        os.path.join(root_path(), "features", "reports", "report-*.json"),
+    ]
+    paths = sorted(set(p for pat in pats for p in glob.glob(pat)))
+    for path in paths:
+        rel = os.path.relpath(path, root_path())
+        try:
+            doc = json.load(open(path, encoding="utf-8"))
+        except Exception as e:
+            skipped.append({"path": rel, "reason": "unparseable JSON: %s" % e})
+            continue
+        pm = re.search(r"report-prd-(\d+)-(\d+)\.json$", path)
+        nm = re.search(r"report-(\d+)\.json$", path)
+        out.append({
+            "file": rel,
+            "runId": ("%s-%s" % (pm.group(1), pm.group(2))) if pm
+                     else (int(nm.group(1)) if nm else rel),
+            "verdict": doc.get("verdict"),
+            "context": doc.get("context") or {},
+            "summary": doc.get("summary") or {},
+            "followUp": doc.get("followUp") or {"status": "open"},
+            "tickets": [projector.project_finding(f)
+                        for f in (doc.get("issues") or [])],
+        })
+    return out
+
+
+# --------------------------------------------------------------------------- run reports
+
+def parse_report_file(path, skipped):
+    """One report-prd-<N>-<K>.md (shared/refs/report-schema.md) → Reports-tab payload entry."""
+    rel = os.path.relpath(path, root_path())
+    try:
+        text = open(path, encoding="utf-8", errors="replace").read()
+    except Exception as e:
+        skipped.append({"path": rel, "reason": "unreadable report: %s" % e})
+        return None
+    fm, body = parse_frontmatter(text)
+    if fm is None:
+        skipped.append({"path": rel, "reason": "missing/unparseable frontmatter"})
+        return None
+
+    def fm_int(key):
+        try:
+            return int(fm.get(key))
+        except (TypeError, ValueError):
+            return None
+
+    pm = re.search(r"report-prd-(\d+)-(\d+)\.md$", path)
+    nm = re.search(r"report-(\d+)\.md$", path)
+    dm = re.search(r"([^/]+)/reports/[^/]+$", rel.replace(os.sep, "/"))
+    prd_id = dm.group(1) if dm and dm.group(1).startswith("prd-") else None
+    tm = re.search(r"^#\s+(.+?)\s*$", body, re.M)
+    prd = fm.get("prd")
+    return {
+        "file": rel,
+        "reportId": int(pm.group(2)) if pm else (int(nm.group(1)) if nm else 0),
+        # A report committed before a producer was renamed carries the old name.
+        # Same tolerance as `source` on findings, same single map (shared/refs/
+        # finding-schema.md § Legacy wire values) — the file on disk is untouched.
+        "skill": normalize_skill(fm.get("skill")),
+        "prd": None if (not prd or prd == "none") else prd,
+        "prdId": prd_id,
+        "branch": fm.get("branch"),
+        "verdict": fm.get("verdict"),
+        "generated": fm.get("generated"),
+        "features": fm.get("features") or [],
+        "stats": {
+            "filesChanged": fm_int("files_changed"),
+            "linesAdded": fm_int("lines_added"),
+            "linesRemoved": fm_int("lines_removed"),
+            "testsPassed": fm_int("tests_passed"),
+            "testsFailed": fm_int("tests_failed"),
+        },
+        "title": tm.group(1).strip() if tm else ("%s report" % (fm.get("skill") or "run")),
+        "detail": body.strip(),
+    }
+
+
+def collect_reports(skipped):
+    out = []
+    seen = set()   # lane + flat sub-PRD globs can overlap; dedupe by resolved path
+    for pat in report_glob_pats("report-*.md"):
+        for path in sorted(glob.glob(pat)):
+            if path in seen:
+                continue
+            seen.add(path)
+            if path.endswith("-fix-plan.md"):
+                continue
+            r = parse_report_file(path, skipped)
+            if r:
+                out.append(r)
+    out.sort(key=lambda r: (str(r.get("generated") or ""), r.get("reportId") or 0), reverse=True)
+    return out
+
+
+# --------------------------------------------------------------------------- roadmap
+
+ROADMAP_REL = os.path.join("roadmap", "roadmap.md")
+PHASE_RE = re.compile(r"^##\s+Phase\s+(\d+)\s*[—–-]\s*(.+?)\s*$", re.M)
+
+
+def build_roadmap(prds):
+    """Parse roadmap/roadmap.md into ordered phases, each with its PRD cards
+    cross-referenced against the live PRD set so a card carries the same
+    completion bucket the Board shows. Absent file → an empty, valid payload."""
+    full = confine(ROADMAP_REL)
+    if not full or not os.path.isfile(full):
+        return {"exists": False, "phases": [], "tuneLog": ""}
+    text = open(full, encoding="utf-8", errors="replace").read()
+    _fm, body = parse_frontmatter(text)
+    body = body if body else text
+    by_id = {p["id"]: p for p in prds}
+
+    # Split off the trailing `## Roadmap tune log` so it never leaks into the last phase.
+    tm = re.search(r"^##\s+Roadmap tune log\s*$", body, re.M)
+    tune_log = body[tm.end():].strip() if tm else ""
+    phase_body = body[:tm.start()] if tm else body
+
+    matches = list(PHASE_RE.finditer(phase_body))
+    phases = []
+    for i, m in enumerate(matches):
+        name = m.group(2).strip()
+        seg = phase_body[m.end(): matches[i + 1].start() if i + 1 < len(matches) else len(phase_body)]
+        goal = ""
+        gm = re.search(r"^\s*Goal:\s*(.+?)\s*$", seg, re.M)
+        if gm:
+            goal = gm.group(1).strip()
+        cards = []
+        # Separator between id and the rest is a *spaced* em/en-dash — never the
+        # ASCII hyphens inside the id itself (prd-101-task-crud).
+        for lm in re.finditer(r"^-\s+(prd-[\w.-]+?)\s+[—–]\s+(.+?)\s*$", seg, re.M):
+            pid = lm.group(1)
+            parts = [p.strip() for p in re.split(r"\s+[—–]\s+", lm.group(2))]
+            feature = parts[0] if parts else ""
+            file_bucket = parts[1] if len(parts) > 1 else ""
+            rationale = parts[2] if len(parts) > 2 else ""
+            live = by_id.get(pid)
+            cards.append({
+                "id": pid,
+                "feature": (live or {}).get("feature") or feature,
+                "completion": (live or {}).get("completion") or file_bucket or "product",
+                "fileBucket": file_bucket,
+                "rationale": rationale,
+                "path": (live or {}).get("path"),
+                "known": live is not None,
+            })
+        phases.append({"phase": int(m.group(1)), "name": name, "goal": goal, "prds": cards})
+
+    return {"exists": True, "phases": phases, "tuneLog": tune_log}
+
+
+# --------------------------------------------------------------------------- intake ledger
+
+INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd")
+GRADE_RE = {
+    "complexity": re.compile(r"\bC:\s*(\S+)"),
+    "token": re.compile(r"\bT:\s*(\S+)"),
+    "sequence": re.compile(r"\bS:\s*(\S+)"),
+}
+
+
+def _split_md_row(row):
+    return [c.strip() for c in row.strip().strip("|").split("|")]
+
+
+def parse_grade(cell):
+    """Split a `C:5 T:8 S:next` grade cell into its three chips (missing → null)."""
+    out = {}
+    for k, rx in GRADE_RE.items():
+        m = rx.search(cell or "")
+        out[k] = m.group(1) if m else None
+    return out
+
+
+def build_intake(prds):
+    """Parse the root INTAKE.md ledger table into rows for the Intake tab (H2).
+    Each row carries its parsed grade chips and, when its `prd` cell maps to a
+    live PRD, a cross-link. Absent/empty ledger → a valid empty payload."""
+    full = confine(INTAKE_REL)
+    if not full or not os.path.isfile(full):
+        return {"exists": False, "rows": [], "path": INTAKE_REL}
+    try:
+        text = open(full, encoding="utf-8", errors="replace").read()
+    except Exception:
+        return {"exists": False, "rows": [], "path": INTAKE_REL}
+    by_id = {p["id"]: p for p in prds}
+    lines = text.splitlines()
+    # Find the header row (contains the # / idea / status columns), then skip its
+    # separator line; every subsequent pipe row is data until the table ends.
+    hdr_idx = -1
+    for i, ln in enumerate(lines):
+        if "|" in ln and re.search(r"\bstatus\b", ln, re.I) and re.search(r"\bidea\b", ln, re.I):
+            hdr_idx = i
+            break
+    if hdr_idx < 0:
+        return {"exists": True, "rows": [], "path": INTAKE_REL}
+    cols = [c.lower() for c in _split_md_row(lines[hdr_idx])]
+
+    def col(name):
+        for j, c in enumerate(cols):
+            if c == name or c.startswith(name):
+                return j
+        return -1
+
+    ci = {k: col(k) for k in ("#", "date", "type", "idea", "goal", "grade", "status", "prd")}
+    rows = []
+    for ln in lines[hdr_idx + 1:]:
+        if "|" not in ln:
+            if ln.strip() == "":
+                continue
+            break  # table ended at a non-pipe, non-blank line
+        if re.match(r"^\s*\|?[\s:|-]+\|?\s*$", ln):
+            continue  # separator row
+        cells = _split_md_row(ln)
+
+        def get(key):
+            j = ci[key]
+            return cells[j] if 0 <= j < len(cells) else ""
+        num = get("#")
+        idea = get("idea")
+        if not num and not idea:
+            continue
+        prd_cell = get("prd")
+        live = None
+        if prd_cell:
+            # tolerate an exact id, or a bare `prd-<n>` prefix match
+            live = by_id.get(prd_cell)
+            if not live:
+                for pid, p in by_id.items():
+                    if pid == prd_cell or pid.startswith(prd_cell + "-") or prd_cell.startswith(pid):
+                        live = p
+                        break
+        status = (get("status") or "backlog").lower()
+        if status not in INTAKE_STATUSES:
+            status = "backlog"
+        rows.append({
+            "num": num,
+            "date": get("date"),
+            "type": (get("type") or "feature").lower(),
+            "idea": idea,
+            "goal": get("goal"),
+            "grade": parse_grade(get("grade")),
+            "gradeRaw": get("grade"),
+            "status": status,
+            "prd": prd_cell,
+            "prdKnown": live is not None,
+            "prdPath": (live or {}).get("path"),
+            "prdFeature": (live or {}).get("feature"),
+        })
+    return {"exists": True, "rows": rows, "path": INTAKE_REL}
+
+
+def set_intake_status(num, status):
+    """The GUI's one new write path (H5): rewrite a single INTAKE.md row's status
+    cell in place. Only the status cell of the row whose `#` equals `num` changes;
+    every other cell and row is preserved verbatim."""
+    if status not in INTAKE_STATUSES:
+        return "invalid intake status: %s" % status
+    full = confine(INTAKE_REL)
+    if not full or not os.path.isfile(full):
+        return "INTAKE.md not found at repo root"
+    text = open(full, encoding="utf-8").read()
+    lines = text.splitlines(keepends=True)
+    hdr_idx = -1
+    for i, ln in enumerate(lines):
+        if "|" in ln and re.search(r"\bstatus\b", ln, re.I) and re.search(r"\bidea\b", ln, re.I):
+            hdr_idx = i
+            break
+    if hdr_idx < 0:
+        return "no ledger table found in INTAKE.md"
+    cols = [c.lower() for c in _split_md_row(lines[hdr_idx])]
+    num_idx = next((j for j, c in enumerate(cols) if c == "#" or c.startswith("num")), 0)
+    st_idx = next((j for j, c in enumerate(cols) if c.startswith("status")), -1)
+    if st_idx < 0:
+        return "no status column in INTAKE.md table"
+    for i in range(hdr_idx + 1, len(lines)):
+        raw = lines[i]
+        if "|" not in raw:
+            if raw.strip() == "":
+                continue
+            break
+        if re.match(r"^\s*\|?[\s:|-]+\|?\s*$", raw):
+            continue
+        cells = _split_md_row(raw)
+        if num_idx < len(cells) and cells[num_idx] == str(num) and st_idx < len(cells):
+            cells[st_idx] = status
+            lines[i] = "| " + " | ".join(cells) + " |\n"
+            open(full, "w", encoding="utf-8").write("".join(lines))
+            return None
+    return "intake row #%s not found" % num
+
+
+# --------------------------------------------------------------------------- data + files
+
+def read_h1(rel_or_abs):
+    """First markdown H1 (`# …`) in a file, or None. Skips the atx trailer."""
+    try:
+        with open(rel_or_abs, encoding="utf-8", errors="replace") as fh:
+            for line in fh:
+                m = re.match(r"^#\s+(.+?)\s*#*\s*$", line)
+                if m:
+                    return m.group(1).strip()
+    except Exception:
+        return None
+    return None
+
+
+def project_name():
+    """Resolution ladder (protocol-gui.md Step 3): devkit → README/CLAUDE → repo
+    folder → 'Your Project'. devkit ARCHITECTURE.md carries the interpolated name
+    as `# <name> — Architecture`; strip the suffix."""
+    root = root_path()
+    arch = read_h1(os.path.join(root, "devkit", "ARCHITECTURE.md"))
+    if arch:
+        stripped = re.sub(r"\s*[—–-]\s*Architecture\s*$", "", arch).strip()
+        return stripped or arch
+    for name in ("README.md", "CLAUDE.md"):
+        h1 = read_h1(os.path.join(root, name))
+        if h1:
+            return h1
+    base = os.path.basename(root.rstrip(os.sep))
+    return base or "Your Project"
+
+
+def top_prd_dirs():
+    """Every top-level PRD directory, lane-agnostic and deduped by PRD id.
+    A PRD folder lives in exactly one lifecycle lane (planned/wip/done) or at the
+    legacy flat path; lanes are scanned first so the canonical "first hit wins"
+    precedence holds if a stale flat copy ever coexists with a lane copy. The
+    explicit lane names (not a `features/*` glob) keep this from ever matching a
+    nested sub-PRD dir as if it were a top-level PRD."""
+    seen, out = set(), []
+    roots = [os.path.join(root_path(), "features", lane) for lane in LANES]
+    roots.append(os.path.join(root_path(), "features"))
+    for base_dir in roots:
+        for d in sorted(glob.glob(os.path.join(base_dir, "prd-*"))):
+            if not os.path.isdir(d):
+                continue
+            bid = os.path.basename(d)
+            if bid in seen:
+                continue
+            seen.add(bid)
+            out.append(d)
+    return out
+
+
+def build_data():
+    prds, skipped = [], []
+    for d in top_prd_dirs():
+        candidates = [d] + sorted(g for g in glob.glob(os.path.join(d, "prd-*")) if os.path.isdir(g))
+        for c in candidates:
+            prd, skip = parse_prd_dir(c)
+            if prd:
+                prds.append(prd)
+            elif skip and c == d:
+                skipped.append(skip)
+    gate_issues = collect_gate_issues(skipped)
+    reports = collect_reports(skipped)
+    return {
+        "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S"),
+        "project": project_name(),
+        "prds": prds,
+        "gateIssues": gate_issues,
+        "reports": reports,
+        "roadmap": build_roadmap(prds),
+        "intake": build_intake(prds),
+        "skipped": skipped,
+    }
+
+
+def list_project_files():
+    files = []
+    for name in sorted(os.listdir(root_path())):
+        if name.lower().endswith(".md") and os.path.isfile(os.path.join(root_path(), name)):
+            files.append({"path": name, "group": "Project"})
+    devkit = os.path.join(root_path(), "devkit")
+    if os.path.isdir(devkit):
+        for name in sorted(os.listdir(devkit)):
+            if name.lower().endswith(".md"):
+                files.append({"path": "devkit/" + name, "group": "Devkit"})
+    # CLAUDE.md first if present — it's the "learn about this project" entry point
+    files.sort(key=lambda f: (f["group"] != "Project", f["path"].lower() != "claude.md", f["path"].lower()))
+    return files
+
+
+# --------------------------------------------------------------------------- writes
+
+def resolve_prd_md(rel):
+    """Accept a PRD dir path (`features/prd-1-x/`) or the .md path itself."""
+    full = confine(rel.rstrip("/"))
+    if not full:
+        return None
+    relnorm = os.path.relpath(full, root_path())
+    if not relnorm.startswith("features" + os.sep):
+        return None
+    if os.path.isdir(full):
+        mds = sorted(glob.glob(os.path.join(full, "prd-*.md")))
+        return mds[0] if mds else None
+    return full if (full.endswith(".md") and os.path.isfile(full)) else None
+
+
+def save_prd_body(rel, new_body):
+    md = resolve_prd_md(rel)
+    if not md:
+        return "PRD not found or outside features/: %s" % rel
+    text = open(md, encoding="utf-8").read()
+    m = FM_RE.match(text)
+    if not m:
+        return "PRD has no frontmatter: %s" % rel
+    open(md, "w", encoding="utf-8").write(text[:m.end()] + new_body.rstrip() + "\n")
+    return None
+
+
+def set_frontmatter_key(rel, key, value):
+    if key not in META_KEYS:
+        return "key not editable: %s" % key
+    if key == "completion" and value not in BUCKETS:
+        return "invalid completion bucket: %s" % value
+    md = resolve_prd_md(rel)
+    if not md:
+        return "PRD not found or outside features/: %s" % rel
+    text = open(md, encoding="utf-8").read()
+    m = FM_RE.match(text)
+    if not m:
+        return "PRD has no frontmatter: %s" % rel
+    fm_block = m.group(1)
+    line = "%s: %s" % (key, value)
+    if re.search(r"^%s\s*:" % re.escape(key), fm_block, re.M):
+        fm_block = re.sub(r"^%s\s*:.*$" % re.escape(key), line, fm_block, count=1, flags=re.M)
+    else:
+        fm_block = fm_block + "\n" + line
+    open(md, "w", encoding="utf-8").write("---\n" + fm_block + "\n---\n" + text[m.end():])
+    return None
+
+
+def toggle_todo(rel, ticket_id, done):
+    md = resolve_prd_md(rel)
+    if not md:
+        return "PRD not found or outside features/: %s" % rel
+    text = open(md, encoding="utf-8").read()
+    um = re.search(r"^##\s*(?:\d+\.\s*)?Todos\s*$", text, re.M)
+    if not um:
+        return "PRD has no ## Todos section"
+    lines = text.splitlines(keepends=True)
+    # locate the ticket title line after ## Todos
+    start_idx = text[:um.start()].count("\n")
+    tline = None
+    for i in range(start_idx, len(lines)):
+        tm = TICKET_RE.match(lines[i].rstrip("\n"))
+        if tm and tm.group(2) == ticket_id:
+            tline = i
+            break
+    if tline is None:
+        return "ticket %s not found under ## Todos" % ticket_id
+    # block = field lines until the next ticket/heading
+    end = tline + 1
+    while end < len(lines):
+        raw = lines[end].rstrip("\n")
+        if TICKET_RE.match(raw) or re.match(r"^#{2,3}\s", raw):
+            break
+        end += 1
+    indent = "  "
+    for i in range(tline + 1, end):
+        fm = FIELD_RE.match(lines[i].rstrip("\n"))
+        if fm:
+            indent = lines[i][:len(lines[i]) - len(lines[i].lstrip())]
+            break
+    val = "true" if done else "false"
+    for i in range(tline + 1, end):
+        if re.match(r"^\s*-\s+\*\*done:\*\*", lines[i]):
+            lines[i] = "%s- **done:** %s\n" % (indent, val)
+            open(md, "w", encoding="utf-8").write("".join(lines))
+            return None
+    insert_at = end
+    while insert_at > tline + 1 and lines[insert_at - 1].strip() == "":
+        insert_at -= 1
+    lines.insert(insert_at, "%s- **done:** %s\n" % (indent, val))
+    open(md, "w", encoding="utf-8").write("".join(lines))
+    return None
+
+
+# --------------------------------------------------------------------------- prompt jobs
+
+def start_job(prompt):
+    job = {
+        "id": secrets.token_hex(6),
+        "prompt": prompt,
+        "status": "running",
+        "output": "",
+        "started": time.time(),
+        "finished": None,
+        "reported": False,
+    }
+    with JOBS_LOCK:
+        JOBS.append(job)
+
+    def run():
+        try:
+            argv = [a if a != "{prompt}" else prompt for a in shlex.split(ARGS.runner)]
+            if "{prompt}" not in ARGS.runner:
+                argv.append(prompt)
+            proc = subprocess.Popen(argv, cwd=root_path(), stdout=subprocess.PIPE,
+                                    stderr=subprocess.STDOUT, text=True, errors="replace")
+            for line in proc.stdout:
+                with JOBS_LOCK:
+                    job["output"] = (job["output"] + line)[-OUTPUT_CAP:]
+            proc.wait()
+            with JOBS_LOCK:
+                job["status"] = "done" if proc.returncode == 0 else "error"
+                if proc.returncode != 0:
+                    job["output"] += "\n[exit code %d]" % proc.returncode
+        except Exception as e:
+            with JOBS_LOCK:
+                job["status"] = "error"
+                job["output"] += "\n[failed to run: %s]" % e
+        finally:
+            with JOBS_LOCK:
+                job["finished"] = time.time()
+
+    threading.Thread(target=run, daemon=True).start()
+    return job["id"]
+
+
+def jobs_snapshot():
+    now = time.time()
+    out = []
+    with JOBS_LOCK:
+        for j in reversed(JOBS):
+            fin = j["finished"]
+            item = {
+                "id": j["id"],
+                "prompt": j["prompt"][:400],
+                "status": j["status"],
+                "elapsed": (fin or now) - j["started"],
+                "output": j["output"][-16384:],
+            }
+            if j["status"] != "running" and not j["reported"]:
+                item["justFinished"] = True
+                j["reported"] = True
+            out.append(item)
+    return out
+
+
+# --------------------------------------------------------------------------- http
+
+def fill_template():
+    gui = os.path.realpath(ARGS.gui_dir)
+    html = open(os.path.join(gui, "index.html"), encoding="utf-8").read()
+    styles = open(os.path.join(gui, "styles.css"), encoding="utf-8").read()
+    data = json.dumps(build_data()).replace("</", "<\\/")
+    html = html.replace("__STYLES__", styles, 1)
+    html = html.replace("__PRD_DATA__", data, 1)
+    html = html.replace("__API_TOKEN__", TOKEN, 1)
+    html = html.replace("__DEFAULT_VIEW__", getattr(ARGS, "view", "board") or "board", 1)
+    return html
+
+
+class Handler(BaseHTTPRequestHandler):
+    server_version = "msg-gui/2.0"
+
+    def log_message(self, fmt, *args):
+        pass
+
+    # -- helpers
+    def _send(self, code, body, ctype="application/json; charset=utf-8"):
+        raw = body.encode("utf-8") if isinstance(body, str) else body
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(raw)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(raw)
+
+    def _json(self, obj, code=200):
+        self._send(code, json.dumps(obj))
+
+    def _err(self, msg, code=400):
+        self._json({"error": msg}, code)
+
+    def _guard(self):
+        host = (self.headers.get("Host") or "").split(":")[0]
+        if host not in ("127.0.0.1", "localhost"):
+            self._err("bad host", 403)
+            return False
+        if self.headers.get("X-Msg-Token") != TOKEN:
+            self._err("bad or missing token", 403)
+            return False
+        return True
+
+    def _body(self):
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            return json.loads(self.rfile.read(n).decode("utf-8")) if n else {}
+        except Exception:
+            return None
+
+    # -- routes
+    def do_GET(self):
+        u = urlparse(self.path)
+        if u.path in ("/", "/index.html"):
+            try:
+                self._send(200, fill_template(), "text/html; charset=utf-8")
+            except Exception as e:
+                self._send(500, "template error: %s" % e, "text/plain; charset=utf-8")
+            return
+        if not u.path.startswith("/api/"):
+            self._send(404, "not found", "text/plain; charset=utf-8")
+            return
+        if not self._guard():
+            return
+        if u.path == "/api/ping":
+            with JOBS_LOCK:
+                ids = [j["id"] for j in JOBS]
+            self._json({"ok": True, "root": root_path(), "jobs": ids})
+        elif u.path == "/api/data":
+            self._json(build_data())
+        elif u.path == "/api/roadmap":
+            self._json(build_roadmap(build_data()["prds"]))
+        elif u.path == "/api/files":
+            self._json({"files": list_project_files()})
+        elif u.path == "/api/file":
+            rel = (parse_qs(u.query).get("path") or [""])[0]
+            full = confine(rel)
+            if not full or not os.path.isfile(full):
+                return self._err("file not found: %s" % rel, 404)
+            if os.path.splitext(full)[1].lower() not in READ_EXTS:
+                return self._err("file type not viewable", 403)
+            if os.path.getsize(full) > 2 * 1024 * 1024:
+                return self._err("file too large", 413)
+            content = open(full, encoding="utf-8", errors="replace").read()
+            self._json({"path": rel, "content": content})
+        elif u.path == "/api/jobs":
+            self._json({"jobs": jobs_snapshot()})
+        else:
+            self._err("unknown endpoint", 404)
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        if not u.path.startswith("/api/"):
+            return self._err("unknown endpoint", 404)
+        if not self._guard():
+            return
+        b = self._body()
+        if b is None:
+            return self._err("invalid JSON body")
+        if u.path == "/api/prd/save":
+            if not isinstance(b.get("body"), str):
+                return self._err("missing body")
+            e = save_prd_body(str(b.get("path") or ""), b["body"])
+            return self._err(e) if e else self._json({"ok": True})
+        if u.path == "/api/prd/meta":
+            e = set_frontmatter_key(str(b.get("path") or ""), str(b.get("key") or ""),
+                                    str(b.get("value") or ""))
+            return self._err(e) if e else self._json({"ok": True})
+        if u.path == "/api/todo/toggle":
+            e = toggle_todo(str(b.get("prd") or ""), str(b.get("id") or ""), bool(b.get("done")))
+            return self._err(e) if e else self._json({"ok": True})
+        if u.path == "/api/intake/status":
+            e = set_intake_status(str(b.get("num") or ""), str(b.get("status") or ""))
+            return self._err(e) if e else self._json({"ok": True})
+        if u.path == "/api/prompt":
+            prompt = str(b.get("prompt") or "").strip()
+            if not prompt:
+                return self._err("empty prompt")
+            if len(prompt) > 20000:
+                return self._err("prompt too long")
+            return self._json({"ok": True, "id": start_job(prompt)})
+        return self._err("unknown endpoint", 404)
+
+
+def main():
+    global ARGS
+    ap = argparse.ArgumentParser(description="msg --gui interactive server")
+    ap.add_argument("--root", default=".", help="project root (contains features/)")
+    ap.add_argument("--gui-dir", default=os.path.dirname(os.path.abspath(__file__)),
+                    help="dir containing index.html + styles.css")
+    ap.add_argument("--port", type=int, default=0, help="port (0 = pick a free one)")
+    ap.add_argument("--view", default="board", choices=("board", "roadmap"),
+                    help="initial tab the served board opens on")
+    ap.add_argument("--runner", default="claude -p {prompt} --permission-mode acceptEdits",
+                    help="command template for /api/prompt; {prompt} is replaced argv-safely")
+    ARGS = ap.parse_args()
+    if not os.path.isdir(root_path()):
+        raise SystemExit("root does not exist: %s" % ARGS.root)
+
+    srv = ThreadingHTTPServer(("127.0.0.1", ARGS.port), Handler)
+    print("msg-gui serving %s" % root_path())
+    print("URL: http://127.0.0.1:%d/" % srv.server_address[1], flush=True)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()

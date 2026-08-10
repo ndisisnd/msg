@@ -1,0 +1,38 @@
+# Minimal PR gate workflow — scaffolded by `/pre-merge --init` for the `ci` step.
+#
+# Purpose: give the PR a real status check so "green CI" (merge Step 2 and
+# branch protection) means something instead of passing vacuously on zero checks.
+#
+# This is a STARTING POINT. `--init` substitutes the commands it actually
+# detected (the resolved `run` commands from the script-preflight-*.sh family)
+# into the run steps below, replacing the `[init: …]` placeholders. Steps whose
+# component the repo doesn't have are dropped. Tune the runner/setup afterward.
+name: pre-merge
+
+on:
+  pull_request:
+    branches: [staging, main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Setup — --init swaps this for the detected toolchain (node/python/…).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm ci
+
+      # Mechanical (Step 2) — lint / format / typecheck
+      - name: mechanical
+        run: '[init: mechanical command, e.g. npm run lint && npx tsc --noEmit]'
+
+      # Unit / integration (Step 3)
+      - name: unit_int
+        run: '[init: unit/int command, e.g. npm test]'
+
+      # Security floor (Step 6) — secret + dependency scan
+      - name: security
+        run: '[init: security command, e.g. npx osv-scanner -r .]'
