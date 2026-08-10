@@ -1,0 +1,9 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case aha-list aha-append-reject-oversize prop-aha-openq
+mkdir -p repo && cd repo && printf '# AHA\n' > AHA.md && printf 'x\n' > other.txt
+other_before="$(shasum -a 256 other.txt)"
+"$REPO/.agents/scripts/script-aha.sh" AHA.md --list >/dev/null
+[ "$other_before" = "$(shasum -a 256 other.txt)" ] || fail "a non-AHA file was modified"
+echo "AHA_LEDGER_ONLY ok"

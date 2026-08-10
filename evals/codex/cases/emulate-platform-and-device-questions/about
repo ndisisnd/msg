@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-004
+proves: Device/platform resolution is byte-identical across packages, and the Codex gate binding preserves the decision, the exact option set, the computed default, dismissal-to-default and the resume point.
+residual: That the model asks at most one question per resolver pass is layer 3.

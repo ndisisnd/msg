@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-aha.sh
+differential_case aha-list aha-append-reject-oversize

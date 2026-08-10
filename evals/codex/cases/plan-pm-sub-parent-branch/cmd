@@ -1,0 +1,4 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case a17-prd-scan-branch-resolve a17-prd-scan-policy-fallback-note

@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+mkdir -p devkit
+printf '{\n  "version": 1,\n  "components": []\n}\n' > devkit/policy.json
+differential_helper script-policy-read.py -- devkit/policy.json
+assert_helper_mirrored script-policy-set.py script-policy-read.py

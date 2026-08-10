@@ -1,0 +1,15 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+printf '# rules\n' > CLAUDE.md
+"$REPO/.agents/scripts/script-codex-agents-md.sh" . >/dev/null
+before="$(snapshot_tree .)"
+"$REPO/.agents/scripts/script-codex-agents-md.sh" . >/dev/null
+assert_tree_unchanged . "$before"
+
+printf 'my own instructions\n' > AGENTS.md
+out="$("$REPO/.agents/scripts/script-codex-agents-md.sh" . 2>&1)" && rc=0 || rc=$?
+[ "$rc" = "3" ] || fail "a human-authored AGENTS.md did not stop the run (exit $rc)"
+printf '%s\n' "$out" | grep -q '^AGENTS_MD=conflict$' || fail "conflict was not declared"
+grep -q 'my own instructions' AGENTS.md || fail "a human-authored AGENTS.md was overwritten"
+echo "CONFLICT_STOPS_RUN preserved"

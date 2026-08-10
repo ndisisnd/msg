@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains intake "hybrid"
+differential_case intake-append-row
+assert_gate_state answered 0 --id split-hybrid --skill intake \
+  --question "This looks like three capabilities. Split it?" \
+  --option "Split into three rows" --option "Keep as one" --answer "Split into three rows"

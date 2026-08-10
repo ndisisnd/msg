@@ -1,0 +1,4 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case emulate-cmd-override emulate-cmd-placeholder platforms-parse-emulate-cmd

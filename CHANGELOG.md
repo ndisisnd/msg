@@ -2,6 +2,13 @@
 
 ## 2026-08-10
 
+### [160] — v6 Phase 2: Codex runtime bindings + 64-case eval suite for the five leaf/document skills
+
+- `codex/invoke-template.sh`, `agents-md-template.sh`, `gate-template.sh`, `gui-codex-copy.json` (new): Added — the four decided deviations that needed real implementations, all generator-emitted into `.agents/` so they stay manifest-managed: `/skill`→`$skill` invocation translation (DEV-CX-001), idempotent `AGENTS.md` thin-pointer init that stops on a conflicting human-authored file (DEV-CX-004), the fail-closed gate envelope binding `AskUserQuestion` to Codex with owner/options/resume-point and no degrade-to-assumption (DEV-CX-003/011), and the generated Codex GUI runner variant leaving the Claude board byte-identical (DEV-CX-014).
+- `evals/codex/run.sh`, `lib/{assertions,differential,codex-session}.sh`, `lib/normalize-trace.py`, `cases/` (new): Added — 64 eval cases in exact bijection with the five maps' eval IDs (emulate, intake, plan-pm, plan-review, msg), touching all 62 mapped assertions. The differential layer runs real fixtures against `.claude/scripts` and `.agents/scripts` and requires identical exit codes, stdout and artifact bytes. 29 model-mediated cases carry declared `residual:` lines; the runner prints `RUNTIME_PROOF not-run` unless `--layer3` live Codex sessions are used (two live sessions verified: nine-skill discovery, AGENTS.md pointer init).
+- `codex/phase-2-bindings.json` (new): Added — machine-readable record of Phase 2 implementation/proof status (the compatibility maps stay at their strict-verifier-pinned Phase 0 wording).
+- `codex/script-build-codex-skills.py`, `generation-manifest.json`: Changed — emit the new runtime scripts and GUI variant (224 managed files).
+
 ### [159] — v6 Phase 1: shared Codex runtime contract, deterministic generator, static compatibility checks
 
 - `.agents/skills/shared/refs/codex-runtime.md` (new): Added — the shared Codex runtime translation contract: one section per decided DEV-CX record ($skill invocation, Codex-native tool bindings with the fail-closed rule, child-thread subagents, verbatim leaf-gate relay, preserved heartbeat/watchdog and natural-language activation, Opus→Terra/Sonnet→Luna map, AGENTS.md thin pointer with conflict-stops-the-run, declared external skills). Where the pre-existing `harness-map.md` disagrees, `codex-runtime.md` wins; `harness-map.md` is retained as Phase 0 evidence.

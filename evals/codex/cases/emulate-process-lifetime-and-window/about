@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-013
+proves: The persistence and window-raise contract reaches Codex unchanged, and a missing approval surface blocks the gate instead of degrading it — the fail-closed half of DEV-CX-015.
+residual: Post-turn process lifetime under a real Codex session is layer 3; DEV-CX-016 blocks reporting success until it passes.

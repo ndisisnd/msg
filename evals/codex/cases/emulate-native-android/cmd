@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains emulate refs/runners.md "gradlew -p android installDebug" "monkey -p"
+assert_ref_contains emulate refs/runners.md "run_in_background"
+assert_skill_files_mirrored emulate

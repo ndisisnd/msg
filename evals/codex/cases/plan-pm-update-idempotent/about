@@ -1,0 +1,3 @@
+layer: 4
+assertions: PPM-CX-005
+proves: A converged PRD is unchanged by a second update run under the Codex package, byte-for-byte.

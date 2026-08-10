@@ -1,0 +1,29 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_adapter_contract emulate
+assert_payload_identical emulate
+assert_payload_contains emulate "--ios" "--adr" "--expo" "--device" "--dry-run" "--help"
+assert_payload_contains emulate "Two axes, not one."
+assert_invocation_translation "Next: /emulate --dry-run" "Next: \$emulate --dry-run"
+differential_case emulate-unknown-flag emulate-flag-beats-file
+
+# Layer 3 extension (opt-in: run.sh --layer3). A live, isolated Codex session must
+# discover exactly the nine msg skills from .agents/skills and name this one in
+# Codex invocation syntax. Without the opt-in the deterministic proof above stands
+# on its own and this block is skipped rather than faked.
+. "$LIB/codex-session.sh"
+if codex_session_available; then
+  work="$(codex_workspace)"
+  before="$(snapshot_tree "$work/repo")"
+  codex_trace "$work" read-only \
+    "List every skill name available in this workspace, one per line, and then on a final line print the exact token you would type to invoke the emulate skill. Run no other command." \
+    > "$work/trace.txt"
+  for skill in emulate eng intake merge msg plan-em plan-pm plan-review pre-merge; do
+    grep -q "$skill" "$work/trace.txt" || fail "layer 3: Codex did not discover $skill"
+  done
+  grep -q 'emulate' "$work/trace.txt" || fail "layer 3: Codex never named the emulate invocation"
+  assert_tree_unchanged "$work/repo" "$before"
+  echo "LAYER3 nine-skills-discovered read-only-preserved"
+  rm -rf "$work"
+fi

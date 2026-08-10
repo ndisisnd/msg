@@ -1,0 +1,3 @@
+layer: 2
+assertions: INT-CX-004, INT-CX-005
+proves: A confirmed delete removes only the target row and leaves the numbering gap, identically under both packages — proven on the artifact bytes, not on prose.

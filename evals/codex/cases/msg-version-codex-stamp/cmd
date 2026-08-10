@@ -1,0 +1,25 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+mkdir -p home/.agents/scripts home/.claude/scripts fake-repo/.agents/scripts
+printf 'sentinel\n' > home/.claude/scripts/script-ledger.py
+claude_before="$(shasum -a 256 home/.claude/scripts/script-ledger.py)"
+cd fake-repo
+
+roots="$(MSG_AGENTS_HOME="$PWD/../home/.agents" HOME="$PWD/../home" \
+  "$REPO/.agents/scripts/script-codex-resolve.sh" roots)"
+printf '%s\n' "$roots" | head -n 1 | grep -q '\.agents/scripts$' || fail "the repo-local Codex root is not first"
+printf '%s\n' "$roots" | grep -q '\.claude' && fail "a Claude root is consulted without the opt-in"
+echo "RESOLVER_ROOTS codex-only"
+
+# The opt-in makes Claude locations visible, and only as the last read-only resort.
+roots="$(MSG_CODEX_ALLOW_CLAUDE_LEGACY=1 MSG_AGENTS_HOME="$PWD/../home/.agents" HOME="$PWD/../home" \
+  "$REPO/.agents/scripts/script-codex-resolve.sh" roots)"
+printf '%s\n' "$roots" | tail -n 1 | grep -q '\.claude/scripts$' || fail "the legacy root is not last"
+echo "RESOLVER_LEGACY opt-in-last"
+
+cd ..
+[ "$claude_before" = "$(shasum -a 256 home/.claude/scripts/script-ledger.py)" ] \
+  || fail "the sentinel Claude home was modified"
+echo "CLAUDE_HOME_UNTOUCHED"
+assert_claude_untouched

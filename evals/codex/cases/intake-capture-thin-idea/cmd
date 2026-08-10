@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case intake-append-row prop-intake-stamp
+assert_payload_contains intake "backlog"
+assert_gate_state awaiting-answer 0 --id capture-goal --skill intake \
+  --question "What does this need to achieve?" --option "Describe the goal" --option "Skip for now"

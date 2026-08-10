@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains plan-pm "there is no other entry path"
+assert_invocation_translation "Step 1 calls /intake in capture mode" "Step 1 calls \$intake in capture mode"

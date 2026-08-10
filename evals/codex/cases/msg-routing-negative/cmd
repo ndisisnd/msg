@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_gate_state rejected 4 --id msg-route --skill msg \
+  --question "Which mode?" --option "--init" --option "--update" --answer "--deploy"
+assert_gate_state undecided 5 --id msg-route --skill msg \
+  --question "Which mode?" --option "--init" --option "--update" --answer __dismissed__
+assert_payload_contains msg "--init-staging"

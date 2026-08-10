@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case emulate-toolchain-missing emulate-device-unknown emulate-device-none emulate-unknown-flag
+assert_ref_contains emulate refs/protocol.md "exit"

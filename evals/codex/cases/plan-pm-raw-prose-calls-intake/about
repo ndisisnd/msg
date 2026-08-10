@@ -1,0 +1,4 @@
+layer: 2
+assertions: PPM-CX-001, PPM-CX-004
+proves: The intake-only rule survives packaging and the handoff renders in the active runtime's syntax.
+residual: That the model actually calls intake before any PRD scan or write is a trace assertion (layer 3).

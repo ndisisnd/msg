@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-001, EMU-CX-002
+proves: Every canonical flag and trigger survives packaging; the adapter invokes as $emulate and emits no Claude slash handoff; flag-over-file precedence and unknown-flag refusal are byte-identical across packages.
+residual: Whether a model picks emulate from a natural-language 'run the app' prompt is layer 3.

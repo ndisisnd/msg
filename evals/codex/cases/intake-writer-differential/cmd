@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-intake-stamp.sh script-ledger.py
+differential_case intake-append-row intake-set-cell intake-remove-row intake-stamp-status \
+  intake-stamp-column-absent prop-intake-stamp ledger-report-append

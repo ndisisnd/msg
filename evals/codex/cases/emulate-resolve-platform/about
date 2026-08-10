@@ -1,0 +1,3 @@
+layer: 2
+assertions: EMU-CX-002, EMU-CX-003
+proves: The preflight resolver and the PLATFORMS parser are the only platform resolvers, and both packages resolve none/single/multiple/absent identically, including the loud exits.

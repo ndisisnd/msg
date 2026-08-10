@@ -1,0 +1,10 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_gate_state awaiting-answer 0 --id product-decision --skill plan-review \
+  --question "Two acceptance criteria contradict each other." \
+  --option "Keep the first" --option "Keep the second" --option "Rewrite both" --option "Leave open"
+assert_gate_state rejected 4 --id product-decision --skill plan-review \
+  --question "Two acceptance criteria contradict each other." \
+  --option "Keep the first" --option "Leave open" --answer "Invent a third"
+differential_case prop-aha-openq

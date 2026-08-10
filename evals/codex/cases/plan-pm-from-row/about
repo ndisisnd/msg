@@ -1,0 +1,3 @@
+layer: 2
+assertions: PPM-CX-001, PPM-CX-002, PPM-CX-004
+proves: PRD numbering, scanning and shape validation are byte-identical across packages, so a PRD drafted on Codex lands in the same place with the same shape and the same intake stamp.

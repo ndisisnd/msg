@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-prd-number script-prd-scan.sh script-prd-digest.py script-prd-deps-mirror.sh script-prd-shape.py script-prd-update.py script-prd-stamp.sh
+differential_case a14-prd-digest-feature-id-empty a15-prd-digest-feature-not-resolved \
+  a13-deps-mirror-and-spelling a13-deps-mirror-column-unresolved a13-deps-mirror-section-not-found \
+  deps-mirror-idempotent deps-mirror-v54-deps-key prd-shape-v54-stale-findings \
+  prd-shape-v54-todos-umbrella prd-shape-v54-todos-umbrella-empty

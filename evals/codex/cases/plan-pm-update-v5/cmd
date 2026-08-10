@@ -1,0 +1,4 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case prd-update-v5-to-v54 prd-shape-v5-tolerated

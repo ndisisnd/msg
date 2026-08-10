@@ -1,0 +1,4 @@
+layer: 2
+assertions: PRV-CX-001, PRV-CX-002, PRV-CX-003
+proves: Both tunes and their exact check subsets reach Codex unchanged, the adapter invokes as $plan-review, and the path-retry gate keeps its option set.
+residual: Auto-selecting the tune from PRD content, and the two-retry-then-refuse loop, are layer 3.

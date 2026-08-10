@@ -1,0 +1,4 @@
+layer: 2
+assertions: INT-CX-003
+proves: Status stamping is byte-identical across packages, and the lock on in-progress/completed rows reaches Codex in the payload unchanged.
+residual: The refusal to edit a locked row is enforced by the protocol a model follows (layer 3).

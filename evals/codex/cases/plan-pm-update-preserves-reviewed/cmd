@@ -1,0 +1,4 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case prd-update-reviewed-preserved prd-update-style-gate

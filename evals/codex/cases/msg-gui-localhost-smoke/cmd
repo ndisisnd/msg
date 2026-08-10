@@ -1,0 +1,28 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+mkdir -p repo/features repo/devkit && cd repo
+python3 "$REPO/.agents/skills/msg/refs/gui/server.py" --root . --port 0 > server.log 2>&1 &
+pid=$!
+trap 'kill "$pid" 2>/dev/null' EXIT
+for _ in $(seq 1 50); do grep -q '^URL: ' server.log && break; sleep 0.1; done
+url="$(sed -n 's/^URL: //p' server.log | head -n 1)"
+[ -n "$url" ] || fail "the board server never reported a URL"
+case "$url" in http://127.0.0.1:*) ;; *) fail "the board bound something other than loopback: $url" ;; esac
+echo "GUI_BIND loopback-only"
+
+code="$(curl -s -o /dev/null -w '%{http_code}' "${url}api/data")"
+[ "$code" = "403" ] || fail "an untokened API call was not refused (got $code)"
+echo "GUI_TOKEN required"
+
+body="$(curl -s "$url")"
+token="$(printf '%s' "$body" | grep -o 'var TOKEN = "[0-9a-f]*"' | head -n 1 | grep -o '[0-9a-f]\{8,\}')"
+[ -n "$token" ] || fail "the served board carried no token"
+code="$(curl -s -o /dev/null -w '%{http_code}' -H "X-Msg-Token: $token" "${url}api/data")"
+[ "$code" = "200" ] || fail "a tokened API call was refused (got $code)"
+echo "GUI_API tokened-ok"
+
+kill "$pid" 2>/dev/null
+wait "$pid" 2>/dev/null || true
+trap - EXIT
+echo "GUI_SHUTDOWN clean"

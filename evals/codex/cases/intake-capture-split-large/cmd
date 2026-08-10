@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains intake "C:8"
+differential_case intake-append-row intake-set-cell
+assert_gate_state answered 0 --id split-large --skill intake \
+  --question "Grade C:8 — split it?" --option "Split" --option "Keep whole" --answer "Keep whole"

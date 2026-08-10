@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-cert-preflight.sh script-cert-status.sh script-cert-mech.py
+differential_case a01-cert-status-header-unresolved a01-cert-status-open-critical

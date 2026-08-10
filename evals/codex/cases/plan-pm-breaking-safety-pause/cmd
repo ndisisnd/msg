@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains plan-pm "breaking"
+assert_gate_state awaiting-answer 0 --id breaking-change --skill plan-pm \
+  --question "This changes a shipped contract. Continue?" --option "Continue" --option "Stop"
+assert_gate_state undecided 5 --id breaking-change --skill plan-pm \
+  --question "This changes a shipped contract. Continue?" --option "Continue" --option "Stop" --answer __dismissed__

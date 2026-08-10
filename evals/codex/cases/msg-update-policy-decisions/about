@@ -1,0 +1,3 @@
+layer: 2
+assertions: MSG-CX-007
+proves: Policy reads and writes produce identical bytes under both packages, so an update applies exactly the decided state and nothing else.

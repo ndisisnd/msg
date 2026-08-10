@@ -1,0 +1,3 @@
+layer: 2
+assertions: EMU-CX-003, EMU-CX-014, EMU-CX-018
+proves: Every loud failure keeps its exact exit code, cause and fix text under the Codex package, and none of them is logged as a harness incident.

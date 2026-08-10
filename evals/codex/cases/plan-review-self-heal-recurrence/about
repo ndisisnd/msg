@@ -1,0 +1,3 @@
+layer: 4
+assertions: PRV-CX-013, PRV-CX-020
+proves: The AHA self-healing writer counts recurrence and rejects oversize entries identically across packages, and never edits a protocol.

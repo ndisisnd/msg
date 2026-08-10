@@ -1,0 +1,4 @@
+layer: 2
+assertions: INT-CX-002, INT-CX-007
+proves: The re-grade path writes through the same helper with the same update-log behaviour under both packages.
+residual: Deciding whether an edit is material is a model judgement (layer 3).

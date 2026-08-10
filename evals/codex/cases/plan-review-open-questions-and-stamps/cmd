@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-openq.sh script-prd-stamp.sh
+differential_case prop-aha-openq prop-prd-stamp

@@ -1,0 +1,3 @@
+layer: 4
+assertions: MSG-CX-007
+proves: Branch topology, protection reads and branch resolution are byte-identical across packages, so the staging flow flip resolves the same way either way.

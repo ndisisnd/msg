@@ -1,0 +1,3 @@
+layer: 0
+assertions: INT-CX-006
+proves: All five canonical intake files are mirrored byte-for-byte, mapped exactly once, and regeneration is idempotent.

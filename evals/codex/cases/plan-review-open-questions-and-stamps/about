@@ -1,0 +1,3 @@
+layer: 4
+assertions: PRV-CX-014, PRV-CX-015
+proves: Open-question normalization and the certification stamp write the same bytes under both packages, including the legacy frontmatter shape.

@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-doctor-tally.sh script-doctor-log.sh script-doctor-detect.sh
+differential_case doctor-tally-triage doctor-tally-unparsed doctor-log-append doctor-log-reject-enum prop-doctor-log a18-tally-shifted-ok
+assert_payload_contains msg "never fixes"

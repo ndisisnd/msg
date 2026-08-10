@@ -1,0 +1,10 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-emulate-sweep.sh
+mkdir -p repo && cd repo && git init -q .
+before="$(snapshot_tree .)"
+differential_helper script-emulate-sweep.sh -- --platform android --runner expo --port 8199 --dry-run
+differential_helper script-emulate-sweep.sh -- --platform ios --runner native --port 8081 --dry-run
+assert_tree_unchanged . "$before"
+assert_claude_untouched

@@ -1,0 +1,33 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+printf '# Project rules\n\nCanonical instructions.\n' > CLAUDE.md
+"$REPO/.agents/scripts/script-codex-agents-md.sh" . | grep -q '^AGENTS_MD=created$' || fail "AGENTS.md was not created"
+grep -q 'CLAUDE.md' AGENTS.md || fail "AGENTS.md does not point at CLAUDE.md"
+[ "$(wc -l < AGENTS.md)" -lt 30 ] || fail "AGENTS.md is not a thin pointer"
+grep -q 'Project rules' AGENTS.md && fail "AGENTS.md duplicates the instructions instead of pointing at them"
+"$REPO/.agents/scripts/script-codex-agents-md.sh" . | grep -q '^AGENTS_MD=current$' || fail "second run was not idempotent"
+echo "CODEX_PROJECT_INIT pointer-created-and-idempotent"
+cmp -s "$REPO/.claude/skills/msg/refs/init/templates/template-CLAUDE.md" \
+       "$REPO/.agents/skills/msg/refs/init/templates/template-CLAUDE.md" \
+  || fail "the CLAUDE.md template is not mirrored byte-for-byte"
+echo "TEMPLATE_MIRRORED template-CLAUDE.md"
+
+# Layer 3 extension (opt-in: run.sh --layer3). A live Codex session running the
+# Codex-side project init must produce the same pointer this case asserts above,
+# and must not touch the canonical CLAUDE.md.
+. "$LIB/codex-session.sh"
+if codex_session_available; then
+  work="$(codex_workspace)"
+  printf '# Project rules\n\nCanonical instructions.\n' > "$work/repo/CLAUDE.md"
+  claude_md_before="$(shasum -a 256 "$work/repo/CLAUDE.md" | cut -d' ' -f1)"
+  codex_trace "$work" workspace-write \
+    "Run ./.agents/scripts/script-codex-agents-md.sh . and report the single line it prints. Do nothing else." \
+    > "$work/trace.txt"
+  [ -f "$work/repo/AGENTS.md" ] || fail "layer 3: the Codex session did not create AGENTS.md"
+  grep -q 'CLAUDE.md' "$work/repo/AGENTS.md" || fail "layer 3: AGENTS.md is not a pointer"
+  [ "$claude_md_before" = "$(shasum -a 256 "$work/repo/CLAUDE.md" | cut -d' ' -f1)" ] \
+    || fail "layer 3: the canonical CLAUDE.md was modified"
+  echo "LAYER3 codex-session-created-pointer canonical-untouched"
+  rm -rf "$work"
+fi

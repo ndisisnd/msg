@@ -1,0 +1,3 @@
+layer: 0
+assertions: PRV-CX-004, PRV-CX-005, PRV-CX-008, PRV-CX-009, PRV-CX-015, PRV-CX-019, PRV-CX-020
+proves: The whole plan-review closure — scoped files, twelve deterministic helpers and its shared references — is mirrored byte-for-byte and mapped.

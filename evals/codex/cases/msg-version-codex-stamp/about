@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-002, MSG-CX-005
+proves: Asset resolution reads Codex roots only. A Claude home is never consulted without the explicit opt-in, and is never written — proven against a sentinel Claude home.
+residual: The installed VERSION stamp itself ships with install-codex.sh in phase 5.

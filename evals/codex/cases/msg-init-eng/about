@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-003, MSG-CX-007
+proves: Every init template and the policy writer behave identically under the Codex package, so a Codex bootstrap produces the same devkit artifacts.
+residual: Stack detection and the engineer interview are model work (layer 3).

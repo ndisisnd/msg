@@ -1,0 +1,21 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+canonical="$REPO/.claude/skills/msg/refs/gui/index.html"
+mirror="$REPO/.agents/skills/msg/refs/gui/index.html"
+variant="$REPO/.agents/skills/msg/refs/gui/codex/index.html"
+
+cmp -s "$canonical" "$mirror" || fail "the mirrored Claude board is not byte-identical"
+echo "CLAUDE_BOARD_UNCHANGED"
+
+sed 's/Claude/Codex/g' "$canonical" | "$REPO/.agents/scripts/script-codex-invoke.sh" translate > expected.html
+cmp -s expected.html "$variant" || fail "the Codex board differs from its declared derivation"
+echo "CODEX_BOARD_DERIVED declared-substitutions-only"
+
+grep -q '\$plan-pm' "$variant" || fail "the Codex board still offers Claude invocation syntax"
+grep -qE '(^|[^A-Za-z0-9_/.$-])/plan-pm' "$variant" && fail "a Claude slash quick action survived in the Codex board"
+grep -q 'codex exec' "$REPO/codex/gui-codex-copy.json" || fail "no Codex prompt runner is declared"
+grep -q '\-\-runner' "$REPO/.agents/skills/msg/refs/gui/server.py" || fail "the server has no runner seam"
+cmp -s "$REPO/.claude/skills/msg/refs/gui/styles.css" "$REPO/.agents/skills/msg/refs/gui/codex/styles.css" \
+  || fail "the Codex board styles are not the canonical styles"
+echo "CODEX_RUNNER declared"

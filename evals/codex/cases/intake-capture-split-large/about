@@ -1,0 +1,4 @@
+layer: 2
+assertions: INT-CX-002, INT-CX-008
+proves: The C:8 split gate and the no-numeric-estimate rule survive packaging, and both split and keep-whole branches use the same writer.
+residual: Assigning the grade itself is a model judgement (layer 3).

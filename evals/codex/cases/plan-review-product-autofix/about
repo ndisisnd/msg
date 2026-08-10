@@ -1,0 +1,4 @@
+layer: 2
+assertions: PRV-CX-006, PRV-CX-007, PRV-CX-010, PRV-CX-013, PRV-CX-018
+proves: The mechanical certifier and the AHA writer behave identically across packages, so auto-fixed Criticals and Majors leave the same ledger and the same learning.
+residual: Grading a finding's severity and writing the fix are model work (layer 3).

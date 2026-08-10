@@ -1,0 +1,13 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_skill_files_mirrored msg
+assert_map_covers_skill msg
+assert_payload_identical msg
+assert_adapter_contract msg
+( cd "$REPO" && python3 codex/script-build-codex-skills.py --check )
+echo "GENERATION_IDEMPOTENT msg"
+count="$(cd "$REPO" && git ls-files .claude/skills/msg | wc -l | tr -d ' ')"
+[ "$count" = "29" ] || fail "msg canonical file count drifted: $count"
+echo "CANONICAL_FILES msg=$count"
+assert_claude_untouched

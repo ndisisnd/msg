@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+printf '# rules\n' > CLAUDE.md
+before="$(snapshot_tree .)"
+"$REPO/.agents/scripts/script-codex-agents-md.sh" . --check | grep -q '^AGENTS_MD=would-create$' || fail "--check did not report the pending create"
+assert_tree_unchanged . "$before"
+differential_helper script-doctor-detect.sh

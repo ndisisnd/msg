@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains msg "--init" "--init-staging" "--update" "--gui" "--doctor" "--aha" "--version" "--help"
+assert_payload_contains msg "--cto" "--eng"
+assert_invocation_translation "Run /plan-pm to draft the PRD, then /plan-em" "Run \$plan-pm to draft the PRD, then \$plan-em"

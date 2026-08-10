@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-001, MSG-CX-007
+proves: An unrecognised choice is refused rather than silently mapped to a mode: the gate binding never widens its option set, and never invents a default.
+residual: The refusal wording for an unknown flag is model output (layer 3).

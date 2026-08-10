@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-ledger.py
+differential_case ledger-report-append ledger-legacy-section-kept a11-ledger-no-section-creates-report \
+  a11-ledger-section-title-drift a10-ledger-numbering-unparsable

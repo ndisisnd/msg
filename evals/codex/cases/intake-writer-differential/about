@@ -1,0 +1,3 @@
+layer: 4
+assertions: INT-CX-001, INT-CX-005, INT-CX-007
+proves: Every existing intake writer fixture produces identical stdout, exit codes and artifact bytes under the Claude and Codex packages.

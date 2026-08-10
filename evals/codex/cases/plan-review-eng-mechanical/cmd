@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-eng-plan-shape.py script-em-exec-collision.py script-em-exec-skeleton.py
+differential_case a22-plan-shape-exec-columns-unresolved a22-plan-shape-short-exec-row \
+  plan-shape-v54-medium plan-shape-v54-large-legacy plan-shape-v54-shape-skip plan-shape-v54-unknown-section \
+  exec-collision-legacy-5col exec-collision-v54-3col a21-exec-collision-no-files-column \
+  a08-exec-skeleton-refusing-overwrite exec-skeleton-v54-3col exec-files-derive exec-files-derive-missing-tickets

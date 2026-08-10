@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-009, EMU-CX-010, EMU-CX-011, EMU-CX-012, EMU-CX-013, EMU-CX-017
+proves: The native iOS recipe reaches Codex byte-identically: the same command, the same ready signal, the same window raise and the same background-persistence requirement.
+residual: Launching native iOS for real under Codex (window raise, PID/log validity, post-turn lifetime) is layer 3 and gated on DEV-CX-015/016 proof.

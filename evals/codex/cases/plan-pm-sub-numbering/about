@@ -1,0 +1,3 @@
+layer: 2
+assertions: PPM-CX-001, PPM-CX-002, PPM-CX-008
+proves: Sub-PRD numbering comes from the same helper under both packages, including the collision path.

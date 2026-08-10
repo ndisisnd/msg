@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_adapter_contract plan-review
+assert_payload_identical plan-review
+assert_payload_contains plan-review "--product" "--eng" "1, 2, 3, 6"
+assert_gate_state awaiting-answer 0 --id resolve-prd --skill plan-review \
+  --question "Which PRD should I certify?" --option "Pick from the list" --option "Give a path"

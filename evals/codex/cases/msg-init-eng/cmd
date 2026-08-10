@@ -1,0 +1,9 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-policy-set.py script-policy-read.py script-doctor-detect.sh
+for template in "$REPO"/.claude/skills/msg/refs/init/templates/*; do
+  name="$(basename "$template")"
+  cmp -s "$template" "$REPO/.agents/skills/msg/refs/init/templates/$name" || fail "template differs: $name"
+  echo "TEMPLATE_MIRRORED $name"
+done

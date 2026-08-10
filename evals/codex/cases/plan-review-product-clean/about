@@ -1,0 +1,4 @@
+layer: 2
+assertions: PRV-CX-003, PRV-CX-004, PRV-CX-005, PRV-CX-006, PRV-CX-007, PRV-CX-008, PRV-CX-009, PRV-CX-014, PRV-CX-015, PRV-CX-016, PRV-CX-017
+proves: Certification preflight and status reading are byte-identical across packages, so a clean PRD produces the same stamp and the same terminal either way.
+residual: Running the seven checks themselves is model work (layer 3).

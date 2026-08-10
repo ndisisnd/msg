@@ -1,0 +1,3 @@
+layer: 2
+assertions: MSG-CX-008
+proves: The Codex-package board server boots, binds loopback only, refuses an untokened API call and serves the board with its token — then exits without leaving state behind.

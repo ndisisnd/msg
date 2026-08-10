@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-016
+proves: Running the Codex-package emulate helpers leaves the tracked working tree byte-identical, and never writes into the Claude installation.
+residual: The .emulate/ log-vs-$TMPDIR fallback only materialises during a real launch (layer 3); AMB-CX-007 already fixes the contract it must follow.

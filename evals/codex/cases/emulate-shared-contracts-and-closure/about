@@ -1,0 +1,3 @@
+layer: 2
+assertions: EMU-CX-003, EMU-CX-007, EMU-CX-015, EMU-CX-016, EMU-CX-017, EMU-CX-018
+proves: The whole emulate closure — three scoped files, four deterministic helpers and every shared reference it reaches — is mirrored byte-for-byte and mapped.

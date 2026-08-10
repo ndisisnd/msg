@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+mkdir -p repo && cd repo && git init -q . && printf 'x\n' > file.txt
+before="$(snapshot_tree .)"
+differential_helper script-emulate-sweep.sh -- --platform android --runner expo --port 8199 --dry-run --cold-boot --device-id Pixel_7_API_34
+assert_tree_unchanged . "$before"

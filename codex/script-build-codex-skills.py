@@ -48,9 +48,26 @@ SHARED = "shared"
 EXPECTED_SKILL_COUNT = 9
 
 ADAPTER_TEMPLATE = "codex/adapter-template.md"
-RESOLVER_TEMPLATE = "codex/resolver-template.sh"
-RESOLVER_OUTPUT = f"{CODEX_SCRIPT_ROOT}/script-codex-resolve.sh"
 MANIFEST = "codex/generation-manifest.json"
+
+# Codex-native runtime helpers: hand-authored under codex/, emitted verbatim into
+# the Codex script root so a repo-local Codex session finds them beside the
+# mirrored canonical helpers. Each one implements a decided DEV-CX record.
+CODEX_NATIVE_SCRIPTS = {
+    "codex/resolver-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-resolve.sh",
+    "codex/agents-md-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-agents-md.sh",
+    "codex/gate-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-gate.sh",
+    "codex/invoke-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-invoke.sh",
+}
+
+# GUI runtime variant (DEV-CX-014). The mirrored board stays byte-identical to the
+# canonical one; the Codex variant is generated beside it from the same source by
+# invocation-token translation plus the declared copy substitutions, so the two can
+# never drift apart by hand.
+GUI_SOURCE_DIR = f"{CANONICAL_SKILL_ROOT}/msg/refs/gui"
+GUI_VARIANT_DIR = f"{CODEX_SKILL_ROOT}/msg/refs/gui/codex"
+GUI_COPY_MAP = "codex/gui-codex-copy.json"
+GUI_VARIANT_FILES = ("index.html", "styles.css")
 
 CANONICAL_PAYLOAD_NAME = "CLAUDE-SKILL.md"
 ADAPTER_NAME = "SKILL.md"
@@ -252,6 +269,37 @@ def build_metadata(
     return "\n".join(lines).encode()
 
 
+def build_gui_variant(pattern: re.Pattern[str]) -> dict[str, Output]:
+    """Generate the Codex board variant (DEV-CX-014).
+
+    `styles.css` is copied byte-for-byte; `index.html` gets exactly two classes of
+    change: the mechanical `/skill` to `$skill` invocation translation, and the
+    copy substitutions declared in `codex/gui-codex-copy.json`. A declared
+    substitution that no longer matches its source is a hard failure — the
+    difference list may never silently go stale.
+    """
+    copy_map = json.loads((REPO / GUI_COPY_MAP).read_text())
+    outputs: dict[str, Output] = {}
+
+    for name in GUI_VARIANT_FILES:
+        source = f"{GUI_SOURCE_DIR}/{name}"
+        data, mode = read_source(source)
+        if name.endswith(".html"):
+            text = data.decode()
+            for rule in copy_map["substitutions"]:
+                found = text.count(rule["from"])
+                minimum = int(rule.get("min_occurrences", 1))
+                if found < minimum:
+                    raise SystemExit(
+                        f"{GUI_COPY_MAP}: substitution {rule['from']!r} matched {found} times, "
+                        f"expected at least {minimum}"
+                    )
+                text = text.replace(rule["from"], rule["to"])
+            data = to_codex_invocation(text, pattern).encode()
+        outputs[f"{GUI_VARIANT_DIR}/{name}"] = Output(data, mode, source, "codex-native")
+    return outputs
+
+
 def collect_outputs(skills: list[str]) -> dict[str, Output]:
     outputs: dict[str, Output] = {}
     pattern = invocation_pattern(skills)
@@ -297,8 +345,12 @@ def collect_outputs(skills: list[str]) -> dict[str, Output]:
         destination = f"{CODEX_SCRIPT_ROOT}/{path[len(CANONICAL_SCRIPT_ROOT) + 1 :]}"
         outputs[destination] = Output(data, mode, path, "canonical-copy")
 
-    resolver, _ = read_source(RESOLVER_TEMPLATE)
-    outputs[RESOLVER_OUTPUT] = Output(resolver, 0o755, RESOLVER_TEMPLATE, "codex-native")
+    for source, destination in sorted(CODEX_NATIVE_SCRIPTS.items()):
+        data, _ = read_source(source)
+        outputs[destination] = Output(data, 0o755, source, "codex-native")
+
+    for destination, output in build_gui_variant(pattern).items():
+        outputs[destination] = output
 
     for destination in outputs:
         if is_protected(destination):

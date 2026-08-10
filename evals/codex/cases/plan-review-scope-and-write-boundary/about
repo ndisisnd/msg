@@ -1,0 +1,3 @@
+layer: 2
+assertions: PRV-CX-010, PRV-CX-017, PRV-CX-018
+proves: Running the Codex-package certification helpers writes nothing outside their declared artifact, and touches no Claude file.

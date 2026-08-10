@@ -1,0 +1,18 @@
+{
+  "purpose": "Declared, exhaustive difference list for the Codex variant of the msg GUI (DEV-CX-014, approved-translation). The Claude board stays byte-identical to the canonical one; the Codex variant differs from it by exactly the substitutions below plus mechanical invocation-token translation (DEV-CX-001). Anything else is drift and fails the eval.",
+  "canonical_source": ".claude/skills/msg/refs/gui/index.html",
+  "generated_variant": ".agents/skills/msg/refs/gui/codex/index.html",
+  "runner": {
+    "claude": "claude -p {prompt} --permission-mode acceptEdits",
+    "codex": "codex exec {prompt} --sandbox workspace-write --skip-git-repo-check"
+  },
+  "launch": "python3 .agents/skills/msg/refs/gui/server.py --root <repo> --gui-dir .agents/skills/msg/refs/gui/codex --runner 'codex exec {prompt} --sandbox workspace-write --skip-git-repo-check'",
+  "substitutions": [
+    {
+      "from": "Claude",
+      "to": "Codex",
+      "min_occurrences": 7,
+      "why": "Every occurrence is the console naming the active runtime in visible copy: the prompt placeholder and the six ask/fix quick-action buttons. The board names the runtime the user is actually talking to."
+    }
+  ]
+}

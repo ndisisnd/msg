@@ -1,0 +1,13 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case intake-remove-row
+assert_payload_contains intake "never renumbers"
+
+# The no-renumber guarantee, on real bytes: remove #2, and #1 and #3 keep their numbers.
+printf '| # | date | type | idea | goal | grade | status | prd |\n|---|---|---|---|---|---|---|---|\n| 1 | 2026-01-01 | feature | a | g | C:2 T:2 S:now | backlog | - |\n| 2 | 2026-01-02 | feature | b | g | C:2 T:2 S:now | backlog | - |\n| 3 | 2026-01-03 | feature | c | g | C:2 T:2 S:now | backlog | - |\n' > INTAKE.md
+"$REPO/.agents/scripts/script-intake-stamp.sh" INTAKE.md 2 --remove-row --date 2026-01-15 >/dev/null
+grep -q '^| 1 |' INTAKE.md || fail "row #1 was renumbered or removed"
+grep -q '^| 3 |' INTAKE.md || fail "row #3 was renumbered or removed"
+grep -q '^| 2 |' INTAKE.md && fail "row #2 was not removed"
+echo "NO_RENUMBER ok gap-preserved"

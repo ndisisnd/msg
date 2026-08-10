@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "phase": "phase-2-leaf-and-document-skills",
+  "scope": ["emulate", "intake", "plan-pm", "plan-review", "msg"],
+  "runtime_contract": ".agents/skills/shared/refs/codex-runtime.md",
+  "bindings": [
+    {
+      "concern": "invocation",
+      "deviation": "DEV-CX-001",
+      "implementation": ".agents/scripts/script-codex-invoke.sh",
+      "source": "codex/invoke-template.sh",
+      "what_it_does": "Translates active-runtime invocation tokens only: /skill becomes $skill, while flags, paths, branch names and prose are untouched. Canonical payloads are never rewritten.",
+      "proved_by": ["emulate-routing-and-flags", "msg-routing-default", "msg-routing-help", "plan-pm-raw-prose-calls-intake", "msg-gui-runtime-translation"]
+    },
+    {
+      "concern": "script and asset resolution",
+      "deviation": "DEV-CX-002",
+      "implementation": ".agents/scripts/script-codex-resolve.sh",
+      "source": "codex/resolver-template.sh",
+      "what_it_does": "Resolves helpers, skills and shared refs from Codex roots first, Codex home second, and Claude locations only as read-only migration inputs behind MSG_CODEX_ALLOW_CLAUDE_LEGACY=1.",
+      "proved_by": ["msg-version-codex-stamp"]
+    },
+    {
+      "concern": "human gates (AskUserQuestion binding)",
+      "deviation": "DEV-CX-003, DEV-CX-011",
+      "implementation": ".agents/scripts/script-codex-gate.sh",
+      "source": "codex/gate-template.sh",
+      "what_it_does": "Turns a canonical gate into a structured envelope with its exact decision, option set, default, owner and resume point. Answers outside the option set are rejected (exit 4), dismissal without a default is undecided (exit 5), and a surface that cannot hold the run blocks (exit 3) rather than degrading.",
+      "proved_by": ["emulate-platform-and-device-questions", "emulate-process-lifetime-and-window", "intake-capture-thin-idea", "intake-capture-split-hybrid", "intake-capture-split-large", "intake-delete-warning-cancel", "plan-pm-open-question-pause", "plan-pm-breaking-safety-pause", "plan-review-routing-and-paths", "plan-review-product-decision-pause", "plan-review-minor-choice", "msg-routing-negative"]
+    },
+    {
+      "concern": "Codex project initialization",
+      "deviation": "DEV-CX-004",
+      "implementation": ".agents/scripts/script-codex-agents-md.sh",
+      "source": "codex/agents-md-template.sh",
+      "what_it_does": "Writes AGENTS.md as a thin pointer to the canonical CLAUDE.md, idempotently. A human-authored AGENTS.md is never overwritten: the run stops with a conflict (exit 3), as decided for DEV-CX-004.",
+      "proved_by": ["msg-init-cto", "msg-init-eng", "msg-init-top-up", "msg-update-idempotent"]
+    },
+    {
+      "concern": "GUI runner and quick actions",
+      "deviation": "DEV-CX-014",
+      "implementation": ".agents/skills/msg/refs/gui/codex/",
+      "source": "codex/gui-codex-copy.json",
+      "what_it_does": "Generates a Codex board variant beside the byte-identical Claude board. The variant differs by exactly the declared copy substitutions plus invocation translation, and is served through server.py's existing --gui-dir/--runner seams, so the Claude experience keeps its bytes and its default runner.",
+      "proved_by": ["msg-gui-runtime-translation", "msg-gui-localhost-smoke"]
+    },
+    {
+      "concern": "deterministic helper parity",
+      "deviation": "CX-G006",
+      "implementation": ".agents/scripts/ (67 byte-identical canonical helpers)",
+      "source": ".claude/scripts/",
+      "what_it_does": "Both runtimes execute the same helper implementations, so every machine emission stays byte-identical. The differential harness reruns real Claude eval fixtures against the Codex package and compares stdout, exit codes and artifact bytes.",
+      "proved_by": ["intake-writer-differential", "plan-pm-helper-differential", "plan-review-eng-mechanical", "plan-review-ledger-current-and-legacy", "msg-helper-differential", "msg-doctor-read-only", "msg-aha-ledger-only", "msg-init-staging-direct-project", "plan-pm-update-v5", "plan-pm-update-idempotent", "plan-pm-update-preserves-reviewed", "plan-review-open-questions-and-stamps", "plan-review-self-heal-recurrence"]
+    }
+  ],
+  "evals": {
+    "runner": "evals/codex/run.sh",
+    "cases": 64,
+    "layers": {
+      "0": "static discovery and packaging",
+      "2": "adapter contract, runtime bindings and write boundaries",
+      "3": "live Codex session (opt-in: run.sh --layer3)",
+      "4": "differential artifact parity against the existing Claude fixtures"
+    },
+    "layer3_verified": [
+      "emulate-routing-and-flags: an isolated live Codex session discovers exactly the nine msg skills from .agents/skills and leaves a read-only workspace byte-identical",
+      "msg-init-cto: a live Codex session runs the Codex project init, creating the AGENTS.md pointer without modifying the canonical CLAUDE.md"
+    ]
+  },
+  "honesty": {
+    "runtime_proof_coverage": "not-run",
+    "why": "Layers 0/2/4 run offline and prove packaging, runtime bindings, write boundaries and deterministic artifact parity for real. They do not prove that a model driving the adapter reproduces every canonical judgement — interviews, gradings, severity calls, routing choices and launch traces. 29 of the 64 cases therefore carry an explicit `residual:` line naming what is still unproven, and the runner reports runtime proof as not-run until the layer 3 suite is executed in full."
+  }
+}

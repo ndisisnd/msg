@@ -1,0 +1,11 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+printf '| # | date | type | idea | goal | grade | status | prd |\n|---|---|---|---|---|---|---|---|\n| 1 | 2026-01-01 | feature | a | g | C:2 T:2 S:now | backlog | - |\n' > INTAKE.md
+before="$(snapshot_tree .)"
+assert_gate_state awaiting-answer 0 --id delete-confirm --skill intake \
+  --question "Delete row #1? It is referenced by no other row." --option "Delete" --option "Cancel"
+assert_gate_state answered 0 --id delete-confirm --skill intake \
+  --question "Delete row #1?" --option "Delete" --option "Cancel" --answer "Cancel"
+assert_tree_unchanged . "$before"
+assert_payload_contains intake "takes an explicit confirm"

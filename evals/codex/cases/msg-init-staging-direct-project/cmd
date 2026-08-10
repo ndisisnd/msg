@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-branch-topology.sh script-branch-protection.sh script-em-branch-resolve.sh
+differential_case a02-branch-protection-no-contexts a02-branch-protection-prod-branch a25-branch-resolve-main-behind-remote

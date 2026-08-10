@@ -1,0 +1,3 @@
+layer: 2
+assertions: EMU-CX-005, EMU-CX-014
+proves: A declared emulate_cmd beats every recipe, a placeholder collapses to absent, and an unresolved recipe stops loudly — identically under both packages.

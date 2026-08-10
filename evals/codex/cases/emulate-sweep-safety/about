@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-006, EMU-CX-007, EMU-CX-008, EMU-CX-016
+proves: The sweep helper is byte-identical between packages, so its allowlist, repo attribution, TERM-before-KILL ladder and cold-boot rule cannot diverge; running it from the Codex package discovers the same candidates and changes nothing.
+residual: Killing a live decoy process is covered by the Claude suite's emulate-sweep-scope case; repeating it here would add OS-process flakiness, not parity evidence.

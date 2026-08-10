@@ -1,0 +1,4 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case ledger-legacy-section-kept a10-ledger-numbering-unparsable a11-ledger-no-section-creates-report

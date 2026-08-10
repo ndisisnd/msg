@@ -1,0 +1,3 @@
+layer: 2
+assertions: INT-CX-004
+proves: Cancelling a delete leaves the ledger byte-identical, and the gate binding proves the confirm is a real halt with a declared option set — never an assumed yes.

@@ -1,0 +1,4 @@
+layer: 2
+assertions: PPM-CX-003, PPM-CX-007
+proves: The open-question pause binds to a Codex gate that batches its decisions, keeps its option set and resumes at the same point; skipped answers stay open rather than being guessed.
+residual: Which facts become open questions is a model judgement (layer 3).

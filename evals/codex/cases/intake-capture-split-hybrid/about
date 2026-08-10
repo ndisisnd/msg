@@ -1,0 +1,4 @@
+layer: 2
+assertions: INT-CX-001, INT-CX-008
+proves: The hybrid-split rule reaches Codex unchanged, and each accepted idea is written by the same writer, producing byte-identical rows.
+residual: Detecting that an idea is a hybrid is a model judgement (layer 3).

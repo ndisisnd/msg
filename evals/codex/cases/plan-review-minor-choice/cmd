@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_gate_state awaiting-answer 0 --id minor-findings --skill plan-review \
+  --question "Three Minor findings. Fix them?" --option "Fix all three" --option "Leave them"
+assert_gate_state answered 0 --id minor-findings --skill plan-review \
+  --question "Three Minor findings. Fix them?" --option "Fix all three" --option "Leave them" --answer "Leave them"

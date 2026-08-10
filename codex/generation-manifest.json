@@ -15,11 +15,11 @@
   ],
   "counts": {
     "skills": 9,
-    "generated_files": 219,
+    "generated_files": 224,
     "adapters": 9,
     "metadata": 9,
     "canonical_copies": 200,
-    "codex_native": 1
+    "codex_native": 6
   },
   "protected": [
     ".agents/skills/shared/refs/codex-runtime.md",
@@ -112,6 +112,27 @@
       "source": ".claude/scripts/script-ci-status.py",
       "mode": "755",
       "sha256": "82d3fc4697e3cde6e96c8076f138b013e3e985e6081b2d5c6d4b16ceb381227c"
+    },
+    {
+      "path": ".agents/scripts/script-codex-agents-md.sh",
+      "kind": "codex-native",
+      "source": "codex/agents-md-template.sh",
+      "mode": "755",
+      "sha256": "7e823cf57df971575b49806b7d80e9f014de55c48920ee75d229b15e44d0b433"
+    },
+    {
+      "path": ".agents/scripts/script-codex-gate.sh",
+      "kind": "codex-native",
+      "source": "codex/gate-template.sh",
+      "mode": "755",
+      "sha256": "7abb7f589513304b0049b9176c9c19b6696c0b3b63d6ff22516d942988cf9d04"
+    },
+    {
+      "path": ".agents/scripts/script-codex-invoke.sh",
+      "kind": "codex-native",
+      "source": "codex/invoke-template.sh",
+      "mode": "755",
+      "sha256": "9e1cfc134fae68d72edb1e4d3f8efdea03ae2117cdd9a6d44d09d8c8488f67e0"
     },
     {
       "path": ".agents/scripts/script-codex-resolve.sh",
@@ -805,6 +826,20 @@
       "source": ".claude/skills/msg/SKILL.md",
       "mode": "644",
       "sha256": "d2662aa0ec51450e78d26da36d75f00ce4e5711a24b054359151788ce219d586"
+    },
+    {
+      "path": ".agents/skills/msg/refs/gui/codex/index.html",
+      "kind": "codex-native",
+      "source": ".claude/skills/msg/refs/gui/index.html",
+      "mode": "644",
+      "sha256": "ded9568f9f7ba1245b4f70d98285970b6ac4204f0bca49c0a94478e0260001ec"
+    },
+    {
+      "path": ".agents/skills/msg/refs/gui/codex/styles.css",
+      "kind": "codex-native",
+      "source": ".claude/skills/msg/refs/gui/styles.css",
+      "mode": "644",
+      "sha256": "c380b5228ab374305244051818adf8cd50c55827bc5088f46a7e149ab929390e"
     },
     {
       "path": ".agents/skills/msg/refs/gui/fill-static.py",

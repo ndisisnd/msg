@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains plan-review "2/4/5/6/7"
+assert_skill_files_mirrored plan-review

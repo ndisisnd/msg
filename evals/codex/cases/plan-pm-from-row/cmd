@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-prd-number script-prd-scan.sh script-prd-shape.py script-prd-stamp.sh script-intake-stamp.sh
+differential_case a09-prd-number-collision a16-prd-scan-title-anchored prd-shape-v54-clean prop-prd-stamp
+assert_payload_contains plan-pm "there is no other entry path"

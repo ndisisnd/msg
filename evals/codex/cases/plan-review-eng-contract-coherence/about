@@ -1,0 +1,4 @@
+layer: 2
+assertions: PRV-CX-004, PRV-CX-006, PRV-CX-007, PRV-CX-010, PRV-CX-018
+proves: Check 7 and the eng-only write boundary reach Codex unchanged in the payload and its protocol.
+residual: Detecting that two agent sections disagree is model work (layer 3).

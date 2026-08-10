@@ -1,0 +1,3 @@
+layer: 2
+assertions: MSG-CX-001, MSG-CX-002
+proves: The help picker can name all nine skills in Codex syntax, and the adapter itself never emits a Claude slash command.

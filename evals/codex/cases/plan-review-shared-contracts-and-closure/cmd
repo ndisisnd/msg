@@ -1,0 +1,12 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_skill_files_mirrored plan-review
+assert_map_covers_skill plan-review
+assert_payload_identical plan-review
+assert_adapter_contract plan-review
+( cd "$REPO" && python3 codex/script-build-codex-skills.py --check )
+echo "GENERATION_IDEMPOTENT plan-review"
+assert_helper_mirrored script-cert-preflight.sh script-cert-status.sh script-cert-mech.py \
+  script-prd-shape.py script-prd-digest.py script-prd-stamp.sh script-ledger.py script-openq.sh \
+  script-aha.sh script-eng-plan-shape.py script-em-exec-collision.py script-doctor-log.sh

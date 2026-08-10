@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-001, MSG-CX-008
+proves: The Claude board stays byte-identical to the canonical one, and the Codex variant differs from it by exactly the declared copy substitutions plus invocation translation — no hand-edited third copy, no drift.
+residual: Submitting a prompt through the Codex runner end to end is layer 3.

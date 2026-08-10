@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case doctor-log-append doctor-log-reject-enum doctor-tally-triage doctor-tally-unparsed \
+  a18-tally-shifted-ok aha-list aha-append-reject-oversize ledger-report-append \
+  a23-ci-status-resolved-via-global a02-branch-protection-no-contexts

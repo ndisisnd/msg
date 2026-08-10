@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case a06-cert-mech-no-prds-matched a07-cert-mech-id-column-unresolved a21-cert-mech-skip-collisions \
+  aha-append-reject-oversize

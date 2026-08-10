@@ -1,0 +1,3 @@
+layer: 4
+assertions: PRV-CX-008, PRV-CX-009, PRV-CX-017
+proves: The findings ledger — absent, existing, legacy inline, repeated and malformed — converges identically under both packages.

@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains emulate refs/runners.md "run_in_background" "open -a Simulator"
+MSG_CODEX_QUESTION_SURFACE=none assert_gate_state blocked 3 --id gui-approval --skill emulate \
+  --question "Approve launching the Simulator?" --option Approve --option Cancel

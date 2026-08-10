@@ -1,0 +1,3 @@
+layer: 4
+assertions: PPM-CX-005, PPM-CX-007
+proves: The legacy PRD migration produces identical bytes — moved report, frontmatter and sections — under both packages.

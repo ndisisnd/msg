@@ -1,0 +1,9 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+names="$("$REPO/.agents/scripts/script-codex-invoke.sh" names | tr '\n' ' ')"
+for skill in msg intake plan-pm plan-review plan-em eng pre-merge merge emulate; do
+  case " $names " in *" $skill "*) ;; *) fail "help picker cannot name $skill" ;; esac
+  assert_adapter_contract "$skill"
+done
+assert_invocation_translation "/msg --help lists /intake and /merge" "\$msg --help lists \$intake and \$merge"

@@ -1,0 +1,11 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_skill_files_mirrored emulate
+assert_map_covers_skill emulate
+assert_helper_mirrored script-emulate-preflight.sh script-emulate-sweep.sh script-platforms-parse.py script-doctor-log.sh
+for ref in safety-floor.md closing-message.md doctor-logging.md; do
+  cmp -s "$REPO/.claude/skills/shared/refs/$ref" "$REPO/.agents/skills/shared/refs/$ref" \
+    || fail "shared ref differs: $ref"
+  echo "SHARED_REF_MIRRORED $ref"
+done

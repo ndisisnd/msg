@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-003, MSG-CX-007
+proves: Codex project initialization writes AGENTS.md as a thin pointer to the canonical CLAUDE.md, is idempotent, and the canonical init templates reach Codex byte-identically.
+residual: The CTO interview and its recommendation branches are model work (layer 3).

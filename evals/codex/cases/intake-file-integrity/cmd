@@ -1,0 +1,9 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_skill_files_mirrored intake
+assert_map_covers_skill intake
+assert_payload_identical intake
+assert_adapter_contract intake
+( cd "$REPO" && python3 codex/script-build-codex-skills.py --check )
+echo "GENERATION_IDEMPOTENT intake"

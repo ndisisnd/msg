@@ -1,0 +1,11 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_payload_contains plan-pm "open questions"
+assert_gate_state awaiting-answer 0 --id open-questions --skill plan-pm \
+  --question "Four facts the draft could not resolve" \
+  --option "Answer them" --option "Leave open" --default "Leave open"
+assert_gate_state dismissed-default 0 --id open-questions --skill plan-pm \
+  --question "Four facts the draft could not resolve" \
+  --option "Answer them" --option "Leave open" --default "Leave open" --answer __dismissed__
+differential_case prop-aha-openq

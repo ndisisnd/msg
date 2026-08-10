@@ -1,0 +1,3 @@
+layer: 2
+assertions: PRV-CX-010, PRV-CX-011, PRV-CX-014
+proves: A product-decision finding halts on a Codex gate with at most four options and no guessed answer; the open-question writer is identical across packages.

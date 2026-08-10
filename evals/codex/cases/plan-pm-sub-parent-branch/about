@@ -1,0 +1,3 @@
+layer: 2
+assertions: PPM-CX-008
+proves: Parent-branch resolution and the policy fallback note are byte-identical across packages, so a sub-PRD lands on the parent's branch either way.

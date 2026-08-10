@@ -1,0 +1,3 @@
+layer: 4
+assertions: PPM-CX-002, PPM-CX-005, PPM-CX-007
+proves: Every PRD helper fixture — number, scan, digest, dependency mirror, shape and update — is identical across packages.

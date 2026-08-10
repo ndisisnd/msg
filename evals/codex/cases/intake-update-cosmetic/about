@@ -1,0 +1,3 @@
+layer: 2
+assertions: INT-CX-002, INT-CX-007
+proves: A targeted cell edit changes exactly the targeted cell under both packages, leaving the grade and every other byte untouched.

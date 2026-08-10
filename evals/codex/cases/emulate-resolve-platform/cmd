@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-emulate-preflight.sh script-platforms-parse.py
+differential_case emulate-resolve-none emulate-resolve-single emulate-no-platforms-file a24-platforms-multiple-tables

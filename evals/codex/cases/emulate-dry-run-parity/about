@@ -1,0 +1,4 @@
+layer: 2
+assertions: EMU-CX-015, EMU-CX-016
+proves: A dry run under the Codex package performs the same discovery and zero mutations: same stdout, same exit, and a byte-identical working tree before and after.
+residual: A dry run of the full skill (parse → resolve → question → branch → sweep) driven by a model is layer 3.

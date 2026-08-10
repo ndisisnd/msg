@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-prd-number
+differential_case a09-prd-number-collision
+assert_ref_contains plan-pm refs/protocol-sub.md "prd-"

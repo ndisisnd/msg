@@ -1,0 +1,4 @@
+layer: 2
+assertions: PRV-CX-012, PRV-CX-013
+proves: Minor findings collapse to exactly one decision gate, whose options are fix-or-leave and nothing else.
+residual: That exactly one Minor gate is raised per run is a trace assertion (layer 3).

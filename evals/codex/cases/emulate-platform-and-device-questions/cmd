@@ -1,0 +1,18 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case emulate-ask-platform-first emulate-device-ask emulate-device-default-booted \
+  emulate-device-default-toolchain emulate-device-default-newest emulate-device-single emulate-device-named
+
+# The platform question: asked before any mutation, resumable at the same point.
+assert_gate_state awaiting-answer 0 --id platform --skill emulate \
+  --question "Which platform should I run?" --option ios --option android
+assert_gate_state answered 0 --id platform --skill emulate \
+  --question "Which platform should I run?" --option ios --option android --answer ios
+# Device dismissal falls back to the computed default and says so; it never guesses.
+assert_gate_state dismissed-default 0 --id device --skill emulate \
+  --question "Which device?" --option "iPhone 15" --option "iPhone 16" \
+  --default "iPhone 16" --answer __dismissed__
+# An answer outside the offered set is refused rather than silently widening it.
+assert_gate_state rejected 4 --id device --skill emulate \
+  --question "Which device?" --option "iPhone 15" --answer "Pixel 7"

@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-001, MSG-CX-002
+proves: Every msg mode reaches Codex in the payload, and the default picker's handoffs render in the active runtime's syntax.
+residual: Which category the picker offers first is model routing (layer 3).

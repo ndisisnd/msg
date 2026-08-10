@@ -1,0 +1,3 @@
+layer: 2
+assertions: INT-CX-005, INT-CX-007
+proves: Legacy inline logs migrate once and stay converged under both packages, byte-for-byte.
