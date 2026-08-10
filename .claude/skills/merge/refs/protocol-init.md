@@ -32,11 +32,17 @@ Steps 1–5 all lean on `gh`. If absent, offer `brew install jq gh` and prompt
 
 ### 1 · Release flow (branch topology) → `release_flow`
 
-Detect whether a staging branch exists:
+Detect the repo topology by running the doctor-detect probe (one JSON to stdout:
+remote host, visibility, `branch_protection_available` via the Free-plan-403
+sniff, staging-branch existence local/remote, prod/default branch,
+`suggested_mode`):
 
 ```bash
-git show-ref --verify --quiet refs/heads/staging   # or gh api on the remote
+S=.claude/scripts/script-doctor-detect.sh; bash "$S" .
 ```
+
+Its `suggested_mode` and staging-existence fields seed this item; do not re-derive
+them with ad-hoc `git show-ref`/`gh api` probes.
 
 | Topology | `--init` proposes | Offer |
 |---|---|---|

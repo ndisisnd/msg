@@ -39,6 +39,7 @@ update-plan.md
 update-plan-done.md
 update-plan-gui.md
 update-plan-gui-done.md
+plan-msg-codex-v6.md
 .claude/skills/improve/
 .claude/skills/**/*-plan.md
 # …but component protocol files are source, not scratch plans (e.g. manual-test-plan, C22)

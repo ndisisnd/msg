@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "phase": "phase-0-audited-deviation-gate",
+  "branch": "v6-msg-codex",
+  "canonical_base_commit": "c87ffb8ac4aef369c385997802bdc2d5e0044d57",
+  "canonical_runtime_files": 203,
+  "canonical_skill_tree_files": 133,
+  "canonical_helper_files": 67,
+  "validated_maps": 10,
+  "pending_deviations": 0,
+  "decided_deviations": 16,
+  "pending_canonical_ambiguities": 0,
+  "decided_canonical_ambiguities": 7,
+  "skills": {
+    "msg": {"files": 29, "status": "audited-blocked-on-deviations"},
+    "intake": {"files": 5, "status": "audited-blocked-on-deviations"},
+    "plan-pm": {"files": 5, "status": "audited-blocked-on-deviations"},
+    "plan-review": {"files": 3, "status": "audited-blocked-on-deviations"},
+    "plan-em": {"files": 4, "status": "audited-blocked-on-deviations"},
+    "eng": {"files": 11, "status": "audited-blocked-on-deviations"},
+    "pre-merge": {"files": 39, "status": "audited-blocked-on-deviations"},
+    "merge": {"files": 12, "status": "audited-blocked-on-deviations"},
+    "emulate": {"files": 3, "status": "audited-blocked-on-deviations"},
+    "shared": {"files": 22, "status": "audited-blocked-on-deviations"}
+  },
+  "coverage": {
+    "skill_tree_discovery": "133/133",
+    "validated_skill_maps": "9/9",
+    "validated_shared_maps": "1/1",
+    "helper_dependency_assignment": "67/67",
+    "file_mapping_ratio": "1.0000 per map and globally",
+    "reference_mapping_ratio": "1.0000 per map",
+    "behavior_mapping_ratio": "1.0000 per map; 146 assertions",
+    "eval_specification_ratio": "1.0000 per map; 120 concrete eval designs",
+    "dependency_mapping_ratio": "1.0000 per map and globally",
+    "runtime_proof": "not-run"
+  }
+}

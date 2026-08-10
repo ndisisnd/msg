@@ -326,6 +326,7 @@ chat output after the mode's own emissions.
 - `refs/output-schema.md` — finding/verdict emission
 - `../shared/refs/policy-schema.md` — the shared core of `devkit/policy.json` (§0 `init`, §1 `release_flow`, §2b `github_actions`)
 - `../shared/refs/policy-schema-merge.md` — merge's half: §2 `branch_protection`, `steps.<key>` + §3, §4 `release_model`, §5 `staging_ready`, §6 the release lock
+- `../shared/refs/env-contract.md` — the `devkit/ENV.md` `provision`/`seed`/`reset`/`teardown` block; merge **reads** it (never writes) ahead of deploy/verify for environment specifics; absent → warn-and-proceed
 - `../shared/refs/gate-dispatch.md` — the dispatcher contract behind the phase split: probe → backgrounded spawn → `gate-<epoch>` watch → byte-identical relay → close, and the rule that every human gate stays main-thread
 - `../shared/refs/fix-loop.md`, `../shared/refs/finding-schema.md`, `../shared/refs/report-schema.md`, `../shared/refs/safety-floor.md`, `../shared/refs/status-heartbeat.md`
 - `.claude/scripts/` — `script-branch-protection.sh` · `script-signoff-coverage.sh` · `script-release-lock.sh` · `script-release-identity.sh` · `script-prd-stamp.sh` · `script-intake-stamp.sh` (incl. `--find-row`, PRD id → ledger row)

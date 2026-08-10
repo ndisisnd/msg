@@ -239,7 +239,11 @@ CERTIFIED_SHA=$(git rev-parse origin/staging)   # == the merge commit just creat
 
 ## Step 4 — Deploy staging
 
-Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`).
+Per `refs/deploy.md` (`staging_deploy_cmd` from `devkit/PLATFORMS.md`). Before
+deploying, read `devkit/ENV.md` (fenced `env` block, schema:
+`../../shared/refs/env-contract.md`) — its prose and verbs inform environment
+specifics consulted during deploy and verify; merge never writes it. Absent →
+warn-and-proceed with a note.
 
 ```bash
 "$S" --tick --run-id "$RUN_ID" --note "staging deploy complete" \

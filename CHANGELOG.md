@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-08-10
+
+### [158] — v6 Phase 0: Codex compatibility freeze, decision ledger, and five canonical corrections
+
+- `codex/` (new): Added — the Codex compatibility decision layer: `deviations.md` (16 runtime deviations + 7 canonical ambiguities, all decided 2026-08-10 — Terra/Luna model-tier map, subagents as child threads, `.agents` isolation, natural-language activation and the timed watchdog preserved), `compatibility-manifest.json`, `phase-0-inventory.md`, `runtime-dependency-inventory.md`.
+- `.agents/skills/*/refs/compatibility-map.md` (new): Added — nine per-skill maps plus one shared map covering all 133 canonical skill files exactly once, 67 helper closures, 146 parity assertions and 120 eval specs.
+- `evals/codex/` (new): Added — `verify_phase0.py` and `verify_phase0_strict.py` verifiers plus the frozen 203-file `baselines/claude-tree.sha256`; the strict freeze check audits the canonical file set against the baseline listing so unrecorded `.claude/` changes fail loudly.
+- `.claude/skills/pre-merge/SKILL.md`, `refs/refusal-patterns.md`: Changed — the OPEN-PR terminal now opens its single PR via `/kermit --pr` (loud-degrade fallback to `gh pr create` when kermit is absent); the out-of-scope refusal text no longer claims pre-merge creates no PRs (AMB-CX-001).
+- `.claude/skills/merge/SKILL.md`, `refs/staging.md`, `refs/production.md`: Changed — merge now reads `devkit/ENV.md` (read-only, absent → warn-and-proceed) ahead of deploy/verify, making the `env-contract.md` consumer declaration true (AMB-CX-002).
+- `.claude/skills/pre-merge/refs/protocol-init.md`, `.claude/skills/merge/refs/protocol-init.md`: Changed — both `--init` protocols now consume `script-doctor-detect.sh` for repo topology / branch-protection-availability instead of re-deriving the probes by hand (AMB-CX-004).
+- `.claude/skills/shared/refs/tooling-detection.md`: Changed — a missing secret scanner now emits a `blocker`, matching the security protocol's safety floor (AMB-CX-003).
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the production closing line says "The release succeeded." instead of "The release is live." per the submission rules' evidence threshold (AMB-CX-006).
+- `.gitignore`: Changed — `plan-msg-codex-v6.md` (the local v6 plan, now also carrying the merged session handoff) stays untracked.
+
 ## 2026-08-05
 
 ### [157] — README header: v5.6.5 release blurb, in GitHub alert syntax

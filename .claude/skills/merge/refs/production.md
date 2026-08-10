@@ -68,6 +68,10 @@ RUN_ID="merge-$(date +%s)"
 
 ## Step 1 — Preconditions (refuse without all three)
 
+Alongside the precondition reads, read `devkit/ENV.md` (fenced `env` block, schema:
+`../../shared/refs/env-contract.md`) for environment specifics consulted during
+deploy/verify; merge never writes it. Absent → warn-and-proceed with a note.
+
 For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
 
 1. **Staging CI is green** — the same scripted verdict `--staging` Step 2 runs, in branch mode:

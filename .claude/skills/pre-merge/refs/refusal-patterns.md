@@ -125,7 +125,7 @@ this JSON, naming `/pre-merge --init`.
 {
   "verdict": "refused",
   "reason": "out_of_scope_action",
-  "detail": "/pre-merge does not push, merge, or create PRs. Run /pre-merge to get the verdict, then use 'gh pr create' or 'git push' yourself when the verdict is pass or pass_with_warnings.",
+  "detail": "/pre-merge does not push or merge, and opens no PRs beyond its own OPEN-PR terminal (/kermit --pr on a clean verdict). Run /pre-merge to get the verdict, then use 'git push' yourself when the verdict is pass or pass_with_warnings.",
   "base": "<base ref>",
   "prior_issues_loaded": false,
   "issues": []

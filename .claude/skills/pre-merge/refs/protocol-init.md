@@ -31,7 +31,7 @@ contract"). Pre-merge's flavor:
    concern.)
 2. **Load or seed** the policy file — read `devkit/policy.json` if present (re-run = update in
    place, never overwrite from scratch); else start empty.
-3. **Detect** — run the `script-preflight-*.sh` family (the preflight ingestion below) and resolve the platform profile.
+3. **Detect** — run the `script-preflight-*.sh` family (the preflight ingestion below) and resolve the platform profile. Also run `.claude/scripts/script-doctor-detect.sh` (one JSON: remote host, visibility, `branch_protection_available`, release-flow topology) and use it to seed `devkit/policy.json`'s `repo` block and `policies.release_flow` — never re-derive those probes by hand.
 4. **Interview** — one `AskUserQuestion` per real **tooling gap** only. Component tuning
    questions are seeded with their documented default instead of being asked
    (§ *Component questions are seeded, not asked*), and `policies.test_selection` is not

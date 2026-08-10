@@ -60,7 +60,7 @@ Shapes and JSON in `refs/refusal-patterns.md`. Pre-merge:
 
 - Does NOT run without a manifest. No `components[]` in `devkit/policy.json` ⇒ **REFUSE `no_manifest`**, zero components run, naming `/pre-merge --init`. No built-in-defaults path, no inline auto-`--init` (state table: `refs/refusal-patterns.md` § `no_manifest`, its one home).
 - Does NOT modify source code. Its ONLY direct write is the SYNC (D7)-bounded sync-merge commit; regression tests are written by a spawned eng subagent, never by pre-merge.
-- Does NOT `git push`, `gh pr merge`, `git merge` into `main`, or deploy production. It opens exactly one PR (feature→staging, or feature→`main` when no `staging` branch exists) and never merges it.
+- Does NOT `git push`, `gh pr merge`, `git merge` into `main`, or deploy production. It opens exactly one PR (feature→staging, or feature→`main` when no `staging` branch exists) via `/kermit --pr` and never merges it.
 - Does NOT run without a non-empty diff against base (`no_diff`). A missing `staging` branch is NOT a blocker — the sync + PR target falls back to `main`, no warning, no refusal.
 - Does NOT grade a finding as blocker without quoted tool evidence.
 - Does NOT write `policy.json` or mutate `components[]` — only `--init` / `--update` do. Staleness nudges (manifest, `refs/executor.md` §0; untagged tests, `refs/protocol-update-criticality.md`) are read-only.
@@ -154,9 +154,12 @@ never changes the verdict or what the run does next.
 ## Terminals
 
 **OPEN-PR — clean verdict only.** On `pass` / `pass_with_warnings`:
-`gh pr create --base <target> --head <feature-branch>` (`<target>` = the SYNC target,
-`staging` else `main`), verdict JSON + report path linked in the body, `pr_url`
-recorded. **Never** `gh pr merge` — `merge --staging` merges it on green CI.
+invoke `/kermit --pr` with base `<target>` (`<target>` = the SYNC target,
+`staging` else `main`), verdict JSON + report path linked in the PR body, `pr_url`
+recorded from the PR kermit opens. kermit unavailable → loud degrade: fall back to
+`gh pr create --base <target> --head <feature-branch>` and note the fallback in the
+report — never a silent skip. **Never** `gh pr merge` — `merge --staging` merges it
+on green CI.
 
 **Issues-file loop — non-clean verdict.** No PR opens. Write the **issues file** —
 the run report's paired `.json` (same stem, folder, N and K), the **universal
