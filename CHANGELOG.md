@@ -2,6 +2,11 @@
 
 ## 2026-08-10
 
+### [162] — Agentic end-to-end test plan + human-dependency issue log
+
+- `codex/agentic-test-plan.md` (new): Added — the no-human E2E test design for both runtimes: stage drivers (Codex session driver reused; Agent-SDK Claude driver proposed), deterministic persona decision tables with a never-guess rule (an unmatched gate fails the run), answer injection only through sanctioned gate surfaces, a C0→C10 checkpoint chain, 5 fixture repos, the full stub inventory (local bare remote, coherent `gh` stub, kermit variants, deploy/store/simulator stubs) and 14 numbered E2E scenarios with Layer-4 differential grading.
+- `codex/agentic-test-issues.md` (new): Added — ISS-01..12: every point where a human is irreplaceable (production approval, store submission, paid-plan branch protection, real devices, spend authorization…), each with why an agent cannot safely substitute, what a stub covers, and what the human must eventually verify; plus the found-defects section (DEF-01 fixed in [161]; DEF-02 gate-envelope statelessness at the contract layer, DEF-03 runner UX quirk, DEF-04 GUI runner cannot hold gates — canonical — and ISS-01 headless `AskUserQuestion` all awaiting user decisions).
+
 ### [161] — v6 Phase 3: Codex engineering orchestration — child threads, pinned tiers, leaf-owned gate relay, 30 more eval cases
 
 - `codex/subagent-template.sh` (new): Added — the child-thread lifecycle binding for `DEV-CX-005`. Capability preflight fails closed (exit 3) when child threads are unavailable, because the alternative — one thread reviewing its own build — is a different product, not a degraded mode. It also refuses a child reusing the root run ID or a duplicate thread (exit 4), a reviewer identity found in the packet's builder list or a missing reviewer counted as coverage (exit 4), and a packet the run state already records done being dispatched again (exit 5).
