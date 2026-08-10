@@ -1,0 +1,11 @@
+Use `$pre-merge`.
+
+It takes the completed feature branch through the shipping checks, including correctness, security, coverage, regression, and PRD consistency.
+
+It ends with:
+
+- A pull request opened against `staging`
+- Green required checks
+- A severity-graded verdict JSON summarizing the result
+
+It does not merge the PR; `$merge --staging` handles that later.

@@ -1,0 +1,43 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+# SHR-CX-005 — watching work is not doing work. Dispatch, watch and heartbeat
+# stay observational in Codex: they report, they never re-verdict, and they never
+# stop a wave on their own. Phase gates stay in the main thread.
+
+assert_ref_contains shared refs/agent-watch.md \
+  'no auto-stop' \
+  'A stall is reported, never acted on.'
+assert_ref_contains shared refs/status-heartbeat.md 'heartbeat'
+assert_ref_contains shared refs/gate-dispatch.md 'gate'
+
+# The watch and heartbeat machinery is the same implementation in both packages,
+# so its thresholds, escalation ladder and machine emissions are identical bytes.
+assert_helper_mirrored script-agent-watch.sh script-em-timing.sh script-em-state.py
+differential_case agent-watch-thresholds agent-watch-tiers agent-watch-done \
+  agent-watch-disabled agent-watch-corrupt agent-watch-evidence \
+  status-tick-report status-tick-drain status-tick-corrupt status-tick-disabled
+
+# Dispatch identity: each packet keeps its own id and owner, and the dispatcher
+# refuses a wave wider than the declared cap rather than silently trimming it.
+cat > packets.txt <<'PACKETS'
+1 class=build-load-bearing owner=leaf-be files=src/api/checkout.ts wave=1
+2 class=build-mechanical owner=leaf-be2 files=src/api/audit.ts wave=1
+3 class=build-mechanical owner=leaf-ios files=ios/Total.swift wave=1
+PACKETS
+assert_dispatch_state ok 0 --dispatched packets.txt --max-width 3
+assert_dispatch_state width 7 --dispatched packets.txt --max-width 2
+echo "DISPATCH_OBSERVATIONAL width-enforced ids-disjoint"
+
+# The relay hands a leaf's gate back to the main thread verbatim: a child thread
+# may surface a gate, it may never reword or answer one.
+"$CODEX_SCRIPTS/script-codex-gate.sh" --id staging-signoff --skill merge --owner leaf-a \
+  --question "Approve the staging sign-off?" --option Approve --option Hold > gate.txt
+assert_relay_state relayed 0 relay --envelope gate.txt
+"$CODEX_SCRIPTS/script-codex-relay.sh" relay --envelope gate.txt > relayed.txt
+assert_relay_state verified 0 verify --envelope gate.txt --relayed relayed.txt
+sed 's/Approve the staging sign-off?/Approve staging?/' relayed.txt > reworded.txt
+assert_relay_state altered 4 verify --envelope gate.txt --relayed reworded.txt
+echo "RELAY_MAIN_THREAD_ONLY leaf-cannot-reword-or-self-approve"
+
+assert_claude_untouched

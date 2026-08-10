@@ -65,7 +65,11 @@ It installs as nine slash commands in Claude Code. There is no server and no acc
 
 ## Install
 
-You need `git`, `curl`, Claude Code, and an authenticated [`gh` CLI](https://cli.github.com) (the gates use it to open and merge PRs).
+You need `git`, `curl`, an agent runtime (Claude Code or OpenAI Codex), and an authenticated [`gh` CLI](https://cli.github.com) (the gates use it to open and merge PRs).
+
+msg runs on both runtimes from one source of truth. The behaviour is the same; only how you type a
+skill differs — **`/skill` in Claude Code, `$skill` in Codex**. Every example in these docs is
+written in Claude syntax; substitute `$` for `/` on Codex.
 
 ### msg + cook (recommended)
 
@@ -79,6 +83,17 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 ```
 
+### Codex
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install-codex.sh | bash
+```
+
+This installs the Codex build into `~/.agents/skills` and `~/.agents/scripts`. It never reads or
+writes `~/.claude`, so adding Codex to a machine that already runs Claude Code changes nothing about
+the Claude install. Want both from one command? `install-codex.sh --with-claude` runs the Claude
+installer too.
+
 **Verify it worked:**
 
 ```bash
@@ -87,11 +102,19 @@ ls ~/.claude/skills                # msg intake plan-pm plan-review plan-em eng 
 ls ~/.claude/scripts               # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
 ```
 
+On Codex the same three checks read `~/.agents` instead, and the version line names the runtime:
+
+```bash
+cat ~/.agents/skills/msg/VERSION   # msg v6.0.0 (codex) — <commit>, installed <date> / runtime: codex
+ls ~/.agents/skills                # msg intake plan-pm plan-review plan-em eng pre-merge merge emulate shared
+ls ~/.agents/scripts               # non-empty: the same helpers, byte-for-byte
+```
+
 Inside Claude Code, `/msg --version` prints that same line from any repo. Check it after every
 install or update: the skills live in `~/.claude`, not in your projects, so a reinstall that failed
 halfway leaves every project looking exactly as it did before.
 
-Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session.
+Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session. On Codex, start a fresh thread and type `$msg`.
 
 New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/pre-merge` and `/merge` each need their own one-time `--init` before the pipeline runs anything.
 
@@ -251,6 +274,7 @@ rather than something claimed. Review still gates nothing on its own — the gre
 - [RELEASES.md](./RELEASES.md) — what each release changed, in plain language
 - [SECURITY.md](./SECURITY.md) — how to report a vulnerability
 - [llms.txt](./llms.txt) — an index for agents landing in this repo
+- [plan-msg-codex-v6.md](./plan-msg-codex-v6.md) — how the Codex build is kept identical to the Claude one, and the deviations that were approved rather than hidden
 
 ## License
 

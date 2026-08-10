@@ -1,0 +1,12 @@
+message I’m using the `msg` skill because it owns the one-time bootstrap for an empty repository. I’ll check its exact entry-point guidance, then explain without changing anything.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/msg/SKILL.md"
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/msg/refs/compatibility-map.md"
+shell /bin/zsh -lc "wc -l .agents/skills/msg/CLAUDE-SKILL.md && sed -n '1,320p' .agents/skills/msg/CLAUDE-SKILL.md"
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/codex-runtime.md .agents/skills/msg/refs/compatibility-map.md .agents/skills/msg/refs/protocol-init.md'
+read /bin/zsh -lc "sed -n '241,520p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/msg/refs/protocol-init.md"
+read /bin/zsh -lc "sed -n '1,140p' .agents/skills/msg/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '221,440p' .agents/skills/msg/refs/protocol-init.md"
+read /bin/zsh -lc "sed -n '141,280p' .agents/skills/msg/refs/compatibility-map.md"
+message Start with: `msg --init --cto` - **Skill:** `msg` - **Mode:** `--init` - **Decision style:** `--cto` lets the framework recommend the architecture, language, release flow, and design-system baseline.

@@ -1,0 +1,3 @@
+layer: 0
+assertions: MSG-CX-005
+proves: Claude-only, Codex-only and dual installs all succeed in clean homes; neither installer creates the other's tree; the combined path's Claude half is bit-identical to a Claude-only install; adding Codex to an existing Claude machine changes nothing.

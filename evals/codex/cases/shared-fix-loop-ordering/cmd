@@ -1,0 +1,41 @@
+. "$LIB/assertions.sh"
+
+# SHR-CX-007 — what happens after a gate fails. The order is the safety property:
+# a caller's rollback offer comes before any fix work, and planning comes before
+# building. Reordering these would let a Codex run start writing code while a bad
+# release is still live.
+
+assert_ref_contains shared refs/fix-loop.md \
+  "## Ordering — a caller's pre-loop rollback offer runs first (merge)" \
+  'Yes — plan the fixes' \
+  'Yes — build the fixes'
+
+# Plan precedes build in the file itself, not merely in prose about it.
+plan_line="$(grep -n 'Yes — plan the fixes' "$CODEX_SKILLS/shared/refs/fix-loop.md" | head -1 | cut -d: -f1)"
+build_line="$(grep -n 'Yes — build the fixes' "$CODEX_SKILLS/shared/refs/fix-loop.md" | head -1 | cut -d: -f1)"
+rollback_line="$(grep -n 'rollback' "$CODEX_SKILLS/shared/refs/fix-loop.md" | head -1 | cut -d: -f1)"
+[ "$rollback_line" -lt "$plan_line" ] || fail "the rollback offer no longer precedes the plan offer"
+[ "$plan_line" -lt "$build_line" ] || fail "the plan offer no longer precedes the build offer"
+echo "FIX_LOOP_ORDER rollback<plan<build"
+
+# Both failing callers land on the same issues file — one report, one loop, no
+# divergent fix state per runtime.
+for skill in pre-merge merge; do
+  grep -rq -F 'fix-loop.md' "$CODEX_SKILLS/$skill" \
+    || fail "$skill no longer reaches the shared fix loop"
+done
+echo "FIX_LOOP_CALLERS pre-merge+merge"
+
+# The decline path is the issues file's own suggested command, so a user who says
+# no still gets a next step — in the active runtime's syntax.
+assert_ref_contains shared refs/fix-loop.md 'followUp.suggested_command'
+assert_invocation_translation "Run \`/eng --plan\` when ready" "Run \`\$eng --plan\` when ready"
+
+# Rollback is offered by merge before the loop, and it stays a human decision —
+# the broker emits it and waits rather than picking the safer-looking option.
+assert_gate_state awaiting-answer 0 --id rollback --skill merge \
+  --question "Roll back the failed ship?" \
+  --option "Roll back" --option "Hold and fix forward"
+echo "ROLLBACK_IS_A_HUMAN_GATE"
+
+assert_claude_untouched

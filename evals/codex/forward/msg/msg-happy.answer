@@ -1,0 +1,12 @@
+I’m using the `msg` skill because it owns the one-time bootstrap for an empty repository. I’ll check its exact entry-point guidance, then explain without changing anything.
+Start with:
+
+`$msg --init --cto`
+
+- **Skill:** `msg`
+- **Mode:** `--init`
+- **Decision style:** `--cto` lets the framework recommend the architecture, language, release flow, and design-system baseline. You can override its recommendations.
+
+Use `$msg --init --eng` instead if you want to make each technical decision yourself.
+
+Do not begin with `--init-staging` or `--update`. Those are for repositories already initialized. No files were changed.

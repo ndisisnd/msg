@@ -1,0 +1,4 @@
+layer: 2
+assertions: SHR-CX-007
+proves: Post-failure recovery keeps rollback before plan and plan before build, both failing callers reach the same shared loop, and the decline fallback is the issues file's own suggested command in active-runtime syntax.
+residual: Whether a model actually offers the loop in order after a real failed gate is layer 3.

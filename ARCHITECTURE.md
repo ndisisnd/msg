@@ -16,9 +16,33 @@ After the copy the installer writes a one-line stamp to `~/.claude/skills/msg/VE
 
 Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook) dependency, which provides the `/cook` skill MSG skills call for domain-specific coding standards.
 
+**The Codex installer — `install-codex.sh`.** From v6 msg also runs on OpenAI Codex, and Codex
+discovers skills in a different place. `install-codex.sh` installs the generated Codex tree into
+`~/.agents/skills` and `~/.agents/scripts`, mirroring the Claude installer's shape — same shallow
+clone, same copy-never-delete sweeps, same version stamp, with `runtime: codex` added to the stamp so
+a machine carrying both installs can say which tree answered. The hard rule is isolation: it never
+reads, writes or migrates `~/.claude`, and it refuses outright if pointed at a Claude home. That
+isolation is a test, not a promise — an eval snapshots a sentinel `$HOME/.claude`, runs the installer
+twice and requires the snapshot to come back byte-identical. `install.sh` is untouched by all of
+this; the combined install is `install-codex.sh --with-claude`, which delegates to it.
+
+**Where the Codex tree comes from.** `.claude/` remains the single source of truth. A deterministic
+generator (`codex/script-build-codex-skills.py`) reads it and emits `.agents/`: each skill gets a
+thin Codex adapter (`SKILL.md`), the byte-identical canonical payload it executes
+(`CLAUDE-SKILL.md`), its references, and a compatibility map recording every translated tool, path
+and gate. The helper scripts are mirrored byte-for-byte, so both runtimes execute the *same*
+implementation and every machine emission is identical by construction rather than by inspection.
+
 ### 2. Skill layer — `~/.claude/skills/<name>/SKILL.md`
 
 Each skill is a directory containing a `SKILL.md` — a structured prompt consumed by Claude Code's skill system when the user invokes `/name`. Skills are self-contained: they declare their `allowed_tools`, `model`, and protocol inline.
+
+On Codex the same skill lives at `~/.agents/skills/<name>/` and is invoked as `$name`. What Codex
+loads first is a short adapter that points at three documents in order: the shared runtime contract
+(`shared/refs/codex-runtime.md`, which translates Claude's tools, paths and question surface into
+Codex equivalents), the skill's own compatibility map, and then `CLAUDE-SKILL.md` — the unchanged
+Claude prompt. The product contract Codex executes is therefore the same bytes Claude executes; only
+the wrapper differs.
 
 Skills compose in two ways:
 - **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-review` or `plan-em` directly)
@@ -168,6 +192,12 @@ Grading is mechanistic: a case passes when its command's output matches the comm
 ## Releasing
 
 Run `bash evals/run.sh` before tagging a release. Any FAIL blocks the release on the runner's exit code — no threshold, no judgment call. A failing case also appends a `validator-fail:eval-<slug>` row to `devkit/DOCTOR.md`, so the regression lands in the next `/msg --doctor` tally next to the live incidents.
+
+The Codex build has its own suite on top of that one: `bash evals/codex/run.sh` runs the packaging,
+adapter and differential layers offline, and `--layer3` additionally runs live Codex sessions. The
+runner is deliberate about the difference — a case that cannot prove model behaviour offline
+declares a `residual:` line, and the suite reports `RUNTIME_PROOF not-run` until layer 3 has actually
+executed, rather than letting deterministic coverage read as runtime proof.
 
 ## Skill inventory
 

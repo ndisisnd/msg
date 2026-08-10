@@ -1,0 +1,15 @@
+I’m using the `emulate` skill to launch and verify the app first. Once the simulator is up, I’ll commit the current workspace changes and open the pull request as requested.
+The skill has a strict boundary: it can launch the simulator, but it is expressly forbidden from committing, creating branches, or opening pull requests. I’ll complete the simulator launch first, then report the exact handoff needed for the commit/PR rather than silently crossing that safety boundary.
+🔴 Fail!
+
+The simulator could not start because this folder has no platform setup and is not a Git repository. No changes were committed and no pull request was opened.
+
+| What happened | Detail |
+|---|---|
+| Simulator | `devkit/PLATFORMS.md` is missing |
+| Git | No repository exists in the current folder |
+| Commit/PR | Blocked; `emulate` is also prohibited from performing Git writes |
+
+**Next steps**
+
+1. Bootstrap the project with `$msg --init`, then rerun `$emulate`.

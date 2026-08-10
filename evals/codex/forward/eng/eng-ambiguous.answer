@@ -1,0 +1,10 @@
+I’m using the engineering workflow because this is a bug-fix request. I’ll identify the failing behavior from the available project signals, make the smallest safe correction, and verify it.
+I’m blocked because the workspace contains no application code or Git repository, and there’s no bug description or reproduction case. It is also read-only.
+
+Please provide:
+
+- The project files in a writable workspace.
+- Expected versus actual behavior.
+- Any error message or reproduction steps.
+
+Then I can diagnose, fix, and verify the bug.

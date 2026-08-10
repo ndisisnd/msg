@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "phase": "phase-5-install-differential-release",
+  "scope": ["install-codex.sh", "shared", "forward-testing", "documentation"],
+  "runtime_contract": ".agents/skills/shared/refs/codex-runtime.md",
+  "claude_isolation": {
+    "policy": "never-read-never-written",
+    "what_that_means": "install-codex.sh does not open, copy, move or delete anything under $HOME/.claude, and refuses a destination that resolves inside a Claude home. The combined install is additive: install-codex.sh --with-claude delegates to the unmodified install.sh rather than reimplementing it, so install.sh, package.json, .claude/** and evals/codex/baselines/ carry zero diff in this phase.",
+    "proved_by": ["install-codex-isolation", "install-codex-dual-runtime"]
+  },
+  "bindings": [
+    {
+      "concern": "Codex-only installation",
+      "deviation": "DEV-CX-002 (approved-translation)",
+      "implementation": "install-codex.sh",
+      "what_it_does": "Installs the generated Codex tree into $HOME/.agents/skills and $HOME/.agents/scripts — the locations Codex discovers — mirroring the Claude installer's shape: source resolution (clone or --from), pre-install verification of the generated tree, copy-never-delete with an explicit retired-name sweep, executable-bit repair, and a version stamp written last because copying msg/ clears its destination first. The stamp carries `runtime: codex` so a machine holding both installs can say which tree answered. A --dest is refused if it resolves inside a Claude home.",
+      "proved_by": ["install-codex-isolation", "install-codex-dual-runtime", "msg-version-codex-stamp"]
+    },
+    {
+      "concern": "combined install",
+      "deviation": "none — additive by construction",
+      "implementation": "install-codex.sh --with-claude",
+      "what_it_does": "Runs the unmodified install.sh for the Claude half after the Codex half succeeds, and suppresses its own cook bootstrap because install.sh already owns that flag. A failure in the Claude half is reported without unwinding the Codex install.",
+      "proved_by": ["install-codex-dual-runtime"]
+    },
+    {
+      "concern": "shared-contract assertion coverage",
+      "deviation": "none",
+      "implementation": "evals/codex/cases/shared-*",
+      "what_it_does": "Closes the last coverage gap in the suite: the twelve SHR-CX assertions named by the shared compatibility map had no executing case before this phase. Eight cases now carry them — digest bijection, consumer-edge closure, the finding/report wire contract, the policy resolution matrix, safety and human gates, dispatch/watch/heartbeat, fix-loop ordering, and doctor/cache degradation — taking assertion coverage to 146 of 146.",
+      "proved_by": [
+        "shared-file-digest-bijection",
+        "shared-consumer-edge-closure",
+        "shared-finding-and-report-wire-contract",
+        "shared-policy-resolution-matrix",
+        "shared-safety-and-human-gates",
+        "shared-dispatch-watch-and-heartbeat",
+        "shared-fix-loop-ordering",
+        "shared-doctor-and-cache-degradation"
+      ]
+    },
+    {
+      "concern": "forward testing (plan §8 layer 5)",
+      "deviation": "none",
+      "implementation": "evals/codex/lib/forward.sh, evals/codex/cases/forward-*",
+      "what_it_does": "Nine layer-3 cases, one per skill, each running four live Codex sessions from a clean thread in an isolated temporary home: a happy path, an ambiguous input, a refusal and a safety-sensitive path. Prompts are written as a user would write them — the expected answer is never supplied, and the skill name is only mentioned where a real user would mention it. Every session runs --sandbox read-only, so a forward test can consider shipping without any possibility of shipping. Each session leaves a raw event stream, a normalized semantic trace and its untruncated answer under evals/codex/forward/<skill>/.",
+      "grading": "Semantic, not verbatim: whether the right skill was selected, whether an under-specified request was questioned rather than guessed at, whether an out-of-authority request was refused and handed on, and whether the workspace stayed unchanged. Model wording varies; the assertions are written to survive that and would be dishonest if they were not.",
+      "proved_by": [
+        "forward-msg", "forward-intake", "forward-plan-pm", "forward-plan-review",
+        "forward-plan-em", "forward-eng", "forward-pre-merge", "forward-merge", "forward-emulate"
+      ]
+    }
+  ],
+  "residual_policy": {
+    "rule": "A layer-0/2/4 case proves packaging and deterministic-helper parity for real; it does not prove that a model driving the adapter behaves identically. Cases that cannot close that gap declare it in a `residual:` line, and the runner reports RUNTIME_PROOF as not-run until layer 3 has actually executed.",
+    "what_layer_3_now_covers": "The nine forward cases plus the two pre-existing in-case layer-3 blocks (emulate-routing-and-flags, msg-init-cto). Residuals attached to the remaining layer-0/2/4 cases are addressed by skill, not case-by-case: each skill's forward case exercises its routing, its ambiguity handling, its refusal and its safety gate against a live session."
+  }
+}

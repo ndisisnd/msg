@@ -1,0 +1,65 @@
+. "$LIB/assertions.sh"
+
+# DEV-CX-002 / MSG-CX-005 — the installation isolation eval of plan §9. A Codex
+# install must leave a Claude home byte-identical, and running it twice must
+# leave the Codex home identical too. The proof is a sentinel Claude home that
+# looks exactly like a real one, snapshotted before and after.
+
+home="$PWD/home"
+mkdir -p "$home/.claude/skills/msg" "$home/.claude/scripts"
+printf 'msg v5.6.5 — abc1234, installed 2026-01-01\n' > "$home/.claude/skills/msg/VERSION"
+printf 'sentinel claude payload\n' > "$home/.claude/skills/msg/SKILL.md"
+printf 'sentinel helper\n' > "$home/.claude/scripts/script-ledger.py"
+printf '{"model":"opus"}\n' > "$home/.claude/settings.json"
+
+snapshot() { find "$1" -type f -exec shasum -a 256 {} \; | sed "s|$home||" | LC_ALL=C sort; }
+stamps()   { find "$1" -exec stat -f '%N %m %z %p' {} \; | sed "s|$home||" | LC_ALL=C sort; }
+
+claude_before="$(snapshot "$home/.claude")"
+claude_stamps_before="$(stamps "$home/.claude")"
+
+HOME="$home" bash "$REPO/install-codex.sh" --from "$REPO" > install-1.log 2>&1 \
+  || { cat install-1.log; fail "the first Codex install failed"; }
+
+[ "$claude_before" = "$(snapshot "$home/.claude")" ] \
+  || fail "the Codex install changed a byte under \$HOME/.claude"
+[ "$claude_stamps_before" = "$(stamps "$home/.claude")" ] \
+  || fail "the Codex install touched \$HOME/.claude (mtime/size/mode moved)"
+echo "CLAUDE_HOME_BYTE_IDENTICAL after-codex-install"
+
+# Nine invokable skills plus the shared reference holder, and the helper mirror.
+installed="$(ls "$home/.agents/skills" | grep -v '^shared$' | wc -l | tr -d ' ')"
+[ "$installed" = "9" ] || fail "expected 9 Codex skills installed, got $installed"
+[ -d "$home/.agents/skills/shared/refs" ] || fail "the shared references were not installed"
+[ -f "$home/.agents/skills/shared/refs/codex-runtime.md" ] || fail "the Codex runtime contract is missing"
+[ -x "$home/.agents/scripts/script-codex-resolve.sh" ] || fail "helpers are not installed executable"
+echo "CODEX_INSTALL skills=9 shared=yes helpers=executable"
+
+# The version stamp names the runtime: a machine may carry both installs, and
+# `$msg --version` has to say which tree answered.
+grep -q 'runtime: codex' "$home/.agents/skills/msg/VERSION" \
+  || fail "the installed VERSION stamp does not name the codex runtime"
+grep -q '(codex)' "$home/.agents/skills/msg/VERSION" \
+  || fail "the installed VERSION label is not runtime-qualified"
+echo "VERSION_STAMP runtime-qualified"
+
+# Idempotent: the second run reproduces the first tree exactly.
+agents_before="$(snapshot "$home/.agents")"
+HOME="$home" bash "$REPO/install-codex.sh" --from "$REPO" > install-2.log 2>&1 \
+  || { cat install-2.log; fail "the second Codex install failed"; }
+[ "$agents_before" = "$(snapshot "$home/.agents")" ] || fail "the Codex install is not idempotent"
+[ "$claude_before" = "$(snapshot "$home/.claude")" ] \
+  || fail "the second Codex install changed \$HOME/.claude"
+echo "IDEMPOTENT second-run-identical"
+
+# A Codex install can never be aimed at a Claude home, by flag or by env.
+set +e
+HOME="$home" bash "$REPO/install-codex.sh" --from "$REPO" --dest "$home/.claude" >guard.log 2>&1
+rc=$?
+set -e
+[ "$rc" != "0" ] || fail "the installer accepted a Claude home as its destination"
+grep -q 'refusing to install Codex assets into a Claude home' guard.log \
+  || fail "the destination guard did not explain its refusal"
+echo "DEST_GUARD refuses-claude-home"
+
+assert_claude_untouched

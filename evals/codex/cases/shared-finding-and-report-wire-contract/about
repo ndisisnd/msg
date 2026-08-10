@@ -1,0 +1,4 @@
+layer: 2
+assertions: SHR-CX-002, SHR-CX-003, SHR-CX-009
+proves: Finding, report and check-report schemas keep their exact fields, enums and dedup keys; the writers are byte-identical across packages; closing next steps render in the active runtime's syntax without rewriting paths.
+residual: Whether a model chooses the right next step for a given verdict is layer 3.

@@ -1,0 +1,4 @@
+layer: 2
+assertions: SHR-CX-004, SHR-CX-006, SHR-CX-011, SHR-CX-012
+proves: Policy lifecycle, defaults, writer ownership and cross-half loading resolve identically in both packages across absent, malformed, unknown-platform and mandatory-absent states; maintainer tooling docs cannot downgrade the executable security floor.
+residual: Which policy question a model asks first during --init is layer 3.

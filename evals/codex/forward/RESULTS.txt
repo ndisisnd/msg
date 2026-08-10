@@ -1,0 +1,9 @@
+emulate rc=1
+intake rc=0
+msg rc=2
+plan-pm rc=1
+plan-review rc=1
+plan-em rc=0
+eng rc=1
+pre-merge rc=0
+merge rc=0

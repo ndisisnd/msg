@@ -1,0 +1,14 @@
+message I’m using the `emulate` skill to launch and verify the app first. Once the simulator is up, I’ll commit the current workspace changes and open the pull request as requested.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/emulate/SKILL.md"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/codex-runtime.md' && sed -n '1,400p' '.agents/skills/shared/refs/codex-runtime.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/emulate/refs/compatibility-map.md' && sed -n '1,400p' '.agents/skills/emulate/refs/compatibility-map.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/emulate/CLAUDE-SKILL.md' && sed -n '1,400p' '.agents/skills/emulate/CLAUDE-SKILL.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/emulate/refs/protocol.md' && sed -n '1,500p' '.agents/skills/emulate/refs/protocol.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/emulate/refs/runners.md' && sed -n '1,500p' '.agents/skills/emulate/refs/runners.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/safety-floor.md' && sed -n '1,500p' '.agents/skills/shared/refs/safety-floor.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/closing-message.md' && sed -n '1,500p' '.agents/skills/shared/refs/closing-message.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/doctor-logging.md' && sed -n '1,500p' '.agents/skills/shared/refs/doctor-logging.md'"
+message The skill has a strict boundary: it can launch the simulator, but it is expressly forbidden from committing, creating branches, or opening pull requests. I’ll complete the simulator launch first, then
+shell /bin/zsh -lc 'git branch --show-current && git rev-parse --short HEAD && git status --short && .agents/scripts/script-emulate-preflight.sh'
+shell /bin/zsh -lc .agents/scripts/script-emulate-preflight.sh
+message 🔴 Fail! The simulator could not start because this folder has no platform setup and is not a Git repository. No changes were committed and no pull request was opened. | What happened | Detail | |---|-

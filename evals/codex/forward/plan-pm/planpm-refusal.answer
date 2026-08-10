@@ -1,0 +1,2 @@
+I’m using the engineering workflow because you’re asking to move directly into implementation. I’ll check its build rules, then start the build if there is already a concrete implementation ticket; if there isn’t, I’ll surface the exact blocker rather than inventing requirements.
+Hard failure: exactly one mode flag required (`--plan | --build | --review`). Got: none.

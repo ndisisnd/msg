@@ -1,0 +1,13 @@
+message I’m using the `intake` skill because it is the repository’s front door for capturing product ideas and backlog items. I’ll inspect its recording rules only; I won’t modify anything.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/intake/SKILL.md"
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/codex-runtime.md .agents/skills/intake/refs/compatibility-map.md .agents/skills/intake/CLAUDE-SKILL.md'
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/intake/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/intake/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,420p' '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,420p' '.agents/skills/intake/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,420p' '.agents/skills/intake/CLAUDE-SKILL.md'"
+read /bin/zsh -lc "sed -n '1,420p' '.agents/skills/intake/refs/protocol-intake.md'"
+read /bin/zsh -lc "sed -n '1,420p' '.agents/skills/intake/refs/rubric.md'"
+read /bin/zsh -lc "rg -n '"'^'"\\|.*idea.*goal|"'^'"\\| # |Template body' .agents/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md .agents/skills/intake -g '*.md'"
+message The `intake` skill captures this idea. It would record one graded row in the root `INTAKE.md` ledger containing: - A unique row number and capture date - Type: `feature` - Idea: customers can export i

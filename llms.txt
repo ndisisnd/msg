@@ -1,8 +1,10 @@
 # msg
 
-> A Claude Code skill harness for structured software delivery: a gated pipeline from idea to production release, where a human approves at every gate.
+> A skill harness for structured software delivery, running on Claude Code and OpenAI Codex: a gated pipeline from idea to production release, where a human approves at every gate.
 
-msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt Claude Code loads when the user types `/name` — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` opens a PR but never merges, and `merge` is the only skill that merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
+msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt the runtime loads when the user types `/name` in Claude Code or `$name` in Codex — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` opens a PR but never merges, and `merge` is the only skill that merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
+
+`.claude/` is the single source of truth. `.agents/` is its generated Codex mirror — thin adapters plus byte-identical canonical payloads — so never edit `.agents/` by hand; change `.claude/` and regenerate.
 
 ## Docs
 
@@ -10,6 +12,9 @@ msg is prompts, not a program. Each skill is a `SKILL.md` — a structured promp
 - [QUICKSTART](https://raw.githubusercontent.com/ndisisnd/msg/main/QUICKSTART.md): install → bootstrap → first shipped feature, with a verify check per step
 - [ARCHITECTURE](https://raw.githubusercontent.com/ndisisnd/msg/main/ARCHITECTURE.md): the four layers (install, skill, script, devkit), the ~58 scripts grouped by what they own
 - [install.sh](https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh): what lands in `~/.claude/skills/` and `~/.claude/scripts/`, including the stale-name sweeps
+- [install-codex.sh](https://raw.githubusercontent.com/ndisisnd/msg/main/install-codex.sh): the Codex installer — `~/.agents/skills/` and `~/.agents/scripts/`, and why it never touches `~/.claude`
+- [plan-msg-codex-v6.md](https://raw.githubusercontent.com/ndisisnd/msg/main/plan-msg-codex-v6.md): the dual-runtime compatibility contract — mapping universe, coverage gates, approved deviations
+- [codex-runtime.md](https://raw.githubusercontent.com/ndisisnd/msg/main/.agents/skills/shared/refs/codex-runtime.md): how Claude tools, paths, questions and subagents translate to Codex
 
 ## Skills
 

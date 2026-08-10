@@ -1,0 +1,3 @@
+layer: 3
+assertions: PMG-CX-001, PMG-CX-004, PMG-CX-009
+proves: A live Codex session routes the CI gate to pre-merge, refuses to run without a components manifest, never merges the PR it opens, and treats a missing secret scanner as a blocker rather than a warning.

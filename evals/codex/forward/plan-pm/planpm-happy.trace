@@ -1,0 +1,8 @@
+message I’m using the `plan-pm` skill’s own instructions so I can describe its exact handoff and output without changing the repository.
+read /bin/zsh -lc "sed -n '1,240p' /private<REPO>/.agents/skills/plan-pm/SKILL.md"
+read /bin/zsh -lc "sed -n '1,400p' '/private<REPO>/.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,400p' '/private<REPO>/.agents/skills/plan-pm/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,400p' '/private<REPO>/.agents/skills/plan-pm/CLAUDE-SKILL.md'"
+read /bin/zsh -lc "sed -n '1,500p' '/private<REPO>/.agents/skills/plan-pm/refs/protocol-pm.md'"
+read /bin/zsh -lc "sed -n '1,500p' '/private<REPO>/.agents/skills/plan-pm/refs/template-prd.md'"
+message ## Skill Use **`plan-pm #3`**. It consumes the graded `INTAKE.md` row and autonomously writes the full product requirements document. It only pauses for unresolved questions or a critical/breaking pro

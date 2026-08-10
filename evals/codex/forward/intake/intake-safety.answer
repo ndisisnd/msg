@@ -1,0 +1,13 @@
+I’m using the backlog intake workflow because it owns the `INTAKE.md` ledger. I’ll remove exactly row 4 and leave the rest unchanged.
+The intake workflow has a mandatory safety gate even for direct row references. I’m checking row 4’s dependencies and history now so the required confirmation is specific, not generic.
+🔴 Fail!
+
+No `INTAKE.md` exists, so there is no backlog row 4 to delete. Nothing changed.
+
+| What happened | Detail |
+|---|---|
+| Deletion | No backlog ledger found |
+
+**Next steps**
+
+1. Fix the missing backlog, then re-run `$intake --delete #4`.

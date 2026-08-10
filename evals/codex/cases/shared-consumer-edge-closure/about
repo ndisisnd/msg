@@ -1,0 +1,3 @@
+layer: 0
+assertions: SHR-CX-008, SHR-CX-012
+proves: Every declared shared consumer is backed by an executable reference edge in the consuming skill's Codex tree; the one unbacked edge stays a recorded blocking gap instead of being invented.

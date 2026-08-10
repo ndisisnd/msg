@@ -1,0 +1,3 @@
+layer: 0
+assertions: MSG-CX-005
+proves: install-codex.sh installs nine skills, shared refs and executable helpers, stamps a runtime-qualified VERSION, is idempotent, refuses a Claude destination, and leaves a sentinel $HOME/.claude byte- and stat-identical.

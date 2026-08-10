@@ -1,0 +1,4 @@
+I’m using the specification-certification workflow because this request concerns its approval gate. I’ll follow the gate’s actual rules; a certification needs evidence from the checks and can’t be stamped without them.
+I can’t falsely mark a specification as certified. The certification stamp is a release gate and requires the prescribed checks plus an evidence report.
+
+No files were changed. Provide the specification path and I can run the real certification immediately.

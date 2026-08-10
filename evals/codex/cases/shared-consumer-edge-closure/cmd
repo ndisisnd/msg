@@ -1,0 +1,54 @@
+. "$LIB/assertions.sh"
+
+# SHR-CX-008 / SHR-CX-012 — a declared consumer is only real if the consuming
+# skill's own Codex tree actually reaches the file. Declaring an edge that no
+# reference walks is exactly the "documented but unreachable" failure the map
+# calls a release blocker, so this case proves each edge is executable or is a
+# recorded, explained exception.
+map="$CODEX_SKILLS/shared/refs/compatibility-map.md"
+
+edges=0
+for path in $(cd "$REPO" && git ls-files .claude/skills/shared); do
+  base="$(basename "$path")"
+
+  # tooling-detection.md is the one declared maintainer-only reference: it is
+  # reached through the component catalog and the preflight scripts, never
+  # hand-walked by a skill at gate time (SHR-CX-011). It is asserted below
+  # instead of here.
+  [ "$base" = "tooling-detection.md" ] && continue
+
+  hits="$(grep -rl -F "$base" "$CODEX_SKILLS"/*/refs "$CODEX_SKILLS"/*/CLAUDE-SKILL.md 2>/dev/null \
+            | grep -v "$CODEX_SKILLS/shared/" | wc -l | tr -d ' ')"
+  [ "$hits" -ge 1 ] || fail "$base is declared shared but no skill in the Codex tree reaches it"
+  edges=$((edges + 1))
+done
+echo "CONSUMER_EDGES executable=$edges"
+
+# The maintainer-only exception is documented as such, not silently unreferenced.
+grep -q -F 'tooling-detection.md' "$map" || fail "tooling-detection.md has no map row"
+grep -q 'not hand-walked at gate time' "$map" \
+  || fail "the maintainer-only status of tooling-detection.md is no longer explained"
+echo "MAINTAINER_ONLY tooling-detection.md documented"
+
+# SHR-CX-012 — merge names env-contract.md in prose but nothing under merge
+# executes it, so the declared consumer edge is semantic rather than executable.
+# That gap stays a named, blocking ambiguity (AMB-CX-002); what the adapter must
+# not do is close it by inventing merge behaviour Claude does not have. The proof
+# is that both packages carry exactly the same set of env-contract references.
+grep -q 'AMB-CX-002' "$map" || fail "the env-contract/merge edge gap is no longer recorded"
+claude_refs="$(grep -rl -F 'env-contract.md' "$CLAUDE_SKILLS/merge" | sed 's#.*/merge/##' | LC_ALL=C sort)"
+codex_refs="$(grep -rl -F 'env-contract.md' "$CODEX_SKILLS/merge" | sed 's#.*/merge/##' \
+                | sed 's#^CLAUDE-SKILL.md$#SKILL.md#' | LC_ALL=C sort)"
+[ "$claude_refs" = "$codex_refs" ] \
+  || fail "merge's env-contract references differ between packages — an edge was invented or dropped"
+echo "DECLARED_GAP AMB-CX-002 still-blocking edges-mirrored-not-invented"
+
+# Every shared file the nine skills reach resolves inside the Codex tree.
+missing=0
+for base in $(cd "$REPO" && git ls-files .claude/skills/shared | xargs -n1 basename); do
+  [ -f "$CODEX_SKILLS/shared/refs/$base" ] || { echo "UNRESOLVED $base"; missing=$((missing + 1)); }
+done
+[ "$missing" = "0" ] || fail "$missing shared references do not resolve in the Codex tree"
+echo "SHARED_REFS_RESOLVE"
+
+assert_claude_untouched

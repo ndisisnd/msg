@@ -1,0 +1,34 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+# SHR-CX-010 — when the harness's own bookkeeping fails, the product verdict must
+# not move. A corrupt cache, an unwritable log or a missing report is an incident
+# to record, never a reason to pass or fail the user's work differently.
+
+assert_ref_contains shared refs/doctor-logging.md 'doctor'
+assert_ref_contains shared refs/session-cache.md 'cache'
+assert_ref_contains shared refs/verify-prelude.md 'diff'
+
+# The incident appender, the tally and the cache are the same implementation in
+# both packages, so corrupt/missing/enum-violating inputs degrade identically.
+assert_helper_mirrored script-doctor-log.sh script-doctor-tally.sh script-cert-status.sh
+differential_case doctor-log-append doctor-log-reject-enum doctor-tally-triage \
+  doctor-tally-unparsed standards-cache-roundtrip standards-cache-stale \
+  em-state-corrupt em-state-lifecycle
+
+# A designed "not found" is not an incident: exit 3 from the resolver is the
+# documented no-match code, and treating it as a failure would flood the ledger.
+set +e
+"$CODEX_SCRIPTS/script-codex-resolve.sh" script script-does-not-exist.py >/dev/null 2>&1
+rc=$?
+set -e
+[ "$rc" = "3" ] || fail "resolver no-match should exit 3 (designed), got $rc"
+echo "DESIGNED_EXIT_3 not-an-incident"
+
+# The doctor ledger is read-only to every skill but msg --doctor.
+grep -q -F 'msg --doctor' "$CODEX_SKILLS/shared/refs/doctor-logging.md" \
+  || fail "doctor-logging no longer names its single reader"
+echo "DOCTOR_SINGLE_READER msg --doctor"
+
+echo "DEGRADATION verdict-preserving across packages"
+assert_claude_untouched

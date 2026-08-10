@@ -1,0 +1,3 @@
+layer: 3
+assertions: MSG-CX-001, MSG-CX-003, MSG-CX-008
+proves: A live Codex session routes a new-project request to msg --init, offers --update rather than re-bootstrapping an initialised repo, declines to merge, and treats the doctor ledger as read-only.

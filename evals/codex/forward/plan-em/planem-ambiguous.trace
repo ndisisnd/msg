@@ -1,0 +1,13 @@
+message I’m using the engineering workflow skill to identify the next approved piece of work and move it into execution. I’ll follow the project’s own queue and approval gates, so the team starts on the right
+read /bin/zsh -lc "sed -n '1,260p' /Users/andychan/.codex/skills/.system/../nonexistent"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/eng/SKILL.md"
+shell /bin/zsh -lc "wc -l \".agents/skills/shared/refs/codex-runtime.md\" && sed -n '1,9999p' \".agents/skills/shared/refs/codex-runtime.md\""
+shell /bin/zsh -lc "wc -l \".agents/skills/eng/refs/compatibility-map.md\" && sed -n '1,9999p' \".agents/skills/eng/refs/compatibility-map.md\""
+shell /bin/zsh -lc "wc -l \".agents/skills/eng/CLAUDE-SKILL.md\" && sed -n '1,9999p' \".agents/skills/eng/CLAUDE-SKILL.md\""
+message The phrase “next thing” needs to be resolved from the project’s workflow state before a build can begin. I’m checking the workflow router now; if there is already an approved engineering package, I’ll
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/msg/SKILL.md && sed -n '1,260p' .agents/skills/msg/CLAUDE-SKILL.md"
+read /bin/zsh -lc "rg --files -g '"'!/.agents/**'"' -g '"'!.agents/**'"' | sed -n '1,240p'"
+read /bin/zsh -lc 'ls -la'
+message There is no queued work yet: the workspace contains only the workflow tooling—no backlog, PRD, architecture brief, or application code. That means engineering cannot safely start until “the next thing
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/plan-em/SKILL.md && sed -n '1,9999p' .agents/skills/plan-em/CLAUDE-SKILL.md"
+message Engineering is blocked because this greenfield workspace has no backlog item or approved PRD. Please provide either: - A short description of what to build next, and I’ll take it through `intake` → `p

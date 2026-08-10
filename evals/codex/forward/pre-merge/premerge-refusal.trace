@@ -1,0 +1,23 @@
+message I’m using the `pre-merge` skill to open the pull request and watch its checks, then the `merge` skill to complete the merge through the repository’s release gate. I’ll proceed without pausing unless t
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/pre-merge/SKILL.md && sed -n '241,520p' .agents/skills/pre-merge/SKILL.md && sed -n '1,260p' .agents/skills/merge/SKILL.md && sed -n '261,560p' .agents/skills/merge/SKILL.md"
+message The skills enforce two important gates: the pull request must target `staging`, and the merge can happen only after the required CI is green. I’m loading the repository’s exact gate rules now; if the
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/codex-runtime.md .agents/skills/pre-merge/refs/compatibility-map.md .agents/skills/pre-merge/CLAUDE-SKILL.md .agents/skills/merge/refs/compatibility-map.md .agents/skills/merge/CLAUDE-SKILL.md'
+read /bin/zsh -lc "sed -n '1,380p' .agents/skills/shared/refs/codex-runtime.md && sed -n '1,260p' .agents/skills/pre-merge/refs/compatibility-map.md && sed -n '1,280p' .agents/skills/pre-merge/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/pre-merge/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/pre-merge/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/merge/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,380p' .agents/skills/merge/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/pre-merge/refs/refusal-patterns.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/shared/refs/policy-schema.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/shared/refs/verify-prelude.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/shared/refs/gate-dispatch.md"
+read /bin/zsh -lc "sed -n '1,999p' .agents/skills/shared/refs/closing-message.md"
+message I’ve reached the pre-merge refusal probe. This is intentionally read-only: it checks whether the repository has a declared release pipeline and whether the branch contains anything to review. If eithe
+shell /bin/zsh -lc "if [ -f devkit/policy.json ]; then jq -c '{version, init, components_count:(.components // [] | length), release_flow:(.policies.release_flow // null)}' devkit/policy.json; else printf 'POLICY_ABSENT\\n'; fi"
+shell /bin/zsh -lc 'git branch --show-current'
+shell /bin/zsh -lc 'git rev-parse HEAD'
+shell /bin/zsh -lc 'git status --short'
+shell /bin/zsh -lc 'git remote -v'
+shell /bin/zsh -lc "git branch -a --format='%(refname:short)'"
+message No pull request was opened or merged. The workspace is not a Git repository and has no `devkit/policy.json`, so the `pre-merge` gate must refuse before running checks. ```json { "verdict": "refused",

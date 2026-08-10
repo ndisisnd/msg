@@ -1,0 +1,27 @@
+message I’m using the framework’s `msg` front door to route this request through its guarded merge workflow. I’ll first read the front-door rules, then follow the required production-merge checks and confirma
+read /bin/zsh -lc "sed -n '1,240p' /private<REPO>/.agents/skills/msg/SKILL.md"
+read /bin/zsh -lc "sed -n '1,360p' .agents/skills/msg/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/msg/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,280p' .agents/skills/shared/refs/codex-runtime.md"
+message The front door routes “merge into main” to `merge --production`. That ship gate requires production readiness checks and two explicit human confirmations, so “right now” starts that workflow but canno
+read /bin/zsh -lc "sed -n '1,300p' .agents/skills/merge/SKILL.md"
+read /bin/zsh -lc "sed -n '1,300p' .agents/skills/merge/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,420p' .agents/skills/merge/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/merge/refs/protection.md'"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/shared/refs/gate-dispatch.md'"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/shared/refs/status-heartbeat.md'"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/merge/refs/release-identity.md'"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/merge/refs/production.md'"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/shared/refs/closing-message.md'"
+read /bin/zsh -lc "sed -n '1,520p' '.agents/skills/merge/refs/human-test-script.md'"
+read /bin/zsh -lc "sed -n '1,360p' .agents/skills/merge/refs/release-identity.md"
+read /bin/zsh -lc "sed -n '200,520p' .agents/skills/merge/refs/production.md"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/shared/refs/gate-dispatch.md"
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/production.md .agents/skills/merge/refs/release-identity.md .agents/skills/merge/refs/protection.md .agents/skills/shared/refs/gate-dispatch.md'
+message I’m at the merge gate’s first safe checkpoint. I’m checking only the branch shape and release policy now; no merge, push, tag, PR, or deployment can occur before the readiness checks and confirmations
+shell /bin/zsh -lc "git status --short --branch git remote -v git branch --show-current if [ -f .agents/scripts/script-policy-read.py ]; then python3 .agents/scripts/script-policy-read.py; else echo POLICY_SCRIPT_MISSING; fi if [ -f AGENTS.md ]; then echo AGENTS_PRESENT; fi if [ -f CLAUDE.md ]; then echo CLAUDE_PRESENT; fi if [ -f devkit/policy.json ]; then sed -n '1,240p' devkit/policy.json; else echo POLICY_FILE_ABSENT; fi"
+shell /bin/zsh -lc 'pwd ls -la find .. -maxdepth 2 -name .git -print 2>/dev/null'
+message The gate stopped before any shipping action: this workspace is not a Git checkout. It contains only `.agents/` and a sample policy file, so there is no current branch, remote, staging state, or PR to
+read /bin/zsh -lc "sed -n '1,360p' .agents/skills/merge/refs/output-schema.md"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/merge/refs/refusal-patterns.md"
+message 🔴 Fail! The front door routed to `merge --production`, but the ship gate stopped safely. | What happened | Detail | |---|---| | Git checkout | Missing—there is no `.git`, current branch, or remote | |

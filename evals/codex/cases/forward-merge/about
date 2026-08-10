@@ -1,0 +1,3 @@
+layer: 3
+assertions: MRG-CX-001, MRG-CX-003, MRG-CX-007
+proves: A live Codex session routes shipping to merge, never reaches main except from staging, refuses to self-certify staging, and keeps both production confirmations as distinct human decisions.

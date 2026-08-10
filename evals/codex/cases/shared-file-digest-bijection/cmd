@@ -1,0 +1,37 @@
+. "$LIB/assertions.sh"
+
+# SHR-CX-008 — one current digest row per shared canonical file, and a
+# byte-identical Codex destination for each. The shared refs are the files every
+# skill leans on: if one of them drifts between packages, every skill drifts.
+map="$CODEX_SKILLS/shared/refs/compatibility-map.md"
+[ -f "$map" ] || fail "the shared compatibility map is missing"
+
+count=0
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  rel="${path#.claude/skills/shared/}"
+  mirror="$CODEX_SKILLS/shared/$rel"
+  [ -f "$mirror" ] || fail "no Codex counterpart for $path"
+  cmp -s "$REPO/$path" "$mirror" || fail "$mirror differs from $path"
+
+  # Exactly one coverage row, and its digest is the file's current digest.
+  rows="$(grep -c -F "\`$path\`" "$map" || true)"
+  [ "$rows" = "1" ] || fail "$path has $rows coverage rows, expected exactly 1"
+  digest="$(shasum -a 256 "$REPO/$path" | cut -d' ' -f1)"
+  grep -q -F "$digest" "$map" || fail "$path carries a stale digest in the shared map"
+  count=$((count + 1))
+done < <(cd "$REPO" && git ls-files .claude/skills/shared)
+
+[ "$count" = "22" ] || fail "shared canonical file count drifted: $count (expected 22)"
+echo "SHARED_BIJECTION files=$count rows=$count digests=current"
+
+# No row may describe a file that no longer exists — a bijection fails in both
+# directions, and an orphaned row is how a map starts lying.
+orphans=0
+while IFS= read -r row; do
+  [ -e "$REPO/$row" ] || { echo "ORPHAN_ROW $row"; orphans=$((orphans + 1)); }
+done < <(grep -o '`\.claude/skills/shared/refs/[a-z-]*\.md`' "$map" | tr -d '`' | sort -u)
+[ "$orphans" = "0" ] || fail "the shared map has $orphans orphaned rows"
+echo "SHARED_NO_ORPHANS"
+
+assert_claude_untouched

@@ -1,0 +1,41 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+# SHR-CX-002 / SHR-CX-003 / SHR-CX-009 — the wire contracts every skill writes
+# and reads. These are the bytes that cross skill boundaries, so a silent field,
+# enum or heading change here would break interoperability without breaking any
+# single skill on its own.
+
+# --- SHR-CX-002: schemas keep their exact field set, enums and keys ---------- #
+assert_ref_contains shared refs/finding-schema.md \
+  '"severity": "blocker" | "high" | "medium" | "low"' \
+  '**The dedup/regression key.**' \
+  'Retired values are mapped on read, never rejected'
+assert_ref_contains shared refs/report-schema.md \
+  'append-only'
+assert_ref_contains shared refs/check-report-schema.md \
+  'detect'
+
+# The report and ledger writers are the same bytes in both packages, so the
+# artifacts they produce are identical by construction, not by inspection.
+assert_helper_mirrored script-ledger.py script-prd-digest.py script-aggregate-verdict.sh
+differential_case ledger-report-append a11-ledger-no-section-creates-report ledger-legacy-section-kept
+
+# --- SHR-CX-009: framing rules never fabricate evidence or cause ------------- #
+assert_ref_contains shared refs/ratchet-vs-base.md 'base'
+assert_ref_contains shared refs/attribute-the-cause.md 'evidence'
+assert_ref_contains shared refs/name-the-user-impact.md 'impact'
+
+# --- SHR-CX-003: same closing protocol, active-runtime next step ------------- #
+assert_ref_contains shared refs/closing-message.md \
+  '# Closing message — the last thing every run says' \
+  '**Next steps**'
+assert_invocation_translation "Run \`/pre-merge\` now" "Run \`\$pre-merge\` now"
+assert_invocation_translation "Next: /merge --staging" "Next: \$merge --staging"
+# Translation is scoped to invocations: a path that merely looks like one is not
+# rewritten, which is what keeps output contracts intact.
+assert_invocation_translation "features/planned/prd-4-x/reports/report.json" \
+  "features/planned/prd-4-x/reports/report.json"
+
+echo "WIRE_CONTRACT schemas+framing+closing intact"
+assert_claude_untouched

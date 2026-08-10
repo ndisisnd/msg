@@ -1,0 +1,3 @@
+layer: 3
+assertions: PRV-CX-001, PRV-CX-004, PRV-CX-011
+proves: A live Codex session runs the seven-check certification on a named PRD, asks for the PRD when none is given, refuses a rubber-stamp approval, and escalates a product decision instead of deciding it.

@@ -1,0 +1,13 @@
+message I’m using the `intake` workflow because this is a backlog-capture request. It will turn the short idea into a properly graded backlog entry and only pause if a product decision is genuinely needed.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/intake/SKILL.md"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/intake/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,420p' .agents/skills/intake/CLAUDE-SKILL.md"
+shell /bin/zsh -lc 'wc -l .agents/skills/intake/refs/protocol-intake.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/intake/refs/rubric.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/closing-message.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/doctor-logging.md'
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/intake/refs/protocol-intake.md; sed -n '1,220p' .agents/skills/intake/refs/rubric.md"
+shell /bin/zsh -lc 'for f in INTAKE.md devkit/AHA.md; do if [ -f "$f" ]; then echo "PRESENT $f"; sed -n '"'1,220p' \""'$f"; else echo "ABSENT $f"; fi; done'
+read /bin/zsh -lc "sed -n '1,180p' .agents/skills/shared/refs/closing-message.md; sed -n '1,140p' .agents/skills/shared/refs/doctor-logging.md"
+message 🟡 Warning! No `INTAKE.md` exists yet. Create the backlog ledger? - **Yes, create it** — create the ledger and add “better search.” - **Skip** — don’t persist the idea. **Next step:** Reply **create**

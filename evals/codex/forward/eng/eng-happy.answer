@@ -1,0 +1,15 @@
+I’m using the `eng` skill because it owns implementation from already-written tickets. I’ll inspect its exact build and completion behavior, then explain it without changing any files.
+## Use `$eng --build`
+
+It treats the written todo tickets as the final implementation specification. It:
+
+- Implements tickets in dependency order.
+- Writes and runs unit/integration tests.
+- Runs the full test suite, linting, and type checks.
+- Automatically launches a separate `$eng --review` agent to review the whole change.
+- Resolves serious review findings before continuing.
+- Requests approval before committing, including explicit sign-off for database, production configuration, or breaking changes.
+- Commits by ticket. In sub-branch mode, it also opens a PR into the feature branch.
+- Produces a build summary and hands off to `$pre-merge`.
+
+No files were changed.

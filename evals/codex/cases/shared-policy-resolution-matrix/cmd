@@ -1,0 +1,41 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+# SHR-CX-004 / SHR-CX-006 / SHR-CX-011 / SHR-CX-012 — policy is the harness's
+# shared memory: what the pipeline runs, which release model applies, whether CI
+# gates. Both runtimes must resolve it with the same writer, the same defaults
+# and the same behaviour when it is absent, malformed or partially filled.
+
+assert_helper_mirrored script-policy-read.py script-policy-set.py \
+  script-pipeline-resolve.py script-platforms-parse.py
+
+# Absent, malformed, unknown-platform and mandatory-absent states resolve
+# identically in both packages — the states where a runtime is most tempted to
+# guess.
+differential_case a19-pipeline-platforms-unreadable a19-pipeline-unknown-platform \
+  a20-pipeline-mandatory-absent a24-platforms-multiple-tables \
+  a17-prd-scan-policy-fallback-note a23-ci-status-resolved-via-global
+
+# SHR-CX-006 — preference resolution stays local-first, flag-first, idempotent.
+assert_ref_contains shared refs/exec-mode-pref.md 'team' 'solo'
+
+# SHR-CX-004 — the three policy schemas arrive whole, with their writer ownership
+# and cross-half loading intact.
+assert_ref_contains shared refs/policy-schema.md 'devkit/policy.json'
+assert_ref_contains shared refs/policy-schema-pre-merge.md 'components'
+assert_ref_contains shared refs/policy-schema-merge.md 'release'
+assert_ref_contains shared refs/component-catalog.md 'component'
+assert_ref_contains shared refs/env-contract.md 'ENV'
+
+# SHR-CX-011 — the maintainer-facing tooling table cannot soften an executable
+# security contract: the security protocol's blocker floor still stands next to
+# tooling-detection's `warn` sentence, and the disagreement stays declared
+# (AMB-CX-003) rather than resolved by the adapter.
+grep -q 'AMB-CX-003' "$CODEX_SKILLS/shared/refs/compatibility-map.md" \
+  || fail "the tooling-detection / security-floor conflict is no longer recorded"
+grep -rq 'blocker' "$CODEX_SKILLS/pre-merge/refs/universal/protocol-security.md" \
+  || fail "the security protocol no longer states its blocker floor"
+echo "SECURITY_FLOOR_WINS tooling-detection cannot downgrade it"
+
+echo "POLICY_MATRIX resolution identical across packages"
+assert_claude_untouched

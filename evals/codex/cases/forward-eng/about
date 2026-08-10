@@ -1,0 +1,3 @@
+layer: 3
+assertions: ENG-CX-001, ENG-CX-008, ENG-CX-019
+proves: A live Codex session routes implementation to eng, asks for the ticket rather than inventing scope, refuses to commit anywhere but a feature branch, and pauses before touching a database migration.

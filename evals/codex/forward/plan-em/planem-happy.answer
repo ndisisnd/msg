@@ -1,0 +1,20 @@
+I’m using the `plan-em` skill because it is the engineering-planning step for an approved PRD. I’ll inspect its instructions only and make no changes.
+## Skill
+
+Use `$plan-em`.
+
+It turns an approved PRD into an engineering plan and selects the specialist engineering agents needed. It defaults to team mode, where an orchestrator divides the work among specialists.
+
+## The approval it asks for
+
+Before activating any specialists, it shows:
+
+- A short summary of the PRD’s product intent.
+- A roster table covering each proposed agent, domain, scope, and PRD features.
+- One choice: **Approve roster** or **Revise roster**.
+
+This roster approval is the normal run’s single human gate. It does not ask you to choose the execution mode or project size; those have defaults or are derived automatically.
+
+Extra questions appear only in exceptional cases, such as an unfinished prior run, a genuine dependency conflict, an unsupported platform, or a product decision that automated certification cannot resolve.
+
+No files were changed.

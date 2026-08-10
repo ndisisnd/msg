@@ -1,0 +1,10 @@
+message I’m checking the repository’s shipping-gate instructions so I can give you the exact staging command and handoff—without running it.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/merge/SKILL.md"
+read /bin/zsh -lc "sed -n '1,260p' \".agents/skills/merge/CLAUDE-SKILL.md\""
+read /bin/zsh -lc "sed -n '1,260p' \".agents/skills/shared/refs/codex-runtime.md\""
+read /bin/zsh -lc "sed -n '1,260p' \".agents/skills/merge/refs/compatibility-map.md\""
+read /bin/zsh -lc "sed -n '261,620p' \".agents/skills/merge/CLAUDE-SKILL.md\""
+read /bin/zsh -lc "sed -n '1,260p' \".agents/skills/merge/refs/output-schema.md\""
+read /bin/zsh -lc "sed -n '1,320p' \".agents/skills/merge/refs/staging.md\""
+read /bin/zsh -lc "sed -n '1,260p' \".agents/skills/merge/refs/human-test-script.md\""
+message Use **`merge --staging`**. It: - Rechecks branch protection, staging readiness, the PR, and green CI. - Merges the feature PR into `staging`. - Deploys and smoke-tests the staging environment. - Hands

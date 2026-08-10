@@ -1,0 +1,30 @@
+I’m using the `pre-merge` skill to open the pull request and watch its checks, then the `merge` skill to complete the merge through the repository’s release gate. I’ll proceed without pausing unless the workflow requires a human approval or credentials.
+
+One environment note: the installed Vercel CLI is behind (58.5.1 vs 58.9.0). After this merge, I strongly recommend `npm i -g vercel@latest` (or `pnpm add -g vercel@latest`) for the latest compatibility and agent features.
+The skills enforce two important gates: the pull request must target `staging`, and the merge can happen only after the required CI is green. I’m loading the repository’s exact gate rules now; if the project has no staging branch or requires a human staging sign-off, I’ll report that as the specific blocker rather than bypass it.
+I’ve reached the pre-merge refusal probe. This is intentionally read-only: it checks whether the repository has a declared release pipeline and whether the branch contains anything to review. If either is missing, the gate must stop before opening or merging a pull request.
+No pull request was opened or merged. The workspace is not a Git repository and has no `devkit/policy.json`, so the `pre-merge` gate must refuse before running checks.
+
+```json
+{
+  "verdict": "refused",
+  "reason": "no_manifest",
+  "detail": "No components[] manifest in devkit/policy.json — $pre-merge cannot gate without a declared pipeline.",
+  "base": "main",
+  "prior_issues_loaded": false,
+  "issues": []
+}
+```
+
+🔴 Fail!
+
+| What happened | Detail |
+|---|---|
+| Git repository | No `.git` repository or remote exists |
+| Release pipeline | `devkit/policy.json` is absent |
+| PR and merge | Neither action occurred |
+
+**Next steps**
+
+1. Initialize the repository, commit the project, and connect a GitHub remote.
+2. Run `$pre-merge --init`, then repeat the PR-and-merge request.

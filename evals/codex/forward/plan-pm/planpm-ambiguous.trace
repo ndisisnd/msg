@@ -1,0 +1,10 @@
+message I’ll use the PRD workflow to identify the missing product input before drafting. Since no idea has been provided, I won’t invent one.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/plan-pm/SKILL.md"
+shell /bin/zsh -lc "wc -l \".agents/skills/shared/refs/codex-runtime.md\" && sed -n '1,260p' \".agents/skills/shared/refs/codex-runtime.md\""
+shell /bin/zsh -lc "wc -l \".agents/skills/plan-pm/refs/compatibility-map.md\" && sed -n '1,260p' \".agents/skills/plan-pm/refs/compatibility-map.md\""
+shell /bin/zsh -lc "wc -l \".agents/skills/plan-pm/CLAUDE-SKILL.md\" && sed -n '1,260p' \".agents/skills/plan-pm/CLAUDE-SKILL.md\""
+shell /bin/zsh -lc "wc -l \".agents/skills/shared/refs/codex-runtime.md\" && sed -n '261,380p' \".agents/skills/shared/refs/codex-runtime.md\""
+shell /bin/zsh -lc "wc -l \".agents/skills/plan-pm/refs/protocol-pm.md\" && sed -n '1,360p' \".agents/skills/plan-pm/refs/protocol-pm.md\""
+message The PRD workflow requires every PRD to start from a named idea in the intake ledger. I’m checking whether there is already a backlog item you can select; if there isn’t, the only needed input is the i
+shell /bin/zsh -lc 'for p in devkit/AHA.md CLAUDE.md devkit/ARCHITECTURE.md devkit/OPEN-QUESTIONS.md INTAKE.md; do if [ -f "$p" ]; then echo "FOUND $p"; sed -n '"'1,220p' \""'$p"; else echo "MISSING $p"; fi; done'
+message `devkit/` not found — run `msg --init` to initialise the project first. There are no backlog ideas yet, so I need one input: **What idea should the PRD cover?** A rough sentence is enough.

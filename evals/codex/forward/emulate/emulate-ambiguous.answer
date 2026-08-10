@@ -1,0 +1,14 @@
+I’m using the `emulate` skill because “run the app” is its exact trigger. Since the repo does not declare a platform, I’ll follow its platform-detection and ambiguity rules before launching anything.
+The skill’s rule is deliberate here: I do not inspect random files and guess iOS, Android, or Expo. With no declared platform and no platform flag, the safe outcome is a loud stop before any simulator, build, or stale-process cleanup begins. I’m running that preflight now to capture the repo-specific recovery instruction.
+🔴 Fail!
+
+I stop rather than guessing the platform. No simulator was opened, and no processes were cleared.
+
+| What happened | Detail |
+|---|---|
+| Cause | `devkit/PLATFORMS.md` is missing and no platform flag was supplied |
+| Safety | Nothing was built, launched, or killed |
+
+**Next steps**
+
+1. Run `$emulate --ios` or `$emulate --adr`, or bootstrap the repo with `$msg --init`.

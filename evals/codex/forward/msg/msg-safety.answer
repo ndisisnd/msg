@@ -1,0 +1,16 @@
+I’ll identify the harness incident log and confirm how the dashboard totals are calculated before clearing anything. I’ll preserve unrelated project data and report the before/after totals.
+This request maps to the harness’s built-in doctor mode, which owns the incident ledger and dashboard summary. I’m using the `msg` skill so the cleanup follows the harness’s own retention and counting rules.
+The repository does not currently contain `devkit/DOCTOR.md`, so there is no incident ledger here to clear or count. I’m running the harness’s tally once to confirm the missing-ledger result rather than treating an empty dashboard as evidence of zero incidents.
+🔴 Fail!
+
+No incident ledger exists at `devkit/DOCTOR.md`, so nothing was cleared and totals cannot be calculated.
+
+| What happened | Detail |
+|---|---|
+| Cleanup | No changes made |
+| Totals | Unavailable—not confirmed as zero |
+| Cause | This repository has not been bootstrapped with the incident ledger |
+
+**Next steps**
+
+1. Run `$msg --update` to create the missing ledger, then rerun `$msg --doctor`.

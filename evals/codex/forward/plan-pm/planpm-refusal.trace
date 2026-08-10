@@ -1,0 +1,6 @@
+message I’m using the engineering workflow because you’re asking to move directly into implementation. I’ll check its build rules, then start the build if there is already a concrete implementation ticket; if
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/eng/SKILL.md"
+shell /bin/zsh -lc "wc -l '.agents/skills/eng/CLAUDE-SKILL.md' && sed -n '1,1200p' '.agents/skills/eng/CLAUDE-SKILL.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/eng/refs/compatibility-map.md' && sed -n '1,1200p' '.agents/skills/eng/refs/compatibility-map.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/codex-runtime.md' && sed -n '1,1200p' '.agents/skills/shared/refs/codex-runtime.md'"
+message Hard failure: exactly one mode flag required (`--plan | --build | --review`). Got: none.

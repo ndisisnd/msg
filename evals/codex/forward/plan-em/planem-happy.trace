@@ -1,0 +1,9 @@
+message I’m using the `plan-em` skill because it is the engineering-planning step for an approved PRD. I’ll inspect its instructions only and make no changes.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/plan-em/SKILL.md"
+read /bin/zsh -lc "sed -n '1,260p' '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,260p' '.agents/skills/plan-em/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,260p' '.agents/skills/plan-em/CLAUDE-SKILL.md'"
+shell /bin/zsh -lc "wc -l .agents/skills/plan-em/refs/protocol-em.md .agents/skills/plan-em/refs/protocol-team.md .agents/skills/plan-em/refs/template-exec-table.md && sed -n '1,260p' .agents/skills/plan-em/refs/protocol-em.md && sed -n '261,520p' .agents/skills/plan-em/refs/protocol-em.md && sed -n '521,780p' .agents/skills/plan-em/refs/protocol-em.md && sed -n '781,1040p' .agents/skills/plan-em/refs/protocol-em.md"
+read /bin/zsh -lc "sed -n '220,390p' .agents/skills/plan-em/refs/protocol-em.md"
+read /bin/zsh -lc "sed -n '170,235p' .agents/skills/plan-em/refs/protocol-em.md"
+message ## Skill Use `plan-em`. It turns an approved PRD into an engineering plan and selects the specialist engineering agents needed. It defaults to team mode, where an orchestrator divides the work among s

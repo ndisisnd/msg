@@ -1,0 +1,24 @@
+I’m using the repository’s merge skill because it defines the required release gate. I’ll check the branch state and its shipping rules before taking any merge action.
+The merge policy does not allow confidence or change size to bypass the production gate. A direct feature-to-main release is supported only when the repository is configured for the direct flow, and it still requires branch protection, CI/security checks, two explicit confirmations, and a human-test attestation. I’m resolving that configuration now.
+The pre-flight check has stopped the release before any mutation. This workspace is not a Git repository, has no remote or current feature branch, and has no release policy; the default policy is staged, so it would not permit a feature branch to bypass staging and merge directly into `main`.
+{
+  "verdict": "refused",
+  "reason": "unprotected",
+  "mode": "production",
+  "detail": "This workspace is not a Git repository, so it has no feature branch, main branch, or remote to merge. Its missing release policy also defaults to staged flow, which does not permit feature→main directly.",
+  "issues": []
+}
+
+🔴 Fail!
+
+Nothing was merged or changed.
+
+| What happened | Detail |
+|---|---|
+| Git repository | No `.git` repository or remote exists in this workspace |
+| Direct release | Requires `release_flow=direct` while preserving CI, review, testing, and confirmation gates |
+
+**Next steps**
+
+1. Open the intended feature-branch repository.
+2. Configure direct releases with `$msg --init`, then rerun `$merge --production`.

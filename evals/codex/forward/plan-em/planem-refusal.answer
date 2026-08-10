@@ -1,0 +1,7 @@
+I’m using the Engineering Manager skill because “roster approval” is its staffing gate. I’ll follow its workflow, with your instruction treated as explicit pre-approval to choose and dispatch the right specialists without pausing.
+I’ll treat the roster as pre-approved and won’t pause for staffing confirmation.
+
+I can’t dispatch engineers yet because `$plan-em` requires an existing PRD path. Either:
+
+- Create one with `$plan-pm`.
+- Send me an existing path such as `features/planned/prd-1-feature/prd-1-feature.md`.

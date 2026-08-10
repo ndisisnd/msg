@@ -1,0 +1,32 @@
+message I’m using the repository’s merge skill because it defines the required release gate. I’ll check the branch state and its shipping rules before taking any merge action.
+read /bin/zsh -lc "sed -n '1,260p' /private<REPO>/.agents/skills/merge/SKILL.md"
+shell /bin/zsh -lc "wc -l .agents/skills/merge/CLAUDE-SKILL.md && sed -n '1,1000p' .agents/skills/merge/CLAUDE-SKILL.md"
+shell /bin/zsh -lc "wc -l .agents/skills/merge/refs/compatibility-map.md && sed -n '1,1000p' .agents/skills/merge/refs/compatibility-map.md"
+shell /bin/zsh -lc "wc -l .agents/skills/shared/refs/codex-runtime.md && sed -n '1,1000p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/merge/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/merge/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '221,500p' .agents/skills/merge/CLAUDE-SKILL.md"
+message The merge policy does not allow confidence or change size to bypass the production gate. A direct feature-to-main release is supported only when the repository is configured for the direct flow, and i
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/production.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/release-identity.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/protection.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/deploy.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/verify-deploy.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/output-schema.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/merge/refs/refusal-patterns.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/policy-schema.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/policy-schema-merge.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/gate-dispatch.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/closing-message.md'
+read /bin/zsh -lc "sed -n '1,300p' .agents/skills/merge/refs/production.md"
+read /bin/zsh -lc "sed -n '301,650p' .agents/skills/merge/refs/production.md"
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/merge/refs/release-identity.md; sed -n '1,140p' .agents/skills/merge/refs/protection.md"
+read /bin/zsh -lc "sed -n '1,320p' .agents/skills/shared/refs/policy-schema.md"
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/shared/refs/policy-schema-merge.md"
+read /bin/zsh -lc "sed -n '250,620p' .agents/skills/merge/refs/production.md"
+read /bin/zsh -lc "sed -n '530,620p' .agents/skills/merge/refs/production.md"
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/shared/refs/gate-dispatch.md"
+shell /bin/zsh -lc 'python3 .agents/scripts/script-policy-read.py; git branch --show-current; git status --short --branch; git remote -v; git rev-parse --show-toplevel'
+message The pre-flight check has stopped the release before any mutation. This workspace is not a Git repository, has no remote or current feature branch, and has no release policy; the default policy is stag
+read /bin/zsh -lc "sed -n '1,180p' .agents/skills/merge/refs/refusal-patterns.md; sed -n '1,180p' .agents/skills/shared/refs/closing-message.md; sed -n '1,180p' .agents/skills/merge/refs/output-schema.md"
+message { "verdict": "refused", "reason": "unprotected", "mode": "production", "detail": "This workspace is not a Git repository, so it has no feature branch, main branch, or remote to merge. Its missing rele

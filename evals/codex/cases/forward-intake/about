@@ -1,0 +1,3 @@
+layer: 3
+assertions: INT-CX-001, INT-CX-004, INT-CX-007
+proves: A live Codex session captures an idea through intake, interviews a thin idea rather than inventing one, hands PRD writing to plan-pm, and warns before removing a backlog row.

@@ -1,0 +1,3 @@
+layer: 0
+assertions: SHR-CX-008
+proves: All 22 shared canonical files are mirrored byte-for-byte and carry exactly one current-digest row each, with no orphaned rows in either direction.

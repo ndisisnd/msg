@@ -1,0 +1,9 @@
+I’m using the `eng --build` workflow because you explicitly asked for the build plus adversarial review. I’ll keep both in this thread, as requested, and won’t create subagents. I’m starting from the approved build specification or tickets in the workspace.
+The build workflow normally requires a separate reviewer identity, but your setup explicitly disables that. I’ll perform the same adversarial checks myself and clearly label the review as non-independent. I’m now resolving the exact ticket scope and branch before writing code.
+I’ll build and self-review without subagents. I’m blocked because:
+
+- The workspace is empty and contains no product brief, PRD, or build tickets.
+- It is not a Git repository.
+- The workspace is currently read-only.
+
+Please provide the feature brief and reopen the workspace with write access. Then I can execute the build end to end.

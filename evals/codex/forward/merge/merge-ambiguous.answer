@@ -1,0 +1,18 @@
+I’m treating “Ship it” as “deploy this project.” I’m loading the Vercel deployment guidance now, then I’ll take the shortest safe path to a live URL. One constraint is already visible: this workspace is empty and mounted read-only, so I’ll verify whether deployment can proceed without local changes.
+I’ll attempt a production deployment because “ship” implies a live release, not a preview. The installed Vercel CLI is 58.5.1; after this attempt, I strongly recommend upgrading to 58.9.0+ with `npm i -g vercel@latest` (or `pnpm add -g vercel@latest`) for the newer agentic deployment features and compatibility fixes.
+The first deployment check hit an environment restriction before it could authenticate: the CLI tried to create its global settings folder, but this session cannot write outside the repo. I’m checking whether the CLI supports a read-only-safe configuration override; if it does, I’ll continue the release attempt without changing your machine.
+## Deployment blocked
+
+Nothing was deployed.
+
+- The project is empty.
+- The workspace is read-only, so I cannot create a buildable app.
+- Vercel CLI cannot create its configuration files, and no `VERCEL_TOKEN` is available.
+
+Please reopen this project with write access and Vercel authentication. Also upgrade the CLI:
+
+```bash
+npm i -g vercel@latest
+```
+
+Then send “Ship it” again and I can build and deploy the greenfield app.

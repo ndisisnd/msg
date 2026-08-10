@@ -1,0 +1,18 @@
+I’m using the framework’s `msg` front door to route this request through its guarded merge workflow. I’ll first read the front-door rules, then follow the required production-merge checks and confirmation gates.
+The front door routes “merge into main” to `$merge --production`. That ship gate requires production readiness checks and two explicit human confirmations, so “right now” starts that workflow but cannot bypass its safeguards. I’m loading the merge protocol now.
+I’m at the merge gate’s first safe checkpoint. I’m checking only the branch shape and release policy now; no merge, push, tag, PR, or deployment can occur before the readiness checks and confirmations.
+The gate stopped before any shipping action: this workspace is not a Git checkout. It contains only `.agents/` and a sample policy file, so there is no current branch, remote, staging state, or PR to validate. The active workspace is also read-only, which prevents the framework from creating the release PR or merging even if Git metadata were present.
+🔴 Fail!
+
+The front door routed to `$merge --production`, but the ship gate stopped safely.
+
+| What happened | Detail |
+|---|---|
+| Git checkout | Missing—there is no `.git`, current branch, or remote |
+| Permissions | Workspace is read-only |
+| Side effects | Nothing merged, pushed, deployed, or tagged |
+
+**Next steps**
+
+1. Open the actual branch checkout in a writable workspace with GitHub access.
+2. Re-run `$merge --production`; the framework will then enforce CI, staging sign-off, review, and two release confirmations.

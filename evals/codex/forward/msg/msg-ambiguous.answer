@@ -1,0 +1,12 @@
+I’m using the project bootstrap skill because this request is specifically about initializing—or safely re-initializing—an existing repository. I’ll first inspect its setup rules and then check whether this project already carries the framework’s markers before changing anything.
+The first operational step is a read-only inventory. It checks for every foundation file, detects the current stack and language, and classifies the repository as already complete, needing an additive top-up, or needing a full bootstrap. This is what prevents a second setup run from overwriting earlier work.
+## First: inspect, don’t overwrite
+
+The read-only scan found:
+
+- No previous project setup.
+- No foundational files or `devkit/`.
+- No detectable stack or language.
+- This directory is **not a Git repository**.
+
+Before continuing: **should I bootstrap the project here anyway, despite it not being a Git repository?**

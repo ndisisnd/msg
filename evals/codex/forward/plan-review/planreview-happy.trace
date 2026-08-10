@@ -1,0 +1,9 @@
+message I’m using the `plan-review` skill because it is the pre-engineering contract check for an existing PRD. I’ll inspect its instructions and explain its checks without changing any files.
+read /bin/zsh -lc "sed -n '1,260p' /Users/andychan/.codex/plugins/cache/openai-bundled/../../../../../../private<REPO>/.agents/skills/plan-review/SKILL.md"
+read /bin/zsh -lc 'cat .agents/skills/plan-review/CLAUDE-SKILL.md'
+read /bin/zsh -lc 'cat .agents/skills/plan-review/refs/compatibility-map.md'
+read /bin/zsh -lc 'cat .agents/skills/shared/refs/codex-runtime.md'
+read /bin/zsh -lc 'cat .agents/skills/plan-review/refs/template-review-report.md'
+read /bin/zsh -lc 'cat .agents/skills/plan-review/refs/certification.md'
+shell /bin/zsh -lc 'wc -l .agents/skills/plan-review/CLAUDE-SKILL.md .agents/skills/plan-review/refs/compatibility-map.md .agents/skills/plan-review/refs/certification.md .agents/skills/plan-review/refs/template-review-report.md'
+message The skill is `plan-review`. It is a contract certifier for PRDs—not a broad editorial or adversarial review. It runs seven defined checks: 1. Acceptance criteria are objectively testable. 2. Breaking

@@ -1,0 +1,51 @@
+. "$LIB/assertions.sh"
+
+# SHR-CX-001 — the floor. Per-skill write authority and every human gate survive
+# the move to Codex unchanged. A sandbox may add an approval; it may never remove
+# a gate or widen what a skill is allowed to write.
+
+assert_ref_contains shared refs/safety-floor.md \
+  '| Skill | May write | Must never |' \
+  '## Human gates — never removed'
+
+# The four skills with explicit write powers keep their own row; every other
+# skill is covered by the catch-all row, so no skill reaches Codex without a
+# declared boundary.
+for skill in eng pre-merge merge emulate; do
+  grep -q -F "| \`$skill\` |" "$CODEX_SKILLS/shared/refs/safety-floor.md" \
+    || fail "safety-floor no longer scopes $skill"
+done
+grep -q -F '| all others |' "$CODEX_SKILLS/shared/refs/safety-floor.md" \
+  || fail "safety-floor no longer carries the catch-all write row"
+assert_ref_contains shared refs/safety-floor.md \
+  '**Nothing reaches `main` except from `staging`, and only via `merge'
+echo "WRITE_AUTHORITY named-four-plus-catch-all"
+
+# The gate broker keeps a human decision a human decision: it emits an envelope
+# and waits, an answer outside the offered set is refused rather than widened,
+# and with no surface to ask on it blocks instead of assuming.
+assert_gate_state awaiting-answer 0 --id staging-signoff --skill merge \
+  --question "Approve the staging sign-off?" --option "Approve" --option "Hold"
+assert_gate_state answered 0 --id staging-signoff --skill merge \
+  --question "Approve the staging sign-off?" --option "Approve" --option "Hold" --answer "Approve"
+assert_gate_state rejected 4 --id staging-signoff --skill merge \
+  --question "Approve the staging sign-off?" --option "Approve" --option "Hold" \
+  --answer "Ship to production"
+MSG_CODEX_QUESTION_SURFACE=none assert_gate_state blocked 3 --id production-release --skill merge \
+  --question "Release to production?" --option Approve --option Cancel
+echo "HUMAN_GATES block-not-default"
+
+# Merge remains the only merger: the payload's own hard refusals say so in both
+# packages, and pre-merge's payload keeps its non-merging boundary.
+assert_payload_contains merge 'the only skill that merges'
+assert_payload_contains pre-merge 'Does NOT modify source code.'
+echo "GATE_SEPARATION pre-merge-cannot-merge"
+
+# Sandbox translation may add approvals, never authority (DEV-CX-007).
+grep -q 'DEV-CX-007' "$CODEX_SKILLS/shared/refs/compatibility-map.md" \
+  || fail "the sandbox-vs-authority deviation is no longer recorded"
+grep -q 'may add approvals but may not broaden power' "$CODEX_SKILLS/shared/refs/compatibility-map.md" \
+  || fail "the sandbox parity rule is no longer stated"
+echo "SANDBOX_ADDS_APPROVALS_NOT_AUTHORITY"
+
+assert_claude_untouched

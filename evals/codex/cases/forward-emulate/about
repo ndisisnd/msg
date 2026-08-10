@@ -1,0 +1,3 @@
+layer: 3
+assertions: EMU-CX-001, EMU-CX-003, EMU-CX-016
+proves: A live Codex session, given only a realistic user prompt, selects emulate, asks instead of guessing the platform, refuses work outside emulate's write authority, and keeps the process sweep bounded.

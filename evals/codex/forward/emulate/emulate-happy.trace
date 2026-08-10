@@ -1,0 +1,11 @@
+message I’m consulting the `emulate` skill’s instructions to answer precisely. I’ll only read them—no app, simulator, or build process will be started.
+read /bin/zsh -lc 'cat .agents/skills/emulate/SKILL.md'
+read /bin/zsh -lc "cat '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "cat '.agents/skills/emulate/refs/compatibility-map.md'"
+read /bin/zsh -lc "cat '.agents/skills/emulate/CLAUDE-SKILL.md'"
+read /bin/zsh -lc "cat '.agents/skills/emulate/refs/protocol.md'"
+read /bin/zsh -lc "cat '.agents/skills/emulate/refs/runners.md'"
+read /bin/zsh -lc "cat '.agents/skills/shared/refs/safety-floor.md'"
+read /bin/zsh -lc "cat '.agents/skills/shared/refs/closing-message.md'"
+read /bin/zsh -lc "cat '.agents/skills/shared/refs/doctor-logging.md'"
+message The `emulate` skill handles this. Its first step is a read-only preflight: it parses the request and resolves the iOS target. Before launching, it reports your current branch and safely clears only st

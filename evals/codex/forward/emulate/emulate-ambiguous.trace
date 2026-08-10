@@ -1,0 +1,20 @@
+message I’m using the `emulate` skill because “run the app” is its exact trigger. Since the repo does not declare a platform, I’ll follow its platform-detection and ambiguity rules before launching anything.
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/emulate/SKILL.md"
+read /bin/zsh -lc "sed -n '1,260p' '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,260p' '.agents/skills/emulate/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,260p' '.agents/skills/emulate/CLAUDE-SKILL.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/codex-runtime.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/emulate/refs/protocol.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/emulate/refs/runners.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/safety-floor.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/closing-message.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/doctor-logging.md'"
+read /bin/zsh -lc "sed -n '261,360p' '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,240p' '.agents/skills/emulate/refs/protocol.md'"
+read /bin/zsh -lc "sed -n '1,220p' '.agents/skills/emulate/refs/runners.md'"
+read /bin/zsh -lc "sed -n '1,120p' '.agents/skills/shared/refs/safety-floor.md'"
+read /bin/zsh -lc "sed -n '1,180p' '.agents/skills/shared/refs/closing-message.md'"
+read /bin/zsh -lc "sed -n '1,140p' '.agents/skills/shared/refs/doctor-logging.md'"
+message The skill’s rule is deliberate here: I do not inspect random files and guess iOS, Android, or Expo. With no declared platform and no platform flag, the safe outcome is a loud stop before any simulator
+shell /bin/zsh -lc .agents/scripts/script-emulate-preflight.sh
+message 🔴 Fail! I stop rather than guessing the platform. No simulator was opened, and no processes were cleared. | What happened | Detail | |---|---| | Cause | `devkit/PLATFORMS.md` is missing and no platfor

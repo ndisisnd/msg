@@ -1,0 +1,7 @@
+message I’ll resolve the refund rule in favor of the clearest customer promise, record the assumption, and continue the build. I’m using the engineering workflow because the acceptance rows are the build cont
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/eng/SKILL.md"
+read /bin/zsh -lc "sed -n '1,400p' '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,400p' '.agents/skills/eng/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,400p' '.agents/skills/eng/CLAUDE-SKILL.md'"
+read /bin/zsh -lc "rg --files -g '*.md' -g '"'!node_modules'"' | sed -n '1,160p'"
+message I’m choosing **partial refunds** as the governing rule. Reason: the same refund mechanism can still return the full remaining amount, while a full-only model cannot handle individual items, quantities

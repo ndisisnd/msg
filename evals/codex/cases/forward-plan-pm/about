@@ -1,0 +1,3 @@
+layer: 3
+assertions: PPM-CX-001, PPM-CX-003, PPM-CX-006
+proves: A live Codex session drafts a PRD only from a graded intake row, refuses to skip the PRD stage, batches open questions instead of guessing, and pauses on a breaking change.

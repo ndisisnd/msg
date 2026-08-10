@@ -1,0 +1,10 @@
+message I’m using the `pre-merge` skill because it owns the project’s check pipeline. Since this repo has never been configured, I’ll first let that workflow determine whether it can bootstrap safely or must
+read /bin/zsh -lc "sed -n '1,260p' .agents/skills/pre-merge/SKILL.md"
+read /bin/zsh -lc 'cat .agents/skills/pre-merge/CLAUDE-SKILL.md'
+read /bin/zsh -lc 'cat .agents/skills/pre-merge/refs/compatibility-map.md'
+read /bin/zsh -lc 'cat .agents/skills/shared/refs/codex-runtime.md'
+shell /bin/zsh -lc 'git status --short --branch 2>&1'
+shell /bin/zsh -lc "if [[ -f devkit/policy.json ]]; then sed -n '1,240p' devkit/policy.json; else echo '__NO_POLICY__'; fi"
+read /bin/zsh -lc 'cat .agents/skills/pre-merge/refs/refusal-patterns.md'
+read /bin/zsh -lc 'cat .agents/skills/shared/refs/closing-message.md'
+message { "verdict": "refused", "reason": "no_manifest", "detail": "No components[] manifest in devkit/policy.json — pre-merge runs the project-defined pipeline and cannot run checks without it. Run pre-merge

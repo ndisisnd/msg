@@ -1,0 +1,4 @@
+layer: 2
+assertions: SHR-CX-010
+proves: Corrupt, missing and enum-violating cache, log and state inputs degrade identically in both packages and never move a verdict; a designed no-match exit 3 is not logged as an incident.
+residual: Whether a model logs the right incident class for a novel failure is layer 3.

@@ -1,0 +1,4 @@
+layer: 2
+assertions: SHR-CX-001
+proves: Per-skill write authority covers all nine skills, human gates block rather than default, pre-merge still cannot merge, and the Codex sandbox may only add approvals — never authority.
+residual: Whether a model honours a gate it could technically bypass is layer 3.

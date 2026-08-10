@@ -1,0 +1,31 @@
+I’m using the `merge --production` ship gate because this request is explicitly a production release. I’ll treat your message as the required production confirmations, run the release checks, and only pause if credentials or an unrecoverable safety issue blocks the shipment.
+The release gate requires a two-phase production run: first validate the release candidate and safeguards, then merge and deploy. Your instruction supplies the production confirmations in advance; I’m now checking whether there is an actual signed-off release candidate, protected production branch, deploy target, and valid credentials.
+The release’s delegated preflight failed to start because the collaboration runtime could not attach the child thread. The release skill requires an independent phase executor, so I’m retrying that infrastructure step before any production mutation.
+The production preflight is running now. It is validating the signed-off staging window and GitHub protections before the release confirmations can be accepted; no branch, PR, tag, or deployment has been changed.
+Preflight is still active and has not returned a release verdict yet. I’m keeping the production gate closed until it produces evidence for the candidate, sign-off, CI, and branch protection.
+```json
+{
+  "verdict": "refused",
+  "reason": "unprotected",
+  "mode": "production",
+  "detail": "This workspace is not a complete Git repository: it has no .git directory, GitHub remote, release PRDs, staging branch, or deployment configuration. GitHub CLI is also unauthenticated. Production was not changed.",
+  "issues": []
+}
+```
+
+🔴 Fail!
+
+The release gate stayed closed. No PR, merge, deployment, tag, or release lock was created.
+
+| What happened | Detail |
+|---|---|
+| Project checkout | Only `.agents/` is present; the actual project and Git history are missing |
+| GitHub | No remote is configured and `gh` is unauthenticated |
+| Release evidence | Staging CI and human sign-off cannot be verified |
+
+**Next steps**
+
+1. Open the complete project checkout containing `.git`, `features/`, and `devkit/`.
+2. Configure its GitHub remote and authenticate with `gh auth login` or `GH_TOKEN`.
+3. Re-run `$merge --production`.
+4. If deploying with Vercel, upgrade the outdated CLI: `npm i -g vercel@latest`.

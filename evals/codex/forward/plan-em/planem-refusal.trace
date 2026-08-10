@@ -1,0 +1,6 @@
+message I’m using the Engineering Manager skill because “roster approval” is its staffing gate. I’ll follow its workflow, with your instruction treated as explicit pre-approval to choose and dispatch the righ
+read /bin/zsh -lc "sed -n '1,240p' /private<REPO>/.agents/skills/plan-em/SKILL.md"
+read /bin/zsh -lc "sed -n '1,260p' /private<REPO>/.agents/skills/plan-em/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,280p' /private<REPO>/.agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,360p' /private<REPO>/.agents/skills/plan-em/CLAUDE-SKILL.md"
+message I’ll treat the roster as pre-approved and won’t pause for staffing confirmation. I can’t dispatch engineers yet because `plan-em` requires an existing PRD path. Either: - Create one with `plan-pm`. -

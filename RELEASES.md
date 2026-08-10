@@ -2,6 +2,19 @@
 
 What's new for you, release by release.
 
+## v6.0.0 — 2026-08-10
+
+> msg now runs on OpenAI Codex as well as Claude Code, from one source of truth. The pipeline, the gates, the reports and the refusals are the same on both — the only thing that changes is how you type a skill: `/merge --staging` in Claude Code, `$merge --staging` in Codex.
+
+### ✨ New
+- **A Codex build of all nine skills.** Install it with `install-codex.sh`. It lands in `~/.agents`, the place Codex looks, and is invoked with `$name` instead of `/name`. Everything else is unchanged: same modes, same flags, same questions, same order of gates.
+- **Both runtimes on one machine, safely.** The Codex installer never reads or writes your Claude install — it refuses even if you point it at one. Adding Codex to a machine that already runs Claude Code leaves every Claude byte exactly where it was, and that is checked by a test rather than promised in a sentence. If you want both, `install-codex.sh --with-claude` installs them together.
+- **A version stamp that names the runtime.** `$msg --version` on Codex prints the same one-line stamp as `/msg --version` on Claude, with the runtime named — so on a machine carrying both, you always know which install answered.
+
+### 📈 Improved
+- **The two runtimes cannot quietly drift apart.** The Codex skills are generated from the Claude ones rather than copied by hand, and every helper script is shared byte-for-byte. Where a genuine runtime difference exists — Codex's own paths, its question surface, how it delegates to sub-agents — it is written down as an approved, named deviation instead of being smoothed over as "close enough".
+- **Everything the Codex build claims is tested.** 122 compatibility tests cover every one of the 146 parity assertions, plus live Codex sessions that are handed a realistic prompt with no hint of the expected answer, to check that the right skill is chosen, that an under-specified request is questioned rather than guessed at, and that a request to skip a gate is refused.
+
 ## v5.6.5 — 2026-08-05
 
 > Long engineering runs now survive interruptions. If a session dies or you close your laptop mid-run, the orchestrator picks up where it left off — finished work is kept, only the unfinished agents are re-dispatched. Runs also got cheaper: compiled coding standards are remembered between runs, and agent briefings are arranged so the shared portion is billed at cache rates instead of full price.

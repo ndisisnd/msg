@@ -1,0 +1,17 @@
+I’m using the `pre-merge` skill because it owns the project’s check pipeline. Since this repo has never been configured, I’ll first let that workflow determine whether it can bootstrap safely or must hand off to the project setup workflow.
+{
+  "verdict": "refused",
+  "reason": "no_manifest",
+  "detail": "No components[] manifest in devkit/policy.json — $pre-merge runs the project-defined pipeline and cannot run checks without it. Run $pre-merge --init to detect and configure the pipeline.",
+  "base": "main",
+  "prior_issues_loaded": false,
+  "issues": []
+}
+
+🔴 Fail!
+
+No checks ran because this new project has no pipeline manifest and is not yet a Git repository.
+
+**Next step**
+
+1. Run `$pre-merge --init` to configure the pipeline.

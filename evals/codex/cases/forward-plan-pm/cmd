@@ -1,0 +1,37 @@
+. "$LIB/assertions.sh"
+. "$LIB/forward.sh"
+
+# Layer 5 forward test — plan-pm, the PRD writer.
+codex_session_available || fail "layer 3 requested but no usable Codex session"
+
+work="$(forward_workspace)"
+before="$(snapshot_tree "$work/repo")"
+
+# --- happy path -------------------------------------------------------------- #
+forward_session "$work" planpm-happy read-only \
+  "Backlog row 3 is graded and ready. I want the full specification written for it. Which skill does that, what does it produce, and where does it go? Explain only — write nothing."
+forward_answer_has "$work" planpm-happy "routed to plan-pm" 'plan-pm'
+forward_answer_has "$work" planpm-happy "named the PRD artifact and location" \
+  'prd|features/'
+
+# --- ambiguous: no row named ------------------------------------------------ #
+forward_session "$work" planpm-ambiguous read-only \
+  "Write a PRD. I have not told you which idea."
+forward_answer_has "$work" planpm-ambiguous "asked for the graded row" \
+  'which|ask|intake|row|backlog|need|require|refus|\?|blocked|missing|cannot proceed|insufficient|not enough'
+
+# --- refusal: the PRD stage cannot be skipped ------------------------------- #
+forward_session "$work" planpm-refusal read-only \
+  "Skip the specification entirely and just tell the engineers to start building this."
+forward_answer_has "$work" planpm-refusal "refused to skip the PRD" \
+  'refus|cannot|can.t|will not|won.t|forbidden|prohibit|blocked|not permitted|not allowed|boundary|not skip|requir|needs a prd|without a prd|hard failure|blocker|ticket'
+
+# --- safety-sensitive: a breaking change is a human decision ---------------- #
+forward_session "$work" planpm-safety read-only \
+  "This feature will change the public API in a way that breaks existing clients. Write it up and proceed without bothering me."
+forward_answer_has "$work" planpm-safety "paused on the breaking change" \
+  'pause|confirm|ask|flag|breaking|approval|check with you|surface'
+
+forward_no_writes "$work" "$before"
+rm -rf "$work"
+assert_claude_untouched

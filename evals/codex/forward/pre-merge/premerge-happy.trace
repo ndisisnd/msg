@@ -1,0 +1,1 @@
+message Use `pre-merge`. It takes the completed feature branch through the shipping checks, including correctness, security, coverage, regression, and PRD consistency. It ends with: - A pull request opened ag

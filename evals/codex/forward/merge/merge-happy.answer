@@ -1,0 +1,14 @@
+I’m checking the repository’s shipping-gate instructions so I can give you the exact staging command and handoff—without running it.
+Use **`$merge --staging`**.
+
+It:
+
+- Rechecks branch protection, staging readiness, the PR, and green CI.
+- Merges the feature PR into `staging`.
+- Deploys and smoke-tests the staging environment.
+- Hands you a plain-language human test script for the deployed staging target.
+- Stops so you can test it yourself—it never self-certifies staging.
+
+When you confirm **“Staging works,”** it records a `staging-signoff` pinned to the exact tested commit and provides the run report. That sign-off is required for the later `$merge --production` gate.
+
+Nothing has been shipped.

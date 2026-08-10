@@ -1,0 +1,46 @@
+message I’m using the `merge --production` ship gate because this request is explicitly a production release. I’ll treat your message as the required production confirmations, run the release checks, and only
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/merge/SKILL.md"
+shell /bin/zsh -lc 'wc -l .agents/skills/shared/refs/codex-runtime.md .agents/skills/merge/refs/compatibility-map.md .agents/skills/merge/CLAUDE-SKILL.md'
+read /bin/zsh -lc "sed -n '1,380p' '.agents/skills/merge/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,380p' '.agents/skills/merge/CLAUDE-SKILL.md'"
+read /bin/zsh -lc "sed -n '1,380p' '.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,220p' .agents/skills/merge/refs/compatibility-map.md"
+read /bin/zsh -lc "sed -n '1,380p' .agents/skills/merge/CLAUDE-SKILL.md"
+message The release gate requires a two-phase production run: first validate the release candidate and safeguards, then merge and deploy. Your instruction supplies the production confirmations in advance; I’m
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/verify-deploy.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/release-identity.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/deploy.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/submission.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/env-contract.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/safety-floor.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/refusal-patterns.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/gate-dispatch.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/policy-schema.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/closing-message.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/protection.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/production.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/report-schema.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/policy-schema-merge.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/merge/refs/output-schema.md'"
+shell /bin/zsh -lc "wc -l '.agents/skills/shared/refs/status-heartbeat.md'"
+read /bin/zsh -lc "sed -n '401,650p' '.agents/skills/merge/refs/production.md'"
+read /bin/zsh -lc "sed -n '1,200p' '.agents/skills/merge/refs/production.md'"
+read /bin/zsh -lc "sed -n '201,400p' '.agents/skills/merge/refs/production.md'"
+read /bin/zsh -lc "sed -n '540,640p' .agents/skills/merge/refs/production.md"
+read /bin/zsh -lc "sed -n '1,360p' '.agents/skills/shared/refs/gate-dispatch.md'"
+read /bin/zsh -lc "sed -n '1,360p' '.agents/skills/merge/refs/release-identity.md'"
+read /bin/zsh -lc "sed -n '1,360p' '.agents/skills/merge/refs/protection.md'"
+read /bin/zsh -lc "sed -n '1,360p' '.agents/skills/shared/refs/policy-schema.md'"
+read /bin/zsh -lc "sed -n '1,360p' '.agents/skills/shared/refs/policy-schema-merge.md'"
+shell /bin/zsh -lc "if [ -f devkit/policy.json ]; then sed -n '1,220p' devkit/policy.json; else echo POLICY_ABSENT; fi"
+message The release’s delegated preflight failed to start because the collaboration runtime could not attach the child thread. The release skill requires an independent phase executor, so I’m retrying that in
+message
+message The production preflight is running now. It is validating the signed-off staging window and GitHub protections before the release confirmations can be accepted; no branch, PR, tag, or deployment has b
+message
+message
+message Preflight is still active and has not returned a release verdict yet. I’m keeping the production gate closed until it produces evidence for the candidate, sign-off, CI, and branch protection.
+message
+read /bin/zsh -lc "sed -n '1,340p' '.agents/skills/merge/refs/refusal-patterns.md'"
+read /bin/zsh -lc "sed -n '1,340p' '.agents/skills/merge/refs/output-schema.md'"
+read /bin/zsh -lc "sed -n '1,340p' '.agents/skills/shared/refs/closing-message.md'"
+message ```json { "verdict": "refused", "reason": "unprotected", "mode": "production", "detail": "This workspace is not a complete Git repository: it has no .git directory, GitHub remote, release PRDs, stagin

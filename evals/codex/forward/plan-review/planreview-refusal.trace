@@ -1,0 +1,6 @@
+message I’m using the specification-certification workflow because this request concerns its approval gate. I’ll follow the gate’s actual rules; a certification needs evidence from the checks and can’t be sta
+read /bin/zsh -lc "sed -n '1,240p' .agents/skills/plan-review/SKILL.md"
+shell /bin/zsh -lc "wc -l .agents/skills/plan-review/CLAUDE-SKILL.md && sed -n '1,420p' .agents/skills/plan-review/CLAUDE-SKILL.md"
+read /bin/zsh -lc "sed -n '1,280p' .agents/skills/shared/refs/codex-runtime.md"
+read /bin/zsh -lc "sed -n '1,280p' .agents/skills/plan-review/refs/compatibility-map.md"
+message I can’t falsely mark a specification as certified. The certification stamp is a release gate and requires the prescribed checks plus an evidence report. No files were changed. Provide the specificatio

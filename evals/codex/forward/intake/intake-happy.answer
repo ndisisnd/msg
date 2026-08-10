@@ -1,0 +1,14 @@
+I’m using the `intake` skill because it is the repository’s front door for capturing product ideas and backlog items. I’ll inspect its recording rules only; I won’t modify anything.
+The `$intake` skill captures this idea.
+
+It would record one graded row in the root `INTAKE.md` ledger containing:
+
+- A unique row number and capture date
+- Type: `feature`
+- Idea: customers can export invoices as PDFs
+- Goal: let customers download, share, or archive invoices
+- A banded grade for complexity, delivery cost, and sequencing
+- Status: `backlog`
+- An empty PRD reference for later planning
+
+It may first clarify the goal or scope. It does not draft a PRD or inspect the codebase. Nothing was written.

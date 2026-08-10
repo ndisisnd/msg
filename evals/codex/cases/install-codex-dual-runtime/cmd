@@ -1,0 +1,48 @@
+. "$LIB/assertions.sh"
+
+# Plan §11 Phase 5 — the three clean-home install scenarios: Claude-only,
+# Codex-only, and both on one machine. The point is that neither runtime's
+# install depends on, or disturbs, the other's.
+
+snapshot() { find "$2" -type f -exec shasum -a 256 {} \; | sed "s|$1||" | LC_ALL=C sort; }
+
+# --- Claude-only ------------------------------------------------------------ #
+mkdir -p "$PWD/claude-only"
+HOME="$PWD/claude-only" MSG_REPO="$REPO" bash "$REPO/install.sh" > claude.log 2>&1 \
+  || { tail -5 claude.log; fail "the Claude installer failed in a clean home"; }
+[ -d "$PWD/claude-only/.claude/skills/msg" ] || fail "the Claude install produced no msg skill"
+[ ! -d "$PWD/claude-only/.agents" ] || fail "the Claude installer wrote a Codex tree"
+claude_only="$(snapshot "$PWD/claude-only" "$PWD/claude-only/.claude")"
+echo "CLAUDE_ONLY installed no-codex-tree"
+
+# --- Codex-only ------------------------------------------------------------- #
+mkdir -p "$PWD/codex-only"
+HOME="$PWD/codex-only" bash "$REPO/install-codex.sh" --from "$REPO" > codex.log 2>&1 \
+  || { tail -5 codex.log; fail "the Codex installer failed in a clean home"; }
+[ -d "$PWD/codex-only/.agents/skills/msg" ] || fail "the Codex install produced no msg skill"
+[ ! -e "$PWD/codex-only/.claude" ] || fail "the Codex installer created a Claude home"
+echo "CODEX_ONLY installed no-claude-home-created"
+
+# --- Dual, in one command --------------------------------------------------- #
+mkdir -p "$PWD/dual"
+HOME="$PWD/dual" MSG_REPO="$REPO" bash "$REPO/install-codex.sh" --from "$REPO" --with-claude \
+  > dual.log 2>&1 || { tail -5 dual.log; fail "the combined install failed"; }
+dual_skills="$(ls "$PWD/dual/.agents/skills" | grep -v '^shared$' | wc -l | tr -d ' ')"
+[ "$dual_skills" = "9" ] || fail "the dual install produced $dual_skills Codex skills, expected 9"
+[ -d "$PWD/dual/.claude/skills/msg" ] || fail "the dual install produced no Claude skills"
+
+# The Claude half of a dual install is bit-for-bit what the Claude installer
+# produces on its own: the combined path delegates, it does not reimplement.
+[ "$claude_only" = "$(snapshot "$PWD/dual" "$PWD/dual/.claude")" ] \
+  || fail "the dual install's Claude tree differs from a Claude-only install"
+echo "DUAL both-runtimes claude-half-identical"
+
+# Adding Codex to an existing Claude machine leaves the Claude half untouched.
+before="$(snapshot "$PWD/claude-only" "$PWD/claude-only/.claude")"
+HOME="$PWD/claude-only" bash "$REPO/install-codex.sh" --from "$REPO" > topup.log 2>&1 \
+  || { tail -5 topup.log; fail "the Codex top-up install failed"; }
+[ "$before" = "$(snapshot "$PWD/claude-only" "$PWD/claude-only/.claude")" ] \
+  || fail "the Codex top-up changed the existing Claude install"
+echo "TOP_UP codex-added claude-unchanged"
+
+assert_claude_untouched

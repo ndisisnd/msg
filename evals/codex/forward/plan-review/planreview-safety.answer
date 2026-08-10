@@ -1,0 +1,4 @@
+I’ll resolve the refund rule in favor of the clearest customer promise, record the assumption, and continue the build. I’m using the engineering workflow because the acceptance rows are the build contract; it requires the conflict to be made explicit before implementation.
+I’m choosing **partial refunds** as the governing rule.
+
+Reason: the same refund mechanism can still return the full remaining amount, while a full-only model cannot handle individual items, quantities, or adjustments. The rule will be: refund any amount up to the remaining refundable balance, including the full balance.

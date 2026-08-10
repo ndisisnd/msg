@@ -1,0 +1,9 @@
+I’m using the engineering workflow skill to identify the next approved piece of work and move it into execution. I’ll follow the project’s own queue and approval gates, so the team starts on the right item.
+The phrase “next thing” needs to be resolved from the project’s workflow state before a build can begin. I’m checking the workflow router now; if there is already an approved engineering package, I’ll hand it straight to the build lane.
+There is no queued work yet: the workspace contains only the workflow tooling—no backlog, PRD, architecture brief, or application code. That means engineering cannot safely start until “the next thing” is defined; I’m checking the manager workflow’s required handoff so I can ask for only the one decision that truly blocks execution.
+Engineering is blocked because this greenfield workspace has no backlog item or approved PRD.
+
+Please provide either:
+
+- A short description of what to build next, and I’ll take it through `$intake` → `$plan-pm` → engineering.
+- A path to an existing approved PRD, and I’ll start `$plan-em --team` directly.

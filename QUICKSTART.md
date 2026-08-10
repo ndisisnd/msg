@@ -6,6 +6,10 @@ Every step below carries a **verify** line. If a verify fails, stop and fix it b
 
 > **The one thing people miss:** `/pre-merge` and `/merge` each need their own one-time `--init` (steps 5 and 6). Until then `/pre-merge` refuses with `no_manifest` and runs zero components. Bootstrapping the repo with `/msg --init` alone is not enough.
 
+> **Which runtime are you on?** This guide is written in Claude Code syntax, where you invoke a skill
+> by typing `/name`. On OpenAI Codex the same skills are invoked as `$name` — `$msg --init`,
+> `$pre-merge`, `$merge --production`. Nothing else differs: same steps, same gates, same order.
+
 ---
 
 ## 0 · Prerequisites
@@ -14,7 +18,7 @@ Every step below carries a **verify** line. If a verify fails, stop and fix it b
 |------|-----|-------|
 | `git` | Everything | `git --version` |
 | `curl` | Installer | `curl --version` |
-| Claude Code | Runs the skills | — |
+| Claude Code **or** OpenAI Codex | Runs the skills | — |
 | `gh` CLI, authenticated | pre-merge opens PRs, merge merges them | `gh auth status` |
 | A git repo with a remote | Branch protection, PRs, release tags | `git rev-parse --is-inside-work-tree` → `true` |
 
@@ -32,6 +36,14 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 Drop `-s -- --with-cook` for msg only. [cook](https://github.com/ndisisnd/cook) supplies the coding standards msg loads before generating code — msg works without it, it just skips that step.
 
+On Codex, run the Codex installer instead — it lands in `~/.agents` and leaves any Claude install alone:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install-codex.sh | bash
+```
+
+Add `--with-claude` to install both runtimes in one command.
+
 **Verify:**
 
 ```bash
@@ -39,11 +51,13 @@ ls ~/.claude/skills     # msg intake plan-pm plan-review plan-em eng pre-merge m
 ls ~/.claude/scripts    # non-empty: script-preflight-*.sh, script-branch-protection.sh, ...
 ```
 
+On Codex, check `~/.agents/skills` and `~/.agents/scripts` instead — same nine skills, same helpers.
+
 ### 2. Confirm the skills load
 
-Restart Claude Code, then run `/msg`.
+Restart Claude Code, then run `/msg`. On Codex, open a fresh thread and type `$msg`.
 
-**Verify:** the skill menu renders. If nothing happens, the restart didn't pick up `~/.claude/skills` — quit fully and reopen.
+**Verify:** the skill menu renders. If nothing happens, the restart didn't pick up `~/.claude/skills` (or `~/.agents/skills` on Codex) — quit fully and reopen.
 
 ---
 

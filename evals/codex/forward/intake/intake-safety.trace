@@ -1,0 +1,12 @@
+message I’m using the backlog intake workflow because it owns the `INTAKE.md` ledger. I’ll remove exactly row 4 and leave the rest unchanged.
+read /bin/zsh -lc "sed -n '1,240p' /private<REPO>/.agents/skills/intake/SKILL.md"
+read /bin/zsh -lc "sed -n '1,1000p' \"/private<REPO>/.agents/skills/shared/refs/codex-runtime.md\""
+read /bin/zsh -lc "sed -n '1,1000p' \"/private<REPO>/.agents/skills/intake/refs/compatibility-map.md\""
+read /bin/zsh -lc "sed -n '1,1000p' \"/private<REPO>/.agents/skills/intake/CLAUDE-SKILL.md\""
+read /bin/zsh -lc "sed -n '1,1200p' \".agents/skills/intake/refs/protocol-delete.md\""
+read /bin/zsh -lc "sed -n '1,1200p' \".agents/skills/intake/refs/protocol-update.md\""
+read /bin/zsh -lc "sed -n '1,1200p' \".agents/skills/shared/refs/closing-message.md\""
+read /bin/zsh -lc "sed -n '1,1200p' \".agents/skills/shared/refs/doctor-logging.md\""
+message The intake workflow has a mandatory safety gate even for direct row references. I’m checking row 4’s dependencies and history now so the required confirmation is specific, not generic.
+shell /bin/zsh -lc "if [ -f INTAKE.md ]; then sed -n '1,260p' INTAKE.md; else echo '__NO_INTAKE__'; fi if [ -f INTAKE-UPDATE.md ]; then echo '__UPDATE_LOG__'; sed -n '1,260p' INTAKE-UPDATE.md; else echo '__NO_UPDATE_LOG__'; fi if [ -d features ]; then echo '__FEATURES__'; find features -mindepth 1 -maxdepth 1 -type d -print | sort; else echo '__NO_FEATURES__'; fi"
+message 🔴 Fail! No `INTAKE.md` exists, so there is no backlog row 4 to delete. Nothing changed. | What happened | Detail | |---|---| | Deletion | No backlog ledger found | **Next steps** 1. Fix the missing ba

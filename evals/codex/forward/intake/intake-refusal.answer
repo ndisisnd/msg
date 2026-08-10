@@ -1,0 +1,14 @@
+I’m using the `intake` skill to capture and shape the idea, then `plan-pm` to turn the approved intake into a full PRD in the same pass. I’ll first load both workflows so the intake and PRD stay consistent.
+The workflows confirm that intake owns the requirements interview and `plan-pm` needs a specific, graded idea as its source. I’m loading their full operating rules now; after that, the only likely blocker is that the idea itself hasn’t been included in your message.
+🔴 Fail!
+
+The idea itself wasn’t included, so I can’t capture or turn it into a PRD yet.
+
+| What happened | Detail |
+|---|---|
+| Missing input | Paste the idea, ideally including the target user and desired outcome |
+| Workspace access | This session is read-only; enable write access so I can save `INTAKE.md` and the PRD |
+
+**Next steps**
+
+1. Reply with the idea and enable workspace write access; I’ll capture, grade, and write the full PRD in one go.

@@ -1,0 +1,13 @@
+I’m using the `plan-review` certification skill. I’ll identify the in-flight specifications, certify each against the downstream delivery checks, and report any blockers separately so one weak spec does not hide the status of the others.
+The certification contract is singular per run, but your request clearly covers a batch. I’ll apply the same certification independently to each active PRD so every specification receives its own tune, findings ledger, and gate stamp.
+🟡 Warning!
+
+I couldn’t identify which in-flight specifications to certify because no PRD path was provided.
+
+| What happened | Detail |
+|---|---|
+| Path needed | Send the containing directory or PRD paths matching `features/prd-N/prd-N.md` |
+
+**Next steps**
+
+1. Reply with the directory or exact PRD paths to certify.

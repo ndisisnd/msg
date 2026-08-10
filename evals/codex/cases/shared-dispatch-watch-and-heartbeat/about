@@ -1,0 +1,4 @@
+layer: 2
+assertions: SHR-CX-005
+proves: Watch and heartbeat stay observational with no auto-stop, thresholds and emissions are byte-identical across packages, wave width is enforced, and a leaf can relay a gate but never answer one.
+residual: Whether a model waits for a backgrounded wave rather than proceeding is layer 3.

@@ -1,0 +1,22 @@
+I’m using the `plan-review` skill because it is the pre-engineering contract check for an existing PRD. I’ll inspect its instructions and explain its checks without changing any files.
+The skill is `$plan-review`. It is a contract certifier for PRDs—not a broad editorial or adversarial review.
+
+It runs seven defined checks:
+
+1. Acceptance criteria are objectively testable.
+2. Breaking changes, database work, and production configuration changes are explicitly labelled.
+3. The PRD remains faithful to the original intake idea and goal.
+4. Every feature ID maps cleanly to engineering work, with exact identifiers and file ownership.
+5. Engineering ticket dependencies are valid, acyclic, and have completion conditions.
+6. PRD dependencies and platform coverage are correct.
+7. Contracts shared between parallel engineering agents use consistent identifiers.
+
+It has two review tunes:
+
+- Product: checks 1, 2, 3, and 6.
+- Engineering: checks 2, 4, 5, 6, and 7.
+- With no flag, it selects the tune from the PRD’s contents.
+
+Important: actually invoking `$plan-review` is not read-only. It normally fixes Critical and Major findings, records a review report, and stamps the PRD as reviewed. No files were changed here.
+
+Full definitions: [certification.md](/var/folders/pq/sm45dmcx6lbb9tkjygkqs1n00000gn/T/tmp.Vzf3Kfj8R2/repo/.agents/skills/plan-review/refs/certification.md) and [plan-review instructions](/var/folders/pq/sm45dmcx6lbb9tkjygkqs1n00000gn/T/tmp.Vzf3Kfj8R2/repo/.agents/skills/plan-review/CLAUDE-SKILL.md).

@@ -1,0 +1,9 @@
+message I’m using the `eng` skill because it owns implementation from already-written tickets. I’ll inspect its exact build and completion behavior, then explain it without changing any files.
+read /bin/zsh -lc "sed -n '1,260p' /private<REPO>/.agents/skills/eng/SKILL.md"
+read /bin/zsh -lc "sed -n '1,500p' '/private<REPO>/.agents/skills/shared/refs/codex-runtime.md'"
+read /bin/zsh -lc "sed -n '1,500p' '/private<REPO>/.agents/skills/eng/refs/compatibility-map.md'"
+read /bin/zsh -lc "sed -n '1,500p' '/private<REPO>/.agents/skills/eng/CLAUDE-SKILL.md'"
+shell /bin/zsh -lc "wc -l .agents/skills/eng/refs/build/protocol.md .agents/skills/eng/refs/review/protocol.md .agents/skills/shared/refs/closing-message.md && sed -n '1,420p' .agents/skills/eng/refs/build/protocol.md && sed -n '1,260p' .agents/skills/eng/refs/review/protocol.md && sed -n '1,220p' .agents/skills/shared/refs/closing-message.md"
+read /bin/zsh -lc "sed -n '190,307p' .agents/skills/eng/refs/build/protocol.md"
+read /bin/zsh -lc "sed -n '160,215p' .agents/skills/eng/refs/build/protocol.md"
+message ## Use `eng --build` It treats the written todo tickets as the final implementation specification. It: - Implements tickets in dependency order. - Writes and runs unit/integration tests. - Runs the fu
