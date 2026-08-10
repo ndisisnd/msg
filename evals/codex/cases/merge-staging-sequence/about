@@ -1,0 +1,4 @@
+layer: 4
+assertions: MRG-CX-002, MRG-CX-003
+proves: Sign-off coverage and CI grading are byte-identical between packages, and the staging order holds on Codex — the lock is read before anything advances, CI must be recorded green before the merge, and a sign-off only counts when it names the very commit the verified deployment produced.
+residual: That a live Codex staging run stops the main thread for the sign-off decision is layer 3.

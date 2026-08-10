@@ -15,11 +15,11 @@
   ],
   "counts": {
     "skills": 9,
-    "generated_files": 227,
+    "generated_files": 229,
     "adapters": 9,
     "metadata": 9,
     "canonical_copies": 200,
-    "codex_native": 9
+    "codex_native": 11
   },
   "protected": [
     ".agents/skills/shared/refs/codex-runtime.md",
@@ -149,11 +149,25 @@
       "sha256": "b014fdadf22c2aa6209d6ecaed6dc6d620719886736f137eca9f2f585f07fba4"
     },
     {
+      "path": ".agents/scripts/script-codex-release.sh",
+      "kind": "codex-native",
+      "source": "codex/release-template.sh",
+      "mode": "755",
+      "sha256": "3ef59389c9ddee8cf9d925c09bb5d64a5f3a06539fdbdb772c01f7f7923b650c"
+    },
+    {
       "path": ".agents/scripts/script-codex-resolve.sh",
       "kind": "codex-native",
       "source": "codex/resolver-template.sh",
       "mode": "755",
       "sha256": "b5f57bdbf98b206056c0903a511cbc737ecbeb5d3547b45b2497c086e9916070"
+    },
+    {
+      "path": ".agents/scripts/script-codex-ship.sh",
+      "kind": "codex-native",
+      "source": "codex/ship-template.sh",
+      "mode": "755",
+      "sha256": "0d6902fe270f4206dc8456fa103190005a0374501d4c664bcf2355fe9dc667a7"
     },
     {
       "path": ".agents/scripts/script-codex-subagent.sh",

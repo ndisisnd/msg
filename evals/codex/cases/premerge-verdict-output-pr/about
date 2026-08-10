@@ -1,0 +1,4 @@
+layer: 4
+assertions: PMG-CX-006, PMG-CX-012
+proves: The verdict document is byte-identical between packages and byte-stable across invocations, so what a dispatcher relays cannot differ from the artifact; and the OPEN-PR terminal opens exactly one PR through kermit on a clean verdict, opens none on a failing one, never merges, and never reaches gh silently.
+residual: That a live Codex dispatcher quotes the verdict rather than paraphrasing it is layer 3.

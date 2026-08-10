@@ -60,6 +60,8 @@ CODEX_NATIVE_SCRIPTS = {
     "codex/invoke-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-invoke.sh",
     "codex/packet-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-packet.sh",
     "codex/relay-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-relay.sh",
+    "codex/release-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-release.sh",
+    "codex/ship-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-ship.sh",
     "codex/subagent-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-subagent.sh",
 }
 

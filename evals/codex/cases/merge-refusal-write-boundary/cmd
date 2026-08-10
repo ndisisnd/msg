@@ -1,0 +1,29 @@
+. "$LIB/assertions.sh"
+
+mkdir -p src features/wip/prd-7-search devkit
+echo 'export const total = 1;' > src/checkout.ts
+echo '# prd 7' > features/wip/prd-7-search/prd.md
+before="$(snapshot_tree .)"
+
+assert_ship_state sanctioned 0 writes --actor merge --mode staging \
+  --path features/wip/prd-7-search/prd.md --path reports/report-merge.md
+assert_ship_state sanctioned 0 writes --actor merge --mode production \
+  --path features/wip/prd-7-search/prd.md --path INTAKE.md
+assert_ship_state sanctioned 0 writes --actor merge --mode init --path devkit/policy.json
+assert_ship_state forbidden 8 writes --actor merge --mode production --path src/checkout.ts
+assert_ship_state forbidden 8 writes --actor merge --mode staging --path devkit/policy.json
+assert_ship_state forbidden 8 writes --actor merge --mode init --path devkit/PLATFORMS.md
+assert_ship_state forbidden 8 writes --actor merge --mode production --path devkit/PLATFORMS.md
+
+# Merge is the only merger, and it is the only one.
+assert_ship_state recorded 0 action --actor merge --action pr-merge --target main --ledger allowed.tsv
+assert_ship_state forbidden 4 action --actor pre-merge --action pr-merge --target staging --ledger refused.tsv
+( export MSG_CODEX_SHIP_MODE=live
+  assert_ship_state live-refused 10 action --actor merge --action pr-merge --ledger refused.tsv )
+
+assert_tree_unchanged src "$(snapshot_tree src)"
+assert_ref_contains merge refs/refusal-patterns.md \
+  'no_staging_stage' 'stale_signoff' 'release_in_flight'
+assert_skill_script_mirrored merge refs/protection.md
+assert_skill_script_mirrored merge refs/refusal-patterns.md
+assert_claude_untouched

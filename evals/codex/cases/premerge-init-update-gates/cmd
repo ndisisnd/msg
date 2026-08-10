@@ -1,0 +1,28 @@
+. "$LIB/assertions.sh"
+
+G=(--id premerge-init-secret-scanner --skill pre-merge
+   --question 'No secret scanner is configured. Install gitleaks for this repo?'
+   --option 'Install gitleaks' --option 'Skip for now')
+
+assert_gate_state awaiting-answer 0 "${G[@]}"
+assert_gate_state answered 0 "${G[@]}" --answer 'Install gitleaks'
+assert_gate_state rejected 4 "${G[@]}" --answer 'Install trufflehog instead'
+assert_gate_state undecided 5 "${G[@]}" --answer __dismissed__
+
+( export MSG_CODEX_QUESTION_SURFACE=prose
+  assert_gate_state answered 0 "${G[@]}" --answer 'Install gitleaks' )
+( export MSG_CODEX_QUESTION_SURFACE=none
+  assert_gate_state blocked 3 "${G[@]}" )
+
+# AMB-CX-004 decided: init consumes the probe rather than re-deriving it.
+assert_ref_contains pre-merge refs/protocol-init.md 'script-doctor-detect.sh'
+assert_helper_mirrored script-doctor-detect.sh script-policy-set.py script-policy-read.py
+
+for stub in .prettierrc.json .size-limit.json README.md biome.json \
+            docker-compose.test.yml eslint.config.js playwright.config.ts \
+            pre-merge.yml ruff.toml seed-test.ts vitest.config.ts; do
+  assert_skill_script_mirrored pre-merge "refs/stubs/$stub"
+done
+assert_skill_script_mirrored pre-merge refs/protocol-init.md
+assert_skill_script_mirrored pre-merge refs/protocol-update-criticality.md
+assert_skill_script_mirrored pre-merge refs/platform-profiles.md

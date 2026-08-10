@@ -1,0 +1,4 @@
+layer: 2
+assertions: MRG-CX-002
+proves: The mode set, the one-time init route, the only-merger claim and the release-lock rule survive packaging, and both AMB-CX-002 and AMB-CX-004 land on Codex — merge reads devkit/ENV.md before deploy and verify, and init consumes the doctor-detect probe instead of re-deriving it.
+residual: That a live Codex session routes a natural-language ship request to the same mode is layer 3.

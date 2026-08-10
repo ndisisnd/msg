@@ -1,0 +1,54 @@
+. "$LIB/assertions.sh"
+
+CONFIRM=(--id merge-production-confirm-1 --skill merge
+         --question 'Release v1.2.0+412 from staging to main. Confirm?'
+         --option 'Confirm the release' --option 'Cancel')
+SIGNOFF=(--id merge-staging-signoff --skill merge
+         --question 'Staging is deployed and verified at sha-a. Did your manual test pass?'
+         --option 'Approve the sign-off' --option 'Reject')
+ROLLBACK=(--id merge-rollback-decision --skill merge
+          --question 'The production deploy failed. Roll back to the previous release?'
+          --option 'Roll back' --option 'Halt the rollout and leave it')
+
+for gate in CONFIRM SIGNOFF ROLLBACK; do
+  eval 'G=("${'"$gate"'[@]}")'
+  assert_gate_state awaiting-answer 0 "${G[@]}"
+  assert_gate_state undecided 5 "${G[@]}" --answer __dismissed__
+  ( export MSG_CODEX_QUESTION_SURFACE=none; assert_gate_state blocked 3 "${G[@]}" )
+done
+assert_gate_state answered 0 "${CONFIRM[@]}" --answer 'Confirm the release'
+assert_gate_state rejected 4 "${CONFIRM[@]}" --answer 'Confirm and also skip CI'
+assert_gate_state answered 0 "${SIGNOFF[@]}" --answer 'Reject'
+assert_gate_state answered 0 "${ROLLBACK[@]}" --answer 'Halt the rollout and leave it'
+
+# A merge gate is root-owned: there is nothing to relay, and the relay refuses
+# to invent a leaf owner for it.
+"$REPO/.agents/scripts/script-codex-gate.sh" "${CONFIRM[@]}" --owner root > envelope.txt
+rc=0; "$REPO/.agents/scripts/script-codex-relay.sh" relay --envelope envelope.txt >/dev/null 2>&1 || rc=$?
+[ "$rc" = "2" ] || fail "relay: a root-owned merge gate must not be relayable, got exit $rc"
+echo "RELAY_REFUSED root-owned merge gate"
+
+j() { printf '%b' "$2" > "$1"; }
+BASE='lock-check\troot\tfree\ngate:confirm-1\troot\ta\ngate:confirm-2\troot\tb\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nship\troot\ts\n'
+
+j misowned.tsv 'lock-check\troot\tfree\ngate:confirm-1\tleaf-phase-1\ta\ngate:confirm-2\troot\tb\n'
+assert_release_state gate-misowned 5 sequence --journal misowned.tsv --mode production
+
+j rb-auto.tsv "${BASE}rollback-exec\troot\tundo\nlock-release\troot\td\n"
+assert_release_state rollback-auto 7 sequence --journal rb-auto.tsv --mode production
+
+j rb-undecided.tsv "${BASE}rollback-offer\troot\toffered\nrollback-exec\troot\tundo\nlock-release\troot\td\n"
+assert_release_state rollback-auto 7 sequence --journal rb-undecided.tsv --mode production
+
+j rb-declined-but-run.tsv "${BASE}rollback-offer\troot\toffered\ngate:rollback\troot\tdecline\nrollback-exec\troot\tundo\nlock-release\troot\td\n"
+assert_release_state rollback-auto 7 sequence --journal rb-declined-but-run.tsv --mode production
+
+j rb-declined.tsv "${BASE}rollback-offer\troot\toffered\ngate:rollback\troot\tdecline\nlock-release\troot\td\n"
+assert_release_state ok 0 sequence --journal rb-declined.tsv --mode production
+
+j rb-approved.tsv "${BASE}rollback-offer\troot\toffered\ngate:rollback\troot\tapprove\nrollback-exec\troot\tundo\nlock-release\troot\td\n"
+assert_release_state ok 0 sequence --journal rb-approved.tsv --mode production
+
+assert_helper_mirrored script-release-lock.sh
+assert_skill_script_mirrored merge refs/human-test-script.md
+assert_skill_script_mirrored shared refs/gate-dispatch.md

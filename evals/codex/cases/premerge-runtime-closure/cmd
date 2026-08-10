@@ -1,0 +1,17 @@
+. "$LIB/assertions.sh"
+
+assert_helper_mirrored \
+  script-agent-watch.sh script-status-tick.sh script-aggregate-verdict.sh \
+  script-pipeline-resolve.py script-check-common.sh script-policy-read.py \
+  script-policy-set.py script-prd-digest.py script-tier-resolve.sh \
+  script-eng-comment-scan.sh script-eng-commit-cap.sh script-eng-review-check.sh \
+  script-doctor-log.sh script-doctor-detect.sh script-ts-miss.py \
+  script-platforms-parse.py script-prd-scan.sh script-prd-stamp.sh
+
+assert_skill_script_mirrored pre-merge refs/executor.md
+assert_skill_script_mirrored pre-merge refs/sync.md
+assert_skill_script_mirrored shared refs/policy-schema.md
+assert_skill_script_mirrored shared refs/env-contract.md
+assert_skill_script_mirrored shared refs/tooling-detection.md
+assert_skill_script_mirrored shared refs/doctor-logging.md
+assert_skill_script_mirrored shared refs/closing-message.md

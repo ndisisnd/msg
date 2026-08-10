@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "phase": "phase-4-release-gates",
+  "scope": ["pre-merge", "merge"],
+  "runtime_contract": ".agents/skills/shared/refs/codex-runtime.md",
+  "external_actions": {
+    "policy": "stubbed-only",
+    "what_that_means": "No case in this phase pushes, opens, merges, deploys, submits or tags anything. Every external effect is declared to script-codex-ship.sh, which records the intent and refuses to act — MSG_CODEX_SHIP_MODE=live is itself a refusal path with its own eval. Ordering is proved from the run's own event journal rather than from a real remote.",
+    "proved_by": ["premerge-verdict-output-pr", "premerge-refusal-and-write-boundary", "merge-refusal-write-boundary", "merge-release-model-matrix"]
+  },
+  "bindings": [
+    {
+      "concern": "external actions and the one-PR terminal",
+      "deviation": "AMB-CX-001 (decided) · DEV-CX-008",
+      "implementation": ".agents/scripts/script-codex-ship.sh (action)",
+      "source": "codex/ship-template.sh",
+      "what_it_does": "Turns every reach outside the repository into a declared intent checked against the calling skill's canonical authority, so the properties that matter are machine-checkable instead of prose. It refuses five shapes: an actor taking an action it does not own (above all pre-merge merging, pushing or deploying — exit 4), a PR on a failing verdict (exit 5), a second PR from one gate run (exit 6), OPEN-PR reaching for `gh pr create` while kermit is available or falling back to it without naming the degradation (exit 7), and any request to perform the effect for real (exit 10).",
+      "proved_by": ["premerge-verdict-output-pr", "premerge-refusal-and-write-boundary", "merge-release-model-matrix", "merge-refusal-write-boundary"]
+    },
+    {
+      "concern": "sanctioned writes per skill and per mode",
+      "deviation": "CX-G007",
+      "implementation": ".agents/scripts/script-codex-ship.sh (writes)",
+      "source": "codex/ship-template.sh",
+      "what_it_does": "The sanctioned-write list is enforced per mode, not per skill, because collapsing the modes would quietly hand a normal gate run its init authority. A pre-merge gate writes its own artifacts and nothing else; `--init` adds only the config it just got approval for; `--update-criticality` adds only test markers. Merge's staging, production and init lists are separate the same way, and `devkit/PLATFORMS.md` gets its own refusal because it is the one file merge --init explicitly never writes.",
+      "proved_by": ["premerge-refusal-and-write-boundary", "merge-refusal-write-boundary"]
+    },
+    {
+      "concern": "release-gate ordering — lock timing, double confirmation, pinned sign-off, rollback",
+      "deviation": "AMB-CX-005 (decided) · DEV-CX-003",
+      "implementation": ".agents/scripts/script-codex-release.sh (sequence)",
+      "source": "codex/release-template.sh",
+      "what_it_does": "Merge's safety lives in the order, and nothing about a Codex run makes an order checkable — so the run's own event journal becomes the evidence. It refuses every ordering that keeps the checks while losing the guarantee: the lock not read before the gates (exit 3), the lock taken before they clear or the merge running unlocked or the lock left held (exits 4 and 8), a missing, out-of-order, collapsed, misowned or ignored-cancel gate and a merge on absent or red CI (exit 5), a sign-off naming anything but the verified commit (exit 6), and a rollback that ran without being offered and approved (exit 7).",
+      "proved_by": ["merge-staging-sequence", "merge-production-sequence", "merge-human-gates-lock-rollback"]
+    },
+    {
+      "concern": "human gates stay mandatory and main-thread owned",
+      "deviation": "DEV-CX-003 · DEV-CX-011",
+      "implementation": ".agents/scripts/script-codex-gate.sh + script-codex-relay.sh (refusal path)",
+      "source": "codex/gate-template.sh, codex/relay-template.sh",
+      "what_it_does": "Each pre-merge init approval and each merge gate is exercised through the fail-closed envelope: it holds the run with its exact option set, refuses an answer outside that set, stops on a dismissal with no default, and blocks rather than assuming when no question surface can hold it. Merge's gates are root-owned, so the relay — which exists for leaf-owned eng gates — refuses them outright, and the sequencer rejects any gate a child thread recorded.",
+      "proved_by": ["premerge-init-update-gates", "merge-human-gates-lock-rollback", "merge-production-sequence"]
+    },
+    {
+      "concern": "production closing language",
+      "deviation": "AMB-CX-006 (decided)",
+      "implementation": ".agents/scripts/script-codex-ship.sh (close)",
+      "source": "codex/ship-template.sh",
+      "what_it_does": "The losing text may not win on Codex. A store submission is submitted, never live: a submission terminal claiming liveness is refused, while the canonical compounds that say the opposite (`live-to-users`, the `live_status` seam) are removed before the check rather than caught by it. A green release must also state the outcome it reached — success.",
+      "proved_by": ["merge-output-artifact-contract", "merge-release-model-matrix"]
+    },
+    {
+      "concern": "secret-scanner absence is a blocker",
+      "deviation": "AMB-CX-003 (decided)",
+      "implementation": ".agents/skills/pre-merge/refs/universal/protocol-security.md + shared/refs/safety-floor.md (byte-identical canonical text)",
+      "source": ".claude/skills/",
+      "what_it_does": "The ruling is that the security protocol and the safety floor win over tooling-detection's `warn`. Both winning texts are mirrored byte-for-byte and asserted verbatim on the Codex side, including the two clauses that carry the ruling: there is no green-gate path without secret-scan coverage, and the blocker is not declinable at gate time.",
+      "proved_by": ["premerge-selection-safety-floor"]
+    },
+    {
+      "concern": "merge reads the environment contract",
+      "deviation": "AMB-CX-002 (decided)",
+      "implementation": ".agents/skills/merge/ (SKILL.md refs, staging.md, production.md) + shared/refs/env-contract.md",
+      "source": ".claude/skills/",
+      "what_it_does": "The canonical fix wired the read into merge before deploy and verify — read-only, warn-and-proceed when absent. The Codex package asserts that wiring is present at all three sites rather than assuming the mirror carried it.",
+      "proved_by": ["merge-trigger-policy-matrix"]
+    },
+    {
+      "concern": "both init protocols consume the doctor detector",
+      "deviation": "AMB-CX-004 (decided)",
+      "implementation": ".agents/scripts/script-doctor-detect.sh + the two init protocols",
+      "source": ".claude/scripts/, .claude/skills/",
+      "what_it_does": "The helper was previously claimed by its header with no call edge. The canonical fix made both init protocols run it instead of hand-deriving the probes; the Codex evals assert the call edge in both protocols and the byte identity of the helper, so the dead-code reading cannot return through the mirror.",
+      "proved_by": ["premerge-init-update-gates", "merge-trigger-policy-matrix", "merge-runtime-closure"]
+    },
+    {
+      "concern": "manifest-driven pipeline and verdict emission parity",
+      "deviation": "CX-G006",
+      "implementation": ".agents/scripts/ (canonical helpers) + .agents/skills/pre-merge/scripts/script-resolve-diff.sh",
+      "source": ".claude/scripts/, .claude/skills/pre-merge/scripts/",
+      "what_it_does": "The pipeline plan, the diff surface, test-selection tiering, sign-off coverage, CI grading, release identity and the verdict document are all produced by helpers that exist once and are mirrored byte-for-byte. The differential layer replays the real Claude fixtures against the Codex package and compares exit code, stdout and artifact bytes; the verdict is additionally checked for byte-stability across successive invocations, so a relayed verdict cannot differ from the artifact.",
+      "proved_by": ["premerge-manifest-dag", "premerge-selection-safety-floor", "premerge-verdict-output-pr", "premerge-runtime-closure", "merge-staging-sequence", "merge-release-model-matrix", "merge-runtime-closure"]
+    }
+  ],
+  "evals": {
+    "runner": "evals/codex/run.sh",
+    "cases_added": 18,
+    "cases_total": 112,
+    "bijection": "the 9 pre-merge and 9 merge eval IDs named by the two compatibility maps, one case each, no extras",
+    "layers": {
+      "0": "static discovery and packaging",
+      "2": "adapter contract, runtime bindings, gates and write boundaries",
+      "3": "live Codex session (opt-in: run.sh --layer3)",
+      "4": "differential artifact parity against the existing Claude fixtures"
+    }
+  },
+  "honesty": {
+    "runtime_proof_coverage": "not-run",
+    "why": "Layers 0/2/4 prove packaging, the release-gate bindings, the write boundaries and deterministic artifact parity for real and offline. They do not prove that a model driving the adapter reaches these gates in the first place, phrases them canonically, or records the journal faithfully — a run that never calls the sequencer is not caught by the sequencer. Ten of the eighteen new cases carry an explicit `residual:` line naming what is still unproven, and the runner reports runtime proof as not-run until the layer 3 suite has executed."
+  }
+}

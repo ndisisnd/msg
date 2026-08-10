@@ -1,0 +1,21 @@
+. "$LIB/assertions.sh"
+
+assert_payload_contains merge \
+  'the only skill that merges' \
+  '/merge --staging' \
+  '/merge --production' \
+  '/merge --init' \
+  'release lock' \
+  '../shared/refs/env-contract.md'
+
+# AMB-CX-002 decided: merge reads devkit/ENV.md, read-only, warn-if-absent.
+assert_ref_contains merge refs/staging.md 'devkit/ENV.md'
+assert_ref_contains merge refs/production.md 'devkit/ENV.md'
+assert_skill_script_mirrored shared refs/env-contract.md
+
+# AMB-CX-004 decided: merge --init consumes the probe.
+assert_ref_contains merge refs/protocol-init.md 'script-doctor-detect.sh'
+assert_helper_mirrored script-doctor-detect.sh script-policy-read.py script-policy-set.py
+
+assert_invocation_translation "then /merge --staging, later /merge --production" \
+  "then \$merge --staging, later \$merge --production"

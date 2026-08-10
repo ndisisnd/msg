@@ -1,0 +1,29 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-signoff-coverage.sh script-ci-status.py \
+  script-branch-protection.sh script-release-lock.sh
+differential_case a03-signoff-fetch-failed
+differential_case a23-ci-status-resolved-via-global
+
+j() { printf '%b' "$2" > "$1"; }
+
+j ok.tsv 'lock-check\troot\tfree\nci:green\troot\tsha-a\nmerge\troot\tsha-a\ndeploy\troot\tsha-a\nverify\troot\tsha-a\ngate:signoff\troot\tsha-a\nstamp\troot\tsha-a\n'
+assert_release_state ok 0 sequence --journal ok.tsv --mode staging
+
+# MRG-CX-002: a sign-off that names any other commit certifies nothing.
+j unpinned.tsv 'lock-check\troot\tfree\nci:green\troot\tsha-a\nmerge\troot\tsha-a\ndeploy\troot\tsha-a\nverify\troot\tsha-b\ngate:signoff\troot\tsha-a\nstamp\troot\tsha-a\n'
+assert_release_state signoff-unpinned 6 sequence --journal unpinned.tsv --mode staging
+
+j early-signoff.tsv 'lock-check\troot\tfree\nci:green\troot\tsha-a\nmerge\troot\tsha-a\ngate:signoff\troot\tsha-a\ndeploy\troot\tsha-a\nverify\troot\tsha-a\n'
+assert_release_state signoff-unpinned 6 sequence --journal early-signoff.tsv --mode staging
+
+j red.tsv 'lock-check\troot\tfree\nci:red\troot\tsha-a\nmerge\troot\tsha-a\ndeploy\troot\tsha-a\nverify\troot\tsha-a\ngate:signoff\troot\tsha-a\n'
+assert_release_state ci-not-green 5 sequence --journal red.tsv --mode staging
+
+j nocheck.tsv 'ci:green\troot\tsha-a\nmerge\troot\tsha-a\ndeploy\troot\tsha-a\nverify\troot\tsha-a\ngate:signoff\troot\tsha-a\n'
+assert_release_state lock-unchecked 3 sequence --journal nocheck.tsv --mode staging
+
+# A staging advance checks the production lock; it never takes it.
+j takes-lock.tsv 'lock-check\troot\tfree\nlock-acquire\troot\tmine\nci:green\troot\tsha-a\nmerge\troot\tsha-a\nverify\troot\tsha-a\ngate:signoff\troot\tsha-a\nlock-release\troot\tdone\n'
+assert_release_state lock-early 4 sequence --journal takes-lock.tsv --mode staging

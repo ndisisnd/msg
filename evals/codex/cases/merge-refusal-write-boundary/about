@@ -1,0 +1,4 @@
+layer: 2
+assertions: MRG-CX-007, MRG-CX-009
+proves: The sanctioned-write list stays exact per mode on Codex, no merge mode can touch product source or the platform inventory, merge remains the only actor that may merge a PR while pre-merge cannot, no actor can be talked into a real external effect, and refusing leaves the working tree byte-identical.
+residual: That a live Codex run emits the canonical refusal wording for each closed code is layer 3.

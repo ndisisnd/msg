@@ -1,0 +1,26 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+# The verdict is a pure function of the result reports, so the two packages and
+# two successive invocations must all produce the same bytes.
+differential_helper script-aggregate-verdict.sh -- --run-dir .pre-merge/run
+"$REPO/.agents/scripts/script-aggregate-verdict.sh" --run-dir .pre-merge/run > verdict-a.json
+"$REPO/.agents/scripts/script-aggregate-verdict.sh" --run-dir .pre-merge/run > verdict-b.json
+cmp -s verdict-a.json verdict-b.json || fail "verdict emission is not byte-stable across invocations"
+echo "VERDICT_RELAY_IDENTICAL $(shasum -a 256 verdict-a.json | cut -c1-16)"
+
+# AMB-CX-001 decided: exactly one PR, opened through kermit, never merged.
+assert_payload_contains pre-merge 'via `/kermit --pr`' 'loud degrade'
+assert_ship_state recorded 0 action --actor pre-merge --action pr-open --target staging --ledger ship.tsv
+assert_ship_state duplicate-pr 6 action --actor pre-merge --action pr-open --target staging --ledger ship.tsv
+assert_ship_state refused 5 action --actor pre-merge --action pr-open --verdict failing --ledger failing.tsv
+assert_ship_state forbidden 4 action --actor pre-merge --action pr-merge --target staging --ledger failing.tsv
+assert_ship_state silent-degrade 7 action --actor pre-merge --action pr-open --tool gh --degraded 'preferred' --ledger bypass.tsv
+
+# Loud degrade: gh is reachable only when kermit is genuinely absent AND said so.
+(
+  export MSG_CODEX_KERMIT=absent
+  assert_ship_state silent-degrade 7 action --actor pre-merge --action pr-open --ledger degraded.tsv
+  assert_ship_state recorded 0 action --actor pre-merge --action pr-open --tool gh \
+    --degraded 'kermit is not installed on this host' --ledger degraded.tsv
+)

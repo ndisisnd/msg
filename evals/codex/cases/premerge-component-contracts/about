@@ -1,0 +1,3 @@
+layer: 0
+assertions: PMG-CX-004
+proves: Every component protocol, its preflight ingestion helper and the shared result/finding/report schemas that close over them are mirrored byte-for-byte, so a component receives the same inputs and emits the same closed schema on either runtime.

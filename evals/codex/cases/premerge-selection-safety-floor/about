@@ -1,0 +1,4 @@
+layer: 4
+assertions: PMG-CX-005
+proves: Test selection grades identically from both packages, and the safety floor survives translation with the AMB-CX-003 ruling intact — an absent secret scanner is a blocker that no gate-time decision can decline, not a warning.
+residual: That a live Codex run refuses to grade a gate green without secret-scan coverage is layer 3.

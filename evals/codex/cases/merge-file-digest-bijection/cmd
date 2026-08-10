@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+
+assert_skill_files_mirrored merge
+assert_payload_identical merge
+assert_adapter_contract merge
+assert_map_covers_skill merge
+assert_claude_untouched

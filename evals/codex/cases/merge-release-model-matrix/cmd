@@ -1,0 +1,32 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-release-identity.sh script-smoke-run.sh \
+  script-platforms-parse.py script-prd-stamp.sh script-intake-stamp.sh
+differential_case a04-release-identity-no-reachable-tag
+
+assert_skill_script_mirrored merge refs/deploy.md
+assert_skill_script_mirrored merge refs/submission.md
+assert_skill_script_mirrored merge refs/verify-deploy.md
+assert_skill_script_mirrored merge refs/release-identity.md
+assert_ref_contains merge refs/submission.md 'submitted-not-live'
+
+# Deploy model: every effect is recorded, never executed.
+assert_ship_state recorded 0 action --actor merge --action deploy --target production --ledger deploy.tsv
+assert_ship_state recorded 0 action --actor merge --action tag --target v1.2.0+412 --ledger deploy.tsv
+assert_ship_state recorded 0 action --actor merge --action stamp --target prd-7 --ledger deploy.tsv
+
+# Submission model: the same, plus the wording rule its terminal must obey.
+assert_ship_state recorded 0 action --actor merge --action submit --target app-store --ledger submit.tsv
+assert_ship_state accepted 0 close --model submission --result success \
+  --text 'Release v1.2.0 — success: submitted to App Store review (Waiting for Review)'
+assert_ship_state forbidden 9 close --model submission --result success \
+  --text 'Release v1.2.0 is live in the App Store'
+assert_ship_state accepted 0 close --model deploy --result success \
+  --text 'Release v1.2.0 — success: production deployed and verified'
+assert_ship_state forbidden 9 close --model deploy --result success \
+  --text 'Release v1.2.0 finished'
+
+# Neither model is reachable from the gate that precedes merge.
+assert_ship_state forbidden 4 action --actor pre-merge --action submit --ledger nope.tsv
+assert_ship_state forbidden 4 action --actor pre-merge --action deploy --ledger nope.tsv

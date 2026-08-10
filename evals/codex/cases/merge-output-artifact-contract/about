@@ -1,0 +1,4 @@
+layer: 2
+assertions: MRG-CX-008
+proves: The terminal contract survives translation — the output schema, human test script and closing message ship byte-identical, a green release closes as success, and the AMB-CX-006 ruling is enforced rather than described: a submission terminal that says "live" is refused.
+residual: That a live Codex run renders the terminal in the canonical order is layer 3.

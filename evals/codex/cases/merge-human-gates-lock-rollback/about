@@ -1,0 +1,4 @@
+layer: 2
+assertions: MRG-CX-006
+proves: Every merge gate stays mandatory on Codex — it holds the run, refuses answers outside its declared option set, blocks rather than assuming when no surface can hold it, and stays owned by the main thread so no child thread can answer or relay it; and the rollback lever is always offered and decided, never pulled by the run itself.
+residual: That a live Codex root thread presents these gates in the canonical wording is layer 3.

@@ -1,0 +1,4 @@
+layer: 4
+assertions: PMG-CX-003
+proves: The manifest join, catalog resolution, mandatory-component floor and platform handling produce byte-identical plans and warnings from both packages, and both resolve the diff surface with the same bundled script.
+residual: That a live Codex executor schedules the resolved waves in the same order is layer 3.

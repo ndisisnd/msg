@@ -1,0 +1,14 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-tier-resolve.sh
+differential_case a05-tier-resolve-empty-diff
+differential_case a05-tier-resolve-undiffable-base
+
+# AMB-CX-003 decided: blocker, not warn. The losing text may not win on Codex.
+assert_ref_contains pre-merge refs/universal/protocol-security.md \
+  '**No secret scanner detected at all**' \
+  '**This blocker is not declinable at gate time**' \
+  'green-gate path without secret-scan coverage'
+assert_ref_contains shared refs/safety-floor.md \
+  'no green-gate path without secret-scan coverage'

@@ -1,0 +1,19 @@
+. "$LIB/assertions.sh"
+
+assert_helper_mirrored \
+  script-agent-watch.sh script-status-tick.sh script-branch-protection.sh \
+  script-ci-status.py script-platforms-parse.py script-policy-read.py \
+  script-policy-set.py script-release-identity.sh script-release-lock.sh \
+  script-signoff-coverage.sh script-smoke-run.sh script-intake-stamp.sh \
+  script-prd-stamp.sh script-ts-miss.py script-doctor-log.sh script-doctor-detect.sh
+
+assert_skill_script_mirrored merge refs/production.md
+assert_skill_script_mirrored merge refs/staging.md
+assert_skill_script_mirrored merge refs/protocol-init.md
+assert_skill_script_mirrored shared refs/policy-schema-merge.md
+assert_skill_script_mirrored shared refs/env-contract.md
+assert_skill_script_mirrored shared refs/safety-floor.md
+assert_skill_script_mirrored shared refs/fix-loop.md
+assert_skill_script_mirrored shared refs/agent-watch.md
+assert_skill_script_mirrored shared refs/status-heartbeat.md
+assert_skill_script_mirrored shared refs/doctor-logging.md

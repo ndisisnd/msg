@@ -1,0 +1,4 @@
+layer: 4
+assertions: MRG-CX-004, MRG-CX-006
+proves: The production order survives translation whole — the lock is read in phase 1 and taken only in phase 2 after every gate, the two confirmations stay two distinct decisions, the direct flow keeps its inline human test between them, a cancel at either confirmation ends the run, and no terminal path leaves the lock held.
+residual: That a live Codex production run asks the two confirmations as two separate turns is layer 3.

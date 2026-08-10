@@ -1,0 +1,3 @@
+layer: 0
+assertions: PMG-CX-001, PMG-CX-011, PMG-CX-012
+proves: Every tracked pre-merge file, including its own bundled diff resolver, has a byte-identical Codex counterpart, the canonical entry point arrives as CLAUDE-SKILL.md, the thin adapter carries Codex-only frontmatter, the compatibility map names every path, and the Claude tree is untouched by the Codex package.

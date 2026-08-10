@@ -1,0 +1,44 @@
+. "$LIB/assertions.sh"
+
+j() { printf '%b' "$2" > "$1"; }
+
+STAGED='lock-check\troot\tfree\ngate:confirm-1\troot\tship v1.2.0 from staging\ngate:confirm-2\troot\tconfirmed, cut v1.2.0 now\nlock-acquire\troot\tmine\nci:green\troot\tsha-9\nmerge\troot\tsha-9\nship\troot\tsha-9\nverify\troot\tsha-9\nstamp\troot\tsha-9\nlock-release\troot\tdone\n'
+j staged.tsv "$STAGED"
+assert_release_state ok 0 sequence --journal staged.tsv --mode production --flow staged
+
+# AMB-CX-005 decided: checked in phase 1, acquired in phase 2 after the gates.
+j lock-late-check.tsv 'gate:confirm-1\troot\ta\nlock-check\troot\tfree\ngate:confirm-2\troot\tb\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nlock-release\troot\td\n'
+assert_release_state lock-unchecked 3 sequence --journal lock-late-check.tsv --mode production
+
+j lock-early.tsv 'lock-check\troot\tfree\nlock-acquire\troot\tmine\ngate:confirm-1\troot\ta\ngate:confirm-2\troot\tb\nci:green\troot\ts\nmerge\troot\ts\nlock-release\troot\td\n'
+assert_release_state lock-early 4 sequence --journal lock-early.tsv --mode production
+
+j no-lock.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\ta\ngate:confirm-2\troot\tb\nci:green\troot\ts\nmerge\troot\ts\n'
+assert_release_state lock-early 4 sequence --journal no-lock.tsv --mode production
+
+j leaked.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\ta\ngate:confirm-2\troot\tb\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nstamp\troot\ts\n'
+assert_release_state lock-leaked 8 sequence --journal leaked.tsv --mode production
+
+# Two confirmations are two decisions, in order, neither skippable.
+j collapsed.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\tship v1.2.0\ngate:confirm-2\troot\tship v1.2.0\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nlock-release\troot\td\n'
+assert_release_state gate-collapsed 5 sequence --journal collapsed.tsv --mode production
+
+j one-confirm.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\ta\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nlock-release\troot\td\n'
+assert_release_state gate-missing 5 sequence --journal one-confirm.tsv --mode production
+
+j cancel-first.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\tcancel\n'
+assert_release_state cancelled 0 sequence --journal cancel-first.tsv --mode production
+
+j cancel-second.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\tship v1.2.0\ngate:confirm-2\troot\tcancel\n'
+assert_release_state cancelled 0 sequence --journal cancel-second.tsv --mode production
+
+j cancel-ignored.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\tship v1.2.0\ngate:confirm-2\troot\tcancel\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nlock-release\troot\td\n'
+assert_release_state cancel-ignored 5 sequence --journal cancel-ignored.tsv --mode production
+
+# Direct flow: the same double confirmation plus the inline human test.
+j direct-ok.tsv 'lock-check\troot\tfree\ngate:confirm-1\troot\tship v1.2.0 direct\ngate:human-test\troot\ttested build 42 by hand\ngate:confirm-2\troot\tconfirmed, ship direct\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nship\troot\ts\nverify\troot\ts\nstamp\troot\ts\nlock-release\troot\td\n'
+assert_release_state ok 0 sequence --journal direct-ok.tsv --mode production --flow direct
+assert_release_state gate-missing 5 sequence --journal staged.tsv --mode production --flow direct
+
+j direct-out-of-order.tsv 'lock-check\troot\tfree\ngate:human-test\troot\ttested\ngate:confirm-1\troot\ta\ngate:confirm-2\troot\tb\nlock-acquire\troot\tmine\nci:green\troot\ts\nmerge\troot\ts\nlock-release\troot\td\n'
+assert_release_state gate-out-of-order 5 sequence --journal direct-out-of-order.tsv --mode production --flow direct

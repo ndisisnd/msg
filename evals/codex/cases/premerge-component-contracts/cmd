@@ -1,0 +1,19 @@
+. "$LIB/assertions.sh"
+
+assert_helper_mirrored \
+  script-check-common.sh \
+  script-preflight-01-mechanical.sh script-preflight-02-unit.sh \
+  script-preflight-03-integration.sh script-preflight-04-regression.sh \
+  script-preflight-05-security.sh script-preflight-06-coverage.sh \
+  script-preflight-07-prd-consistency.sh script-preflight-08-e2e.sh \
+  script-preflight-09-a11y.sh script-preflight-10-perf.sh \
+  script-preflight-11-api.sh script-preflight-12-load.sh \
+  script-preflight-13-migration.sh script-preflight-14-mobile.sh \
+  script-preflight-17-smoke.sh script-preflight-18-manual-test-plan.sh
+
+assert_skill_script_mirrored pre-merge refs/_common.md
+assert_skill_script_mirrored pre-merge refs/finding-schema.md
+assert_skill_script_mirrored pre-merge refs/output-schema.md
+assert_skill_script_mirrored pre-merge refs/severity-rubric.md
+assert_skill_script_mirrored shared refs/check-report-schema.md
+assert_skill_script_mirrored shared refs/finding-schema.md

@@ -1,0 +1,20 @@
+. "$LIB/assertions.sh"
+
+assert_skill_script_mirrored merge refs/output-schema.md
+assert_skill_script_mirrored merge refs/human-test-script.md
+assert_skill_script_mirrored shared refs/closing-message.md
+assert_skill_script_mirrored shared refs/report-schema.md
+assert_skill_script_mirrored shared refs/finding-schema.md
+
+# AMB-CX-006 decided: never "live"; a green production release closes as success.
+assert_ship_state accepted 0 close --model deploy --result success \
+  --text 'Release v1.2.0+412 — success: deployed to production and verified'
+assert_ship_state forbidden 9 close --model submission --result success \
+  --text 'v1.2.0 is now live for users'
+assert_ship_state forbidden 9 close --model submission --result success \
+  --text 'LIVE in the store'
+assert_ship_state accepted 0 close --model submission --result success \
+  --text 'Release v1.2.0 — success: submitted, App Store review (Waiting for Review); live-to-users follows review'
+assert_ship_state accepted 0 close --model deploy --result failed \
+  --text 'Production deploy failed; rollback offered'
+assert_ref_contains merge refs/submission.md 'submitted-not-live'

@@ -1,0 +1,4 @@
+layer: 2
+assertions: PMG-CX-007
+proves: Each per-gap init approval stays a real decision on Codex — it holds the run, accepts only its declared options, never widens the option set at answer time, and blocks rather than assuming when no question surface can hold it; the AMB-CX-004 doctor-detect probe is wired into the init protocol; and every approved config stub ships byte-identical.
+residual: That a live Codex init interview asks these gates in the canonical order is layer 3.

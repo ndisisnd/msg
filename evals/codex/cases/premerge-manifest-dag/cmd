@@ -1,0 +1,10 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-pipeline-resolve.py
+assert_skill_script_mirrored pre-merge scripts/script-resolve-diff.sh
+assert_skill_script_mirrored shared refs/component-catalog.md
+
+differential_case a20-pipeline-mandatory-absent
+differential_case a19-pipeline-unknown-platform
+differential_case a19-pipeline-platforms-unreadable

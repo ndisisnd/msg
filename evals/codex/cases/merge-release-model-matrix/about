@@ -1,0 +1,4 @@
+layer: 4
+assertions: MRG-CX-005
+proves: Release identity resolves identically from both packages, both release models are reachable only from merge, every external effect stays recorded rather than performed, and a store submission can never be announced as live — AMB-CX-006's ruling made mechanical.
+residual: That a live Codex run picks the deploy or submission model from the resolved platform is layer 3.

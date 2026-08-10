@@ -196,6 +196,42 @@ assert_relay_state() {
   echo "RELAY_OK $want_state exit=$want_exit"
 }
 
+# External actions and sanctioned writes (AMB-CX-001/006, CX-G007). Nothing here
+# performs an external effect: the broker records the intent and refuses the ones
+# a release gate does not own.
+assert_ship_state() {
+  local want_state="$1" want_exit="$2"; shift 2
+  local out rc=0
+  out="$("$CODEX_SCRIPTS/script-codex-ship.sh" "$@" 2>&1)" || rc=$?
+  [ "$rc" = "$want_exit" ] || fail "ship: expected exit $want_exit, got $rc — $(printf '%s' "$out" | tr '\n' ' ')"
+  printf '%s\n' "$out" | grep -q "^\(SHIP_STATE\|WRITE_STATE\|CLOSE_STATE\)=$want_state" \
+    || fail "ship: expected state $want_state, got: $(printf '%s' "$out" | tr '\n' ' ')"
+  echo "SHIP_OK $want_state exit=$want_exit"
+}
+
+# Release-gate ordering (AMB-CX-005, MRG-CX-002/003/004/006). The journal is the
+# run's own record; the sequencer refuses every order that keeps the checks but
+# loses the guarantee.
+assert_release_state() {
+  local want_state="$1" want_exit="$2"; shift 2
+  local out rc=0
+  out="$("$CODEX_SCRIPTS/script-codex-release.sh" "$@" 2>&1)" || rc=$?
+  [ "$rc" = "$want_exit" ] || fail "release: expected exit $want_exit, got $rc — $(printf '%s' "$out" | tr '\n' ' ')"
+  printf '%s\n' "$out" | grep -q "^RELEASE_STATE=$want_state\$" \
+    || fail "release: expected RELEASE_STATE=$want_state, got: $(printf '%s' "$out" | tr '\n' ' ')"
+  echo "RELEASE_OK $want_state exit=$want_exit"
+}
+
+# A skill-scoped bundled script (not a shared `.claude/scripts/` helper) is
+# mirrored byte-for-byte into the skill's own Codex tree.
+assert_skill_script_mirrored() {
+  local skill="$1" rel="$2"
+  [ -f "$CLAUDE_SKILLS/$skill/$rel" ] || fail "$skill: canonical $rel missing"
+  cmp -s "$CLAUDE_SKILLS/$skill/$rel" "$CODEX_SKILLS/$skill/$rel" \
+    || fail "$skill: $rel differs between packages"
+  echo "SKILL_SCRIPT_MIRRORED $skill/$rel"
+}
+
 # --- write boundaries ------------------------------------------------------- #
 
 snapshot_tree() { (cd "$1" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 2>/dev/null) ; }

@@ -1,0 +1,3 @@
+layer: 0
+assertions: MRG-CX-010
+proves: Every helper and shared contract the merge map assigns to its transitive closure exists in the Codex package byte-identical to the canonical one, including the doctor detector retained under AMB-CX-004 and the environment contract wired in under AMB-CX-002.

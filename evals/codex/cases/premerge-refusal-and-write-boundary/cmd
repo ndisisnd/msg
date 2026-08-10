@@ -1,0 +1,27 @@
+. "$LIB/assertions.sh"
+
+mkdir -p src tests devkit
+echo 'export const total = 1;' > src/api.ts
+echo 'test("total", () => {});' > tests/api.test.ts
+before="$(snapshot_tree .)"
+
+assert_ship_state sanctioned 0 writes --actor pre-merge --mode gate \
+  --path .pre-merge/run/verdict.json --path reports/report-prd-7.md
+assert_ship_state forbidden 8 writes --actor pre-merge --mode gate --path src/api.ts
+assert_ship_state forbidden 8 writes --actor pre-merge --mode gate --path devkit/policy.json
+assert_ship_state sanctioned 0 writes --actor pre-merge --mode init \
+  --path devkit/policy.json --path eslint.config.js --path .github/workflows/pre-merge.yml
+assert_ship_state sanctioned 0 writes --actor pre-merge --mode update-criticality \
+  --path tests/api.test.ts
+assert_ship_state forbidden 8 writes --actor pre-merge --mode update-criticality --path src/api.ts
+
+assert_ship_state forbidden 4 action --actor pre-merge --action deploy --ledger refused.tsv
+assert_ship_state forbidden 4 action --actor pre-merge --action tag --ledger refused.tsv
+( export MSG_CODEX_SHIP_MODE=live
+  assert_ship_state live-refused 10 action --actor pre-merge --action pr-open --ledger refused.tsv )
+
+assert_tree_unchanged . "$before"
+assert_payload_contains pre-merge 'Does NOT modify source code.'
+assert_ref_contains pre-merge refs/refusal-patterns.md \
+  'no_manifest' 'out_of_scope_modify' 'out_of_scope_action'
+assert_claude_untouched

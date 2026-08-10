@@ -1,0 +1,17 @@
+. "$LIB/assertions.sh"
+
+assert_payload_contains pre-merge \
+  '/pre-merge --init' \
+  '/pre-merge --update-criticality' \
+  '/pre-merge --full-secret-scan' \
+  '/pre-merge --changed-only' \
+  'Flag beats policy: `--full` > `--minified` > `policies.test_selection`' \
+  '**REFUSE `no_manifest`**' \
+  'without a non-empty diff against base (`no_diff`)' \
+  'Does NOT `git push`, `gh pr merge`, `git merge` into `main`'
+
+assert_ref_contains pre-merge refs/refusal-patterns.md \
+  'no_manifest' 'out_of_scope_modify' 'out_of_scope_action'
+
+assert_invocation_translation "run /pre-merge --update-criticality first" \
+  "run \$pre-merge --update-criticality first"
