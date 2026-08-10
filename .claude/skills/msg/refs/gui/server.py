@@ -15,7 +15,8 @@ JSON API that turns the board into a lightweight Linear/Jira-style tool:
   POST /api/todo/toggle       {prd, id, done}     set a ticket's `done:` field in ## Todos
   POST /api/intake/status     {num, status}       set an INTAKE.md row's status cell (H5)
   POST /api/prompt            {prompt}            run a Claude prompt against the project
-  GET  /api/jobs              prompt runs + tails of their output
+  POST /api/prompt/answer     {job, gate, answer} answer a human gate a run is holding on
+  GET  /api/jobs              prompt runs + tails of their output + their open gates
 
 Security posture: binds 127.0.0.1 only; every /api call requires the per-run
 X-Msg-Token header (injected into the served HTML); Host header must be local;
@@ -35,8 +36,10 @@ import json
 import os
 import re
 import secrets
+import shutil
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import shlex
@@ -61,9 +64,18 @@ META_KEYS = {"completion", "status", "module", "platform", "feature"}
 INTAKE_REL = "INTAKE.md"
 INTAKE_STATUSES = ("backlog", "in-progress", "completed")
 
-JOBS = []          # [{id, prompt, status, output, started, finished, reported}]
+JOBS = []          # [{id, prompt, status, output, started, finished, reported, gates, gateDir}]
 JOBS_LOCK = threading.Lock()
 OUTPUT_CAP = 64 * 1024
+
+# Human gates (see the "human gates" section below). A run that needs a decision
+# stops, puts its question on the board, and continues with the answer the human
+# actually chose — on either runtime.
+GATE_PROTOCOL = 1
+GATE_ASK_SUFFIX = ".ask.json"
+GATE_ANSWER_SUFFIX = ".answer"
+GATE_POLL_SECONDS = 0.25
+GATE_DISMISSED = "__dismissed__"
 
 
 def root_path():
@@ -994,6 +1006,187 @@ def toggle_todo(rel, ticket_id, done):
     return None
 
 
+# --------------------------------------------------------------------------- human gates
+
+# A run launched from the board is a one-shot pipe: `claude -p` and `codex exec`
+# both read a prompt, work, and print. Neither can stop in the middle and ask the
+# human a question — so a skill's mandatory gate either never fires or resolves
+# itself, which is exactly what a mandatory gate must never do.
+#
+# The server owns the missing channel, and both runtimes bind the same one. Each
+# run gets a private gate directory, handed to it as $MSG_GUI_GATE_DIR:
+#
+#   ask     <dir>/<gate-id>.ask.json   written by the run, read by the server
+#   answer  <dir>/<gate-id>.answer     written by the server, read by the run
+#
+# Ask file (protocol 1) — the gate's decision, its exact option set and its
+# declared default, so none of them can be widened or invented downstream:
+#
+#   {"protocol": 1, "id": …, "skill": …, "header": …, "owner": …,
+#    "question": …, "options": [{"label": …, "description": …}], "default": …}
+#
+# Answer file — one line: the chosen option label exactly as declared, or
+# `__dismissed__`, which resolves to the declared default (and is refused when
+# the gate declares none). Both sides write `<name>.tmp` and rename it, so a
+# reader never sees half a file.
+#
+# The server never answers a gate itself. There is no timeout, no auto-default
+# and no "proceed anyway": an unanswered gate holds its run until a human clicks
+# an option, and a run that ends with a gate still open records it `abandoned`.
+#
+# Codex binding — `script-codex-gate.sh` (codex/gate-template.sh) writes the ask
+# file and blocks on the answer file whenever MSG_GUI_GATE_DIR is set, then feeds
+# the answer through its existing option validation. Nothing about the envelope
+# contract changes; the board just becomes one more question surface.
+#
+# Claude binding — the driver contract. `claude -p` cannot hold an
+# AskUserQuestion open, so a gate-holding Claude runner is a small driver process
+# (pointed at by --runner) built on the Claude Agent SDK. The interception itself
+# is already verified live against @anthropic-ai/claude-agent-sdk 0.3.226:
+#
+#   canUseTool("AskUserQuestion", input) -> {
+#     behavior: "allow",
+#     updatedInput: {...input, answers: {[question]: "<option label>"}}
+#   }
+#
+# An allow without an `answers` map is not an answer — the model is told the user
+# did not answer — and naming AskUserQuestion in `allowedTools` auto-approves it
+# before canUseTool runs, silently disarming the gate. Both traps, and the whole
+# working mechanism, are documented and exercised in
+# `evals/codex/lib/claude-session.mjs`, which answers gates from a persona table.
+#
+# A board driver is that same file with one substitution: instead of reading the
+# answer from a persona table, its canUseTool handler writes the ask file and
+# blocks on the answer file, so the human on the board supplies the choice. That
+# driver is not shipped with the board and has not been run against a live
+# session, so a Claude-runner gate is a residual until it is. The seams below are
+# runner-agnostic and work today for any runner that honours the two files.
+
+
+def read_gate_ask(path):
+    """One ask file → a gate record, or (None, reason). A malformed gate is
+    reported on the board rather than silently dropped: a run blocked on a gate
+    nobody can see is indistinguishable from a hung run."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except Exception as e:
+        return None, "unreadable gate file: %s" % e
+    if not isinstance(doc, dict):
+        return None, "gate file is not a JSON object"
+    gid = str(doc.get("id") or "").strip()
+    question = str(doc.get("question") or "").strip()
+    options, labels = [], set()
+    for o in (doc.get("options") or []):
+        if isinstance(o, dict):
+            label, desc = str(o.get("label") or "").strip(), str(o.get("description") or "").strip()
+        else:
+            label, desc = str(o).strip(), ""
+        if label and label not in labels:
+            labels.add(label)
+            options.append({"label": label, "description": desc})
+    if not gid or not question or not options:
+        return None, "gate needs an id, a question and at least one option"
+    default = str(doc.get("default") or "").strip()
+    if default and default not in labels:
+        return None, "gate default %r is not one of its options" % default
+    return {
+        "id": gid,
+        "skill": str(doc.get("skill") or "").strip(),
+        "header": str(doc.get("header") or "").strip(),
+        "owner": str(doc.get("owner") or "").strip(),
+        "question": question,
+        "options": options,
+        "default": default,
+        "status": "awaiting",
+        "answer": None,
+        "dismissed": False,
+        "asked": time.time(),
+        "answered": None,
+    }, None
+
+
+def watch_gates(job):
+    """Poll one run's gate directory until the run ends, adopting each new ask
+    file exactly once. Owns the directory's lifetime: it is removed only after
+    the last scan, so a gate raised moments before exit is still seen."""
+    gate_dir = job["gateDir"]
+    seen = set()
+    while True:
+        try:
+            names = sorted(n for n in os.listdir(gate_dir) if n.endswith(GATE_ASK_SUFFIX))
+        except OSError:
+            names = []
+        for name in names:
+            if name in seen:
+                continue
+            seen.add(name)
+            gate, reason = read_gate_ask(os.path.join(gate_dir, name))
+            gid = name[:-len(GATE_ASK_SUFFIX)]
+            with JOBS_LOCK:
+                if gate and gate["id"] != gid:
+                    reason = "gate id %r does not match its file name" % gate["id"]
+                    gate = None
+                if gate and any(g["id"] == gate["id"] for g in job["gates"]):
+                    continue
+                if gate:
+                    job["gates"].append(gate)
+                else:
+                    job["gateErrors"].append({"file": name, "error": reason})
+        with JOBS_LOCK:
+            finished = job["finished"] is not None
+        if finished:
+            break
+        time.sleep(GATE_POLL_SECONDS)
+    with JOBS_LOCK:
+        for g in job["gates"]:
+            if g["status"] == "awaiting":
+                g["status"] = "abandoned"
+    shutil.rmtree(gate_dir, ignore_errors=True)
+
+
+def answer_gate(job_id, gate_id, answer):
+    """Deliver one human answer to the run holding at that gate. Every rejection
+    here is a refusal to guess: an unknown option is never accepted, a dismissal
+    without a declared default is never resolved, and a finished run is never
+    answered retroactively."""
+    with JOBS_LOCK:
+        job = next((j for j in JOBS if j["id"] == job_id), None)
+        if job is None:
+            return "run not found: %s" % job_id
+        gate = next((g for g in job["gates"] if g["id"] == gate_id), None)
+        if gate is None:
+            return "gate not found on this run: %s" % gate_id
+        if gate["status"] != "awaiting":
+            return "gate %s is already %s" % (gate_id, gate["status"])
+        if job["finished"] is not None:
+            return "the run has already finished"
+        chosen = answer
+        if answer == GATE_DISMISSED:
+            if not gate["default"]:
+                return "the gate was dismissed and declares no default; answer it explicitly"
+            chosen = gate["default"]
+        elif answer not in [o["label"] for o in gate["options"]]:
+            return "not one of this gate's options: %s" % answer
+        gate_dir = job["gateDir"]
+
+    path = os.path.join(gate_dir, gate_id + GATE_ANSWER_SUFFIX)
+    try:
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(chosen + "\n")
+        os.replace(tmp, path)
+    except OSError as e:
+        return "could not deliver the answer: %s" % e
+
+    with JOBS_LOCK:
+        gate["status"] = "answered"
+        gate["answer"] = chosen
+        gate["dismissed"] = (answer == GATE_DISMISSED)
+        gate["answered"] = time.time()
+    return None
+
+
 # --------------------------------------------------------------------------- prompt jobs
 
 def start_job(prompt):
@@ -1005,17 +1198,26 @@ def start_job(prompt):
         "started": time.time(),
         "finished": None,
         "reported": False,
+        "gates": [],
+        "gateErrors": [],
+        "gateDir": tempfile.mkdtemp(prefix="msg-gui-gate-"),
     }
     with JOBS_LOCK:
         JOBS.append(job)
+    threading.Thread(target=watch_gates, args=(job,), daemon=True).start()
 
     def run():
         try:
             argv = [a if a != "{prompt}" else prompt for a in shlex.split(ARGS.runner)]
             if "{prompt}" not in ARGS.runner:
                 argv.append(prompt)
+            env = dict(os.environ,
+                       MSG_GUI_GATE_DIR=job["gateDir"],
+                       MSG_GUI_GATE_PROTOCOL=str(GATE_PROTOCOL),
+                       MSG_GUI_JOB_ID=job["id"])
             proc = subprocess.Popen(argv, cwd=root_path(), stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT, text=True, errors="replace")
+                                    stderr=subprocess.STDOUT, text=True, errors="replace",
+                                    env=env)
             for line in proc.stdout:
                 with JOBS_LOCK:
                     job["output"] = (job["output"] + line)[-OUTPUT_CAP:]
@@ -1042,12 +1244,29 @@ def jobs_snapshot():
     with JOBS_LOCK:
         for j in reversed(JOBS):
             fin = j["finished"]
+            gates = [{
+                "id": g["id"],
+                "skill": g["skill"],
+                "header": g["header"],
+                "owner": g["owner"],
+                "question": g["question"],
+                "options": g["options"],
+                "default": g["default"],
+                "status": g["status"],
+                "answer": g["answer"],
+                "dismissed": g["dismissed"],
+            } for g in j["gates"]]
             item = {
                 "id": j["id"],
                 "prompt": j["prompt"][:400],
                 "status": j["status"],
                 "elapsed": (fin or now) - j["started"],
                 "output": j["output"][-16384:],
+                "gates": gates,
+                "gateErrors": list(j["gateErrors"]),
+                # The run is alive but stopped on a human decision — the board
+                # shows this as waiting on you, not as thinking.
+                "awaiting": any(g["status"] == "awaiting" for g in gates),
             }
             if j["status"] != "running" and not j["reported"]:
                 item["justFinished"] = True
@@ -1180,6 +1399,10 @@ class Handler(BaseHTTPRequestHandler):
             if len(prompt) > 20000:
                 return self._err("prompt too long")
             return self._json({"ok": True, "id": start_job(prompt)})
+        if u.path == "/api/prompt/answer":
+            e = answer_gate(str(b.get("job") or ""), str(b.get("gate") or ""),
+                            str(b.get("answer") or ""))
+            return self._err(e) if e else self._json({"ok": True})
         return self._err("unknown endpoint", 404)
 
 
@@ -1193,7 +1416,9 @@ def main():
     ap.add_argument("--view", default="board", choices=("board", "roadmap"),
                     help="initial tab the served board opens on")
     ap.add_argument("--runner", default="claude -p {prompt} --permission-mode acceptEdits",
-                    help="command template for /api/prompt; {prompt} is replaced argv-safely")
+                    help="command template for /api/prompt; {prompt} is replaced argv-safely. "
+                         "Every run is handed $MSG_GUI_GATE_DIR — a gate-aware runner holds "
+                         "human gates on the board instead of resolving them alone")
     ARGS = ap.parse_args()
     if not os.path.isdir(root_path()):
         raise SystemExit("root does not exist: %s" % ARGS.root)

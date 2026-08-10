@@ -125,7 +125,7 @@
       "kind": "codex-native",
       "source": "codex/gate-template.sh",
       "mode": "755",
-      "sha256": "7abb7f589513304b0049b9176c9c19b6696c0b3b63d6ff22516d942988cf9d04"
+      "sha256": "23792097e22a4a34dd48bf2425accb36344726a4bb9b3aea292d18d406878a35"
     },
     {
       "path": ".agents/scripts/script-codex-invoke.sh",
@@ -867,7 +867,7 @@
       "kind": "codex-native",
       "source": ".claude/skills/msg/refs/gui/index.html",
       "mode": "644",
-      "sha256": "ded9568f9f7ba1245b4f70d98285970b6ac4204f0bca49c0a94478e0260001ec"
+      "sha256": "ce16f1ffdd2f6c85f9beec86a7b90200de3043836336c6a7b2f85eacd4b48e2c"
     },
     {
       "path": ".agents/skills/msg/refs/gui/codex/styles.css",
@@ -888,14 +888,14 @@
       "kind": "canonical-copy",
       "source": ".claude/skills/msg/refs/gui/index.html",
       "mode": "644",
-      "sha256": "48c47978646a2583320568f5d116f45370945160a6d0893535872cda910dfb36"
+      "sha256": "f2e9c870712fb689bee1ed1c4dc8d14d83c002a806522c28859c0628d825ac31"
     },
     {
       "path": ".agents/skills/msg/refs/gui/server.py",
       "kind": "canonical-copy",
       "source": ".claude/skills/msg/refs/gui/server.py",
       "mode": "644",
-      "sha256": "e2d451aea89892e04980211ca6018cbe6264e00aa792f6a7fc700acbd19de642"
+      "sha256": "3d4d901055556d4091f1a4f53af697b6ed64a9f9397a6196c63aa7967f4168ba"
     },
     {
       "path": ".agents/skills/msg/refs/gui/styles.css",

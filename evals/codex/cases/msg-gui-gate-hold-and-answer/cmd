@@ -1,0 +1,80 @@
+. "$LIB/assertions.sh"
+
+mkdir -p repo/features repo/devkit && cd repo
+
+# The run: a Codex-shaped runner that raises one canonical gate through the
+# Codex gate binding and only continues once the gate returns an answer.
+cat > runner.sh <<'EOF'
+#!/usr/bin/env bash
+bash "$GATE_HELPER" --id roster --skill plan-em \
+  --question "Approve the proposed roster?" \
+  --option "Approve" --option "Revise" --default "Approve"
+echo "RUN_RESUMED"
+EOF
+
+export GATE_HELPER="$REPO/.agents/scripts/script-codex-gate.sh"
+export MSG_GUI_GATE_TIMEOUT=30
+
+python3 "$REPO/.agents/skills/msg/refs/gui/server.py" --root . --port 0 \
+  --runner "bash $PWD/runner.sh {prompt}" > server.log 2>&1 &
+pid=$!
+trap 'kill "$pid" 2>/dev/null' EXIT
+
+for _ in $(seq 1 50); do grep -q '^URL: ' server.log && break; sleep 0.1; done
+url="$(sed -n 's/^URL: //p' server.log | head -n 1)"
+[ -n "$url" ] || fail "the board server never reported a URL"
+token="$(curl -s "$url" | grep -o 'var TOKEN = "[0-9a-f]*"' | head -n 1 | grep -o '[0-9a-f]\{8,\}')"
+[ -n "$token" ] || fail "the served board carried no token"
+
+get() { curl -s -H "X-Msg-Token: $token" "${url}api/$1"; }
+post() { curl -s -H "X-Msg-Token: $token" -H 'Content-Type: application/json' -d "$2" "${url}api/$1"; }
+field() { python3 -c 'import json,sys;print(json.dumps(eval("d"+sys.argv[1],{"d":json.load(sys.stdin)})))' "$1"; }
+
+job="$(post prompt '{"prompt":"run the roster gate"}' | field '["id"]' | tr -d '"')"
+[ -n "$job" ] || fail "the prompt run was not accepted"
+
+for _ in $(seq 1 100); do
+  [ "$(get jobs | field '["jobs"][0]["awaiting"]')" = "true" ] && break
+  sleep 0.1
+done
+snapshot="$(get jobs)"
+[ "$(printf '%s' "$snapshot" | field '["jobs"][0]["awaiting"]')" = "true" ] \
+  || fail "the run did not hold at the gate"
+[ "$(printf '%s' "$snapshot" | field '["jobs"][0]["status"]')" = '"running"' ] \
+  || fail "the held run is not alive"
+gate="$(printf '%s' "$snapshot" | field '["jobs"][0]["gates"][0]')"
+printf '%s' "$gate" | grep -q '"question": "Approve the proposed roster?"' \
+  || fail "the board did not surface the gate question"
+printf '%s' "$gate" | grep -q '"label": "Approve"' || fail "an option was lost"
+printf '%s' "$gate" | grep -q '"label": "Revise"' || fail "an option was lost"
+printf '%s' "$gate" | grep -q '"default": "Approve"' || fail "the declared default was lost"
+echo "GATE_HELD run-alive question-and-options-intact"
+
+post prompt/answer "{\"job\":\"$job\",\"gate\":\"roster\",\"answer\":\"Rewrite it\"}" \
+  | grep -q '"error"' || fail "an undeclared answer was accepted"
+[ "$(get jobs | field '["jobs"][0]["awaiting"]')" = "true" ] \
+  || fail "a refused answer released the gate"
+echo "GATE_ANSWER_REFUSED undeclared-option"
+
+post prompt/answer "{\"job\":\"$job\",\"gate\":\"roster\",\"answer\":\"Revise\"}" \
+  | grep -q '"ok": true' || fail "the declared answer was not accepted"
+
+for _ in $(seq 1 100); do
+  [ "$(get jobs | field '["jobs"][0]["status"]')" = '"done"' ] && break
+  sleep 0.1
+done
+final="$(get jobs)"
+[ "$(printf '%s' "$final" | field '["jobs"][0]["status"]')" = '"done"' ] \
+  || fail "the run never resumed after the gate was answered"
+printf '%s' "$final" | field '["jobs"][0]["gates"][0]["answer"]' | grep -q 'Revise' \
+  || fail "the board did not record the human answer"
+printf '%s' "$final" | field '["jobs"][0]["output"]' | grep -q 'GATE_ANSWER=Revise' \
+  || fail "the run did not receive the human answer"
+printf '%s' "$final" | field '["jobs"][0]["output"]' | grep -q 'RUN_RESUMED' \
+  || fail "the run did not continue past the gate"
+echo "GATE_ANSWERED honored-and-resumed"
+
+kill "$pid" 2>/dev/null
+wait 2>/dev/null || true
+trap - EXIT
+echo "GUI_GATE_SHUTDOWN clean"

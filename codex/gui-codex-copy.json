@@ -7,6 +7,13 @@
     "codex": "codex exec {prompt} --sandbox workspace-write --skip-git-repo-check"
   },
   "launch": "python3 .agents/skills/msg/refs/gui/server.py --root <repo> --gui-dir .agents/skills/msg/refs/gui/codex --runner 'codex exec {prompt} --sandbox workspace-write --skip-git-repo-check'",
+  "human_gates": {
+    "why": "A board-launched run must be able to stop on a mandatory human gate, show the question, and continue with the answer the person chose. Neither runner can do that through a one-shot pipe, so the server owns the channel and both runtimes bind the same one — the board UX is identical on Claude and Codex, and neither side may answer a gate for the user.",
+    "seam": "$MSG_GUI_GATE_DIR/<gate-id>.ask.json is written by the run; $MSG_GUI_GATE_DIR/<gate-id>.answer is written by the server with the chosen option label (or the declared default, on an explicit dismissal). Both writers rename a .tmp file into place. There is no timeout and no auto-answer on the server side.",
+    "codex_binding": ".agents/scripts/script-codex-gate.sh (codex/gate-template.sh) writes the ask file and blocks on the answer file whenever MSG_GUI_GATE_DIR is set, emitting GATE_CHANNEL=gui alongside the existing awaiting-answer envelope; MSG_GUI_GATE_TIMEOUT bounds the wait and blocks rather than defaulting.",
+    "claude_binding": "residual — `claude -p` cannot hold an AskUserQuestion open. The interception path is live-verified (Claude Agent SDK canUseTool returning allow + an `answers` map, per evals/codex/lib/claude-session.mjs), and the driver contract is recorded in server.py; a board driver that binds this seam has not yet been built or run.",
+    "variant_impact": "none — the gate surface is server-side and runtime-neutral, so it adds no Codex-only substitution to the board."
+  },
   "substitutions": [
     {
       "from": "Claude",

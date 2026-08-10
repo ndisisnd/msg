@@ -101,8 +101,8 @@ c2bb245b25f5f65c72ab127af6f52ae2ed98dd128614e62945f2602c6e2eede8  .claude/skills
 932f562484aae91dab6dd082df8a49e52caa53ed8e6fc514a88e28a853c89e05  .claude/skills/merge/refs/verify-deploy.md
 e08bf3af827a43d7d35a71b60966fe19663c2f0f50e1d10bffc0a428c66003c1  .claude/skills/msg/SKILL.md
 30025effb5f9047aa91c6c8d16d0bd0daf5cc9cf8fba0a03217415f7c6d90c81  .claude/skills/msg/refs/gui/fill-static.py
-48c47978646a2583320568f5d116f45370945160a6d0893535872cda910dfb36  .claude/skills/msg/refs/gui/index.html
-e2d451aea89892e04980211ca6018cbe6264e00aa792f6a7fc700acbd19de642  .claude/skills/msg/refs/gui/server.py
+f2e9c870712fb689bee1ed1c4dc8d14d83c002a806522c28859c0628d825ac31  .claude/skills/msg/refs/gui/index.html
+3d4d901055556d4091f1a4f53af697b6ed64a9f9397a6196c63aa7967f4168ba  .claude/skills/msg/refs/gui/server.py
 c380b5228ab374305244051818adf8cd50c55827bc5088f46a7e149ab929390e  .claude/skills/msg/refs/gui/styles.css
 d202bbf5e2e72ae0f7552a785dcd0ea6169a99205890e62833a58518f4627e82  .claude/skills/msg/refs/init/init-setup.sh
 13a2686b3a59e9b4bfa04f64e7f1786f98be94cf9ea8265e08457538c9a4235d  .claude/skills/msg/refs/init/init.sh

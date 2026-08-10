@@ -1,0 +1,4 @@
+layer: 2
+assertions: MSG-CX-008
+proves: A board-launched run that raises a human gate holds; the board surfaces the question, its exact option set and its default; an undeclared answer is refused; the declared answer is delivered and the run resumes with it.
+residual: The Claude runner binding — a live Claude Agent SDK driver answering an AskUserQuestion from this seam — is not exercised here.

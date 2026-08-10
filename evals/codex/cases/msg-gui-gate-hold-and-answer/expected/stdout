@@ -1,0 +1,4 @@
+GATE_HELD run-alive question-and-options-intact
+GATE_ANSWER_REFUSED undeclared-option
+GATE_ANSWERED honored-and-resumed
+GUI_GATE_SHUTDOWN clean

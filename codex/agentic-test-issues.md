@@ -78,3 +78,21 @@ New defects found by live sessions — full detail in `codex/release-gate-report
 - Probes run (scratchpad/read-only): invoke-translator adjacency repro
   (DEF-01), layer-3 case census (ISS-02), gate-template static review
   (ISS-04/DEF-02), GUI smoke-case and session-lib reads.
+
+## E. User decisions — 2026-08-10
+
+| Item | Decision |
+|---|---|
+| Release timing | Ship v6.0.0 only after these decisions are effected AND the quota-blocked forward sessions + FWD-01 retest pass (quota resets 2026-08-17). |
+| ISS-04 / DEF-02 | **Build it** — gate envelope gains nonce/epoch delivery state; stale-answer and duplicate-delivery become contract-layer tests. |
+| DEF-04 | **Authorized** — canonical cross-runtime fix to the GUI prompt runner (msg/refs/gui/server.py + index.html only); baseline re-freeze at commit. |
+| ISS-01 / ISS-12 | **Approved** — build the Claude Agent SDK headless gate driver; two-sided differential parity becomes reachable. |
+| Forward transcripts | **Local only** — raw .jsonl stays untracked/gitignored; compact evidence committed. |
+| Map status + MRG-CX-001 | **Tidy both** — phase-aware strict-verifier mode so maps can carry implemented status; MRG-CX-001 reconciled to one meaning. |
+
+## F. Effected decisions — build log
+
+| ID | Status | What was built |
+|---|---|---|
+| DEF-04 | **closed** (2026-08-10) | The board owns a runtime-neutral gate channel: each run gets `$MSG_GUI_GATE_DIR`, writes `<gate-id>.ask.json` when it needs a decision, and blocks until the server writes `<gate-id>.answer` from a human click on `POST /api/prompt/answer`. Canonical edit limited to `server.py` + `index.html` (baseline and map digests re-frozen). Codex binding lives in `codex/gate-template.sh`; proven end-to-end by `msg-gui-gate-hold-and-answer` (layer 2). No auto-answer, no timeout default, no widened option set anywhere in the path. |
+| ISS-01 (GUI half) | **partially closed** | The Claude interception mechanism is live-verified in `evals/codex/lib/claude-session.mjs` (`canUseTool` → `allow` + `answers` map, SDK 0.3.226) and the driver contract is written into `server.py`. Still open: a board driver that reads its answer from the gate directory instead of a persona table, and one live session proving it. |

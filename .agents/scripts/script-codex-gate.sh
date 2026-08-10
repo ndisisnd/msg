@@ -25,6 +25,14 @@
 #   prose                — one concise question, the turn halts
 #   none                 — no way to hold the run: the gate blocks (exit 3)
 #
+# Board channel (msg --gui). When the run was launched from the board's prompt
+# console the server hands it a private gate directory as MSG_GUI_GATE_DIR, and
+# the board becomes the question surface: this helper writes the gate to
+# <dir>/<id>.ask.json and blocks until the board writes <dir>/<id>.answer, then
+# feeds that answer through the same option validation as any other channel. The
+# wait is bounded only by MSG_GUI_GATE_TIMEOUT (seconds; 0, the default, waits as
+# long as the run lives) and a timeout blocks the gate — it is never defaulted.
+#
 # Exit codes (designed outcomes, not harness incidents):
 #   0  envelope emitted (GATE_STATE=awaiting-answer) or answer accepted
 #      (GATE_STATE=answered | GATE_STATE=dismissed-default)
@@ -94,6 +102,54 @@ if [ "$surface" = "none" ]; then
   echo "GATE_STATE=blocked"
   echo "REASON=no question surface can hold the run at this gate; the mode blocks rather than proceeding"
   exit 3
+fi
+
+# The board channel. The gate is published as a file the server can render, and
+# the run holds here — no option is chosen, widened or defaulted on its behalf.
+gate_dir="${MSG_GUI_GATE_DIR:-}"
+
+json_escape() {
+  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+}
+
+write_ask_file() {
+  local tmp="$gate_dir/$id$ask_suffix.tmp" option first=1
+  {
+    printf '{"protocol":1,"id":"%s","skill":"%s","owner":"%s","surface":"gui","question":"%s","options":[' \
+      "$(json_escape "$id")" "$(json_escape "$skill")" \
+      "$(json_escape "$owner")" "$(json_escape "$question")"
+    for option in "${options[@]}"; do
+      [ "$first" -eq 1 ] || printf ','
+      first=0
+      printf '{"label":"%s","description":""}' "$(json_escape "$option")"
+    done
+    printf '],"default":"%s"}\n' "$(json_escape "$default")"
+  } > "$tmp"
+  mv "$tmp" "$gate_dir/$id$ask_suffix"
+}
+
+ask_suffix=".ask.json"
+if [ -z "$answer" ] && [ -n "$gate_dir" ] && [ -d "$gate_dir" ]; then
+  timeout="${MSG_GUI_GATE_TIMEOUT:-0}"
+  case "$timeout" in
+    ''|*[!0-9]*) echo "script-codex-gate.sh: MSG_GUI_GATE_TIMEOUT must be whole seconds" >&2; exit 2 ;;
+  esac
+  write_ask_file
+  emit_envelope
+  echo "GATE_CHANNEL=gui"
+  echo "GATE_STATE=awaiting-answer"
+  echo "GATE_RESUME=$skill:$id"
+  waited=0
+  while [ ! -f "$gate_dir/$id.answer" ]; do
+    if [ "$timeout" -gt 0 ] && [ "$waited" -ge "$timeout" ]; then
+      echo "GATE_STATE=blocked"
+      echo "REASON=the board did not answer within MSG_GUI_GATE_TIMEOUT=${timeout}s; the gate blocks rather than assuming an answer"
+      exit 3
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  answer="$(head -n 1 "$gate_dir/$id.answer" | tr -d '\r')"
 fi
 
 if [ -z "$answer" ]; then

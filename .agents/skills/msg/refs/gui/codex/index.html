@@ -1585,6 +1585,7 @@ function renderReportDetail(file) {
 /* ========================================================================= */
 var jobsTimer = null;
 var seenJobDone = {};
+var seenGates = {};
 var QUICK_PROMPTS = [
   ["Generate a PRD", "$plan-pm "],
   ["Write eng plan + todos", "$eng --plan "],
@@ -1634,10 +1635,59 @@ function renderPrompts() {
   pollJobs();
   ta.focus();
 }
+/* A run that hits a human gate stops and puts its question here. The board never
+   picks an option, never times one out and never widens the option set — the run
+   waits until a person clicks, exactly as it would in a terminal session. */
+var GATE_BOX = "border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin:10px 0;background:var(--bg-sunken)";
+function gateFrag(job, g) {
+  var wrap = el('<div class="gate" style="' + GATE_BOX + '"></div>');
+  var label = g.status === "awaiting" ? "waiting on you"
+            : g.status === "answered" ? "answered" : "unanswered";
+  wrap.appendChild(el('<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">' +
+    '<span class="pill">' + esc(label) + "</span>" +
+    (g.skill ? '<span class="pill muted">' + esc(g.skill) + "</span>" : "") +
+    (g.header ? '<span class="pill muted">' + esc(g.header) + "</span>" : "") +
+  "</div>"));
+  wrap.appendChild(el('<div style="font-weight:600;margin-bottom:8px">' + esc(g.question) + "</div>"));
+
+  if (g.status !== "awaiting") {
+    var settled = g.status === "answered"
+      ? "Answered: " + g.answer + (g.dismissed ? " (dismissed to the default)" : "")
+      : "The run ended before this was answered.";
+    wrap.appendChild(el('<div style="color:var(--text-muted)">' + esc(settled) + "</div>"));
+    return wrap;
+  }
+
+  var actions = el('<div class="console-actions"></div>');
+  function answer(choice) {
+    Array.prototype.forEach.call(actions.querySelectorAll("button"), function (b) { b.disabled = true; });
+    api("prompt/answer", { job: job.id, gate: g.id, answer: choice })
+      .then(function () { toast("Answer sent"); pollJobs(); })
+      .catch(function (e) {
+        toast(e.message, true);
+        Array.prototype.forEach.call(actions.querySelectorAll("button"), function (b) { b.disabled = false; });
+      });
+  }
+  (g.options || []).forEach(function (o) {
+    var b = el('<button class="btn">' + esc(o.label) + "</button>");
+    if (o.description) b.title = o.description;
+    b.addEventListener("click", function () { answer(o.label); });
+    actions.appendChild(b);
+  });
+  if (g.default) {
+    var d = el('<button class="chip">Use the default — ' + esc(g.default) + "</button>");
+    d.addEventListener("click", function () { answer("__dismissed__"); });
+    actions.appendChild(d);
+  }
+  wrap.appendChild(actions);
+  return wrap;
+}
 function jobFrag(j) {
   var wrap = el('<div class="job"></div>');
+  var gates = j.gates || [];
+  var status = j.awaiting ? "waiting on you" : j.status;
   var head = el('<div class="job-head">' +
-    '<span class="pill job-status ' + esc(j.status) + '">' + esc(j.status) + "</span>" +
+    '<span class="pill job-status ' + esc(j.status) + '">' + esc(status) + "</span>" +
     '<span class="prompt-text">' + esc(j.prompt) + "</span>" +
     '<span class="pill muted">' + (j.elapsed != null ? Math.round(j.elapsed) + "s" : "") + "</span>" +
   "</div>");
@@ -1645,6 +1695,11 @@ function jobFrag(j) {
     esc(j.output || "(no output yet)") + "</pre>");
   head.addEventListener("click", function () { out.classList.toggle("hidden"); });
   wrap.appendChild(head);
+  gates.forEach(function (g) { wrap.appendChild(gateFrag(j, g)); });
+  (j.gateErrors || []).forEach(function (ge) {
+    wrap.appendChild(el('<div style="' + GATE_BOX + ';color:var(--text-muted)">A question could not be read (' +
+      esc(ge.file) + "): " + esc(ge.error) + "</div>"));
+  });
   wrap.appendChild(out);
   return wrap;
 }
@@ -1658,6 +1713,13 @@ function pollJobs() {
     if (!jobs.length) host.appendChild(el('<div class="empty-state">No runs yet.</div>'));
     jobs.forEach(function (job) {
       host.appendChild(jobFrag(job));
+      (job.gates || []).forEach(function (g) {           // one nudge per question
+        var key = job.id + ":" + g.id;
+        if (g.status === "awaiting" && !seenGates[key]) {
+          seenGates[key] = true;
+          toast("A run is waiting on your decision");
+        }
+      });
       if (job.status !== "running" && !seenJobDone[job.id]) {
         seenJobDone[job.id] = true;
         if (job.justFinished) {                       // only toast fresh completions
