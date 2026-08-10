@@ -1,0 +1,26 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-eng-db-touch.sh script-em-branch-resolve.sh
+differential_stdin script-eng-db-touch.sh paths-guarded.txt -- -
+differential_case a25-branch-resolve-main-behind-remote a17-prd-scan-branch-resolve
+
+"$REPO/.agents/scripts/script-codex-gate.sh" --id wave-db-touch --skill plan-em --owner leaf-be \
+  --question "Wave 1 touched db/migrations/004_add_tax.sql. Continue?" \
+  --option "Approve" --option "Stop" > gate.txt
+"$REPO/.agents/scripts/script-codex-relay.sh" relay --envelope gate.txt > relayed.txt
+assert_relay_state verified 0 verify --envelope gate.txt --relayed relayed.txt
+
+# Every way the relay could quietly change the gate is a refusal, not a fallback.
+sed 's/Continue?/Continue with the migration?/' relayed.txt > reworded.txt
+assert_relay_state altered 4 verify --envelope gate.txt --relayed reworded.txt
+assert_relay_state misrouted 4 deliver --envelope gate.txt --relayed relayed.txt \
+  --answer Approve --to leaf-ios
+assert_relay_state stale 6 deliver --envelope gate.txt --relayed relayed.txt \
+  --answer Approve --to leaf-be --for-resume plan-em:roster
+assert_relay_state rejected 4 deliver --envelope gate.txt --relayed relayed.txt \
+  --answer "Approve just this one" --to leaf-be
+assert_relay_state delivered 0 deliver --envelope gate.txt --relayed relayed.txt \
+  --answer Approve --to leaf-be --journal journal.tsv
+assert_relay_state duplicate 6 deliver --envelope gate.txt --relayed relayed.txt \
+  --answer Approve --to leaf-be --journal journal.tsv

@@ -58,6 +58,9 @@ CODEX_NATIVE_SCRIPTS = {
     "codex/agents-md-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-agents-md.sh",
     "codex/gate-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-gate.sh",
     "codex/invoke-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-invoke.sh",
+    "codex/packet-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-packet.sh",
+    "codex/relay-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-relay.sh",
+    "codex/subagent-template.sh": f"{CODEX_SCRIPT_ROOT}/script-codex-subagent.sh",
 }
 
 # GUI runtime variant (DEV-CX-014). The mirrored board stays byte-identical to the

@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains eng refs/plan/template-eng-plan.md \
+  "Large shape — 12 sections" \
+  "intake complexity grade is \`C:\` ≥ 8"
+differential_case plan-shape-v54-large-legacy plan-shape-v54-unknown-section plan-shape-v54-shape-skip

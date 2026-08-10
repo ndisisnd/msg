@@ -1,0 +1,5 @@
+. "$LIB/assertions.sh"
+
+assert_payload_contains eng "**\`--review\` is exempt from this whole step.**"
+assert_ref_contains eng refs/review/protocol.md "source: eng:review" "did not write the code"
+assert_ref_contains eng ../shared/refs/finding-schema.md "eng --review" "review-prd-<N>-<K>.json"

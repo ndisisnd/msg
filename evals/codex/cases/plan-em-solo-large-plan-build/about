@@ -1,0 +1,4 @@
+layer: 4
+assertions: PEM-CX-003, PEM-CX-006, PEM-CX-007, PEM-CX-008, PEM-CX-009, PEM-CX-010, PEM-CX-011, PEM-CX-019, PEM-CX-024
+proves: The large two-invocation path — product certification then plan and `specced`, a second invocation that reuses the roster, certifies engineering and resolves the branch once — survives packaging, with identical stamp, skeleton, cert and branch helper behaviour across packages.
+residual: That the second invocation reuses the approved roster without re-asking is layer 3.

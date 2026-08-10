@@ -1,0 +1,3 @@
+layer: 4
+assertions: PEM-CX-019, PEM-CX-023
+proves: The after-wave production guard flags identical paths from both packages, the branch resolver returns identical actions, and a leaf-raised pause travels to the root and back without changing its wording, its options, its owner or its resume point.

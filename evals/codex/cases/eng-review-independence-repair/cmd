@@ -1,0 +1,11 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+differential_case review-check-self-reviewed review-check-missing review-check-corrupt review-check-empty-dir
+
+printf 'builder\tleaf-a\tP1\tem-1\n' > threads.tsv
+assert_subagent_state "INDEPENDENCE=missing" 4 review-identity --ledger threads.tsv --packet P1
+printf 'reviewer\tleaf-a\tP1\tem-1\n' >> threads.tsv
+assert_subagent_state "INDEPENDENCE=violated" 4 review-identity --ledger threads.tsv --packet P1
+printf 'reviewer\trev-b\tP1\tem-1\n' >> threads.tsv
+assert_subagent_state "INDEPENDENCE=violated" 4 review-identity --ledger threads.tsv --packet P1

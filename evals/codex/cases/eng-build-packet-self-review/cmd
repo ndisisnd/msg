@@ -1,0 +1,15 @@
+. "$LIB/assertions.sh"
+
+assert_ref_contains eng refs/build/protocol-packet.md \
+  "**You never:** create or switch a branch" \
+  "the **db-touch pause** (Step 6) and a genuine blocker" \
+  "status: <packet key> <done|blocked>"
+
+assert_subagent_state "SUBAGENT_STATE=ready" 0 preflight --requires independent-review
+assert_subagent_state "THREAD_SPAWNED=leaf-a" 0 \
+  spawn --run-id em-1754000000 --thread leaf-a --packet P1 --role builder --ledger threads.tsv
+assert_subagent_state "IDENTITY=violated" 4 \
+  spawn --run-id em-1754000000 --thread em-1754000000 --packet P2 --role builder --ledger threads.tsv
+assert_subagent_state "THREAD_SPAWNED=rev-a" 0 \
+  spawn --run-id em-1754000000 --thread rev-a --packet P1 --role reviewer --ledger threads.tsv
+assert_subagent_state "INDEPENDENCE=proven packet=P1" 0 review-identity --ledger threads.tsv --packet P1

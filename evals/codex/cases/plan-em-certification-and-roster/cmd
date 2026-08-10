@@ -1,0 +1,15 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains plan-em refs/protocol-em.md \
+  "This is the run's single human gate" \
+  "**Approve roster**" "**Revise roster**" \
+  "Do **not** collapse platforms to reduce count"
+assert_gate_state answered 0 --id roster --skill plan-em \
+  --question "Approve this roster?" --option "Approve roster" --option "Revise roster" \
+  --answer "Approve roster"
+assert_gate_state rejected 4 --id roster --skill plan-em \
+  --question "Approve this roster?" --option "Approve roster" --option "Revise roster" \
+  --answer "Add another agent"
+differential_case a01-cert-status-open-critical a01-cert-status-header-unresolved \
+  a08-exec-skeleton-refusing-overwrite exec-skeleton-v54-3col standards-cache-roundtrip

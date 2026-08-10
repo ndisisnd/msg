@@ -1,0 +1,4 @@
+layer: 4
+assertions: PEM-CX-009, PEM-CX-014, PEM-CX-015, PEM-CX-023
+proves: The collision script's packets and waves are byte-identical across packages and remain authoritative: a dependency sub-split is accepted, a dropped or merged packet is refused, an added packet is refused, and every dispatched packet carries its class, canonical tier and pinned Codex model.
+residual: That the coordinator's load-bearing versus mechanical judgement matches the canonical rubric is layer 3.

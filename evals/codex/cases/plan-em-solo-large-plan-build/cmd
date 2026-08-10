@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains plan-em refs/protocol-em.md \
+  "Roster already approved" \
+  "do not re-fire the approval \`AskUserQuestion\`"
+differential_case prop-prd-stamp exec-skeleton-v54-3col a01-cert-status-open-critical \
+  a25-branch-resolve-main-behind-remote plan-shape-v54-large-legacy

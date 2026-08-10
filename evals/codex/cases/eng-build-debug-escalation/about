@@ -1,0 +1,4 @@
+layer: 2
+assertions: ENG-CX-018, ENG-CX-024
+proves: The debug protocol keeps its one-scoped-change-per-cycle rule, its exactly-three-cycle bound and its structured escalation, and the AHA and incident writers stay byte-identical.
+residual: That a model stops at the third cycle rather than trying a fourth fix is layer 3.

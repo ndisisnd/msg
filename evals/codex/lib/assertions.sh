@@ -136,6 +136,66 @@ assert_gate_state() {
   echo "GATE_OK $want_state exit=$want_exit"
 }
 
+# Packet class → canonical tier → Codex model (DEV-CX-006). The pinned map is
+# asserted per packet class, never inferred: a class that cannot be tiered is a
+# usage error, not an inherited default.
+assert_packet_tier() {
+  local class="$1" want_tier="$2" want_model="$3" out
+  out="$("$CODEX_SCRIPTS/script-codex-packet.sh" tier --class "$class" 2>&1)" \
+    || fail "packet tier: $class was rejected"
+  printf '%s\n' "$out" | grep -q "^CANONICAL_TIER=$want_tier\$" \
+    || fail "packet tier: $class expected tier $want_tier, got: $(printf '%s' "$out" | tr '\n' ' ')"
+  printf '%s\n' "$out" | grep -q "^CODEX_MODEL=$want_model\$" \
+    || fail "packet tier: $class expected model $want_model"
+  echo "TIER_OK $class ${want_tier}→${want_model}"
+}
+
+assert_packet_tier_rejected() {
+  local class="$1" rc=0
+  "$CODEX_SCRIPTS/script-codex-packet.sh" tier --class "$class" >/dev/null 2>&1 || rc=$?
+  [ "$rc" = "2" ] || fail "packet tier: expected an unknown class to be rejected (exit 2), got $rc"
+  echo "TIER_REJECTED $class"
+}
+
+# Dispatch integrity (DEV-CX-005/013): disjoint ownership, dependency barriers,
+# declared width, and the collision script's decomposition staying authoritative.
+assert_dispatch_state() {
+  local want_state="$1" want_exit="$2"; shift 2
+  local out rc=0
+  out="$("$CODEX_SCRIPTS/script-codex-packet.sh" check "$@" 2>&1)" || rc=$?
+  [ "$rc" = "$want_exit" ] || fail "dispatch: expected exit $want_exit, got $rc — $(printf '%s' "$out" | tr '\n' ' ')"
+  if [ "$want_state" = "ok" ]; then
+    printf '%s\n' "$out" | grep -q '^DISPATCH_OK ' || fail "dispatch: expected DISPATCH_OK"
+  else
+    printf '%s\n' "$out" | grep -q "^DISPATCH_STATE=$want_state\$" \
+      || fail "dispatch: expected DISPATCH_STATE=$want_state, got: $(printf '%s' "$out" | tr '\n' ' ')"
+  fi
+  echo "DISPATCH_OK $want_state exit=$want_exit"
+}
+
+# Child-thread lifecycle (DEV-CX-005, CX-G009): capability preflight that fails
+# closed, disjoint identities, proven reviewer independence, resume that skips.
+assert_subagent_state() {
+  local want_line="$1" want_exit="$2"; shift 2
+  local out rc=0
+  out="$("$CODEX_SCRIPTS/script-codex-subagent.sh" "$@" 2>&1)" || rc=$?
+  [ "$rc" = "$want_exit" ] || fail "subagent: expected exit $want_exit, got $rc — $(printf '%s' "$out" | tr '\n' ' ')"
+  printf '%s\n' "$out" | grep -q "^$want_line\$" \
+    || fail "subagent: expected [$want_line], got: $(printf '%s' "$out" | tr '\n' ' ')"
+  echo "SUBAGENT_OK $want_line exit=$want_exit"
+}
+
+# Leaf-owned gate relay (DEV-CX-011).
+assert_relay_state() {
+  local want_state="$1" want_exit="$2"; shift 2
+  local out rc=0
+  out="$("$CODEX_SCRIPTS/script-codex-relay.sh" "$@" 2>&1)" || rc=$?
+  [ "$rc" = "$want_exit" ] || fail "relay: expected exit $want_exit, got $rc — $(printf '%s' "$out" | tr '\n' ' ')"
+  printf '%s\n' "$out" | grep -q "^RELAY_STATE=$want_state\$" \
+    || fail "relay: expected RELAY_STATE=$want_state, got: $(printf '%s' "$out" | tr '\n' ' ')"
+  echo "RELAY_OK $want_state exit=$want_exit"
+}
+
 # --- write boundaries ------------------------------------------------------- #
 
 snapshot_tree() { (cd "$1" && find . -type f -print0 | sort -z | xargs -0 shasum -a 256 2>/dev/null) ; }

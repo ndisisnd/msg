@@ -1,0 +1,6 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains eng refs/build/protocol-build-debug.md "one" "cycle"
+assert_helper_mirrored script-aha.sh script-openq.sh script-doctor-log.sh
+differential_case aha-append-reject-oversize prop-aha-openq doctor-log-append doctor-log-reject-enum

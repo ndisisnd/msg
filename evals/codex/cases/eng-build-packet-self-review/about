@@ -1,0 +1,4 @@
+layer: 2
+assertions: ENG-CX-013, ENG-CX-014, ENG-CX-015, ENG-CX-016, ENG-CX-017, ENG-CX-022
+proves: The packet leaf contract survives packaging with its forbidden-call list, its never-preapproved db-touch pause and its single status line; the Codex child-thread binding proves one owning thread per packet, disjoint run IDs and a reviewer identity that is not the builder's.
+residual: That the leaf reads only the packet protocol, and never the standalone spine, is layer 3.

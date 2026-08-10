@@ -7,3 +7,8 @@ for skill in msg intake plan-pm plan-review plan-em eng pre-merge merge emulate;
   assert_adapter_contract "$skill"
 done
 assert_invocation_translation "/msg --help lists /intake and /merge" "\$msg --help lists \$intake and \$merge"
+# DEF-01 regression: adjacent tokens share a separator; every one must translate,
+# while paths, hyphenated names and already-translated tokens stay untouched.
+assert_invocation_translation "run /eng /merge and /msg --help" "run \$eng \$merge and \$msg --help"
+assert_invocation_translation "/intake /plan-pm /plan-review /plan-em /eng" "\$intake \$plan-pm \$plan-review \$plan-em \$eng"
+assert_invocation_translation "see features/merge and /merge-base and \$eng" "see features/merge and /merge-base and \$eng"

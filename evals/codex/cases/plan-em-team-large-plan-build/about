@@ -1,0 +1,4 @@
+layer: 2
+assertions: PEM-CX-006, PEM-CX-012, PEM-CX-013, PEM-CX-019, PEM-CX-022
+proves: Team plan keeps one deep planner per stack so two threads never write the same heading, and the coordinator's boundaries — no re-certification, no cook, no branch resolution outside the fused midpoint — survive packaging.
+residual: That a second invocation spawns exactly one new coordinator is layer 3.

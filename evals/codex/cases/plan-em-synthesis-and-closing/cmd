@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+
+assert_ref_contains plan-em ../shared/refs/closing-message.md "pre-merge"
+assert_gate_state awaiting-answer 0 --id synth-critical --skill plan-em \
+  --question "Two Critical findings need a decision before this PRD moves on." \
+  --option "Apply both" --option "Apply the first only" --option "Stop here"
+assert_invocation_translation "Recommended next: /pre-merge" "Recommended next: \$pre-merge"
+assert_invocation_translation "Recommended next: /eng --build" "Recommended next: \$eng --build"

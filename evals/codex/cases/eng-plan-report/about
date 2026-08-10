@@ -1,0 +1,4 @@
+layer: 4
+assertions: ENG-CX-002, ENG-CX-008, ENG-CX-023
+proves: The findings projector is read-only over a real issues file and produces identical tickets, exit codes and bytes from both packages; the graded rubric escalates identically and the issues file is untouched.
+residual: That the fix plan lands at the colocated same-stem path and nowhere else is layer 3.

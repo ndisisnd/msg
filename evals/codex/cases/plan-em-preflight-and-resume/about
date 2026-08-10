@@ -1,0 +1,4 @@
+layer: 4
+assertions: PEM-CX-004, PEM-CX-005, PEM-CX-023
+proves: The open/corrupt/closed run-state lifecycle, the Resume/Fresh/Abort gate and the preflight artifact rules survive packaging, and the state, scan and deps-mirror helpers produce identical bytes and exits from both packages.
+residual: That a stale state disagreeing with PRD evidence is archived rather than trusted is layer 3.

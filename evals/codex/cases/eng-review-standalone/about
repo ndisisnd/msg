@@ -1,0 +1,4 @@
+layer: 2
+assertions: ENG-CX-001, ENG-CX-021, ENG-CX-023
+proves: Standalone review keeps its change-set resolution order, its adversarial charter and exclusion list, and its exemption from the PRD/devkit pre-flight; the finding schema it emits is the shared canonical one.
+residual: That a clean review stays silent rather than inventing findings is layer 3.

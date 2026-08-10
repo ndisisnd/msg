@@ -1,0 +1,4 @@
+layer: 2
+assertions: ENG-CX-001, ENG-CX-002
+proves: The three modes, the retired --todo hard failure, the ambiguous-source hard failure and the review-intent routing all survive packaging; the adapter invokes as $eng and translates handoffs without touching flags or report paths.
+residual: Whether a model routes a natural-language 'review my diff' to --review rather than answering it directly is layer 3.

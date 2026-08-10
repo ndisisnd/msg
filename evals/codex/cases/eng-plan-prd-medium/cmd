@@ -1,0 +1,9 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains eng refs/plan/template-eng-plan.md \
+  "Medium shape (default) — 4 sections" \
+  "Write these four, numbered 1–4, and nothing else."
+assert_helper_mirrored script-eng-plan-shape.py script-prd-digest.py
+differential_case plan-shape-v54-medium prd-shape-v54-todos-umbrella \
+  a22-plan-shape-short-exec-row a14-prd-digest-feature-id-empty

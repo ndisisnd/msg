@@ -1,0 +1,3 @@
+layer: 2
+assertions: ENG-CX-021, ENG-CX-022
+proves: A wave artifact naming its packets and builders is accepted from both packages only when the reviewer is not one of the builders, and the artifact remains a filesystem fact rather than a returned claim.

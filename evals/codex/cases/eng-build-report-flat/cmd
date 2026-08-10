@@ -1,0 +1,7 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-eng-close-loop.py script-project-findings.py
+differential_helper script-eng-close-loop.py -- report-prd-7-backend.json partially_resolved --dry-run
+differential_helper script-eng-close-loop.py -- report-prd-7-backend.json resolved
+differential_helper script-project-findings.py -- report-prd-7-backend.json --issue sec-001

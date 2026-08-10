@@ -1,0 +1,4 @@
+layer: 4
+assertions: PEM-CX-003, PEM-CX-004, PEM-CX-018, PEM-CX-020, PEM-CX-021, PEM-CX-022
+proves: Resume is decided by the run state, not by recollection: the state helper's lifecycle is byte-identical across packages, an interrupted medium run resolves to its build half, a packet already marked done is skipped, and re-dispatching a done packet is refused rather than silently repeated.
+residual: That a resumed run still reaches full review coverage before consolidation is layer 3.

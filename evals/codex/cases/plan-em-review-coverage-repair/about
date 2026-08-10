@@ -1,0 +1,4 @@
+layer: 4
+assertions: PEM-CX-020, PEM-CX-021, PEM-CX-022
+proves: Coverage is a filesystem fact in both packages: complete, batched, self-reviewed, unlisted, missing and corrupt evidence all reach identical verdicts, and the Codex binding refuses to accept a builder thread as the repair reviewer.
+residual: That the repair spawns exactly one reviewer and edits no existing evidence is layer 3.

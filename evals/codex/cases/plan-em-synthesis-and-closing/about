@@ -1,0 +1,4 @@
+layer: 2
+assertions: PEM-CX-022, PEM-CX-024
+proves: Synthesis keeps its per-size summary shape, its batched Critical decisions and its state closure, and the closing message stays last with the active runtime's next command.
+residual: That the summary is one combined block on a fused run and one paragraph per agent on a large one is layer 3.

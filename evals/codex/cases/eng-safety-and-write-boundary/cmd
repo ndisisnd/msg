@@ -1,0 +1,20 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-eng-db-touch.sh
+differential_stdin script-eng-db-touch.sh paths-guarded.txt -- -
+differential_stdin script-eng-db-touch.sh paths-clean.txt -- -
+
+# DEV-CX-011: the leaf raises the gate, the root relays it verbatim, the answer
+# returns to the same leaf and the same resume point.
+"$REPO/.agents/scripts/script-codex-gate.sh" --id db-touch --skill eng --owner leaf-a \
+  --question "db/migrations/004_add_tax.sql is a migration. Apply it?" \
+  --option "Apply" --option "Skip" > gate.txt
+assert_relay_state relayed 0 relay --envelope gate.txt
+"$REPO/.agents/scripts/script-codex-relay.sh" relay --envelope gate.txt > relayed.txt
+assert_relay_state verified 0 verify --envelope gate.txt --relayed relayed.txt
+"$REPO/.agents/scripts/script-codex-relay.sh" deliver --envelope gate.txt --relayed relayed.txt \
+  --answer Skip --to leaf-a --journal journal.tsv > delivered.txt
+grep -q '^RESUME_THREAD=leaf-a$' delivered.txt || fail "the answer did not return to the leaf that asked"
+grep -q '^RESUME_POINT=eng:db-touch$' delivered.txt || fail "the leaf does not resume at its own checkpoint"
+echo "LEAF_OWNED_GATE_RESUMED"

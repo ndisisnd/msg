@@ -1,0 +1,16 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_skill_files_mirrored plan-em
+assert_map_covers_skill plan-em
+for ref in exec-mode-pref session-cache status-heartbeat agent-watch safety-floor finding-schema \
+           doctor-logging closing-message; do
+  [ -f "$REPO/.agents/skills/shared/refs/$ref.md" ] || fail "shared contract missing: $ref.md"
+  echo "SHARED_CONTRACT_PRESENT $ref.md"
+done
+for skill in plan-review eng; do
+  [ -f "$REPO/.agents/skills/$skill/CLAUDE-SKILL.md" ] || fail "cross-skill payload missing: $skill"
+  echo "CROSS_SKILL_PRESENT $skill"
+done
+differential_case a15-prd-digest-feature-not-resolved em-timing-bad-stage em-state-corrupt \
+  agent-watch-usage status-tick-usage-finding doctor-tally-unparsed

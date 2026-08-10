@@ -26,14 +26,22 @@ differential_fail() { echo "DIFFERENTIAL_FAILED $*" >&2; exit 1; }
 # the package's own contents are asserted separately.
 # Each file's own temp-directory path is normalised out before hashing: several
 # helpers legitimately record the absolute path they resolved, and the two runs
-# necessarily live in different temp directories. Everything else must match.
+# necessarily live in different temp directories. Wall-clock stamps
+# (created_at/updated_at/closed_at style ISO-8601 UTC values) are normalised the
+# same way: the two runs are sequential, so a stamp that straddles a second
+# boundary differs without any behavioural difference — both trees run the same
+# byte-identical helper, and byte identity of the *helpers* is proven separately
+# by the manifest digests. Everything else must match.
+volatile_normalize() {
+  LC_ALL=C sed -E 's#[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z#<TS>#g'
+}
 tree_digest() {
   local dir="$1" file
   ( cd "$dir" && find . -name .git -prune -o -name __pycache__ -prune -o -type f -print \
       | LC_ALL=C sort \
       | while IFS= read -r file; do
           printf '%s  %s\n' \
-            "$(LC_ALL=C sed "s#$dir#<WORK>#g" "$file" 2>/dev/null | shasum -a 256 | cut -d' ' -f1)" \
+            "$(LC_ALL=C sed "s#$dir#<WORK>#g" "$file" 2>/dev/null | volatile_normalize | shasum -a 256 | cut -d' ' -f1)" \
             "$file"
         done )
 }
@@ -62,9 +70,10 @@ differential_case() {
     claude_out="$(cd "$claude_dir" && TZ=UTC bash "$src/cmd" 2>&1)" && claude_rc=0 || claude_rc=$?
     codex_out="$(cd "$codex_dir" && TZ=UTC bash "$cmd_codex" 2>&1)" && codex_rc=0 || codex_rc=$?
 
-    # Normalise the two working directories out of any absolute path in stdout.
-    claude_out="${claude_out//$claude_dir/<WORK>}"
-    codex_out="${codex_out//$codex_dir/<WORK>}"
+    # Normalise the two working directories out of any absolute path in stdout,
+    # and wall-clock stamps for the same reason tree_digest does.
+    claude_out="$(printf '%s' "${claude_out//$claude_dir/<WORK>}" | volatile_normalize)"
+    codex_out="$(printf '%s' "${codex_out//$codex_dir/<WORK>}" | volatile_normalize)"
 
     [ "$claude_rc" = "$codex_rc" ] \
       || differential_fail "$slug: exit differs — claude=$claude_rc codex=$codex_rc"
@@ -77,6 +86,20 @@ differential_case() {
     echo "DIFFERENTIAL $slug exit=$claude_rc identical"
     rm -rf "$claude_dir" "$codex_dir" "$cmd_codex"
   done
+}
+
+# differential_stdin <helper-name> <input-file> -- <args...>
+# Same comparison for the helpers whose input arrives on stdin (the db-touch
+# guard reads a path list that way), which `differential_helper` cannot feed.
+differential_stdin() {
+  local name="$1" input="$2"; shift 2
+  [ "${1:-}" = "--" ] && shift
+  local claude_out codex_out claude_rc=0 codex_rc=0
+  claude_out="$(TZ=UTC bash "$REPO/.claude/scripts/$name" "$@" < "$input" 2>&1)" || claude_rc=$?
+  codex_out="$(TZ=UTC bash "$REPO/.agents/scripts/$name" "$@" < "$input" 2>&1)" || codex_rc=$?
+  [ "$claude_rc" = "$codex_rc" ] || differential_fail "$name: exit differs — $claude_rc vs $codex_rc"
+  [ "$claude_out" = "$codex_out" ] || differential_fail "$name: stdout differs"
+  echo "DIFFERENTIAL_STDIN $name exit=$claude_rc identical"
 }
 
 # differential_helper <helper-name> -- <args...>

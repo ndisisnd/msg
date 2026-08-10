@@ -1,0 +1,13 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains eng refs/build/protocol.md \
+  "Build agents never create branches" \
+  "commit **directly onto \`branch\`**" \
+  "spawn **one** reviewer subagent over the whole change" \
+  "never skipped under any autonomy contract" \
+  "This is the single human gate between writing code and publishing it."
+assert_helper_mirrored script-em-branch-resolve.sh script-standards-cache.py \
+  script-eng-comment-scan.sh script-eng-commit-cap.sh script-eng-db-touch.sh script-status-tick.sh
+differential_case a25-branch-resolve-main-behind-remote standards-cache-roundtrip standards-cache-stale \
+  status-tick-minimal status-tick-report

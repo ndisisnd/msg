@@ -1,0 +1,3 @@
+layer: 4
+assertions: PEM-CX-016, PEM-CX-017, PEM-CX-022
+proves: DEV-CX-010 was rejected, so the timed heartbeat cadence and the 5/10/15 stall ladder are preserved rather than replaced by wave-boundary checkpoints: both packages emit byte-identical status blocks, watch tiers and closure lines on a fake clock, and no tier changes a verdict or stops a leaf.

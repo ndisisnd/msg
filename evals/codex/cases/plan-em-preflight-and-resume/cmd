@@ -1,0 +1,15 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains plan-em refs/protocol-em.md \
+  "**Resume**" "**Start fresh**" "**Abort**" \
+  "Pre-flight clean — devkit + PRD scanned, no findings." \
+  "A stale \`preflight.md\` from an earlier run is deleted, not left."
+assert_gate_state awaiting-answer 0 --id open-run-state --skill plan-em \
+  --question "Open run found: mode build, plan wave done, 2 of 4 build agents returned." \
+  --option "Resume" --option "Start fresh" --option "Abort" --default "Resume"
+assert_gate_state dismissed-default 0 --id open-run-state --skill plan-em \
+  --question "Open run found: mode build, plan wave done, 2 of 4 build agents returned." \
+  --option "Resume" --option "Start fresh" --option "Abort" --default "Resume" --answer __dismissed__
+differential_case em-state-lifecycle em-state-corrupt em-state-open-exists \
+  a16-prd-scan-title-anchored a17-prd-scan-branch-resolve a13-deps-mirror-and-spelling

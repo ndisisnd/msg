@@ -1,0 +1,3 @@
+layer: 2
+assertions: ENG-CX-009, ENG-CX-017, ENG-CX-024
+proves: The sub-branch mode's mechanical child-branch derivation, its PR destination and the never-against-main rule survive packaging, and the Oversize-reason trailer stays a mechanical exit-3 gate.

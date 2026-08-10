@@ -1,0 +1,4 @@
+layer: 4
+assertions: ENG-CX-009, ENG-CX-015, ENG-CX-017, ENG-CX-024
+proves: The production guardrail flags the same migration and production-config paths with the same exit codes from both packages, and the leaf-owned pause is relayed to the root verbatim, answered back into the same leaf and the same checkpoint.
+residual: That the leaf actually stops before touching the flagged path is layer 3.

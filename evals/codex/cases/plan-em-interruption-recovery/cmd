@@ -1,0 +1,13 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-em-state.py
+differential_case em-state-lifecycle em-state-open-exists em-state-corrupt
+
+printf 'builder\tleaf-be\tP1\temteam-1\nbuilder\tleaf-ios\tP2\temteam-1\n' > t.tsv
+assert_subagent_state "RESUME_SKIP=P1" 0 resume --ledger t.tsv --done P1
+assert_subagent_state "RESUME_DISPATCH=P2" 0 resume --ledger t.tsv --done P1
+assert_subagent_state "RESUME_STATE=violated" 5 \
+  spawn --run-id emteam-1 --thread leaf-be-2 --packet P1 --role builder --ledger t.tsv --done P1
+assert_subagent_state "THREAD_SPAWNED=leaf-ios-2" 0 \
+  spawn --run-id emteam-1 --thread leaf-ios-2 --packet P2 --role builder --ledger t.tsv --done P1

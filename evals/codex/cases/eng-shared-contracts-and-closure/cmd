@@ -1,0 +1,12 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_skill_files_mirrored eng
+assert_map_covers_skill eng
+for ref in session-cache status-heartbeat safety-floor finding-schema report-schema fix-loop \
+           doctor-logging closing-message; do
+  [ -f "$REPO/.agents/skills/shared/refs/$ref.md" ] || fail "shared contract missing: $ref.md"
+  echo "SHARED_CONTRACT_PRESENT $ref.md"
+done
+differential_case standards-cache-stale status-tick-corrupt status-tick-quiet status-tick-drain \
+  ledger-report-append doctor-tally-triage

@@ -1,0 +1,12 @@
+. "$LIB/assertions.sh"
+
+assert_adapter_contract eng
+assert_payload_identical eng
+assert_payload_contains eng "--plan" "--build" "--review" \
+  "Hard failure: exactly one mode flag required" \
+  "Hard failure: --todo is no longer a mode" \
+  "Passing more than one input source is a hard failure"
+assert_payload_contains eng "review this change" "code review this branch"
+assert_invocation_translation "Next: /eng --review" "Next: \$eng --review"
+assert_invocation_translation "then /eng --build report=reports/report-prd-7-backend.json" \
+  "then \$eng --build report=reports/report-prd-7-backend.json"

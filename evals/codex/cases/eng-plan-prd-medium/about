@@ -1,0 +1,4 @@
+layer: 4
+assertions: ENG-CX-003, ENG-CX-005, ENG-CX-006, ENG-CX-007
+proves: The medium four-section shape, its C:<8 selection rule and the ticket schema survive packaging, and the plan closing gate returns identical verdicts and bytes from both packages.
+residual: That a model writes exactly those four sections, and no source file, is layer 3.

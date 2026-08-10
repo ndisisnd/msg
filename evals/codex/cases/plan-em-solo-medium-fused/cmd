@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains plan-em refs/protocol-em.md \
+  "A **medium** run pays **one** certification" \
+  "a **mechanical** plan-shape check stands in its place"
+differential_case exec-files-derive exec-files-derive-missing-tickets plan-shape-v54-medium \
+  a25-branch-resolve-main-behind-remote prop-prd-stamp em-timing-first-line

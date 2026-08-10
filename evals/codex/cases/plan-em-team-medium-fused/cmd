@@ -1,0 +1,32 @@
+. "$LIB/assertions.sh"
+
+assert_ref_contains plan-em refs/protocol-team.md \
+  "the db-touch guard after every wave" \
+  "Nothing about review coverage is relaxed for a fused run."
+
+assert_subagent_state "SUBAGENT_STATE=ready" 0 preflight --requires independent-review
+assert_subagent_state "THREAD_SPAWNED=em-1754000100" 0 \
+  spawn --run-id emteam-1754000000 --thread em-1754000100 --packet COORD --role orchestrator --ledger t.tsv
+assert_subagent_state "THREAD_SPAWNED=leaf-be" 0 \
+  spawn --run-id emteam-1754000000 --thread leaf-be --packet P1 --role builder --ledger t.tsv
+assert_subagent_state "THREAD_SPAWNED=leaf-ios" 0 \
+  spawn --run-id emteam-1754000000 --thread leaf-ios --packet P2 --role builder --ledger t.tsv
+
+cat > dispatched.txt <<'PACKETS'
+P1 class=build-load-bearing owner=leaf-be files=src/api/checkout.ts,src/api/tax.ts wave=1
+P2 class=build-mechanical owner=leaf-ios files=ios/Total.swift wave=1
+P3 class=review owner=rev-a files=src/api/checkout.ts,ios/Total.swift deps=P1,P2 wave=2
+PACKETS
+assert_dispatch_state ok 0 --dispatched dispatched.txt --max-width 4
+assert_packet_tier orchestrator opus Terra
+assert_packet_tier synthesis opus Terra
+
+# The one degradation the canonical contract cannot accept: with no child threads
+# available, the team lane blocks with a stated reason rather than collapsing into
+# one thread that reviews its own work. The same fail-closed rule covers a client
+# with no surface able to hold the roster gate.
+MSG_CODEX_SUBAGENTS=unavailable \
+  assert_subagent_state "SUBAGENT_STATE=blocked" 3 preflight --requires independent-review
+MSG_CODEX_QUESTION_SURFACE=none \
+  assert_gate_state blocked 3 --id roster --skill plan-em \
+  --question "Approve this roster?" --option "Approve roster" --option "Revise roster"

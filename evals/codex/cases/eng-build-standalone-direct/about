@@ -1,0 +1,4 @@
+layer: 2
+assertions: ENG-CX-009, ENG-CX-010, ENG-CX-011, ENG-CX-012, ENG-CX-013, ENG-CX-014, ENG-CX-015, ENG-CX-016, ENG-CX-017
+proves: The standalone build's branch contract, never-create rule, cook-once standards resolution, full-suite gate, mandatory Step-5a review, db-touch pause and commit gates all survive packaging, and the standards cache and branch resolver behave identically across packages.
+residual: The order in which a model actually executes red→green→suite→review→pause→commit is layer 3.

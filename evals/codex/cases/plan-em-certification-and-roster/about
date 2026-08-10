@@ -1,0 +1,4 @@
+layer: 4
+assertions: PEM-CX-006, PEM-CX-007, PEM-CX-008, PEM-CX-009
+proves: Certification preconditions, one-agent-per-stack rostering behind a single approval gate, and the deterministic exec skeleton all survive packaging; the cert-status, skeleton and standards-cache helpers are byte-identical across packages.
+residual: That the roster is presented once per PRD, after the product-intent preface, is layer 3.

@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "phase": "phase-3-engineering-orchestration",
+  "scope": ["eng", "plan-em"],
+  "runtime_contract": ".agents/skills/shared/refs/codex-runtime.md",
+  "bindings": [
+    {
+      "concern": "subagents as Codex child threads",
+      "deviation": "DEV-CX-005",
+      "implementation": ".agents/scripts/script-codex-subagent.sh",
+      "source": "codex/subagent-template.sh",
+      "what_it_does": "Records the child-thread lifecycle the canonical protocols depend on and refuses the four shapes that would break it silently: an orchestration mode starting when child threads are unavailable (exit 3, never self-review), a child reusing the root run ID or a duplicate thread (exit 4), a reviewer identity that appears in the packet's builder list or a missing reviewer counted as coverage (exit 4), and a packet the run state already records done being dispatched again (exit 5).",
+      "proved_by": ["eng-build-packet-self-review", "eng-review-independence-repair", "plan-em-team-medium-fused", "plan-em-review-coverage-repair", "plan-em-interruption-recovery"]
+    },
+    {
+      "concern": "model tiers per packet class",
+      "deviation": "DEV-CX-006",
+      "implementation": ".agents/scripts/script-codex-packet.sh (tier, envelope)",
+      "source": "codex/packet-template.sh",
+      "what_it_does": "Pins the approved map — Opus-tier packet classes to Codex `Terra`, Sonnet-tier classes to `Luna` — and makes it explicit per packet: every envelope emits the class, the canonical tier that class requires, the mapped Codex model and the reason, so the mapping is recorded in reports rather than inferred. An unknown class is a usage error (exit 2); nothing inherits a tier and no load-bearing class is lowered.",
+      "proved_by": ["eng-build-report-orchestrated", "plan-em-team-medium-fused", "plan-em-team-large-plan-build", "plan-em-team-collision-and-models"]
+    },
+    {
+      "concern": "concurrency width and wave scheduling",
+      "deviation": "DEV-CX-013",
+      "implementation": ".agents/scripts/script-codex-packet.sh (check)",
+      "source": "codex/packet-template.sh",
+      "what_it_does": "Codex may schedule and finish waves differently; it may not change their shape. The check proves write-owning packets stay file-disjoint (exit 4), dependencies resolve and precede their dependants across wave barriers with no cycles (exit 5), the collision script's PACKET/WAVE decomposition stays authoritative — a dependency sub-split is allowed, a dropped, merged or invented packet is not (exit 6) — and no wave exceeds the declared width (exit 7).",
+      "proved_by": ["plan-em-team-collision-and-models", "plan-em-team-medium-fused", "plan-em-team-large-plan-build"]
+    },
+    {
+      "concern": "leaf-owned human gates relayed through the root",
+      "deviation": "DEV-CX-011",
+      "implementation": ".agents/scripts/script-codex-relay.sh",
+      "source": "codex/relay-template.sh",
+      "what_it_does": "Only the presentation of a leaf's gate moves to the root thread. `relay` reprints the leaf's question, ordered options and default verbatim and digests exactly those parts; `verify` fails an altered relay (exit 4); `deliver` refuses an answer routed to a thread that does not own the gate (misrouted, exit 4), an answer outside the leaf's option set (rejected, exit 4), an answer written for another checkpoint (stale, exit 6) and a second delivery of the same gate (duplicate, exit 6). A delivered answer names the owning leaf and its resume point.",
+      "proved_by": ["eng-safety-and-write-boundary", "plan-em-db-pause-and-branch-safety"]
+    },
+    {
+      "concern": "timed heartbeat and stall watch",
+      "deviation": "DEV-CX-010 (rejected — canonical behaviour preserved)",
+      "implementation": ".agents/scripts/script-status-tick.sh, script-agent-watch.sh, script-em-timing.sh (byte-identical canonical helpers)",
+      "source": ".claude/scripts/",
+      "what_it_does": "The rejection is an instruction to change nothing: elapsed-time cadence, the 5/10/15 idle ladder, observational tiers that never stop a leaf and closure on every exit all stay. Because both runtimes execute the same helpers, the fake-clock fixtures produce byte-identical status blocks, watch tiers and timing lines from either package.",
+      "proved_by": ["plan-em-team-watch-and-relay", "eng-build-standalone-direct", "eng-shared-contracts-and-closure", "plan-em-shared-contracts-and-closure"]
+    },
+    {
+      "concern": "interruption recovery and resume",
+      "deviation": "DEV-CX-005",
+      "implementation": ".agents/scripts/script-em-state.py (canonical) + script-codex-subagent.sh (resume, spawn --done)",
+      "source": ".claude/scripts/ and codex/subagent-template.sh",
+      "what_it_does": "The run state, not the model's recollection, decides what is finished. The canonical state helper's init/set/get/close/archive lifecycle is byte-identical across packages, and the Codex binding turns that state into dispatch decisions: done packets are skipped and re-dispatching one is refused rather than silently repeated.",
+      "proved_by": ["plan-em-interruption-recovery", "plan-em-preflight-and-resume"]
+    },
+    {
+      "concern": "deterministic helper parity for the engineering closure",
+      "deviation": "CX-G006",
+      "implementation": ".agents/scripts/ (67 byte-identical canonical helpers)",
+      "source": ".claude/scripts/",
+      "what_it_does": "Every machine emission the two skills depend on — plan shape gate, PRD digest, findings projection, fix grading, close-loop mutation, exec skeleton and collision decomposition, branch resolution, certification status, standards cache, review coverage, db-touch guard, AHA/open-question/incident writers — runs the same implementation on both runtimes. The differential layer replays the real Claude fixtures against the Codex package and compares exit codes, stdout and artifact bytes.",
+      "proved_by": ["eng-plan-prd-medium", "eng-plan-prd-large", "eng-plan-report", "eng-build-report-flat", "eng-build-report-orchestrated", "eng-build-packet-batched-review", "eng-build-debug-escalation", "eng-review-batched-artifact", "eng-review-independence-repair", "eng-safety-and-write-boundary", "eng-shared-contracts-and-closure", "plan-em-preflight-and-resume", "plan-em-certification-and-roster", "plan-em-solo-medium-fused", "plan-em-solo-large-plan-build", "plan-em-team-collision-and-models", "plan-em-team-watch-and-relay", "plan-em-review-coverage-repair", "plan-em-db-pause-and-branch-safety", "plan-em-shared-contracts-and-closure"]
+    }
+  ],
+  "evals": {
+    "runner": "evals/codex/run.sh",
+    "cases_added": 30,
+    "cases_total": 94,
+    "assertions_touched": 110,
+    "bijection": "the 16 eng and 14 plan-em eval IDs named by the two compatibility maps, one case each, no extras",
+    "layers": {
+      "0": "static discovery and packaging",
+      "2": "adapter contract, runtime bindings and write boundaries",
+      "3": "live Codex session (opt-in: run.sh --layer3)",
+      "4": "differential artifact parity against the existing Claude fixtures"
+    }
+  },
+  "honesty": {
+    "runtime_proof_coverage": "not-run",
+    "why": "Layers 0/2/4 prove packaging, the four runtime bindings, write boundaries and deterministic artifact parity for real, offline. They do not prove that a model driving the adapter reproduces every canonical judgement — packet tiering calls, wave sub-splitting, execution order, review-repair choices and the point at which a leaf stops. 52 of the 94 cases now carry an explicit `residual:` line naming what is still unproven, and the runner reports runtime proof as not-run until the layer 3 suite is executed in full."
+  }
+}

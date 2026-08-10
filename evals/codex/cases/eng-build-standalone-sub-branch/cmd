@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+
+assert_ref_contains eng refs/build/protocol.md \
+  "cut \`{branch}/{row-slug}\` from \`branch\`" \
+  "never open a PR against \`main\`" \
+  "TRAILER_MISSING" \
+  "**exit 3**"
+assert_invocation_translation "then /pre-merge" "then \$pre-merge"

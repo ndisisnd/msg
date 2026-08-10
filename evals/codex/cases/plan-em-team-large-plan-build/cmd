@@ -1,0 +1,18 @@
+. "$LIB/assertions.sh"
+
+assert_ref_contains plan-em refs/protocol-team.md "stack on Opus"
+assert_packet_tier planner opus Terra
+
+cat > dispatched.txt <<'PACKETS'
+PLAN-BE class=planner owner=leaf-be files=prd.md#engineering-backend wave=1
+PLAN-IOS class=planner owner=leaf-ios files=prd.md#engineering-ios wave=1
+PACKETS
+assert_dispatch_state ok 0 --dispatched dispatched.txt --max-width 4
+
+# Two planners writing the same PRD heading is exactly the race the canonical
+# protocol forbids, and it fails as a file collision rather than a timing bug.
+cat > racing.txt <<'PACKETS'
+PLAN-BE class=planner owner=leaf-be files=prd.md#engineering-backend wave=1
+PLAN-BE2 class=planner owner=leaf-be2 files=prd.md#engineering-backend wave=1
+PACKETS
+assert_dispatch_state collision 4 --dispatched racing.txt

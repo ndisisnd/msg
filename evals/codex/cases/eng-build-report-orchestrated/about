@@ -1,0 +1,4 @@
+layer: 4
+assertions: ENG-CX-014, ENG-CX-018, ENG-CX-020, ENG-CX-022
+proves: The canonical grader emits the same simple/complex and fast/deep tiers from both packages, and the Codex tier binding maps those canonical tiers onto the pinned DEV-CX-006 models — deep→Terra, fast→Luna — per packet class, with an unknown class rejected rather than defaulted.
+residual: That the coordinator serialises same-file issues, retries a dead leaf once and re-enters at most three times is layer 3.

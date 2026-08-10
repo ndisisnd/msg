@@ -1,0 +1,4 @@
+layer: 2
+assertions: ENG-CX-014, ENG-CX-022
+proves: Self-reviewed, missing and corrupt evidence all fail the coverage check identically across packages, and the Codex child-thread binding refuses to accept a builder as its own reviewer or to treat a missing reviewer as coverage.
+residual: That the repair spawns exactly one separate reviewer and rebuilds nothing is layer 3.

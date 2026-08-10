@@ -36,7 +36,14 @@ translate() {
   # character, another slash, a dot, a dash or a dollar (so paths such as
   # `features/merge` and already-translated `$merge` are left alone), and not
   # followed by one (so `/merge-base` is left alone).
-  sed -E "s#(^|[^A-Za-z0-9_/.$-])/($pattern)([^A-Za-z0-9_/.-]|\$)#\1\$\2\3#g"
+  #
+  # Two passes: a match consumes the separator that the next token needs as its
+  # preceding-boundary anchor, so adjacent invocations (`run /eng /merge`) leave
+  # every second token untranslated in a single pass. A missed token always sits
+  # next to translated (`$`-prefixed) or non-matching text, so the second pass
+  # sees its separator fresh and no third pass can ever find work.
+  local expr="s#(^|[^A-Za-z0-9_/.$-])/($pattern)([^A-Za-z0-9_/.-]|\$)#\1\$\2\3#g"
+  sed -E "$expr" | sed -E "$expr"
 }
 
 main() {

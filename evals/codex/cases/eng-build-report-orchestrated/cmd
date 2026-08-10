@@ -1,0 +1,16 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+# The canonical grade is the input to the Codex tier map, so it must be identical first.
+assert_helper_mirrored script-eng-fix-grade.py
+differential_helper script-eng-fix-grade.py -- report-prd-7-backend.json
+python3 "$REPO/.agents/scripts/script-eng-fix-grade.py" report-prd-7-backend.json --tsv \
+  | grep -q '^sec-001	complex	deep	opus$' || fail "the security finding no longer grades deep"
+python3 "$REPO/.agents/scripts/script-eng-fix-grade.py" report-prd-7-backend.json --tsv \
+  | grep -q '^lint-002	simple	fast	sonnet$' || fail "the lint finding no longer grades fast"
+echo "CANONICAL_GRADES_STABLE"
+
+assert_packet_tier build-load-bearing opus Terra
+assert_packet_tier build-mechanical sonnet Luna
+assert_packet_tier review opus Terra
+assert_packet_tier_rejected inherited

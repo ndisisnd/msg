@@ -1,0 +1,9 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_ref_contains eng refs/build/protocol-packet.md \
+  "**Do not spawn a reviewer.**" \
+  "batched — covered by the wave review" \
+  "\`batched\` is not permission to go unreviewed"
+assert_helper_mirrored script-eng-review-check.sh
+differential_case review-check-wave-batched review-check-wave-unlisted review-check-expect-from-builds

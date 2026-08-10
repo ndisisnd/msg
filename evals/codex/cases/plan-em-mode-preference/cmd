@@ -1,0 +1,13 @@
+. "$LIB/assertions.sh"
+
+assert_adapter_contract plan-em
+assert_payload_identical plan-em
+assert_payload_contains plan-em "--team" "--solo" \
+  "Refuses without a" "referenced PRD .md path" \
+  "features/{planned,wip,done}/prd-*/prd-*.md"
+assert_ref_contains plan-em refs/protocol-em.md \
+  "Inline flag wins." \
+  "Pass at most one of --team / --solo."
+assert_ref_contains plan-em ../shared/refs/exec-mode-pref.md "team" "solo"
+assert_invocation_translation "Next: /plan-em features/wip/prd-7-checkout/prd-7-checkout.md --solo" \
+  "Next: \$plan-em features/wip/prd-7-checkout/prd-7-checkout.md --solo"

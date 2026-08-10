@@ -1,0 +1,11 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-project-findings.py script-eng-fix-grade.py
+before="$(shasum -a 256 report-prd-7-backend.json)"
+differential_helper script-project-findings.py -- report-prd-7-backend.json --compact
+differential_helper script-project-findings.py -- report-prd-7-backend.json --validate-only
+differential_helper script-eng-fix-grade.py -- report-prd-7-backend.json --tsv
+[ "$before" = "$(shasum -a 256 report-prd-7-backend.json)" ] \
+  || fail "the projector mutated the issues file"
+echo "ISSUES_FILE_UNMUTATED"

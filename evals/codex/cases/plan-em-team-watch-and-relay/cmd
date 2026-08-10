@@ -1,0 +1,8 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-status-tick.sh script-agent-watch.sh script-em-timing.sh
+assert_ref_contains plan-em ../shared/refs/agent-watch.md "STALL"
+differential_case agent-watch-tiers agent-watch-thresholds agent-watch-evidence agent-watch-done \
+  agent-watch-corrupt agent-watch-disabled status-tick-report status-tick-clamp status-tick-usage \
+  em-timing-delta-per-run em-timing-bad-stage

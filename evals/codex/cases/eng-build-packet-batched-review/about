@@ -1,0 +1,3 @@
+layer: 2
+assertions: ENG-CX-013, ENG-CX-014, ENG-CX-022
+proves: A batched packet skips its own reviewer spawn but is still covered by the wave review, and the filesystem coverage check reaches the identical verdict from both packages on batched, self-reviewed and unlisted wave artifacts.

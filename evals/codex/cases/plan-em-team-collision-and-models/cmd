@@ -1,0 +1,42 @@
+. "$LIB/assertions.sh"
+. "$LIB/differential.sh"
+
+assert_helper_mirrored script-em-exec-collision.py
+differential_case exec-collision-v54-3col exec-collision-legacy-5col a21-exec-collision-no-files-column
+
+cat > script-packets.txt <<'SCRIPT'
+COLLISION row1 row2 src/api/checkout.ts
+PACKET 1 agent=backend-eng rows=1,2
+PACKET 2 agent=backend-eng rows=3
+PACKET 3 agent=eng-ios rows=4
+WAVE 1 packets=1,2,3
+SCRIPT
+
+cat > faithful.txt <<'PACKETS'
+1 class=build-load-bearing owner=leaf-be files=src/api/checkout.ts,src/api/tax.ts wave=1
+2 class=build-mechanical owner=leaf-be2 files=src/api/audit.ts wave=1
+3 class=build-mechanical owner=leaf-ios files=ios/Total.swift wave=1
+PACKETS
+assert_dispatch_state ok 0 --dispatched faithful.txt --against script-packets.txt --max-width 4
+
+cat > subsplit.txt <<'PACKETS'
+1a class=build-load-bearing owner=leaf-be files=src/api/checkout.ts wave=1 parent=1
+1b class=build-mechanical owner=leaf-be3 files=src/api/tax.ts wave=2 deps=1a parent=1
+2 class=build-mechanical owner=leaf-be2 files=src/api/audit.ts wave=1
+3 class=build-mechanical owner=leaf-ios files=ios/Total.swift wave=1
+PACKETS
+assert_dispatch_state ok 0 --dispatched subsplit.txt --against script-packets.txt --max-width 4
+
+cat > merged.txt <<'PACKETS'
+1 class=build-load-bearing owner=leaf-be files=src/api/checkout.ts,src/api/tax.ts,src/api/audit.ts wave=1
+3 class=build-mechanical owner=leaf-ios files=ios/Total.swift wave=1
+PACKETS
+assert_dispatch_state dispatch 6 --dispatched merged.txt --against script-packets.txt
+
+cat > invented.txt <<'PACKETS'
+1 class=build-load-bearing owner=leaf-be files=src/api/checkout.ts wave=1
+2 class=build-mechanical owner=leaf-be2 files=src/api/audit.ts wave=1
+3 class=build-mechanical owner=leaf-ios files=ios/Total.swift wave=1
+9 class=build-mechanical owner=leaf-x files=src/api/extra.ts wave=1
+PACKETS
+assert_dispatch_state dispatch 6 --dispatched invented.txt --against script-packets.txt

@@ -1,0 +1,4 @@
+layer: 2
+assertions: PEM-CX-001, PEM-CX-002
+proves: The PRD-path refusal, the lane-lifecycle path patterns, the mutually exclusive --team/--solo flags and the flag-then-local-then-global precedence all survive packaging, and the shared preference contract resolves inside the Codex tree.
+residual: That an absent preference file is left uncreated on a default-lane run is layer 3.

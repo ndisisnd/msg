@@ -1,0 +1,4 @@
+layer: 4
+assertions: ENG-CX-018, ENG-CX-019, ENG-CX-023
+proves: The flat report build's projection, severity ordering and sole close-loop mutation are byte-identical across packages: the close writes followUp.status and nothing else, and a dry run writes nothing.
+residual: That issues are actually worked in severity order, and flaky findings left unchanged, is layer 3.
