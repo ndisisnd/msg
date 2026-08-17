@@ -2,6 +2,11 @@
 
 ## 2026-08-17
 
+### [164] — Release v5.6.6
+
+- `RELEASES.md`: Added — v5.6.6 notes covering [158]–[163] (the nine dispatchers now load a short router up front with the procedural detail deferred to on-demand refs, 1,704 → 830 up-front lines, duplicated lifecycle/release-gate guidance consolidated to one home, behaviour and wording unchanged at 125/125 evals). [156]–[157] were v5.6.5 bookkeeping and a README blurb, so they carry no user-facing line.
+- `package.json`: Changed — version `5.6.5` → `5.6.6`.
+
 ### [163] v5.6.6 Phase 6 — docs aligned to the dispatcher + refs shape
 
 - `ARCHITECTURE.md`: Changed — the skill-layer paragraph now describes the v5.6.6 shape: `SKILL.md` is a ≤100-line dispatcher and every mode protocol lives in the skill's `refs/`, loaded on demand. README needed no change (it cites no SKILL.md sections).

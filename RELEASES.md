@@ -2,6 +2,17 @@
 
 What's new for you, release by release.
 
+## v5.6.6 — 2026-08-17
+
+> Every msg command now starts lighter. The instructions each command loads up front were cut by more than half, and the long procedural detail only loads at the moment it is actually needed. You get the same behaviour, the same gates and the same wording, with more of the conversation left for your work instead of the tool's own text.
+
+### 📈 Improved
+
+- Every command starts with less baggage. Each of the nine commands used to load its full procedure the moment you invoked it — some of them several hundred lines. Now each one loads a short router first and pulls in the detailed steps only for the path you actually take.
+- More of your context window stays yours. The up-front text across all nine commands dropped from roughly 1,700 lines to 830, so a long session runs further before it needs to compress and lose detail.
+- Guidance that used to be repeated in several places now lives in one place. Rules about how a plan document moves through its stages, and how a release is gated, were written out separately in more than one command and could drift apart between them; they now have a single home that every command points at, so what you are told is consistent no matter which command you asked.
+- Nothing about how the tool behaves changed. Every gate, refusal, question and message kept its exact wording and ordering, and the full test suite passed unchanged before and after the work.
+
 ## v5.6.5 — 2026-08-05
 
 > Long engineering runs now survive interruptions. If a session dies or you close your laptop mid-run, the orchestrator picks up where it left off — finished work is kept, only the unfinished agents are re-dispatched. Runs also got cheaper: compiled coding standards are remembered between runs, and agent briefings are arranged so the shared portion is billed at cache rates instead of full price.
