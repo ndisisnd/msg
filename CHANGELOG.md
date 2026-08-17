@@ -2,6 +2,14 @@
 
 ## 2026-08-17
 
+### [160] v5.6.6 Phase 3 — intake + pre-merge SKILL.md ≤100 lines
+
+- `.claude/skills/intake/SKILL.md`: Changed — slimmed 200 → 100 lines. The Status-lifecycle section is now a pointer to `shared/refs/prd-lifecycle.md`; the Grading section compressed to a rubric pointer (content already in `refs/rubric.md`); Usage mode blurbs and hard refusals compressed with wording preserved.
+- `.claude/skills/intake/refs/protocol-update.md`: Changed — gains § *Three edit surfaces* (the `--update` / `--delete` / GUI cell split and its composition rules), moved verbatim from SKILL.md.
+- `.claude/skills/pre-merge/SKILL.md`: Changed — slimmed 195 → 100 lines; the Emission and Terminals sections moved to the executor ref, Posture folded into the intro, Usage/References compressed. No refusal, verdict shape, or gate behavior changed.
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — new §7 *Terminals + emission order* carries the OPEN-PR terminal, the issues-file loop + fix-loop handoff, and the four-part emission order, moved from SKILL.md.
+- Evals: 125/125.
+
 ### [159] v5.6.6 Phase 2 — msg + plan-review SKILL.md ≤100 lines
 
 - `.claude/skills/msg/SKILL.md`: Changed — slimmed 244 → 90 lines; the three inline protocols moved verbatim to refs, so the router now routes only. Dispatch rows for `--version`, `--help` and bare `/msg` point at the new refs; the Skills-table footnote names `refs/protocol-help.md` as the paired routing table.

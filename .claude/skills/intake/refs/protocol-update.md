@@ -317,3 +317,30 @@ Next: /plan-pm to draft a PRD from the backlog, or /intake --update to edit anot
 
 Split runs additionally list the created rows. Recommend (never invoke)
 `plan-pm`. Terminate.
+
+## Three edit surfaces
+
+The ledger has three writers, and they are **deliberately split by cell** — none
+is a superset of another.
+
+| | `/intake --update` | `/intake --delete` | `/msg --gui` Intake tab |
+|---|---|---|---|
+| **Owns** | content — `idea` / `goal` / `type` | removal | lifecycle — `status` |
+| **Rows** | `backlog` only | any row | any row (drag between lanes) |
+| **Grade** | re-derived on a material change | n/a | never touched |
+| **Gate** | follow-up questions when unclear | warning pass + explicit confirm | none — direct manipulation |
+| **Logged** | `INTAKE-UPDATE.md`, one entry per changed cell | `INTAKE-UPDATE.md`, one `remove` entry | no |
+
+**They compose.** `--update` refuses an `in-progress` row because its PRD is the
+source of truth. The sanctioned escape hatch is the GUI: drag the card back to
+**Backlog**, then `--update` will edit it — a deliberate two-step, so demoting a
+planned row is a visible act rather than a side effect of an edit.
+
+The GUI does not offer content edits **on purpose**: a hand-edited `idea` would
+leave the `grade` cell asserting a judgment of text that no longer exists.
+`--update` re-derives the grade; the GUI cannot, so it does not offer the edit.
+
+Deletion is deliberately **not** a `--update` flag: `--update`'s discipline is
+*edit + re-grade*, and a removal has neither. Its real risk is the references to
+the row — a mapped PRD, other rows' `S:blocked-by-#n`, the log history — which
+earn a dedicated warning pass rather than a flag on an edit path.
