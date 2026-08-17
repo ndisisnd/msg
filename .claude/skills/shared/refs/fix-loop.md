@@ -25,7 +25,7 @@ below.
 This loop is entered **after** any caller-owned recovery offer, never instead of
 one. On a failed **ship**, `merge` presents its **rollback / rollout-halt
 offer first** (restore last-good for a `deploy` platform, halt the staged rollout
-for a `submission` platform — always-ask, never auto, D12; `merge/SKILL.md`
+for a `submission` platform — always-ask, never auto, D12; `merge/refs/failed-ship.md`
 § *Failed-ship loop* step 1), and only then hands off here. The two are
 complementary, not alternatives: rolling back mitigates the live blast radius;
 this loop still fixes the broken commit forward. A rolled-back release therefore

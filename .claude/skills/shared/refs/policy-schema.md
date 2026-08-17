@@ -239,10 +239,10 @@ stg  = policies.release_flow.staging_branch ?? "staging"
 
 | `flow` | pre-merge base | merge `--staging` | merge `--production` |
 |---|---|---|---|
-| `staged` | `stg` (→ `prod` if `stg` absent — existing SKILL fallback) | merge feature→`stg` | PR `stg`→`prod` |
+| `staged` | `stg` (→ `prod` if `stg` absent — long-standing fallback) | merge feature→`stg` | PR `stg`→`prod` |
 | `direct` | `prod` | **refuse** `no_staging_stage` (name `/merge --production` + `/msg --init-staging`) | single ship feature→`prod` |
 
-**Direct-mode human-gate note.** In `direct` mode the `--production` ship **preserves every human gate** — double-confirmation, the **inline human-test approval** (defined once in `merge/refs/production.md` § *Inline human-test approval*; fires **before the merge**, immediately after the double-confirm and before the release lock is acquired — the merge to `prod` is the irreversible action, so a Cancel leaves nothing merged and nothing held), deploy, and smoke. The **staging-scoped stages** — enumerated once in `merge/SKILL.md` § *Release flow*, never re-listed here — are **inactive because they do not apply**: there is no staging to deploy, test, or sign off. Inactive is not *skipped* (tooling missing) and not *relaxed* (threshold lowered): every stage that still applies runs at **full rigor**, and the safety floor is never among the inactive set. Fewer checks, never weaker ones. (AC-RF3, AC-RF4, AC-NS1/NS2/NS3) — canonical definition in `merge/SKILL.md` § *Release flow*.
+**Direct-mode human-gate note.** In `direct` mode the `--production` ship **preserves every human gate** — double-confirmation, the **inline human-test approval** (defined once in `merge/refs/production.md` § *Inline human-test approval*; fires **before the merge**, immediately after the double-confirm and before the release lock is acquired — the merge to `prod` is the irreversible action, so a Cancel leaves nothing merged and nothing held), deploy, and smoke. The **staging-scoped stages** — enumerated once in `policy-schema-merge.md` §1b, never re-listed here — are **inactive because they do not apply**: there is no staging to deploy, test, or sign off. Inactive is not *skipped* (tooling missing) and not *relaxed* (threshold lowered): every stage that still applies runs at **full rigor**, and the safety floor is never among the inactive set. Fewer checks, never weaker ones. (AC-RF3, AC-RF4, AC-NS1/NS2/NS3) — canonical definition in `policy-schema-merge.md` §1b.
 
 ## 2b · `github_actions` (merge green-CI checks; both `--init`s)
 
@@ -263,8 +263,7 @@ pending still refuses (`red_ci`/`pending_ci`). The opt-out governs **only** the
 
 **Inactive, not skipped or relaxed.** No threshold moves and no human gate is
 removed: double-confirmation, human-test approval, deploy, smoke, and the safety
-floor are untouched (AC-GA4). Canonical vocabulary in `merge/SKILL.md`
-§ *Release flow*.
+floor are untouched (AC-GA4). Canonical vocabulary in `policy-schema-merge.md` §1b.
 
 **Branch protection is unaffected.** `script-branch-protection.sh --bootstrap`
 already sets `required_status_checks {strict:true, contexts:[]}`, so protection

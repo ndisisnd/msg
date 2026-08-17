@@ -28,8 +28,7 @@ run `--verify` at all — record "protection check skipped by policy" and procee
 
 ## The check
 
-When `mode_b` is `enforced` or `optional` (resolution form: `../SKILL.md`
-§ *Sanctioned writes*):
+When `mode_b` is `enforced` or `optional` (resolution form: `sanctioned-writes.md`):
 
 ```bash
 S=.claude/scripts/script-branch-protection.sh

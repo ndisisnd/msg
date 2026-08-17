@@ -24,15 +24,17 @@ S=.claude/scripts/script-intake-stamp.sh --find-row   # PRD id → ledger row # 
 ```
 
 (Resolution form — repo copy first, global install second — is stated once in
-`SKILL.md` § *Sanctioned writes*.)
+`sanctioned-writes.md`.)
 
 **Phase markers.** Release identity through Step 2 is **subagent phase 1**; Step 3's
 double-confirmation and the `direct`-flow inline human-test approval are **main
 thread**; the release lock acquire through Step 10 is **subagent phase 2**; the
 failed-ship rollback / rollout-halt offer and the fix-loop handoff are **main thread**
-(they already were). See `SKILL.md` § *Dispatch — the phase split* and
+(they already were). See
 `../../shared/refs/gate-dispatch.md`. Step order, wording and refusals below are
-unchanged — the markers name where each step executes, nothing more.
+unchanged — the markers name where each step executes, nothing more. The sanctioned
+writes (`sanctioned-writes.md`) execute **inside** the subagent phases; the dispatcher
+writes nothing and never touches git.
 
 ## ▸ PHASE 1 (subagent) — release identity, Step 1, Step 2
 
@@ -135,7 +137,7 @@ Record a `low` `unpinned-signoff` note in the run report either way.
 **`direct` flow** — this whole step is **inactive**, not waived: there is no
 staging, so there is no sign-off to check and nothing to pin. Record it as
 `inactive (no staging)` in the run report, never as skipped or relaxed
-(`SKILL.md` § *Release flow*). The human judgment it represents moves to the
+(`../../shared/refs/policy-schema-merge.md` §1b). The human judgment it represents moves to the
 **inline human-test approval** below, which fires before the merge.
 
 A `submission`-model platform under `direct` flow still runs the full submission
@@ -180,7 +182,7 @@ never a single multiSelect. The first gates the second.
 On Cancel → stop (verdict `skipped`, no findings).
 
 **Ask B — final confirm (only after Ask A = Yes).** List *exactly what ships*.
-The release head is **flow-dependent** (`SKILL.md` § *Release flow*): `$STG` in
+The release head is **flow-dependent** (`../../shared/refs/policy-schema-merge.md` §1b): `$STG` in
 `staged` flow, the resolved **feature branch** in `direct` flow (resolved exactly
 as `--staging` does: the shipping `--prd`'s `feat/prd-<n>-<slug>`, else the
 current branch). Compute the shipping commits as `$PROD..<release-head>` either way:
@@ -246,7 +248,7 @@ the resolved release identity forward. Phase 2 executes the ship: lock acquire �
 release PR → merge → deploy → verify + provenance → intake stamp → tag → PRD lane
 move. It ends by handing back the verdict; on a **failed** ship the rollback /
 rollout-halt offer and the fix-loop handoff run in the **main thread**, exactly as
-`SKILL.md` § *Failed-ship loop* already specifies.
+`failed-ship.md` already specifies.
 
 ## Release lock (acquire before Step 4, release on every exit)
 
@@ -347,7 +349,7 @@ Release-style body (what the GUI production report and the PR render from):
 - **Commits** — `git log --oneline $PROD..$HEAD`.
 - **Rollback notes — per platform**, from `devkit/PLATFORMS.md` `rollback_possible`.
   These are **documentation** in the release body; the *executable* lever is
-  **offered on a failed ship** (`SKILL.md` § *Failed-ship loop*):
+  **offered on a failed ship** (`failed-ship.md`):
   | rollback_possible | note |
   |---|---|
   | `yes` | Rollback = redeploy the previous build (`rollback_cmd`). For a `server` platform, add the standing caveat: a redeploy does **not** revert schema migrations. |
@@ -447,7 +449,7 @@ probe → `asserted_unverified` with a note, never a fail.
 provenance — sets verdict `fail` and **skips Steps 8–10**: a release that isn't
 verifiably live doesn't close its PRD's intake row, earn a tag, or move to
 `done/`. The failed-ship loop then runs, and its **first action is the
-rollback/rollout-halt offer** (`SKILL.md` § *Failed-ship loop*), always-ask,
+rollback/rollout-halt offer** (`failed-ship.md`), always-ask,
 never auto. The merge stands — never pretend to un-ship. That path exits the phase
 too, so it closes the heartbeat before the rollback offer is put to the human
 (`"$S" --end --run-id "$RUN_ID" --outcome "ship failed — <what failed>"`) — never
@@ -558,8 +560,8 @@ production.
 
 **Safety floor.** The stamp is a PRD-frontmatter edit (docs/metadata, the same
 category as the intake stamp); the move renames the PRD's own directory. Neither
-touches `src/` or writes source code, and both are named in `SKILL.md`'s
-sanctioned-writes enumeration (items 4 and 8).
+touches `src/` or writes source code, and both are named in
+`sanctioned-writes.md`'s enumeration (items 4 and 8).
 
 ## Run report
 

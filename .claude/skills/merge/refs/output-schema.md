@@ -94,7 +94,7 @@ On a `--production` run each entry may also carry:
 | `window` | `held` (every re-check passed) · `degraded` (a re-check failed → `smoke-failed`, routes to the rollback offer) · `timed_out` (a poll never saw exit 0 → `smoke-never-live`) · `null` (one-shot) |
 
 **Rollback** — present only when a lever was offered on a failed ship
-(`SKILL.md` § *Failed-ship loop*):
+(`failed-ship.md`):
 
 ```json
 "rollback": {

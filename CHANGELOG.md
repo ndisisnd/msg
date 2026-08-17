@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-08-17
+
+### [158] v5.6.6 Phase 1 — merge SKILL.md ≤100 lines; protocols extracted
+
+- `.claude/skills/merge/SKILL.md`: Changed — slimmed 332 → 100 lines. The dispatcher now carries only identity, usage, posture, hard refusals, the policy pre-flight, and the mode table; every extracted section moved verbatim to a ref. No gate, refusal, ask wording, or ordering changed.
+- `.claude/skills/merge/refs/sanctioned-writes.md`: Added — the canonical, complete write enumeration plus the script-resolution form, moved from SKILL.md § *Sanctioned writes*.
+- `.claude/skills/merge/refs/failed-ship.md`: Added — the failed-ship loop (rollback / rollout-halt offer, issues file, run report, fix-loop handoff), moved from SKILL.md § *Failed-ship loop*.
+- `.claude/skills/shared/refs/policy-schema-merge.md`: Changed — new §1b absorbs SKILL.md § *Release flow* (stage map, `direct`-mode rigor note, the inactive/skipped/relaxed three-state vocabulary, the safety-floor-never-inactive rule); §4 absorbs the § *Release model* deltas (`release_model_source`, per-platform independence, orthogonality to `release_flow`).
+- `.claude/skills/shared/refs/prd-lifecycle.md`: Added — the one home of the PRD frontmatter lifecycle and the INTAKE.md row lifecycle, deduplicating plan-pm's and intake's restatements (they repoint in Phase 3/5).
+- Citation sweep: every `SKILL.md §` cite of a moved section across `merge/refs/*`, `shared/refs/policy-schema.md` and `shared/refs/fix-loop.md` repointed to the new homes; `staging.md`/`production.md` phase markers now cite `gate-dispatch.md` directly, and `production.md` carries the dispatcher-writes-nothing rule.
+- Evals: 125/125 before and after.
+
 ## 2026-08-05
 
 ### [157] — README header: v5.6.5 release blurb, in GitHub alert syntax

@@ -108,7 +108,7 @@ console and the halt lever, generically:
 > percentage show there.
 > Halt lever: **`rollout_halt_cmd`** halts the staged rollout / phased release —
 > **offered for execution on a failed ship, before the fix loop** (always-ask,
-> never auto — `SKILL.md` § *Failed-ship loop*); when unconfigured, halt manually
+> never auto — `failed-ship.md`); when unconfigured, halt manually
 > in the console (the missing lever is flagged as a gap).
 
 `<store>` / `<console>` resolve from the platform, never assumed:
@@ -161,7 +161,7 @@ deploy/verify stage means*. So the **full submission lifecycle runs on the singl
 feature→`prod` ship** — submit → accepted → monitor-handoff, exactly as above.
 
 The staging-scoped stages are **inactive** in this flow (enumerated once in
-`SKILL.md` § *Release flow* — not restated here). That does **not** drop human
+`../../shared/refs/policy-schema-merge.md` §1b — not restated here). That does **not** drop human
 judgment: the **double-confirmation** and the **inline human-test approval** (defined
 once in `refs/production.md` § *Inline human-test approval*) are both active on the
 direct-flow production ship. The sign-off stage being inactive removes a *stage*, not
