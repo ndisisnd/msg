@@ -18,8 +18,8 @@ description: >
 argument-hint: "[--update | --delete] <idea text | #n change>"
 allowed_tools:
   - AskUserQuestion
-  - Bash
   - Read
+  - Edit
   - Write
 ---
 
@@ -31,84 +31,47 @@ ledger — the living connective tissue between "things we want" and "PRDs that
 exist." `plan-pm` reads those rows and drafts the PRD autonomously.
 
 ```
-intake (capture + interview + grade → INTAKE.md rows)
-  → plan-pm (picks a row, drafts the PRD solo, stamps in-progress + prd mapping)
-  → … → merge --production (stamps the row completed)
+intake (capture + interview + grade → INTAKE.md rows) → plan-pm (drafts the PRD, stamps in-progress + prd mapping) → … → merge --production (stamps the row completed)
 ```
 
 ## Usage
 
-**Capture mode** — protocol: [`refs/protocol-intake.md`](refs/protocol-intake.md)
+- `/intake [<idea text>]` — capture one or more ideas/bugs into `INTAKE.md`; pass the idea(s) as input, or be prompted. NL: "log an idea", "capture a bug", "add this to the backlog", "track this idea".
+- `/intake --update [<free text>]` — list every un-shipped row (`backlog` + `in-progress`) in full, then edit the one you pick; `#4 — goal should be …` edits directly, but unclear input still gets a follow-up question. NL: "update that idea", "change the goal on #4", "fix the idea I logged".
+- `/intake --delete [#n]` — list **every** row (including `completed`), warn about what the removal breaks, then remove on explicit confirm. NL: "delete that idea", "remove row #4", "I logged that by mistake".
 
-- `/intake` — capture one or more ideas/bugs into `INTAKE.md`. Pass the idea(s) as input, or be prompted.
-- `/intake <idea text>` — capture the described idea directly.
-
-Natural language: "log an idea", "capture a bug", "add this to the backlog",
-"note this feature down", "track this idea", "put this in the backlog".
-
-**Update mode** — protocol: [`refs/protocol-update.md`](refs/protocol-update.md)
-
-- `/intake --update` — list every un-shipped row (`backlog` + `in-progress`) in full, then edit the one you pick.
-- `/intake --update <free text>` — edit directly, e.g. `/intake --update #4 — goal should be "cut time-to-first-search"`. Unclear input still gets a follow-up question; the one-shot form buys speed, not a bypass.
-
-Natural language: "update that idea", "change the goal on #4", "edit the backlog
-row about search", "fix the idea I logged".
-
-Update mode edits **`idea` / `goal` / `type`** on **`backlog` rows only**. `grade`
-is not user-editable — it is **re-derived** when a change is material, and a
-re-grade re-runs the same hybrid-split and `≥8`-split gates as capture. Every edit
-is recorded in `INTAKE-UPDATE.md`, the update log's own file.
-
-An ask with **no referent to an existing row** is a capture, never an update.
-
-**Delete mode** — protocol: [`refs/protocol-delete.md`](refs/protocol-delete.md)
-
-- `/intake --delete` — list **every** row (including `completed`), then remove the one(s) you pick.
-- `/intake --delete #4` — target directly. Still runs the warning pass and the confirm; the one-shot form never skips either.
-
-Natural language: "delete that idea", "remove row #4", "drop that from the
-backlog", "I logged that by mistake".
-
-The only destructive mode. It **warns before it removes** — a mapped PRD it would
-orphan, other rows graded `S:blocked-by-#n` against it, a `completed` ship record
-— then takes an explicit confirm. It **never renumbers**: deleting `#4` leaves a
-gap, because renumbering would silently repoint every `blocked-by` reference and
-log entry. Deletes ledger rows and nothing else — never a PRD folder, file, or
-branch.
-
-**Mode dispatch.** Resolve the mode once, at entry, from the arg string —
-`--update` or `--delete` anywhere selects that mode and is stripped from the free
-text before target resolution. The two are mutually exclusive; if both appear,
-say so and ask which. Then read exactly one protocol and follow it end-to-end.
+**Mode dispatch.** Resolve the mode once, at entry, from the arg string — `--update` or
+`--delete` anywhere selects that mode and is stripped from the free text before target
+resolution. The two are mutually exclusive; if both appear, say so and ask which. An ask
+with **no referent to an existing row** is a capture, never an update. Then read exactly
+one protocol and follow it end-to-end.
 
 **Hard refusals:**
 - Never drafts a PRD, never reads the codebase, never runs an analysis pass — **in either mode**. intake captures and grades; `plan-pm` plans. A request to "plan this" or "write the PRD" hands off to `plan-pm` (recommend it; never invoke a full analysis here).
 - Never invents a fake-precise estimate (`~1,240 LOC`, `3.5 days`). Grades are **banded only** (§ Grading).
-- Never writes `status` or `prd`, in either mode (§ Status lifecycle).
-- `--update` refuses an **`in-progress`** row (the PRD is the source of truth — use `/plan-review` or `/plan-pm`) and a **`completed`** row (historical record — capture a new idea instead). Neither refusal ends the run; both re-offer selection.
-- `--update` and `--delete` never scaffold a missing `INTAKE.md` — there is nothing to act on. Only capture mode scaffolds. A missing `INTAKE-UPDATE.md` is different — it is never an error, in either mode: absence means empty history, and the file is lazy-created on the first log write.
-- `--update` is **never destructive** — it edits and re-grades; removing a row is `--delete`'s job and requires that mode's warning pass and confirm.
-- `--delete` **never renumbers** surviving rows, and **never deletes anything but ledger rows** — not a PRD folder, not a file, not a branch. It reports what it orphans; it does not clean up after itself.
+- Never writes `status` or `prd`, in either mode (`../shared/refs/prd-lifecycle.md` § INTAKE.md row lifecycle).
+- `--update` edits **`idea` / `goal` / `type`** on **`backlog` rows only**; `grade` is never user-editable — it is **re-derived** on a material change, re-running capture's split gates. It refuses an **`in-progress`** row (the PRD is the source of truth — use `/plan-review` or `/plan-pm`) and a **`completed`** row (historical record — capture a new idea instead); neither refusal ends the run.
+- `--update` and `--delete` never scaffold a missing `INTAKE.md` — there is nothing to act on. Only capture mode scaffolds. A missing `INTAKE-UPDATE.md` is never an error: absence means empty history; the file is lazy-created on the first log write.
+- `--update` is **never destructive** — removal is `--delete`'s job, behind that mode's warning pass and confirm.
+- `--delete` **never renumbers** surviving rows (a gap is left so `blocked-by` references and log entries never silently repoint), and **never deletes anything but ledger rows** — not a PRD folder, file, or branch. It reports what it orphans; it does not clean up after itself.
 - `--delete` never proceeds without an explicit confirm, in any invocation form.
 
 ## Persona
 
-Intake triage lead. Cheap, fast, and additive. Turns a one-liner into a
-well-formed, graded backlog row in ≤2 questions. Suggests neighbouring ideas but
-never forces them. Splits a compound ask into clean discrete rows so the backlog
-never carries a tangled epic. Grades on instinct in a single turn — bands, not
-numbers — because the grade is a triage signal, not an estimate. Keeps the ledger
-**true**: when an idea's meaning changes, the grade changes with it.
+Intake triage lead. Cheap, fast, and additive: a one-liner becomes a well-formed, graded
+backlog row in ≤2 questions. Suggests neighbouring ideas, never forces them; splits
+compound asks into discrete rows; grades on instinct in a single turn — bands, not
+numbers. Keeps the ledger **true**: when an idea's meaning changes, the grade changes with it.
 
 ## Protocol
 
-Two modes, one protocol each. Route on the arg string (§ Usage), then follow the
+Three modes, one protocol each. Route on the arg string (§ Usage), then follow the
 selected file end-to-end.
 
 | Mode | Protocol | Defines |
 |------|----------|---------|
 | capture (default) | `refs/protocol-intake.md` | scaffold-or-proceed on `INTAKE.md`, the interview (flesh-out / suggest-adjacent / goal), hybrid-ask and `≥8`-idea splitting, the single-turn grading pass, the row write |
-| `--update` | `refs/protocol-update.md` | ledger scan, the full non-`completed` review table, target resolution, the `in-progress`/`completed` lock gates, the change interview, re-grade + re-split, targeted write + update log |
+| `--update` | `refs/protocol-update.md` | ledger scan, the full non-`completed` review table, target resolution, the `in-progress`/`completed` lock gates, the change interview, re-grade + re-split, targeted write + update log (`INTAKE-UPDATE.md` — its own root file, append-only, lazy-created; canonical header + migration rule in § *The update log*), and § *Three edit surfaces* — how `--update` / `--delete` / the GUI split the ledger by cell |
 | `--delete` | `refs/protocol-delete.md` | full ledger table (incl. `completed`), target resolution, the four-check warning pass (orphaned PRD / ship record / dangling `blocked-by` / log history), the confirm, no-renumber removal + `remove` log entry |
 
 **Closing message (every mode, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the row write / update log.
@@ -117,84 +80,21 @@ selected file end-to-end.
 
 ## Grading
 
-Every captured idea is graded in a **single-turn LLM judgment at capture time —
-never an analysis pass, never a codebase read.** Three banded dimensions stored
-compactly in the row's `grade` cell (e.g. `C:5 T:8 S:blocked-by-#4`). Bands and
-ranges only; fake-precise numbers are forbidden. Full rubric: `refs/rubric.md`.
-`devkit/AHA.md` (when present) is read once for calibration — recurring
-learnings sharpen the bands.
-
-**The `≥8` split gate.** An idea grading `C:` ≥ `8` gets one question: split it,
-or keep it whole and carry the logged risk. Why the gate exists and why `8`:
-`refs/rubric.md` § *Complexity drives the split gate*. The question itself and
-its replacement semantics: `refs/protocol-intake.md` Step 4.
-
-**Re-grading (`--update`).** A grade is a judgment *of a specific text*. When an
-update changes an idea **materially** (scope, surface, or capability), the row is
-re-graded by the same single-turn pass and the same split gates apply. A
-**cosmetic** change (typo, wording, a clarified goal that doesn't move scope)
-keeps the grade byte-for-byte. The user never sets a grade by hand — they change
-the meaning; intake re-derives the band.
-
-## Status lifecycle (D14)
-
-intake writes every new row as `backlog`. It never advances a row itself — **in
-either mode.** `--update` *reads* `status` as a gate (§ Three edit surfaces) and
-still never writes it.
-
-| Status | Set by | When |
-|--------|--------|------|
-| `backlog` | **intake** | on capture |
-| `in-progress` | `plan-pm` | when it creates the PRD and fills the `prd` cell |
-| `completed` | `merge --production` | when the mapped PRD ships to `main` |
-
-The `/msg --gui` Intake tab may hand-edit statuses (same trust level as its PRD-board edits).
-
-## Three edit surfaces
-
-The ledger has three writers, and they are **deliberately split by cell** — none
-is a superset of another.
-
-| | `/intake --update` | `/intake --delete` | `/msg --gui` Intake tab |
-|---|---|---|---|
-| **Owns** | content — `idea` / `goal` / `type` | removal | lifecycle — `status` |
-| **Rows** | `backlog` only | any row | any row (drag between lanes) |
-| **Grade** | re-derived on a material change | n/a | never touched |
-| **Gate** | follow-up questions when unclear | warning pass + explicit confirm | none — direct manipulation |
-| **Logged** | `INTAKE-UPDATE.md`, one entry per changed cell | `INTAKE-UPDATE.md`, one `remove` entry | no |
-
-**They compose.** `--update` refuses an `in-progress` row because its PRD is the
-source of truth. The sanctioned escape hatch is the GUI: drag the card back to
-**Backlog**, then `--update` will edit it — a deliberate two-step, so demoting a
-planned row is a visible act rather than a side effect of an edit.
-
-The GUI does not offer content edits **on purpose**: a hand-edited `idea` would
-leave the `grade` cell asserting a judgment of text that no longer exists.
-`--update` re-derives the grade; the GUI cannot, so it does not offer the edit.
-
-Deletion is deliberately **not** a `--update` flag: `--update`'s discipline is
-*edit + re-grade*, and a removal has neither. Its real risk is the references to
-the row — a mapped PRD, other rows' `S:blocked-by-#n`, the log history — which
-earn a dedicated warning pass rather than a flag on an edit path.
-
-## Update log
-
-Every `--update` edit and every `--delete` removal appends one entry to
-`INTAKE-UPDATE.md` — its **own file**, at the repo root beside `INTAKE.md`, not
-a section inside the ledger. Append-only and lazy-created; capture never touches
-it. `INTAKE.md`'s row table is the current state, `INTAKE-UPDATE.md` is how it
-got there. Columns, the `modify`/`add`/`remove` kinds, the canonical header and
-the migration rule for a legacy in-file `## Update log` section all live in one
-place: `refs/protocol-update.md` § *The update log*.
+Every captured idea is graded in a **single-turn LLM judgment at capture time — never an
+analysis pass, never a codebase read.** Three banded dimensions stored compactly in the
+row's `grade` cell (e.g. `C:5 T:8 S:blocked-by-#4`); fake-precise numbers are forbidden.
+Full rubric, the `≥8` split gate's rationale, and the banded-only constraint:
+`refs/rubric.md` (the split question itself: `refs/protocol-intake.md` Step 4). Re-grade
+semantics for `--update`: `refs/protocol-update.md`. `devkit/AHA.md` (when present) is
+read once for calibration. Row statuses and who advances them:
+`../shared/refs/prd-lifecycle.md` § *INTAKE.md row lifecycle* — intake writes `backlog`
+and never advances a row.
 
 ## References
 
-- `refs/protocol-intake.md` — end-to-end capture protocol: scaffold check, interview, hybrid/`≥8` split, grading pass, row write
-- `refs/protocol-update.md` — end-to-end update protocol: ledger scan, full review table, target resolution, lock gates, change interview, re-grade + re-split, targeted write + update log (canonical `INTAKE-UPDATE.md` header + migration rule)
-- `refs/protocol-delete.md` — end-to-end delete protocol: full ledger table, target resolution, the four-check warning pass, the confirm, no-renumber removal + `remove` log entry
+- `refs/protocol-intake.md` · `refs/protocol-update.md` · `refs/protocol-delete.md` — the three end-to-end mode protocols (§ Protocol)
+- `refs/rubric.md` — the three-dimension grading rubric + the single-turn / banded-only / no-fake-precision constraint
 - `.claude/scripts/script-intake-stamp.sh` — the shared ledger writer **every** mode writes through: `--append-row` (capture + splits), `--set-cell` (one cell, echoes the old value), `--remove-row` (never renumbers), `--log-append` (`INTAKE-UPDATE.md`, lazy-created with the canonical header). Its `--status`/`--prd` stamp verb belongs to `plan-pm` and `merge`, not to intake
-- `refs/rubric.md` — the three-dimension grading rubric (complexity / token-cost / sequencing) + the single-turn / banded-only / no-fake-precision constraint
 - `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds (row table only, no log section); **capture mode** offers to scaffold from it when the ledger is missing (update mode never does)
-- `devkit/AHA.md` — read (when present) for grading calibration; written by `plan-review` self-healing (G5)
-- `INTAKE.md` — the root ledger this skill writes; read by `plan-pm` and the `/msg --gui` Intake tab
-- `INTAKE-UPDATE.md` — the root update log this skill writes (`--update`/`--delete` only); lazy-created, gitignored alongside `INTAKE.md`, read by nobody downstream today (not `plan-pm`, not the GUI)
+- `../shared/refs/prd-lifecycle.md` — the INTAKE.md row lifecycle + PRD status lifecycle · `devkit/AHA.md` — grading calibration (G5)
+- `INTAKE.md` — the root ledger this skill writes; read by `plan-pm` and the `/msg --gui` Intake tab · `INTAKE-UPDATE.md` — the root update log (`--update`/`--delete` only); read by nobody downstream today

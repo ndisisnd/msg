@@ -2,7 +2,7 @@
 
 Reads the assigned PRD exec-table rows and, in a **single pass**, produces (1) a structured `## Engineering — <Agent>` section and (2) the `## Todos — <Agent>` tickets that decompose each owned F-ID into build-ready units — **the single and final build spec**. The exec table is not written to: its Files column is derived from these tickets by script afterwards. **No implementation code is written.**
 
-This file defines the plan-mode specifics only. The shared protocol — input validation, PRD + devkit read, summary + approval gate mechanics, codebase scan, platform + coding standards, scope enforcement, user interview — lives in `SKILL.md`. Read SKILL.md's numbered steps as the spine; the sections below slot into the points it marks as mode-specific.
+This file defines the plan-mode specifics only. The shared protocol — input validation, PRD + devkit read, summary + approval gate mechanics, codebase scan, platform + coding standards, scope enforcement, user interview — lives in `../protocol-core.md`. Read its numbered steps as the spine; the sections below slot into the points it marks as mode-specific.
 
 ---
 

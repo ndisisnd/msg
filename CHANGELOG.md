@@ -1,5 +1,50 @@
 # Changelog
 
+## 2026-08-17
+
+### [163] v5.6.6 Phase 6 — docs aligned to the dispatcher + refs shape
+
+- `ARCHITECTURE.md`: Changed — the skill-layer paragraph now describes the v5.6.6 shape: `SKILL.md` is a ≤100-line dispatcher and every mode protocol lives in the skill's `refs/`, loaded on demand. README needed no change (it cites no SKILL.md sections).
+
+### [162] v5.6.6 Phase 5 — plan-em + plan-pm SKILL.md ≤100 lines; cap reached everywhere
+
+- `.claude/skills/plan-em/SKILL.md`: Changed — slimmed 125 → 99 lines: the size-tier table compressed to prose (canonical table stays in `refs/protocol-em.md` Step 1e), the team-dispatch mechanics deferred to the protocol refs, Usage/Inputs/References compressed.
+- `.claude/skills/plan-pm/SKILL.md`: Changed — slimmed 108 → 97 lines: the PRD-status-lifecycle section replaced by a pointer to `shared/refs/prd-lifecycle.md`, its one home since Phase 1.
+- All nine SKILL.md files now ≤100 lines (830 total, down from 1,704). Evals: 125/125.
+
+### [161] v5.6.6 Phase 4 — eng SKILL.md ≤100 lines; spine extracted
+
+- `.claude/skills/eng/SKILL.md`: Changed — slimmed 187 → 62 lines. Keeps the mode routing table, `--review` NL triggers, a one-bullet-per-step spine summary, and compressed references; the numbered Steps 0–6 moved verbatim to the new spine ref.
+- `.claude/skills/eng/refs/protocol-core.md`: Added — the shared spine (Step 0 routing + hard-fail messages, input validation, one-pass pre-flight, summary approval gate + interview, standards resolution, mode dispatch, continuous scope enforcement), moved from SKILL.md with in-ref paths rebased.
+- `.claude/skills/eng/refs/plan/protocol.md`, `plan/fix-plan.md`, `build/protocol.md`: Changed — spine citations (`SKILL.md` Step 1/2/4, § Input contract) repointed to `../protocol-core.md`; cook-domain `SKILL.md` mentions untouched.
+- Evals: 125/125.
+
+### [160] v5.6.6 Phase 3 — intake + pre-merge SKILL.md ≤100 lines
+
+- `.claude/skills/intake/SKILL.md`: Changed — slimmed 200 → 100 lines. The Status-lifecycle section is now a pointer to `shared/refs/prd-lifecycle.md`; the Grading section compressed to a rubric pointer (content already in `refs/rubric.md`); Usage mode blurbs and hard refusals compressed with wording preserved.
+- `.claude/skills/intake/refs/protocol-update.md`: Changed — gains § *Three edit surfaces* (the `--update` / `--delete` / GUI cell split and its composition rules), moved verbatim from SKILL.md.
+- `.claude/skills/pre-merge/SKILL.md`: Changed — slimmed 195 → 100 lines; the Emission and Terminals sections moved to the executor ref, Posture folded into the intro, Usage/References compressed. No refusal, verdict shape, or gate behavior changed.
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — new §7 *Terminals + emission order* carries the OPEN-PR terminal, the issues-file loop + fix-loop handoff, and the four-part emission order, moved from SKILL.md.
+- Evals: 125/125.
+
+### [159] v5.6.6 Phase 2 — msg + plan-review SKILL.md ≤100 lines
+
+- `.claude/skills/msg/SKILL.md`: Changed — slimmed 244 → 90 lines; the three inline protocols moved verbatim to refs, so the router now routes only. Dispatch rows for `--version`, `--help` and bare `/msg` point at the new refs; the Skills-table footnote names `refs/protocol-help.md` as the paired routing table.
+- `.claude/skills/msg/refs/protocol-default.md`, `protocol-version.md`, `protocol-help.md`: Added — the default picker, `--version`, and `--help` protocols, moved unchanged from SKILL.md.
+- `.claude/skills/plan-review/SKILL.md`: Changed — slimmed 218 → 87 lines; the Step 1–3 protocol body moved verbatim to a ref, Outputs-table cells compressed (no column or destination changed).
+- `.claude/skills/plan-review/refs/protocol-review.md`: Added — the full three-step certification protocol, moved from SKILL.md § Step-by-step protocol.
+- Evals: 125/125.
+
+### [158] v5.6.6 Phase 1 — merge SKILL.md ≤100 lines; protocols extracted
+
+- `.claude/skills/merge/SKILL.md`: Changed — slimmed 332 → 100 lines. The dispatcher now carries only identity, usage, posture, hard refusals, the policy pre-flight, and the mode table; every extracted section moved verbatim to a ref. No gate, refusal, ask wording, or ordering changed.
+- `.claude/skills/merge/refs/sanctioned-writes.md`: Added — the canonical, complete write enumeration plus the script-resolution form, moved from SKILL.md § *Sanctioned writes*.
+- `.claude/skills/merge/refs/failed-ship.md`: Added — the failed-ship loop (rollback / rollout-halt offer, issues file, run report, fix-loop handoff), moved from SKILL.md § *Failed-ship loop*.
+- `.claude/skills/shared/refs/policy-schema-merge.md`: Changed — new §1b absorbs SKILL.md § *Release flow* (stage map, `direct`-mode rigor note, the inactive/skipped/relaxed three-state vocabulary, the safety-floor-never-inactive rule); §4 absorbs the § *Release model* deltas (`release_model_source`, per-platform independence, orthogonality to `release_flow`).
+- `.claude/skills/shared/refs/prd-lifecycle.md`: Added — the one home of the PRD frontmatter lifecycle and the INTAKE.md row lifecycle, deduplicating plan-pm's and intake's restatements (they repoint in Phase 3/5).
+- Citation sweep: every `SKILL.md §` cite of a moved section across `merge/refs/*`, `shared/refs/policy-schema.md` and `shared/refs/fix-loop.md` repointed to the new homes; `staging.md`/`production.md` phase markers now cite `gate-dispatch.md` directly, and `production.md` carries the dispatcher-writes-nothing rule.
+- Evals: 125/125 before and after.
+
 ## 2026-08-05
 
 ### [157] — README header: v5.6.5 release blurb, in GitHub alert syntax

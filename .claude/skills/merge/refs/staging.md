@@ -13,8 +13,7 @@ staging**: Step 6 STOPS and waits for a human.
 
 **Phase markers.** Steps 1–6 are **subagent phase 1**; the STOP at the end of Step 6
 and the approval ask at Step 7 are **main thread**; the sign-off stamp itself runs
-**inline** (`SKILL.md` § *Dispatch — the phase split*,
-`../../shared/refs/gate-dispatch.md`). The step order below is unchanged — the markers
+**inline** (`../../shared/refs/gate-dispatch.md`). The step order below is unchanged — the markers
 name where each step executes, nothing more.
 
 ## ▸ PHASE 1 (subagent) — Steps 1 through 6
@@ -292,7 +291,7 @@ Only after the human returns. Ask once:
 
 On **Staging works**, stamp the PRD frontmatter through the shared scalar writer
 — the one sanctioned writer for this field, never a hand-rolled edit or a
-whole-file re-emit (`SKILL.md` § *Sanctioned writes*, item 2):
+whole-file re-emit (`sanctioned-writes.md`, item 2):
 
 ```bash
 S=.claude/scripts/script-prd-stamp.sh

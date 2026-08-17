@@ -65,6 +65,43 @@ ignored + one warn (AC-S4).
 
 # Read-contract (merge)
 
+## 1b · Release flow — merge's stage map and the three-state vocabulary
+
+The `release_flow` key itself is shared core ([`policy-schema.md`](policy-schema.md)
+§1: `flow = FLOW`, `prod = PROD_BRANCH`, `stg = STG_BRANCH`; no `policy.json` →
+`staged`/`main`/`staging` everywhere). What *merge does* with it is canonical here.
+
+| `flow` | `--staging` | `--production` |
+|---|---|---|
+| `staged` (default) | merge feature→`stg` | PR `stg`→`prod` |
+| `direct` | **refuse** `no_staging_stage`, naming both `/merge --production` and `/msg --init-staging` | single ship feature→`prod`, preserving every human gate |
+
+**`direct` + `--production`** — a single feature→`prod` ship that still runs the
+double-confirmation, the **inline human-test approval** (asked before the merge),
+the production deploy and smoke. The staging-scoped stages are **inactive**, not
+relaxed: there is no staging to deploy, test, or sign off, so those questions do
+not apply. Every question that *does* still apply is answered at full rigor.
+
+**Fewer checks, never weaker ones.** Three states, never conflated:
+
+| State | Meaning | Example |
+|---|---|---|
+| **inactive** | the stage does not apply to this configuration — there is nothing for it to check | staging deploy / staging smoke / staging human-test / `staging-signoff` under `release_flow=direct`; the **CI stage** under `github_actions.enabled:false` |
+| **skipped** | the stage applies but its tooling is absent — recorded with a note, surfaced as a gap | no `smoke_cmd` configured for a platform |
+| **relaxed** | a threshold was deliberately lowered by policy | `branch_protection: optional` warning instead of refusing |
+
+`github_actions: {enabled:false}` uses the **inactive** column: no tooling the
+user wanted is missing (not *skipped*) and no threshold moved (not *relaxed*).
+
+**The safety floor is never inactive.** Security, migration, and the human
+double-confirmation are not staging-scoped — no `release_flow` or
+`github_actions` value deactivates them. A change that would move one of them
+into the inactive column is a floor violation
+([`safety-floor.md`](safety-floor.md)), not a configuration.
+
+The staging-scoped set is named **once, here**; every ref defers to this section
+rather than restating it.
+
 ## 2 · `branch_protection` (Step 1 `--staging` / Step 2 `--production`)
 
 Per target branch `b`:
@@ -113,21 +150,29 @@ empty-set case whenever `ga` is `true` or absent (AC-GA6).
 
 `release_model` is authored the same way `tolerance` is: a
 **per-platform column in `devkit/PLATFORMS.md`**, not a `policy.json` field
-(D7). One human-authored source, one resolved consumer — no drift. Merge
+(D7). One human-authored source, one resolved consumer — no drift.
+`script-platforms-parse.py` is the **one** parser of that table. Merge
 reads it per shipping platform and branches every deploy/verify/rollback/lifecycle
-decision on it (`merge/SKILL.md` § *Release model*):
+decision on it. It is **orthogonal to `release_flow`** (§1b): `release_flow`
+decides *which stages run*, `release_model` decides *what a deploy/verify stage
+means* for each platform.
 
 | `release_model` | Meaning | Deploy-cmd exit 0 means | Verification | Rollback lever |
 |---|---|---|---|---|
-| `deploy` | synchronous (web, server, **directly-distributed macOS**) | the target is **live** | smoke the live target (`merge/refs/verify-deploy.md`) | redeploy the last-good build — **`rollback_cmd`**, offered on a failed ship before the fix loop (C3, `merge/SKILL.md`) |
-| `submission` | asynchronous (iOS, Android, **Mac App Store macOS**) | **submitted** to store review — never "live" | submission accepted; a configured smoke is **backend/build health**, never app liveness (`merge/refs/submission.md`) | halt the rollout — **`rollout_halt_cmd`**, offered once a rollout exists (C3) |
+| `deploy` | synchronous (web, server, **directly-distributed macOS**) | the target is **live** | smoke the live target (`merge/refs/verify-deploy.md`) | redeploy the last-good build — **`rollback_cmd`**, offered on a failed ship before the fix loop (C3, `merge/refs/failed-ship.md`) |
+| `submission` | asynchronous (iOS, Android, **Mac App Store macOS**) | **submitted** to store review — never "live"; report `submitted` (+ track) + monitor-handoff | submission accepted; a configured smoke is **backend/build health**, never app liveness (`merge/refs/submission.md`) | halt the rollout — **`rollout_halt_cmd`**, offered once a rollout exists (C3) |
 
 **Resolution + inference (AC-RM1).** For each shipping platform, resolve
 `release_model` from its PLATFORMS.md row. **Missing / blank → infer from platform
 identity** (`web`/`server` → `deploy`; `ios`/`android` → `submission`) and
 emit a **warn in the resolution output** naming the platform and the inferred
 value — never guess silently. An unknown platform with no `release_model` defaults
-to `deploy` with the same warn.
+to `deploy` with the same warn. `release_model_source` says which happened —
+`declared` (the row said so) or `inferred`, never guessed silently. Resolution is
+**per platform and independent**: a mixed repo verifies web as live and iOS as
+submitted in the **same run**. The full submission lifecycle, the
+monitor-handoff, `completed`-on-submit and the submitted-not-live rule live in
+`merge/refs/submission.md` — the one home; nothing here restates them.
 
 **`macos` is the one identity that does not settle the model.** A
 directly-distributed, Sparkle-updated `.app` is `deploy`; a Mac App Store build is

@@ -24,18 +24,14 @@ allowed_tools:
 
 # plan-em
 
-**This file is a router.** The five-step protocol lives in `refs/protocol-em.md` and the
-team-lane fan-out in `refs/protocol-team.md` — neither is restated here.
+**This file is a router.** The five-step protocol lives in `refs/protocol-em.md` and the team-lane fan-out in `refs/protocol-team.md` — neither is restated here.
 
 ## Usage
 
 **Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside a PRD folder in any lane — `features/{planned,wip,done}/prd-[n]-[slug]/` or the legacy flat `features/prd-[n]-[slug]/`.
 
-- Slash command: `/plan-em`
-- Natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents"
-- Context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-review`
-- `/plan-em <prd-path> --quiet` — suppress this run's status heartbeat
-- `/plan-em <prd-path> --status <n>m` — override the heartbeat interval for this run; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
+- Slash command: `/plan-em` · natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents" · context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-review`
+- `/plan-em <prd-path> --quiet` / `--status <n>m` — suppress or retune this run's status heartbeat; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.
@@ -43,9 +39,8 @@ team-lane fan-out in `refs/protocol-team.md` — neither is restated here.
 
 ## Execution mode
 
-Two mutually exclusive execution lanes, selected by a flag on invocation — **`--team`
-is the default**. The flag changes only **how the wave is dispatched at Step 4**; every
-other step is identical in both lanes.
+Two mutually exclusive execution lanes — **`--team` is the default**. The flag changes
+only **how the wave is dispatched at Step 4**; every other step is identical in both lanes.
 
 | Flag | Lane | Step 4 dispatch |
 |------|------|-----------------|
@@ -53,37 +48,25 @@ other step is identical in both lanes.
 | `--solo` | **Solo** | **one leaf `eng` subagent per roster stack**, whole-stack scope each, on the inherited model. |
 
 In `--team` mode plan-em is a **thin dispatcher**: it spawns the orchestrator
-**backgrounded**, registers it as one watched leaf, and polls on the heartbeat cadence,
-relaying the orchestrator's own `REPORT` blocks from `<prd-dir>/reports/heartbeat.log`.
-Run-ids stay disjoint — plan-em's `emteam-<epoch>` and the orchestrator's `em-<epoch>`
-never mix. Same contract as `pre-merge`'s gate dispatch; see
-`.claude/skills/shared/refs/status-heartbeat.md` § *Relaying across a subagent boundary*.
+**backgrounded** as one watched leaf and relays its `REPORT` blocks; run-ids stay disjoint
+(`emteam-<epoch>` vs `em-<epoch>`) — mechanics in `refs/protocol-em.md` Step 4 +
+`../shared/refs/status-heartbeat.md` § *Relaying across a subagent boundary*. The mode is a
+**persisted preference**, not just a per-run flag (`refs/protocol-em.md` Step 0; pref file: `../shared/refs/exec-mode-pref.md`).
 
-The mode is a **persisted preference**, not just a per-run flag. Resolution precedence and
-the flag-parse rule live in `refs/protocol-em.md` Step 0; the pref file itself lives in
-`.claude/skills/shared/refs/exec-mode-pref.md`.
+## Size tier — how many invocations a PRD costs
 
-## How many invocations a PRD costs
-
-Independent of the lane above, the run's **size tier** decides how much ceremony the PRD
-pays. plan-em resolves it once from the intake complexity grade (`refs/protocol-em.md`
-Step 1e) — there is no flag and no question:
-
-| Intake `C:` | Size | Invocations | Certifications |
-|-------------|------|-------------|----------------|
-| **< 8**, or unresolvable (the default) | medium | **one** — a fused wave plans and builds in a single run | one (product, before the wave); a mechanical plan-shape check replaces the eng cert |
-| **≥ 8** | large | two — plan wave, then build wave | two (product before the plan wave, eng before the build wave) |
-
-An interrupted fused run is resumed by re-invoking `/plan-em` on the same PRD: it detects
-the written engineering sections and completes the build half. No flag, no state file.
+Independent of the lane, the **size tier** decides the PRD's ceremony, resolved once from
+the intake complexity grade (`refs/protocol-em.md` Step 1e — no flag, no question): `C:`
+**< 8** or unresolvable ⇒ **medium**, one fused plan+build invocation behind one product
+certification (a mechanical plan-shape check replaces the eng cert); `C:` **≥ 8** ⇒
+**large**, plan wave then build wave, a certification before each. An interrupted fused run is resumed by re-invoking `/plan-em` on the same PRD — no flag, no state file.
 
 ## Inputs
 
 | Name | Format | Source |
 |------|--------|--------|
 | PRD file path | `.md` file path matching `features/{planned,wip,done}/prd-*/prd-*.md` (or legacy flat `features/prd-*/prd-*.md`) | User message at invocation, or handoff from `plan-pm` / `plan-review` |
-| Execution-mode flag | `--team` (default) / `--solo` | User message at invocation |
-| Clarification answers | `AskUserQuestion` selections | Human during ambiguity resolution and agent approval |
+| Execution-mode flag · clarification answers | `--team` (default) / `--solo` · `AskUserQuestion` selections | User message at invocation · human during ambiguity resolution and agent approval |
 
 ## Outputs
 
@@ -94,32 +77,23 @@ the written engineering sections and completes the build half. No flag, no state
 | Synthesis report | Numbered findings with severity | Emitted inline at end of run |
 | Stage timing log | Append-only TSV, one line per stage boundary | `features/prd-[n]-[slug]/reports/timings-<date>.log` |
 
-**No separate engineering plan files — all output lives in the PRD.** The pre-flight report
-is the one exception, and it sits inside the PRD's own folder.
-
-`[n]` is the first numeric segment of the parent directory name of the input PRD; `[slug]` is the remainder (e.g., `features/prd-3-habit-tracking/prd-3-habit-tracking.md` → `n=3`, `slug=habit-tracking`). Resolve the actual matched directory once at Step 1 and write every artifact relative to it — do not reconstruct a bare `features/prd-[n]/` path.
+**No separate engineering plan files — all output lives in the PRD.** The pre-flight
+report is the one exception, and it sits inside the PRD's own folder. `[n]` is the first
+numeric segment of the input PRD's parent directory name; `[slug]` is the remainder.
+Resolve the actual matched directory once at Step 1 and write every artifact relative to
+it — do not reconstruct a bare `features/prd-[n]/` path.
 
 ## Step-by-step protocol
 
-Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and
-their outputs. In `--team` mode Step 4 hands the wave to the orchestrator whose protocol is
-`refs/protocol-team.md`.
+Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and their outputs. In `--team` mode Step 4 hands the wave to the orchestrator whose protocol is `refs/protocol-team.md`.
 
-**Closing message (both lanes, every outcome):** end the run with the closing message per
-`../shared/refs/closing-message.md` — the last chat output, after Step 5's synthesis. Take the
-next step from the registry's `plan-em` row; never compose it. There is **no next-steps menu**:
-plan-em recommends the next command, it never invokes the next stage itself.
+**Closing message (both lanes, every outcome):** end with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's synthesis. Take the next step from the registry's `plan-em` row; never compose it, never invoke it.
 
 **Harness incidents (both lanes):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
 
 ## References
 
 - `refs/protocol-em.md` — end-to-end execution protocol (Step 0 mode resolve + five steps); followed from § Step-by-step protocol
-- `refs/protocol-team.md` — the Opus orchestrator engineer's protocol, spawned at Step 4 in `--team` mode
-- `refs/template-exec-table.md` — execution-table shape and the concern checklist; used at Step 3
-- `.claude/skills/shared/refs/exec-mode-pref.md` — the persisted team/solo pref (`.claude/msg/pref.json`). Shared source of truth.
-- `../shared/refs/closing-message.md` — the closing message every run ends with; protocol + next-steps registry (shared)
-- `../shared/refs/doctor-logging.md` — the harness-incident ledger contract (shared)
-- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode
-- `.claude/skills/eng/refs/plan/template-todo.md` — todo ticket schema written by `eng --plan` and consumed by build agents
-- `../shared/refs/status-heartbeat.md` — the `--quiet`/`--status` heartbeat contract
+- `refs/protocol-team.md` — the Opus orchestrator engineer's protocol, spawned at Step 4 in `--team` mode · `refs/template-exec-table.md` — execution-table shape + concern checklist (Step 3)
+- `../shared/refs/` — `exec-mode-pref.md` (the persisted team/solo pref, `.claude/msg/pref.json`) · `closing-message.md` · `doctor-logging.md` · `status-heartbeat.md`
+- `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode · `.claude/skills/eng/refs/plan/template-todo.md` — the todo ticket schema consumed by build agents

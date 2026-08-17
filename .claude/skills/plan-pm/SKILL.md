@@ -76,22 +76,11 @@ Follow `refs/protocol-pm.md` end-to-end — it owns the steps, their order, and 
 
 ## PRD status lifecycle
 
-Each PRD carries status fields in its YAML frontmatter. The owning skill updates the field immediately after completing the relevant work via the shared scalar writer `.claude/scripts/script-prd-stamp.sh <prd> <field> <value>` (two-path resolution) — one deterministic edit of the single frontmatter line, never improvised Bash.
-
-| Field | Initial | Updated by | Updated to | Trigger |
-|-------|---------|-----------|-----------|---------|
-| `status` | `backlog` | `plan-em` | `specced` | eng sections + todos written to PRD |
-| `status` | `specced` | `plan-em` | `wip` | feature branch cut |
-| `status` | `wip` | `merge --production` | `complete` | shipped to production |
-| `reviewed` | `no` | `plan-review` | `yes` | certification passes |
-
-**`status` is the lifecycle truth; the lane directory is the location truth.** They answer different questions and neither is derived from the other — a production ship both stamps `status: complete` and relocates the PRD folder into the `done/` lane, but a consumer asking "has this shipped?" reads the status and one asking "where does this file live?" reads the lane.
-
-`reviewed: yes` is the single certification stamp, written by `plan-review` on a successful run; the findings themselves live in `<prd-dir>/reports/review-prd-[n]-[slug].md`. It is **orthogonal** to `status`: `reviewed` records that the contract was certified, `status` records how far through the pipeline the work is. The two are set independently and never substitute for each other.
-
-PRDs written before v5.4 carry the old enum (`product` → `eng` → `done`, plus `retired`) and a `product-tuned`/`eng-tuned` pair instead of `reviewed`. Every reader normalises those to the table above; no writer emits them.
-
-**Intake ledger stamp (F4/D14).** plan-pm also stamps the **source `INTAKE.md` row** when it creates the PRD: `status` cell → `in-progress`, `prd` cell → `prd-[n]-[feature_slug]` (Step 5), via the shared ledger writer `.claude/scripts/script-intake-stamp.sh` (two-path resolution) — a single row rewrite that leaves every other row byte-identical. intake wrote the row `backlog`; `merge --production` later stamps it `completed` through the same writer.
+The lifecycle — the frontmatter field table, the status-vs-lane rule, the pre-v5.4
+normalisation, and the intake ledger stamp (F4/D14: plan-pm stamps the source `INTAKE.md`
+row `in-progress` + `prd` cell at Step 5 via `script-intake-stamp.sh`) — lives in
+`../shared/refs/prd-lifecycle.md`, the one home. plan-pm writes a new PRD `status: backlog`
+and stamps nothing else; every stamp goes through the shared writers, never improvised Bash.
 
 ## References
 

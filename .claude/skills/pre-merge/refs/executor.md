@@ -662,6 +662,27 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
   mid-run. The verdict JSON (§5b) remains stdout's final machine emission,
   byte-identical whether the heartbeat ran or was disabled/quiet.
 
+## 7 · Terminals + emission order
+
+**OPEN-PR — clean verdict only.** On `pass` / `pass_with_warnings`:
+`gh pr create --base <target> --head <feature-branch>` (`<target>` = the SYNC target,
+`staging` else `main`), verdict JSON + report path linked in the body, `pr_url`
+recorded. **Never** `gh pr merge` — `merge --staging` merges it on green CI.
+
+**Issues-file loop — non-clean verdict.** No PR opens. Write the **issues file** —
+the run report's paired `.json` (same stem, folder, N and K), the **universal
+report** (C7) per §5b. With both files written, hand off to
+`../../shared/refs/fix-loop.md`, which owns Offer #1 (`eng --plan`) → Offer #2
+(`eng --build`) off this same file; do **not** re-spell that wording here. The
+fixed branch comes back through the gate.
+
+**Every run ends with, in order:** (1) the run report — best-effort, skipped on
+`refused`/`skipped`; (2) the terminal `Issue summary` block — every verdict; (3) the
+verdict JSON, stdout's final **machine** emission, also written to
+`.pre-merge/<ts>/verdict.json` (§6); (4) the **closing message** per
+`../../shared/refs/closing-message.md` as the last **chat** output — every verdict,
+including `refused` / `skipped`.
+
 ## Contract stability (load-bearing)
 
 `eng --build report=`, `../../shared/refs/fix-loop.md`, and `/msg --gui` read the

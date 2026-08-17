@@ -62,7 +62,7 @@ per-platform **staging-readiness** detection; branch-exists is never treated as
 ### 2 · Branch protection → `branch_protection`
 
 Run `script-branch-protection.sh --verify <branch>` per relevant branch and read the
-environment (resolution form: `../SKILL.md` § *Sanctioned writes*):
+environment (resolution form: `sanctioned-writes.md`):
 
 ```bash
 S=.claude/scripts/script-branch-protection.sh; bash "$S" --verify <branch>
@@ -151,7 +151,7 @@ declarations stay owned by `/msg --init`; merge `--init` is read-only to that fi
 **Only under `release_flow=staged`.** In `direct` flow the staging-scoped stages
 are **inactive because they do not apply** (there is nothing to deploy, test, or
 sign off) — this whole detection is inactive, not skipped and not relaxed
-(`../SKILL.md` § *Release flow*, three-state vocabulary). Write **no**
+(`../../shared/refs/policy-schema-merge.md` §1b, three-state vocabulary). Write **no**
 `staging_ready` record in `direct`.
 
 Today "staging ready" too often means "the branch exists" — a false promise
@@ -162,8 +162,7 @@ stack-specific probing, no network pings, no store-CLI queries, no credentials).
 
 Resolve each platform's `release_model` first (from the PLATFORMS.md column, else
 inferred from platform identity with a warn — a macOS row must **declare** it,
-since direct download and the Mac App Store are different models; `../SKILL.md`
-§ *Release model*, `policy-schema-merge.md` §4). What "ready" means is
+since direct download and the Mac App Store are different models; `../../shared/refs/policy-schema-merge.md` §4). What "ready" means is
 model-shaped:
 
 | `release_model` | Ready when the row declares… | Checked (declared-artifact only) |
@@ -231,7 +230,7 @@ When `release_flow.mode:"direct"`, there is no staging branch: `/merge --staging
 human-test approval** — defined in `refs/production.md` § *Inline human-test
 approval*, asked before the merge — then deploy and smoke); only the staging
 *stage* is gone. The **staging-scoped stages**
-(enumerated once in `SKILL.md` § *Release flow*) are **inactive because they do
+(enumerated once in `../../shared/refs/policy-schema-merge.md` §1b) are **inactive because they do
 not apply** — not waived and not relaxed; every stage that still applies runs at
 full rigor. This is the read-contract's behavior
 (`policy-schema.md` §1); `--init`'s job is only to *record* `mode:"direct"`

@@ -146,7 +146,7 @@ that 200s once then 404s). `smoke_watch_window: <duration>/<interval>` (e.g.
   `RESULT=degraded-in-window` with a `smoke-failed` finding naming the
   degradation. This routes to the **same failed-ship loop as any smoke failure**
   — including the **executable rollback/rollout-halt offer before the fix loop**
-  (`SKILL.md` § *Failed-ship loop*, `deploy` platforms' `rollback_cmd`). The
+  (`failed-ship.md`, `deploy` platforms' `rollback_cmd`). The
   watch-window is exactly the signal a redeploy-last-good rollback exists to
   answer — but the revert is still **always-ask, never auto**: **the script never
   rolls back**; it reports, and the human decides.
@@ -167,7 +167,7 @@ went live to watch). Recorded `MODE=poll+watch`.
 | Mode | On smoke failure |
 |---|---|
 | `--staging` | Verdict `fail`. **Skip the human test script and the sign-off ask** (Steps 6–7) — never hand a human a script for a broken environment. The report points at fixing forward through `/pre-merge`. |
-| `--production` | Verdict `fail`. **Skip the intake `completed` stamp** (Step 8) **and the release tag** (Step 9) — a release that isn't verifiably live doesn't close its PRD or earn a version identity. The failed-ship loop **offers to execute the rollback / rollout-halt** (`rollback_cmd` / `rollout_halt_cmd`) before the fix loop (`SKILL.md`); an unconfigured lever falls back to the `rollback_possible` notes for manual restore, flagged as a gap. |
+| `--production` | Verdict `fail`. **Skip the intake `completed` stamp** (Step 8) **and the release tag** (Step 9) — a release that isn't verifiably live doesn't close its PRD or earn a version identity. The failed-ship loop **offers to execute the rollback / rollout-halt** (`rollback_cmd` / `rollout_halt_cmd`) before the fix loop (`failed-ship.md`); an unconfigured lever falls back to the `rollback_possible` notes for manual restore, flagged as a gap. |
 
 The merge already happened in both cases — verification failure is surfaced
 loudly, never silently swallowed, and never pretends to un-merge anything. The
@@ -303,6 +303,6 @@ notarization (poll to terminal) → signing/Gatekeeper → appcast, then the gen
 four distinct findings above sets verdict
 `fail` and enters the **same failed-ship loop** as a smoke failure — the
 `deploy`-model `rollback_cmd` (re-publish the prior appcast build) is **offered
-before the fix loop**, always-ask/never-auto (`SKILL.md` § *Failed-ship loop*).
+before the fix loop**, always-ask/never-auto (`failed-ship.md`).
 None of these is a **refusal** — the merge already stands; they are ship *failures*
 surfaced loudly (`refs/refusal-patterns.md` § *macOS release-check findings*).

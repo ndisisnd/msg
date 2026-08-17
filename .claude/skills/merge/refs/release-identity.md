@@ -28,7 +28,7 @@ The authoritative version is the **newest `v*` tag reachable on the prod
 branch**. Nothing else — no `VERSION` file, no manifest, no bump commit. This is
 decisive, not incidental: merge is forbidden from modifying source
 (`../shared/refs/safety-floor.md`; its sanctioned writes are enumerated once in
-`SKILL.md`). A file-based version would force a bump commit it may not make. A
+`sanctioned-writes.md`). A file-based version would force a bump commit it may not make. A
 tag is **release metadata attached to a commit, not a change to any tracked
 file**, so tagging is consistent with the floor. merge **reads** tags to
 resolve the current version and **writes exactly one new tag** at release; it

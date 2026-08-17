@@ -2,13 +2,13 @@
 
 Reads the todo tickets for the assigned exec-table rows (written in the same `--plan` pass) and writes implementation code to the working branch. **The tickets are the spec.**
 
-Build-mode specifics only. `SKILL.md` is the spine — input validation, PRD + devkit read, summary + approval gate, codebase scan, standards, scope enforcement, user interview; the sections below slot into the points it marks mode-specific.
+Build-mode specifics only. `../protocol-core.md` is the spine — input validation, PRD + devkit read, summary + approval gate, codebase scan, standards, scope enforcement, user interview; the sections below slot into the points it marks mode-specific.
 
 ---
 
 ## Input contract (build-specific)
 
-Two input sources, resolved at `SKILL.md` Step 1:
+Two input sources, resolved at `../protocol-core.md` Step 1:
 
 - **PRD/exec-table** (default): the shared four (`--build`, `prd-path`, `rows`, `agent`).
 - **`report`** (`--build`-only): a `report=<path to features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json>` arg → **load `fix-build.md` and follow it** — it owns that source's required fields, rejections, path derivation, `branch` defaulting, work-step deltas, `Issue`-keyed summary, loop-closing, and the fix-complexity routing to `fix-build-orchestrated.md`. A plain PRD/exec-table build never loads it. Passing both `prd-path` and `report` is a hard failure (ambiguous source; see that ref).
@@ -52,7 +52,7 @@ B=.claude/scripts/script-em-branch-resolve.sh; [ -f "$B" ] || B="$HOME/.claude/s
 
 ## PRD read (Step 2 — standalone build, PRD/exec-table source)
 
-Refines `SKILL.md` Step 2's **standalone** path for the PRD/exec-table source. Do **not** read the full PRD to locate the execution table and engineering section — run the PRD-digest generator for the **build** slice, once per assigned F-ID, and consume its JSON:
+Refines `../protocol-core.md` Step 2's **standalone** path for the PRD/exec-table source. Do **not** read the full PRD to locate the execution table and engineering section — run the PRD-digest generator for the **build** slice, once per assigned F-ID, and consume its JSON:
 
 ```bash
 G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "<prd-path>" --slice build --feature <F-ID>
@@ -66,7 +66,7 @@ The **orchestrated** path (injected scoped excerpts, PRD path as escape hatch) a
 
 The slice points at the `### F<n>` **todo** blocks rather than inlining them: read the ticket bodies from that `prose_lines` range in `## Todos — <Agent Name>`.
 
-**Row ownership is verified mechanically** by the digest script grading the `rows`/`agent` pair, not by the model reading the table (`SKILL.md` Step 2).
+**Row ownership is verified mechanically** by the digest script grading the `rows`/`agent` pair, not by the model reading the table (`../protocol-core.md` Step 2).
 
 ## Summary content (Step 3 — Pre-run 1 of 2)
 
@@ -80,7 +80,7 @@ The 3–4 line summary covers:
 
 ## Coding-standards flags (Step 4)
 
-Standards resolve at `SKILL.md` Step 4. **Orchestrated runs use the injected `standards payload` and never call `/cook`.** Only a **standalone** build calls `/cook` itself, via **explicit flags** (never prose) so the call is cacheable and always loads the P0 floor.
+Standards resolve at `../protocol-core.md` Step 4. **Orchestrated runs use the injected `standards payload` and never call `/cook`.** Only a **standalone** build calls `/cook` itself, via **explicit flags** (never prose) so the call is cacheable and always loads the P0 floor.
 
 Identify the applicable **domains** from the stack, then scope each domain's refs to the assigned rows' work (their **Files** column + **concerns**):
 
