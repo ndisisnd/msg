@@ -2,6 +2,10 @@
 
 ## 2026-08-17
 
+### [163] v5.6.6 Phase 6 — docs aligned to the dispatcher + refs shape
+
+- `ARCHITECTURE.md`: Changed — the skill-layer paragraph now describes the v5.6.6 shape: `SKILL.md` is a ≤100-line dispatcher and every mode protocol lives in the skill's `refs/`, loaded on demand. README needed no change (it cites no SKILL.md sections).
+
 ### [162] v5.6.6 Phase 5 — plan-em + plan-pm SKILL.md ≤100 lines; cap reached everywhere
 
 - `.claude/skills/plan-em/SKILL.md`: Changed — slimmed 125 → 99 lines: the size-tier table compressed to prose (canonical table stays in `refs/protocol-em.md` Step 1e), the team-dispatch mechanics deferred to the protocol refs, Usage/Inputs/References compressed.

@@ -18,7 +18,7 @@ Pass `--with-cook` to also bootstrap the [cook](https://github.com/ndisisnd/cook
 
 ### 2. Skill layer — `~/.claude/skills/<name>/SKILL.md`
 
-Each skill is a directory containing a `SKILL.md` — a structured prompt consumed by Claude Code's skill system when the user invokes `/name`. Skills are self-contained: they declare their `allowed_tools`, `model`, and protocol inline.
+Each skill is a directory containing a `SKILL.md` — a structured prompt consumed by Claude Code's skill system when the user invokes `/name`. Skills are self-contained as a directory: since v5.6.6 the `SKILL.md` is a ≤100-line dispatcher (identity, usage, refusals, mode routing) and every mode's protocol lives in the skill's `refs/`, loaded on demand — the always-loaded surface stays small while the full protocol travels with the skill.
 
 Skills compose in two ways:
 - **In-session chaining** via the `Skill` tool (e.g. `plan-pm`'s end-of-run gate can invoke `plan-review` or `plan-em` directly)
