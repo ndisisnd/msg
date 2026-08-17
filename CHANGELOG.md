@@ -2,6 +2,14 @@
 
 ## 2026-08-17
 
+### [159] v5.6.6 Phase 2 — msg + plan-review SKILL.md ≤100 lines
+
+- `.claude/skills/msg/SKILL.md`: Changed — slimmed 244 → 90 lines; the three inline protocols moved verbatim to refs, so the router now routes only. Dispatch rows for `--version`, `--help` and bare `/msg` point at the new refs; the Skills-table footnote names `refs/protocol-help.md` as the paired routing table.
+- `.claude/skills/msg/refs/protocol-default.md`, `protocol-version.md`, `protocol-help.md`: Added — the default picker, `--version`, and `--help` protocols, moved unchanged from SKILL.md.
+- `.claude/skills/plan-review/SKILL.md`: Changed — slimmed 218 → 87 lines; the Step 1–3 protocol body moved verbatim to a ref, Outputs-table cells compressed (no column or destination changed).
+- `.claude/skills/plan-review/refs/protocol-review.md`: Added — the full three-step certification protocol, moved from SKILL.md § Step-by-step protocol.
+- Evals: 125/125.
+
 ### [158] v5.6.6 Phase 1 — merge SKILL.md ≤100 lines; protocols extracted
 
 - `.claude/skills/merge/SKILL.md`: Changed — slimmed 332 → 100 lines. The dispatcher now carries only identity, usage, posture, hard refusals, the policy pre-flight, and the mode table; every extracted section moved verbatim to a ref. No gate, refusal, ask wording, or ordering changed.
