@@ -2,6 +2,13 @@
 
 ## 2026-08-17
 
+### [161] v5.6.6 Phase 4 — eng SKILL.md ≤100 lines; spine extracted
+
+- `.claude/skills/eng/SKILL.md`: Changed — slimmed 187 → 62 lines. Keeps the mode routing table, `--review` NL triggers, a one-bullet-per-step spine summary, and compressed references; the numbered Steps 0–6 moved verbatim to the new spine ref.
+- `.claude/skills/eng/refs/protocol-core.md`: Added — the shared spine (Step 0 routing + hard-fail messages, input validation, one-pass pre-flight, summary approval gate + interview, standards resolution, mode dispatch, continuous scope enforcement), moved from SKILL.md with in-ref paths rebased.
+- `.claude/skills/eng/refs/plan/protocol.md`, `plan/fix-plan.md`, `build/protocol.md`: Changed — spine citations (`SKILL.md` Step 1/2/4, § Input contract) repointed to `../protocol-core.md`; cook-domain `SKILL.md` mentions untouched.
+- Evals: 125/125.
+
 ### [160] v5.6.6 Phase 3 — intake + pre-merge SKILL.md ≤100 lines
 
 - `.claude/skills/intake/SKILL.md`: Changed — slimmed 200 → 100 lines. The Status-lifecycle section is now a pointer to `shared/refs/prd-lifecycle.md`; the Grading section compressed to a rubric pointer (content already in `refs/rubric.md`); Usage mode blurbs and hard refusals compressed with wording preserved.
