@@ -2,6 +2,12 @@
 
 ## 2026-08-17
 
+### [162] v5.6.6 Phase 5 — plan-em + plan-pm SKILL.md ≤100 lines; cap reached everywhere
+
+- `.claude/skills/plan-em/SKILL.md`: Changed — slimmed 125 → 99 lines: the size-tier table compressed to prose (canonical table stays in `refs/protocol-em.md` Step 1e), the team-dispatch mechanics deferred to the protocol refs, Usage/Inputs/References compressed.
+- `.claude/skills/plan-pm/SKILL.md`: Changed — slimmed 108 → 97 lines: the PRD-status-lifecycle section replaced by a pointer to `shared/refs/prd-lifecycle.md`, its one home since Phase 1.
+- All nine SKILL.md files now ≤100 lines (830 total, down from 1,704). Evals: 125/125.
+
 ### [161] v5.6.6 Phase 4 — eng SKILL.md ≤100 lines; spine extracted
 
 - `.claude/skills/eng/SKILL.md`: Changed — slimmed 187 → 62 lines. Keeps the mode routing table, `--review` NL triggers, a one-bullet-per-step spine summary, and compressed references; the numbered Steps 0–6 moved verbatim to the new spine ref.
