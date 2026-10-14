@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-15
+
+### [165] — Ignore the local archive folder
+
+- `.gitignore`: Changed — adds `archive/`, the new local home for finished plans, deprecated material and scratch docs that used to live under `update/`. The folder holds 234 local-only files, and this rule keeps them out of git status and out of commits.
+
 ## 2026-08-17
 
 ### [164] — Release v5.6.6
