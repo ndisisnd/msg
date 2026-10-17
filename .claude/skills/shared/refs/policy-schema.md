@@ -69,6 +69,7 @@ read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that s
     // test_selection                     → policy-schema-pre-merge.md
     // status_cadence                     → below, § policies.status_cadence
     // agent_watch                        → below, § policies.agent_watch
+    // intake                             → below, § policies.intake
   }
   // components[], source_signature, criticality_review → policy-schema-pre-merge.md
   // steps{}, staging_ready               → policy-schema-merge.md
@@ -87,6 +88,7 @@ Release-flow answers captured, tooling not yet resolved, `init:false` so the fir
   "generated_by": "msg --init",
   "policies": {
     "release_flow": { "mode": "staged", "prod_branch": "main", "staging_branch": "staging" },
+    "intake": { "brainstorm": true },
     "github_actions": { "enabled": true }
   }
 }
@@ -150,6 +152,16 @@ committed file, instead of every gate run rediscovering the absence and nagging.
 setup decision, not a detection result. No gate run ever writes it (AC-OW1).
 Absent object ⇒ `enabled: true` ⇒ pre-key behaviour, so existing `policy.json`
 files need no migration.
+
+### `policies.intake` — the intake brainstorm switch
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `brainstorm` | bool | ✖ | `false` when absent | `true` → plain `/intake` suggests in-scope related ideas. `/msg --init` seeds `true`. Absent (a project seeded before the key) → `false`, so existing projects see no change |
+
+Read only by `intake` (`intake/SKILL.md` § Usage). Written by `/msg --init` (seed) and by
+`/intake --brainstorm on|off`, both through `script-policy-set.py`. A bare `--brainstorm`
+turns suggestions on for one run and writes nothing. **Not** read by the gates.
 
 ### `policies.status_cadence` — the status-heartbeat interval
 

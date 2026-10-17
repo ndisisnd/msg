@@ -73,7 +73,7 @@ type: reference
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
-| devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
+| devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2, `policies.intake.brainstorm:true`. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, `features/`, **and `devkit/DOCTOR.md`** — the ledger files, the PRD lanes and the harness telemetry are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
@@ -223,7 +223,8 @@ whole seed, including the `generated` date stamp:
   --create --skip-if-exists --stamp-by "msg --init" \
   --set policies.release_flow.mode='"<staged|direct>"' \
   --set policies.release_flow.prod_branch='"<PROD_BRANCH>"' \
-  --set policies.release_flow.staging_branch='<"staging"|null>'
+  --set policies.release_flow.staging_branch='<"staging"|null>' \
+  --set policies.intake.brainstorm=true
 ```
 
 - `--create` writes the seed skeleton — `version:1`, `init:false`, `generated`, `generated_by`,
@@ -237,6 +238,10 @@ whole seed, including the `generated` date stamp:
 - The script stamps `generated` itself. (The protocol used to hand-`Write` this file on the
   grounds that "scripts can't stamp the date" — they can, `date +%F`; the whole hand-write path
   rested on a premise that never held.)
+
+`policies.intake.brainstorm` is fixed at `true` — a new project gets `/intake` related-idea
+suggestions until the user runs `/intake --brainstorm off`. No question. A project with no key
+(seeded before the key existed) reads as `false`.
 
 Map the Step 2 release-flow variables: `RELEASE_FLOW` Staged → `"staged"`, Direct → `"direct"`;
 `prod_branch` = `PROD_BRANCH` (from `script-branch-topology.sh`, never asked — this is what makes a

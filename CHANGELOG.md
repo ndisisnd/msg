@@ -2,6 +2,11 @@
 
 ## 2026-10-17
 
+### [168] v6.0.0 intake — per-project brainstorm switch, on by default at setup
+
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — documents `policies.intake.brainstorm` (bool). `/msg --init` seeds `true`; an absent key reads as `false`, so projects set up before v6 see no change.
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — the Step 3 policy seed now writes `policies.intake.brainstorm=true`, with no question.
+
 ### [167] v6.0.0 intake — grade is complexity + sequencing, with plain-English labels
 
 - `.claude/skills/intake/refs/rubric.md`: Changed — drops the token-cost (`T:`) dimension; the grade is `C:` + `S:`. Adds a plain-English label per band for terminal output. A legacy `T:` token still parses and is ignored. The split threshold at `C:8` is now a judgment, not a fixed question.
