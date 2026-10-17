@@ -3,72 +3,81 @@
 script-ledger.py — the writer for a PRD's plan-review findings ledger.
 
 Owns everything about the ledger that is decidable: locating (or creating) the
-table, deduping this run's findings against prior rows, assigning the monotonic
-`#`, and emitting the Clean marker row when a run finds nothing. The model decides
-*what* the findings are and hands them over as JSON; it never counts rows, never
-picks a row number, and never hand-writes the table.
+table, matching this run's findings against prior rows, honouring each
+finding's status, clearing prior rows whose check ran clean, assigning the
+monotonic `#`, and emitting the Clean marker row when a run finds nothing. The
+model decides *what* the findings are and whether each one was fixed, and hands
+them over as JSON once, after its fixes; it never counts rows, never picks a row
+number, and never hand-writes the table.
 
 WHERE THE LEDGER LIVES (two targets, auto-selected)
 
-  v5.4 and later — an external report beside the PRD:
-      <prd-dir>/reports/review-prd-<n>-<slug>.md
-  A findings table is append-only and grows without bound; a PRD is a contract
-  every downstream stage re-reads. Keeping the two in one file made every reader
-  pay for the audit history, so the ledger moved out. The PRD's `reviewed:`
-  frontmatter stamp remains the gate signal — this file is the evidence trail.
-
-  v5 and earlier — the PRD's own `## 7. Plan review findings` section.
-  A PRD that already carries that section keeps its ledger there, with its
-  eight-column (Auditor-bearing) table intact. Nothing is ever migrated: the
-  target is whichever home the PRD already has.
+  The report beside the PRD:   <prd-dir>/reports/review-<prd-stem>.md
+  An older PRD's own `## 7. Plan review findings` section, kept where it is with
+  its eight-column (Auditor-bearing) table. Nothing is ever migrated.
 
 Selection order: an existing report file wins; else an existing findings section
-in the PRD; else a new report file is created from the v5.4 scaffold.
+in the PRD; else a new report file is created (this script writes the scaffold).
 
 Do not confuse the report with `reports/review-prd-<N>-<K>.json` — that is eng's
-per-packet build-review evidence (v5.3), a different file with a different shape.
-This one is markdown and its suffix is the PRD slug.
+per-packet build-review evidence, a different file with a different shape.
 
-The column set is a contract shared with `/msg --gui` and
-`plan-review/refs/template-review-report.md`. This script never changes it: an
-existing table whose header is missing a canonical column is a hard error, not
-something to patch around.
+The column set is a contract shared with `/msg --gui`. This script never changes
+it: an existing table whose header is missing a canonical column is a hard
+error, not something to patch around.
 
 Usage:
-  script-ledger.py <prd.md> [--auditor P|E] [--findings <file.json>|-] [--date YYYY-MM-DD] [--dry-run]
+  script-ledger.py <prd.md> [--auditor P|E] [--checks 1,2,3,6] [--findings <file.json>|-]
+                   [--date YYYY-MM-DD] [--dry-run]
 
-  --auditor    P (product tune) or E (eng tune). Written into every new row of a
-               legacy in-PRD ledger, which has an Auditor column. Accepted and
-               ignored for the v5.4 report, whose one mode has one auditor.
+  --auditor    P (product check) or E (eng check). Written into every new row of
+               an older in-PRD ledger, which has an Auditor column, and used to
+               scope --checks clearing to the check that raised a row.
+  --checks     the checks this run ran. A prior Open / Still open row of one of
+               these checks that no finding of this run matches becomes Fixed.
+               Omitted: no prior row is cleared.
   --findings   JSON array of this run's findings. Default: stdin.
   --date       defaults to today.
   --dry-run    report what would change and write nothing.
 
 Findings JSON — an array of objects:
   [{"severity": "Critical|Major|Minor",
-    "what":     "terse: section + which check fired",
+    "what":     "terse: what is wrong, where",
     "fix":      "terse concrete action",
-    "why":      "terse: the consumer that breaks"}]
+    "why":      "terse: the consumer that breaks",
+    "status":   "Open|Fixed",                 default Open
+    "check":    1-7,                           optional; enables key matching
+    "code":     "<slug>", "ref": "<locator>",  script findings (checks 4-6)
+    "section":  "<PRD section title>"}]        judgment findings (checks 1, 2, 3, 7)
   An empty array is the no-findings path and produces the Clean marker row.
 
-Dedup rule (mechanical half): an incoming finding whose `what` normalizes to the
-same text as an existing row's "What is wrong" is the SAME issue carried forward —
-that row is updated in place (Status -> Still open, Date -> today) and no new row
-is added. Everything else is new and gets a fresh monotonic `#`. Judging whether a
-prior finding was really fixed stays with the model: it simply omits the finding.
+Matching a finding to a prior row:
+  1. by key — same check and same key (`code ref` for a script finding, the
+     section for a judgment finding). The key rides in the "What is wrong" cell
+     as a trailing tag the script writes: `(check 4 eng · EXEC_FID_UNCOVERED F3)`.
+  2. else by text — the "What is wrong" cell, tag removed, normalised.
+  A matched row is updated in place (Status -> Still open, or Fixed when the
+  finding says Fixed; Date -> today) and no new row is added. Everything else is
+  new and gets a fresh monotonic `#`, sorted Critical, Major, Minor first.
 
-New rows are sorted Critical, Major, Minor before numbering, so `#` ascends with
-severity within a run while staying monotonic across runs.
+Clearing (with --checks): a prior Open / Still open row that matched nothing,
+whose check is in --checks, becomes Fixed (Date -> today). A row raised by the
+other check type is left alone; a row with no known check type is cleared only
+when its check is not check 2 (the one judgment check both types run).
 
 Output (KEY=VALUE lines on stdout):
   LEDGER_TARGET=report|prd-section                which home was selected
   LEDGER_FILE=<path>                              the file actually written
   LEDGER_SECTION=created|filled|appended
-  LEDGER_ROW=<#> <added|carried> <severity>      one per finding
+  LEDGER_ROW=<#> <added|carried|cleared> <severity>
   LEDGER_ADDED=<n>
   LEDGER_CARRIED=<n>
+  LEDGER_CLEARED=<n>
   LEDGER_CLEAN=yes|no
   LEDGER_NEXT=<the next free # after this run>
+  LEDGER_OPEN_CRITICAL=<n> · LEDGER_OPEN_MAJOR=<n> · LEDGER_OPEN_MINOR=<n>
+                                                  rows still Open / Still open
+                                                  in the whole table after the run
 
 Exit codes:
   0  ledger written (or --dry-run plan emitted)
@@ -90,22 +99,29 @@ from pathlib import Path
 
 SELF = "script-ledger"
 
-# v5.4 external report — one mode, one auditor, so no Auditor column.
+# The report — no Auditor column.
 REPORT_COLUMNS = ["#", "Date", "Severity", "What is wrong",
                   "Suggested fix", "Why it matters", "Status"]
-# v5 in-PRD ledger — kept verbatim so an existing table is appended to, not reshaped.
+# The older in-PRD ledger — kept verbatim so an existing table is appended to, not reshaped.
 COLUMNS = ["#", "Date", "Auditor", "Severity", "What is wrong",
            "Suggested fix", "Why it matters", "Status"]
 SEV_ORDER = {"critical": 0, "major": 1, "minor": 2}
+STATUSES = {"open": "Open", "fixed": "Fixed"}
+OPEN_STATUSES = ("open", "still open")
 SECTION_TITLE = "Plan review findings"
 REPORT_SECTION_TITLE = "Findings"
-# Pre-v5 PRDs carry the certifier's former section heading, kept here verbatim.
-# Appends find it and leave the heading exactly as written — nothing is rewritten.
+# The certifier's former section heading in the oldest PRDs, kept verbatim.
 LEGACY_SECTION_TITLES = ["plan tune findings"]
+TUNES = {"P": "product", "E": "eng"}
+
+# Trailing key tag the script writes: `(check 4 eng · CODE REF)`.
+TAG_RE = re.compile(r"\s*\(check (\d)(?: (product|eng))?(?: · ([^()]*))?\)\s*$")
+# A bare `(check N)` mention anywhere — how older rows named their check.
+BARE_CHECK_RE = re.compile(r"\(check (\d)\)")
 
 
 def report_path(prd):
-    """<prd-dir>/reports/review-<prd-stem>.md — the v5.4 home for the ledger."""
+    """<prd-dir>/reports/review-<prd-stem>.md — the report home for the ledger."""
     return prd.parent / "reports" / f"review-{prd.stem}.md"
 
 
@@ -155,11 +171,46 @@ def cell(text):
 
 
 def norm(text):
-    """Dedup key for a 'What is wrong' cell."""
-    s = str(text or "").replace("\\|", "|").lower()
+    """Text-match key for a 'What is wrong' cell (its key tag removed)."""
+    s = str(text or "").replace("\\|", "|")
+    s = BARE_CHECK_RE.sub("", TAG_RE.sub("", s)).lower()
     s = re.sub(r"[`*_]", "", s)
     s = re.sub(r"\s+", " ", s).strip()
     return s.rstrip(".;,")
+
+
+def norm_key(text):
+    return re.sub(r"\s+", " ", str(text or "")).strip().lower()
+
+
+def parse_tag(what):
+    """(check:int|None, tune:str|None, key:str) from a 'What is wrong' cell."""
+    s = str(what or "").replace("\\|", "|")
+    m = TAG_RE.search(s)
+    if m:
+        return int(m.group(1)), m.group(2), norm_key(m.group(3))
+    m = BARE_CHECK_RE.search(s)
+    if m:
+        return int(m.group(1)), None, ""
+    return None, None, ""
+
+
+def finding_key(f):
+    if str(f.get("code", "")).strip():
+        return " ".join(x for x in (str(f.get("code", "")).strip(),
+                                    str(f.get("ref", "")).strip()) if x)
+    return str(f.get("section", "")).strip()
+
+
+def tagged_what(f, tune):
+    """The cell text: the model's `what`, any tag it wrote removed, the key tag added."""
+    base = TAG_RE.sub("", " ".join(str(f.get("what", "")).split()))
+    base = BARE_CHECK_RE.sub("", base).strip()
+    if f.get("check") is None:
+        return " ".join(str(f.get("what", "")).split())
+    key = " ".join(finding_key(f).split())
+    tag = f"(check {f['check']} {tune}" + (f" · {key})" if key else ")")
+    return f"{base} {tag}"
 
 
 def split_row(line):
@@ -217,10 +268,23 @@ def render(values):
     return "| " + " | ".join(values) + " |"
 
 
+def parse_checks(raw):
+    if not raw:
+        return set()
+    out = set()
+    for part in raw.split(","):
+        part = part.strip()
+        if not re.match(r"^[1-7]$", part):
+            die(f"--checks takes check numbers 1-7, comma-separated; got: {raw}")
+        out.add(int(part))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser(add_help=True, prog="script-ledger.py")
     ap.add_argument("prd")
     ap.add_argument("--auditor", default="P", choices=["P", "E"])
+    ap.add_argument("--checks", default="")
     ap.add_argument("--findings", default="-")
     ap.add_argument("--date", default="")
     ap.add_argument("--dry-run", action="store_true")
@@ -229,6 +293,8 @@ def main():
     date = args.date or datetime.date.today().isoformat()
     if not re.match(r"^\d{4}-\d{2}-\d{2}$", date):
         die(f"--date must be YYYY-MM-DD, got: {date}")
+    ran_checks = parse_checks(args.checks)
+    run_tune = TUNES[args.auditor]
 
     prd = Path(args.prd)
     if not prd.is_file():
@@ -239,19 +305,14 @@ def main():
         die(f"cannot read {args.prd}: {exc}")
 
     # ── Select the ledger's home ──────────────────────────────────────────────
-    # An existing report wins; else a findings section already in the PRD (a
-    # pre-v5.4 file keeps its ledger where it is); else a new report.
     rpath = report_path(prd)
     prd_has_section = find_section(prd_lines, SECTION_TITLE.lower())[0] is not None
     if not prd_has_section:
         prd_has_section = any(find_section(prd_lines, t)[0] is not None
                               for t in LEGACY_SECTION_TITLES)
 
-    # A11 — a PRD whose findings heading drifted ("Review findings" instead of
-    # "Plan review findings") must not quietly get a report created beside it:
-    # the orphaned section's rows would never be deduped against, and a consumer
-    # reading the PRD would see a stale table that no run updates. Refuse, exactly
-    # as this refused to append a second section before the ledger moved out.
+    # A PRD whose findings heading drifted must not quietly get a report created
+    # beside it: the orphaned section's rows would never be matched against.
     if not rpath.is_file() and not prd_has_section:
         for ln in prd_lines:
             t = heading_title(ln)
@@ -298,6 +359,14 @@ def main():
             die(f"finding {n}: severity must be Critical|Major|Minor, got: {f.get('severity')!r}")
         if not str(f.get("what", "")).strip():
             die(f"finding {n}: 'what' is required and must be non-empty")
+        st = str(f.get("status", "") or "open").strip().lower()
+        if st not in STATUSES:
+            die(f"finding {n}: status must be Open|Fixed, got: {f.get('status')!r}")
+        f["status"] = STATUSES[st]
+        if f.get("check") is not None:
+            if not re.match(r"^[1-7]$", str(f["check"]).strip()):
+                die(f"finding {n}: check must be 1-7, got: {f.get('check')!r}")
+            f["check"] = int(str(f["check"]).strip())
 
     # ── Locate the section and read any existing table ────────────────────────
     hidx, hend = find_section(lines, section_title.lower())
@@ -331,8 +400,7 @@ def main():
         for want in columns:
             if want.lower() not in lowered:
                 die(f"findings table header is missing the '{want}' column — the schema "
-                    f"is a GUI + template contract; fix the table rather than writing "
-                    f"into it")
+                    f"is a GUI contract; fix the table rather than writing into it")
             colmap[want] = lowered.index(want.lower())
     else:
         colmap = {c: i for i, c in enumerate(columns)}
@@ -341,50 +409,90 @@ def main():
         i = colmap[col]
         return cells[i] if i < len(cells) else ""
 
-    # ── Dedup + numbering ─────────────────────────────────────────────────────
-    by_what = {}
+    # ── Numbering ─────────────────────────────────────────────────────────────
     highest = 0
     parsed_any = False
     first_bad = None
     for j, cells in existing_rows:
-        by_what.setdefault(norm(get(cells, "What is wrong")), (j, cells))
         raw_num = get(cells, "#").strip()
-        m = re.match(r"^\d+$", raw_num)
-        if m:
+        if re.match(r"^\d+$", raw_num):
             parsed_any = True
             highest = max(highest, int(raw_num))
         elif first_bad is None:
             first_bad = raw_num
-    # A10 — rows exist but not one `#` parsed: `highest` would stay 0 and this run
-    # would renumber from 1 alongside the rows already there. Mixed tables (some
-    # rows parse) keep today's max-of-parsed behaviour.
+    # Rows exist but not one `#` parsed: refuse to renumber from 1 on top of them.
     if existing_rows and not parsed_any:
         print(f"LEDGER_NUMBERING_UNPARSABLE={first_bad}")
         die(f"findings ledger has {len(existing_rows)} row(s) but no parsable '#' "
             f"(first offending cell: {first_bad!r}) — refusing to renumber from 1 "
             f"on top of them; fix the '#' column")
 
+    # ── Match this run's findings to prior rows ───────────────────────────────
+    prior = []   # [j, cells, check, tune, key, text]
+    for j, cells in existing_rows:
+        check, tune, key = parse_tag(get(cells, "What is wrong"))
+        if tune is None and "Auditor" in colmap:
+            tune = TUNES.get(get(cells, "Auditor").strip().upper())
+        prior.append([j, cells, check, tune, key, norm(get(cells, "What is wrong"))])
+    taken = set()
+
+    def match(f):
+        if f.get("check") is not None:
+            key = norm_key(" ".join(finding_key(f).split()))
+            if key:
+                for p in prior:
+                    if p[0] not in taken and p[2] == f["check"] and p[4] == key:
+                        return p
+        text = norm(f.get("what"))
+        for p in prior:
+            if p[0] not in taken and p[5] == text:
+                return p
+        return None
+
     carried, fresh = [], []
     for f in findings:
-        hit = by_what.get(norm(f.get("what")))
-        (carried if hit else fresh).append((f, hit))
+        p = match(f)
+        if p is not None:
+            taken.add(p[0])
+            carried.append((f, p))
+        else:
+            fresh.append(f)
 
-    fresh.sort(key=lambda p: SEV_ORDER[str(p[0]["severity"]).strip().lower()])
+    fresh.sort(key=lambda f: SEV_ORDER[str(f["severity"]).strip().lower()])
 
-    edits = {}   # line index -> replacement line (carried-forward updates)
-    for f, (j, cells) in carried:
-        row = list(cells) + [""] * (len(columns) - len(cells))
-        row[colmap["Status"]] = "Still open"
-        row[colmap["Date"]] = date
-        edits[j] = render(row)
-
-    new_lines_rows, num = [], highest
+    edits = {}   # line index -> replacement cells
     report = []
-    for f, _ in carried:
-        j, cells = by_what[norm(f.get("what"))]
+    for f, p in carried:
+        j, cells = p[0], p[1]
+        row = list(cells) + [""] * (len(columns) - len(cells))
+        row[colmap["Status"]] = "Fixed" if f["status"] == "Fixed" else "Still open"
+        row[colmap["Date"]] = date
+        if f.get("check") is not None:
+            row[colmap["What is wrong"]] = cell(tagged_what(f, run_tune))
+        edits[j] = row
         report.append((get(cells, "#") or "?", "carried", str(f["severity"]).strip().title()))
 
-    for f, _ in fresh:
+    cleared = 0
+    if ran_checks:
+        for p in prior:
+            j, cells, check, tune = p[0], p[1], p[2], p[3]
+            if j in taken or check not in ran_checks:
+                continue
+            if get(cells, "Status").strip().lower() not in OPEN_STATUSES:
+                continue
+            if tune is not None and tune != run_tune:
+                continue
+            if tune is None and check == 2:
+                continue
+            row = list(cells) + [""] * (len(columns) - len(cells))
+            row[colmap["Status"]] = "Fixed"
+            row[colmap["Date"]] = date
+            edits[j] = row
+            cleared += 1
+            report.append((get(cells, "#") or "?", "cleared", get(cells, "Severity").strip().title()))
+
+    new_rows, num = [], highest
+    for f in fresh:
         num += 1
         row = [""] * len(columns)
         row[colmap["#"]] = str(num)
@@ -392,11 +500,11 @@ def main():
         if "Auditor" in colmap:
             row[colmap["Auditor"]] = args.auditor
         row[colmap["Severity"]] = str(f["severity"]).strip().title()
-        row[colmap["What is wrong"]] = cell(f.get("what"))
+        row[colmap["What is wrong"]] = cell(tagged_what(f, run_tune))
         row[colmap["Suggested fix"]] = cell(f.get("fix")) or "—"
         row[colmap["Why it matters"]] = cell(f.get("why")) or "—"
-        row[colmap["Status"]] = cell(f.get("status")) or "Open"
-        new_lines_rows.append(render(row))
+        row[colmap["Status"]] = f["status"]
+        new_rows.append(row)
         report.append((str(num), "added", row[colmap["Severity"]]))
 
     clean = not findings
@@ -412,23 +520,27 @@ def main():
         row[colmap["Suggested fix"]] = "—"
         row[colmap["Why it matters"]] = "—"
         row[colmap["Status"]] = "Clean"
-        new_lines_rows.append(render(row))
+        new_rows.append(row)
         report.append((str(num), "added", "Clean"))
+
+    # ── Open counts over the whole table after this run ───────────────────────
+    open_counts = {"critical": 0, "major": 0, "minor": 0}
+    final_rows = [edits.get(j, cells) for j, cells in existing_rows] + new_rows
+    for row in final_rows:
+        sev = get(row, "Severity").strip().lower()
+        if sev in open_counts and get(row, "Status").strip().lower() in OPEN_STATUSES:
+            open_counts[sev] += 1
 
     # ── Apply ─────────────────────────────────────────────────────────────────
     out = list(lines)
-    for j, repl in edits.items():
-        out[j] = repl
+    for j, row in edits.items():
+        out[j] = render(row)
+    new_lines_rows = [render(r) for r in new_rows]
 
     header_line = render([c for c in header_cells] if header_cells else columns)
     sep_line = "|" + "|".join("---" for _ in columns) + "|"
 
-    # Only two arms remain. Target selection guarantees the section exists in
-    # whichever home was chosen — the report scaffold always carries `## Findings`,
-    # and prd-section mode is only entered when the PRD already has the heading —
-    # so there is never a section to invent here. (Before the ledger moved out, a
-    # third arm created the section inside the PRD and announced a Todos-anchor or
-    # EOF placement; that is now unreachable, and `LEDGER_PLACEMENT` with it.)
+    # Target selection guarantees the section exists in whichever home was chosen.
     if header_cells is not None:
         mode = "appended"
         out[tbl_end + 1:tbl_end + 1] = new_lines_rows
@@ -448,8 +560,12 @@ def main():
         print(f"LEDGER_ROW={num_s} {what} {sev}")
     print(f"LEDGER_ADDED={len(new_lines_rows)}")
     print(f"LEDGER_CARRIED={len(carried)}")
+    print(f"LEDGER_CLEARED={cleared}")
     print(f"LEDGER_CLEAN={'yes' if clean else 'no'}")
     print(f"LEDGER_NEXT={num + 1}")
+    print(f"LEDGER_OPEN_CRITICAL={open_counts['critical']}")
+    print(f"LEDGER_OPEN_MAJOR={open_counts['major']}")
+    print(f"LEDGER_OPEN_MINOR={open_counts['minor']}")
 
     if args.dry_run:
         return

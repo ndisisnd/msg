@@ -1,0 +1,9 @@
+# review-1 — a fixed problem clears. Run 1 (eng check): the model reports row 1's
+# finding as Fixed (matched by check + code + ref, not by text), and row 4 — an
+# eng check-2 row no finding matches — is cleared to Fixed because check 2 ran
+# clean. The product rows (check 1) are left alone. Run 2 (product check, no
+# findings): rows 2 and 3 clear, a Clean row is added, and nothing stays open.
+S="$REPO/.claude/scripts/script-ledger.py"
+printf '%s' '[{"check":4,"code":"EXEC_FID_UNCOVERED","ref":"F3","severity":"Critical","what":"F3 not covered by any scope map","fix":"add F3 to a scope map","why":"eng --build row reads","status":"Fixed"}]' \
+  | python3 "$S" prd-9-grace.md --auditor E --checks 2,4,5,6,7 --date 2026-08-02
+printf '%s' '[]' | python3 "$S" prd-9-grace.md --auditor P --checks 1,2,3,6 --date 2026-08-03

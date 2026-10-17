@@ -8,6 +8,7 @@
 #
 # Usage:
 #   script-prd-stamp.sh <prd.md> <field> <value>
+#   script-prd-stamp.sh <prd.md> --certify <product|eng>   (plan-review; picks the field)
 #
 # Allowed fields (scalar lifecycle stamps only — arrays are owned by
 # script-prd-deps-mirror.sh): status, reviewed, completion, staging-signoff,
@@ -49,6 +50,7 @@ INSERTABLE="completion staging-signoff"
 
 usage() {
   echo "usage: script-prd-stamp.sh <prd.md> <field> <value>" >&2
+  echo "       script-prd-stamp.sh <prd.md> --certify <product|eng>" >&2
   echo "allowed fields: $ALLOWED" >&2
 }
 
@@ -59,6 +61,24 @@ value="${3:-}"
 if [[ $# -ne 3 ]]; then
   usage
   exit 2
+fi
+
+# `--certify <product|eng>` — plan-review's certification stamp. The script, not
+# the caller, picks the field: a PRD that still carries the `product-tuned` /
+# `eng-tuned` pair is stamped on that pair (`<type>-tuned: yes`); every other PRD
+# gets `reviewed: yes`. Prints STAMP_FIELD=<field> so the caller can report it.
+if [[ "$field" == "--certify" ]]; then
+  case "$value" in
+    product|eng) ;;
+    *) echo "script-prd-stamp: --certify takes product or eng, got '$value'" >&2; usage; exit 2 ;;
+  esac
+  if [[ -f "$file" ]] && sed -n '2,/^---[[:space:]]*$/p' "$file" | grep -qE '^(product|eng)-tuned:'; then
+    field="$value-tuned"
+  else
+    field="reviewed"
+  fi
+  value="yes"
+  echo "STAMP_FIELD=$field"
 fi
 
 # Validate the field against the allow-list (whole-word match).

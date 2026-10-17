@@ -2,6 +2,15 @@
 
 ## 2026-10-17
 
+### [174] v6.0.0 plan-review — fixed findings clear, the stamp script picks the field, --migrate converts v6 shapes
+
+- `.claude/scripts/script-ledger.py`: Changed — honours a per-finding `status` (Open/Fixed) on repeat rows; matches repeats on check + code + ref (script findings) or check + section (judgment findings), then on text; `--checks` clears a prior open row whose check ran clean this run to `Fixed`; prints `LEDGER_CLEARED` and `LEDGER_OPEN_CRITICAL/MAJOR/MINOR`; writes the report scaffold itself.
+- `.claude/scripts/script-cert-status.sh`: Changed — any Critical row that is not `Fixed` blocks, so an unknown status never reads as clean.
+- `.claude/scripts/script-prd-stamp.sh`: Changed — new `--certify <product|eng>` picks `reviewed` or the older `<type>-tuned` key by itself and prints `STAMP_FIELD`.
+- `.claude/scripts/script-prd-update.py`: Changed — `--migrate` also renames §4 to "Error and edge cases", drops the §1 Success signal bullet and labels an unlabelled §3 criterion `AC1` (warns `ac-partial` on a partly labelled cell).
+- `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-migrate.md`: Changed — describe the new mechanical migrate edits.
+- `evals/cases/ledger-fix-clears/`, `evals/cases/prd-stamp-certify/`: Added — cover clearing and the stamp choice; ledger and prd-update goldens updated.
+
 ### [173] v6.0.0 intake — verifier fixes: Bash tool, shipped wording, find-the-row scope
 
 - `.claude/skills/intake/SKILL.md`: Changed — `allowed_tools` adds `Bash`; every intake mode runs scripts.

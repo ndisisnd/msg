@@ -48,8 +48,12 @@ would change; the report is identical and nothing is written.
 L1 owns, and L2 must not redo: the frontmatter mapping (`depends_on` → `deps`,
 dropping `module`/`platform`/`affects`, fusing the two tune stamps into
 `reviewed`, the status enum), moving an inline plan-review-findings section out
-to `reports/review-prd-<n>-<slug>.md`, renumbering `## 8. Todos` to `## 7.`, and
-folding a legacy `## Execution Table` heading into §6.
+to `reports/review-prd-<n>-<slug>.md`, renumbering `## 8. Todos` to `## 7.`,
+folding a legacy `## Execution Table` heading into §6, renaming §4 `Error cases`
+to `Error and edge cases`, dropping the §1 `**Success signal**` bullet, and
+labelling an unlabelled §3 criterion `AC1` (`AC1 … <br>AC2 …` when a cell already
+holds several `<br>` lines). A §3 cell that is only partly labelled is left as it
+is and reported `ac-partial` — label it by hand in U3.
 
 Two skips end the target at exit 2. Report them, carry on to the next target:
 
@@ -82,9 +86,8 @@ are restructuring mentions them, rewrite the sentence without them. Never touch
 a sentence you are not otherwise moving.
 
 **S3 — §1 becomes exactly two bullets.** `**Who**` and `**What changes**`, in
-that order, one line each. An existing `**Success signal**` bullet directly after
-them is left where it is — the shape check tolerates it and no later step reads
-it, so it is never deleted or moved. Every other extra bullet moves to
+that order, one line each. L1 has already removed a `**Success signal**`
+bullet. Every other extra bullet moves to
 §5 as an `Addressed` row — Question `"<subject> constraint confirmed?"`, Answer
 the constraint text verbatim. The one exception: a bullet that only states the
 platform is **deleted**, not relocated. Platform is detected from
@@ -97,9 +100,11 @@ by `## Engineering — <Agent>` / `## Todos — <Agent>` blocks, leave it alone.
 
 ### The invariants — hard, and checked by eye before you save
 
-1. **§3 and §4 text is preserved verbatim.** Acceptance criteria and error cases (a §4 still titled "Error cases" keeps its title and its bare `E<n>` ids — both are tolerated)
-   are the certified contract. Table *structure* may be normalised; a single
-   word of criterion text may not.
+1. **§3 and §4 text is preserved verbatim.** Acceptance criteria and error cases
+   are the certified contract. Table *structure* may be normalised and L1 adds
+   the `AC<k>` labels; a single word of criterion text may not change. Bare §4
+   `E<n>` ids stay bare — a type label needs judgement, and plan-review exempts
+   them.
 2. **F-IDs are never renumbered.** §6 keys on them; a renumber silently breaks
    the pipeline downstream.
 3. **§6, §7 and every `Engineering — <Agent>` / `Todos — <Agent>` block are

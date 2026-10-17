@@ -72,7 +72,7 @@ Two things this mode is not:
 - **It writes no `INTAKE.md` row and reads none.** The intake-only rule governs where a PRD's *idea* comes from, and a migration introduces no idea — this is maintenance on an existing artifact. Explicit carve-out; the hard refusal against skipping the PRD stage is untouched.
 - **It changes nothing about how PRDs are read.** Every other skill still normalises the old shape in memory, and no writer emits it. The read path is exactly as it was.
 
-The run is two layers: `.claude/scripts/script-prd-update.py` does the mechanical migration (frontmatter mapping, inline findings moved out to `reports/`, section renumbering), then the model does the style pass (§5 bullets → the four-column table, §1 back to its two bullets). It finishes on `script-prd-shape.py --checks 1,2,3,4,5,6` — check 6 is opt-in and requested only here, so fresh-draft gates keep running 1–5.
+The run is two layers: `.claude/scripts/script-prd-update.py` does the mechanical migration (frontmatter mapping, inline findings moved out to `reports/`, section renumbering, the §4 heading, the §1 success-signal bullet, `AC1` labels), then the model does the style pass (§5 bullets → the four-column table, §1 back to its two bullets). It finishes on `script-prd-shape.py --checks 1,2,3,4,5,6` — check 6 is opt-in and requested only here, so fresh-draft gates keep running 1–5.
 
 ## Step-by-step protocol
 

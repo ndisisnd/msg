@@ -1,8 +1,10 @@
 # STYLE DRIFT IS L2 TERRITORY — a PRD can be structurally current (v5.4
 # frontmatter, seven sections) and still carry the old §5 bullet list and extra
 # §1 bullets. Three assertions, in order:
-#   1. the deterministic migrator leaves it alone — style is never guessed at (exit 0, no-op)
-#   2. the opt-in style check names exactly that drift
+#   1. the deterministic migrator makes only the mechanical shape edits (§4
+#      heading, §1 Success signal bullet, AC1 label) — the rest of the style is
+#      never guessed at (exit 1, migrated)
+#   2. the opt-in style check names exactly the drift that is left
 #   3. the hand-converged file — §5 as the four-column table, §1 back to Who +
 #      What changes (its legacy Success signal bullet is tolerated), the auth
 #      constraint relocated as an Addressed row and the
