@@ -300,21 +300,6 @@ else
   FAILED+=("roadmap/TEMPLATE-roadmap.md")
 fi
 
-# ── .claude/msg/ execution-mode preference ────────────────────────────────────
-# The persisted team/solo planning execution mode consumed by plan-em (Step 0).
-# Seeded here so /msg --init owns first-run creation and /msg --update tops it up
-# on repos bootstrapped before it existed. Deterministic — no interview input;
-# default is "team" (the pipeline default), flipped anytime via plan-em --solo/--team.
-# Schema + consumers: .claude/skills/shared/refs/exec-mode-pref.md.
-
-if [[ -e "$TARGET/.claude/msg/pref.json" ]]; then
-  SKIPPED+=(".claude/msg/pref.json")
-elif mkdir -p "$TARGET/.claude/msg" && printf '%s\n' '{"exec_mode": "team"}' > "$TARGET/.claude/msg/pref.json"; then
-  CREATED+=(".claude/msg/pref.json|1")
-else
-  FAILED+=(".claude/msg/pref.json")
-fi
-
 # ── features/ flat-PRD migration (change 6) ───────────────────────────────────
 # One-time sort of any pre-lane flat PRD dirs — features/prd-<n>-<slug>/ sitting
 # directly under features/, not already inside a lane — into a lane by the GUI

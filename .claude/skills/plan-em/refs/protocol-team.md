@@ -1,12 +1,12 @@
 ---
 name: Team Orchestrator Protocol
-description: The orchestrator engineer agent (Opus) plan-em spawns in --team mode — decomposes the active wave below the roster/stack level into file-disjoint, model-tiered work packets and fans them out to leaf eng subagents to maximise parallelism
+description: The orchestrator engineer agent (Opus) plan-em spawns at Step 4 — decomposes the active wave below the roster/stack level into file-disjoint, model-tiered work packets and fans them out to leaf eng subagents to maximise parallelism
 type: reference
 ---
 
 # Team Orchestrator Protocol
 
-Loaded when `plan-em` runs in **`--team`** mode (the default — see `refs/protocol-em.md`
+Loaded on every `plan-em` run (the team lane — `refs/protocol-em.md`
 Step 0). plan-em spawns **one orchestrator engineer agent on Opus** at Step 4 and
 hands it the active wave; this file is that agent's protocol. The orchestrator does
 **not** write engineering sections or code itself — it decomposes the wave and

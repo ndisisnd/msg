@@ -3,15 +3,14 @@ name: plan-em
 description: >
   Engineering Manager skill. Reads an approved PRD, runs pre-flight checks against
   AHA.md, GLOSSARY.md and ARCHITECTURE.md, auto-runs plan-review certification inline
-  (no ask), identifies specialist agents to activate (roster approval — the single
-  human gate), spins them up to write engineering sections directly into the PRD, then
-  synthesises the full output. Sizes itself on the PRD's intake grade: a medium PRD
-  runs one fused plan+build wave behind one certification, a large PRD keeps the
-  two-wave path with a certification before each. Runs in --team mode by default (an Opus orchestrator
-  engineer decomposes each wave into file-disjoint, model-tiered packets fanned out to
-  leaf eng subagents) or --solo (one leaf subagent per roster stack). Refuses without a
-  referenced PRD .md path.
-argument-hint: "<prd-path> [--team | --solo] [--quiet | --status <n>m] [--review [on|off]]"
+  (no ask), picks the specialist agents (it asks to approve the roster only when the
+  roster is unusual for the project), spins them up to write engineering sections
+  directly into the PRD, then synthesises the full output. Sizes itself on the PRD's
+  intake grade: a medium PRD runs one fused plan+build wave behind one certification, a
+  large PRD keeps the two-wave path with a certification before each. An Opus
+  orchestrator engineer decomposes each wave into file-disjoint, model-tiered packets
+  fanned out to leaf eng subagents. Refuses without a referenced PRD .md path.
+argument-hint: "<prd-path> [--quiet | --status <n>m] [--review [on|off]]"
 allowed_tools:
   - Agent
   - AskUserQuestion
@@ -46,19 +45,11 @@ allowed_tools:
 
 ## Execution mode
 
-Two mutually exclusive execution lanes — **`--team` is the default**. The flag changes
-only **how the wave is dispatched at Step 4**; every other step is identical in both lanes.
-
-| Flag | Lane | Step 4 dispatch |
-|------|------|-----------------|
-| `--team` (default) | **Team** | one **orchestrator engineer agent on Opus** decomposes the wave below the roster/stack level into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents. |
-| `--solo` | **Solo** | **one leaf `eng` subagent per roster stack**, whole-stack scope each, on the inherited model. |
-
-In `--team` mode plan-em is a **thin dispatcher**: it spawns the orchestrator
-**backgrounded** as one watched leaf and relays its `REPORT` blocks; run-ids stay disjoint
-(`emteam-<epoch>` vs `em-<epoch>`) — mechanics in `refs/protocol-em.md` Step 4 +
-`../shared/refs/status-heartbeat.md` § *Relaying across a subagent boundary*. The mode is a
-**persisted preference**, not just a per-run flag (`refs/protocol-em.md` Step 0; pref file: `../shared/refs/exec-mode-pref.md`).
+plan-em always runs the team lane and never names the lane to the user. At Step 4 it
+spawns one **orchestrator engineer agent on Opus**, backgrounded and watched, which
+decomposes the wave into file-disjoint, model-tiered packets for leaf `eng` subagents
+(`refs/protocol-team.md`). A hidden `--solo` flag (maintainers and debugging) runs one
+leaf per roster stack for that run only; it is never saved (`refs/protocol-em.md` Step 0).
 
 ## Size tier — how many invocations a PRD costs
 
@@ -73,7 +64,7 @@ certification (a mechanical plan-shape check replaces the eng cert); `C:` **≥ 
 | Name | Format | Source |
 |------|--------|--------|
 | PRD file path | `.md` file path matching `features/{planned,wip,done}/prd-*/prd-*.md` (or legacy flat `features/prd-*/prd-*.md`) | User message at invocation, or handoff from `plan-pm` / `plan-review` |
-| Execution-mode flag · clarification answers | `--team` (default) / `--solo` · `AskUserQuestion` selections | User message at invocation · human during ambiguity resolution and agent approval |
+| Clarification answers | `AskUserQuestion` selections | Human during ambiguity resolution and an unusual-roster approval |
 
 ## Outputs
 
@@ -92,7 +83,7 @@ it — do not reconstruct a bare `features/prd-[n]/` path.
 
 ## Step-by-step protocol
 
-Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and their outputs. In `--team` mode Step 4 hands the wave to the orchestrator whose protocol is `refs/protocol-team.md`.
+Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and their outputs. Step 4 hands the wave to the orchestrator whose protocol is `refs/protocol-team.md`.
 
 **Closing message (both lanes, every outcome):** end with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's synthesis. Take the next step from the registry's `plan-em` row; never compose it, never invoke it.
 
@@ -101,6 +92,6 @@ Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, thei
 ## References
 
 - `refs/protocol-em.md` — end-to-end execution protocol (Step 0 mode resolve + five steps); followed from § Step-by-step protocol
-- `refs/protocol-team.md` — the Opus orchestrator engineer's protocol, spawned at Step 4 in `--team` mode · `refs/template-exec-table.md` — execution-table shape + concern checklist (Step 3)
-- `../shared/refs/` — `exec-mode-pref.md` (the persisted team/solo pref, `.claude/msg/pref.json`) · `closing-message.md` · `doctor-logging.md` · `status-heartbeat.md`
+- `refs/protocol-team.md` — the Opus orchestrator engineer's protocol, spawned at Step 4 · `refs/template-exec-table.md` — execution-table shape + concern checklist (Step 3)
+- `../shared/refs/` — `closing-message.md` · `doctor-logging.md` · `status-heartbeat.md`
 - `.claude/skills/eng/SKILL.md` — eng agent entry point; Step 4 subagents read this and run `--plan` or `--build` mode · `.claude/skills/eng/refs/plan/template-todo.md` — the todo ticket schema consumed by build agents

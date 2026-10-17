@@ -19,7 +19,7 @@ Each is the router for its own behaviour — start here to change what a skill d
 - [intake](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/intake/SKILL.md): the backlog front door — captures and grades ideas into `INTAKE.md`
 - [plan-pm](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-pm/SKILL.md): autonomous PRD writer, consumes a graded intake row
 - [plan-review](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-review/SKILL.md): seven-check contract certifier, each check bound to a named downstream consumer
-- [plan-em](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-em/SKILL.md): engineering manager — roster approval, then fans out specialist subagents per wave
+- [plan-em](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-em/SKILL.md): engineering manager — picks the specialist roster (asks only when it is unusual), then fans out subagents per wave
 - [eng](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/eng/SKILL.md): `--plan` / `--build` / `--review` — the only skill that writes product code
 - [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the CI gate — manifest-driven pipeline executor, opens the PR to staging
 - [merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/merge/SKILL.md): the ship gate — the only merger; `--staging` sign-off, `--production` release

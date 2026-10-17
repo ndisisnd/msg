@@ -147,7 +147,7 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | `/plan-pm --migrate` | Brings an existing PRD up to the current template and style — one PRD or `--all`. Maintenance only: acceptance criteria, F-IDs, and everything engineering wrote stay untouched. |
 | `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. Run it any time; `/plan-pm` and `/plan-em` suggest it, and `/plan-em` runs it by itself on a PRD that was never checked. |
 | `/plan-pm --review on` | Makes `/plan-pm` (or `/plan-em --review on` for `/plan-em`) run `/plan-review` at the end of every run in this project. `off` goes back to a suggestion; a bare `--review` does it for one run. |
-| `/plan-em` | Turns the PRD into an engineering plan. It proposes a roster of specialists for the work — approving that roster is your only decision here — then puts them to work. |
+| `/plan-em` | Turns the PRD into an engineering plan. It picks the specialists for the work and puts them to work. It asks you to approve the roster only when it is unusual for the project. |
 
 ### Build
 

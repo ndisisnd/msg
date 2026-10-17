@@ -74,7 +74,6 @@ type: reference
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
 | devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2, `policies.intake.brainstorm:true`. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
-| .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, `features/`, **and `devkit/DOCTOR.md`** — the ledger files, the PRD lanes and the harness telemetry are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
@@ -105,8 +104,8 @@ Parse the nine `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK
 | `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
 | otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
 
-**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/ENV.md`, `devkit/PLATFORMS.md`,
-`devkit/policy.json` or `.claude/msg/pref.json` existed can never receive them by
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/ENV.md`, `devkit/PLATFORMS.md`
+or `devkit/policy.json` existed can never receive them by
 waiting: `init.sh` writes any absent file, but the protocol used to stop at "nothing to
 initialise" before reaching it. Top-up is that repair — and it is **strictly additive**:
 

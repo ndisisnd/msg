@@ -66,7 +66,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one, `--health` finds stale or wrong rows |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
 | Planning | plan-review | PRD contract certifier — seven consumer-bound checks; suggested after plan-pm and plan-em |
-| Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |
+| Planning | plan-em | Engineering plan generator — certifies each wave, asks about the roster only when it is unusual |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, opens PR feature→staging |
 | Build & Ship | merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |

@@ -35,27 +35,9 @@ bash "$T" --stage <stage> --reports-dir "$PRD_DIR/reports" --run-id "$TIMING_RUN
 
 ---
 
-**Step 0 — Resolve execution mode** (resolve before Step 1)
+**Step 0 — Dispatch lane** (resolve before Step 1)
 
-Resolve `$TEAM_MODE` from the **inline flag**, else the **persisted preference**, else the
-default. The pref file (path resolution, schema, and the read snippet) is defined in
-`.claude/skills/shared/refs/exec-mode-pref.md` — the shared source of truth `/msg --init`
-seeds at bootstrap (`/msg --update` tops it up on older repos). Precedence:
-
-1. **Inline flag wins.** `--solo` / `--team` in the invocation → set `$TEAM_MODE` to it,
-   **persist** `{"exec_mode": "<target>"}` to the resolved pref path (§ Read + flag-override
-   in the shared ref — create `.claude/msg/` if needed), and emit `Execution mode: <target>
-   (persisted).`. Both flags at once → hard failure: `Pass at most one of --team / --solo.` Stop.
-2. **Else read the pref file** (local `.claude/msg/pref.json`, then global `~/.claude/msg/pref.json`
-   — local wins) → its `exec_mode` → `$TEAM_MODE`.
-3. **Else default `team`** (**the pipeline default**). Do **not** create the pref file here —
-   `/msg --init` (or `--update`) seeds it when absent.
-
-Strip the recognised flag from the argument string **before** resolving the PRD path in
-Step 1a, so path validation never sees it. `$TEAM_MODE` is consumed only at Step 4 (the
-dispatch lane); every other step is identical in both modes. Cache it for the run — a
-later `plan-em` invocation (e.g. the build wave after the plan wave) re-resolves it the
-same way, so the persisted pref carries the choice across waves without re-passing a flag.
+`$TEAM_MODE = team` on every run. The hidden `--solo` flag (maintainers and debugging only) sets `$TEAM_MODE = solo` for this run only: it is never saved, and a later run is `team` again. `--team` is accepted and changes nothing. Strip either flag from the argument string before Step 1a. Never name the lane to the user — no "Execution mode" line. `$TEAM_MODE` is read only at Step 4.
 
 ---
 
@@ -189,7 +171,7 @@ No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its
 **Resume rules — Steps 1–3 re-run on every invocation.** The build wave arrives as a *second* `/plan-em` on the same PRD, so this step must be idempotent. Check the PRD's current state before doing 3b's work and take the resume path wherever it applies:
 
 - **Exec table already present** — the reserved `## 6. Feature execution table` section holds real rows rather than its `_To be populated by plan-em …_` placeholder. **Verify, do not render:** confirm (i) that section is the table's only home — no second `## Execution Table` heading was appended alongside it — and (ii) every row's Feature cell keys on an F-ID that still exists in the PRD's §3 Features & acceptance criteria table. Verified → skip the skeleton render entirely; **never append a second table.** A verification failure (a duplicate table, or a row keying on an F-ID §3 no longer carries) is a hard stop — surface it and let the user reconcile; do not re-render over it.
-- **Roster already approved** — the digest's `engineering_agents` field (the same field Step 4 mode-detection reads) already lists every agent the roster in 3b would propose. This is the build-wave case: the gate is a **per-PRD approval, not a per-wave one**, and it already happened. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan wave: eng-backend, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-fire the approval `AskUserQuestion`.
+- **Roster already approved** — the digest's `engineering_agents` field (the same field Step 4 mode-detection reads) already lists every agent the roster in 3b would propose. This is the build-wave case: the gate is a **per-PRD approval, not a per-wave one**, and it already happened. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan wave: eng-backend, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-ask the roster question even when the roster is unusual.
 - **3a still runs either way — but consult the standards cache first (v5.6.5).** The build wave's dispatch (Step 4) needs the compiled `/cook` payloads; since v5.6.5 they persist across runs under `.claude/msg/cache/` (§ 3a cache check below), so "runs either way" usually means a cache hit, not a recompile. Only 3b's approval interview and the skeleton render are resumable.
 
 **3a — Compile coding standards (flags) to confirm agent types.** Before proposing any roster, derive platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — using the stack→flag derivation in `.claude/skills/eng/refs/build/protocol.md` (§ Coding-standards flags): `--global` (mandatory, unscoped — guarantees the P0 floor) plus, for each platform, **diff-scoped domain sub-ref flags** rather than the bare domain flag.
@@ -204,24 +186,33 @@ No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its
   `HIT <payload-path>` → read that file as the compiled payload for this stack and **skip the `/cook` call**. `MISS` (any reason) → call `/cook` exactly as above, write the returned payload to a temp file, then `python3 "$C" --store --flags "<same flag set>" --payload <temp-file> || true` (best-effort; a failed store never blocks the run). The cache is hash-keyed on cook's own source files, so a standards edit invalidates it automatically — see `../../shared/refs/session-cache.md` § Consumers.
 - Read each result fully (cache hit or fresh compile) and **retain the compiled payload per stack** — this is the *compile-once, share-many* standards payload injected into build subagents at Step 4. Cook is called **at most once per distinct stack per run**, and with a warm cache, zero times.
 - A platform whose flags `/cook` accepts is covered; its flag names the canonical agent identifier (`eng-<platform>`). Do not derive agent names from the PRD alone — `/cook`'s flag set is the authority on supported platforms.
-- If `/cook` has no flag for an implied platform (rejects the flag with the valid-flag list): surface as a blocking gap — emit a warning, list the uncovered platform, and ask via `AskUserQuestion` before continuing.
+- If `/cook` has no flag for an implied platform (rejects the flag with the valid-flag list): the roster is unusual — list the uncovered platform and ask in 3b's one roster question before continuing.
 
-**3b — Propose language-targeted roster and get approval.** Map every PRD feature to the covered platforms from 3a. One agent per language/platform stack in scope. Do **not** collapse platforms to reduce count: `eng-ios` and `eng-android` own different codebases, toolchains, and integration concerns — never merge. An under-staffed roster produces a worse plan.
+**3b — Propose the roster; ask only when it is unusual.** Map every PRD feature to the covered platforms from 3a. One agent per language/platform stack in scope. Do **not** collapse platforms to reduce count: `eng-ios` and `eng-android` own different codebases, toolchains, and integration concerns — never merge. An under-staffed roster produces a worse plan.
 
-**Open the gate with the PRD's intent.** This is the run's single human gate, and an approver cannot judge staffing for a feature the message never restates. So **before** the roster table, emit **2–3 lines of what the PRD is trying to do** — the product intent, not the engineering shape. Source it from the Step 1b digest's `summary` field (already in hand — no new read, no new script); if `summary` is thin, distil the objective plus the feature count from the digest's `features`. Then the table, then the question.
+**The usual roster** is the stacks named in `devkit/ARCHITECTURE.md` (read at 1b) plus the agents of earlier PRDs:
 
-Present as a table:
+```bash
+grep -rhE '^## Engineering — ' features --include='prd-*.md' --exclude="$(basename "<PRD path>")" 2>/dev/null | sed 's/^## Engineering — //' | sort -u
+```
+
+**Usual roster → one information line, no question.** Every roster agent appears in an earlier PRD **and** its stack is named in `devkit/ARCHITECTURE.md` → emit `Roster: eng-backend (F1, F2), eng-ios (F3).` and continue.
+
+**Unusual roster → ask.** Ask when any of these holds:
+- a roster agent appears in no earlier PRD (a new stack — this includes the project's first PRD);
+- a roster agent's stack is not named in `devkit/ARCHITECTURE.md` (it differs from the project's usual roster);
+- 3a found a stack `/cook` does not support (fold that warning into this one question).
+
+Before the question, emit **2–3 lines of what the PRD is trying to do** (from the 1b digest's `summary`; if thin, the objective plus the feature count from `features`), then one line naming why the roster is unusual, then the table:
 
 | Agent | Domain | Scope summary | PRD features covered |
 |-------|--------|---------------|----------------------|
 
-Then ask approval via `AskUserQuestion`:
-- **Approve roster** — proceed with agent activation.
-- **Revise roster** — user provides changes; re-run 3b with the revision (do **not** re-fetch `/cook`).
+Then ask via `AskUserQuestion`:
+- **Approve roster** — continue.
+- **Revise roster** — the user gives the changes; re-run 3b with them (do **not** re-fetch `/cook`). A revised roster is approved by the revision itself.
 
-Do not activate any agent without explicit approval.
-
-**Execution table skeleton.** Once the roster is approved, **decide** the exec-table rows but **render** them with the skeleton script — anchor typos and row-text drift are then impossible (`refs/template-exec-table.md` is the guide for the table shape and the concern checklist):
+**Execution table skeleton.** Once the roster is set, **decide** the exec-table rows but **render** them with the skeleton script — anchor typos and row-text drift are then impossible (`refs/template-exec-table.md` is the guide for the table shape and the concern checklist):
 - Enumerate features from the PRD's Features & acceptance criteria table — the F-IDs there (F1, F2, …) are the canonical feature list and the key for every exec-table row.
 - For each F-ID, enumerate applicable execution concerns (API contract, schema migration, authentication, webhooks/hooks, client implementation, tests — the checklist in `refs/template-exec-table.md`) and decide the `(feature, concern, agent)` tuple for each row. **This judgment stays with the LLM.**
 - Emit those tuples as a JSON spec — one `{"fid","concern","agent"}` object per row, in row order — and pipe it through the renderer (two-path resolution). It reads §3 to resolve each `fid → <name>`, builds each `Feature — concern` cell as `<F-ID>: <name> — <concern>`, sets Agent, and leaves **Files** blank — the table is three columns as of v5.4 (`Feature — concern | Files | Agent`), and Files is filled later by derivation, never by an agent:

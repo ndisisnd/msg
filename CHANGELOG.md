@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [179] v6.0.0 plan-em — roster asks only when unusual, team lane is hidden
+
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 3b shows the roster as one line and asks only for a new stack, a stack missing from `devkit/ARCHITECTURE.md`, or a stack `/cook` does not support; Step 0 always runs the team lane, `--solo` is a hidden one-run flag that is never saved.
+- `.claude/skills/plan-em/SKILL.md`, `.claude/skills/plan-em/refs/protocol-team.md`: Changed — description, argument hint and § Execution mode no longer offer team vs solo or a single roster gate.
+- `.claude/skills/shared/refs/exec-mode-pref.md`: Removed — the lane is no longer a saved preference.
+- `.claude/skills/msg/refs/init/init.sh`, `.claude/skills/msg/refs/init/init-setup.sh`, `.claude/skills/msg/refs/protocol-init.md`: Changed — `/msg --init` no longer seeds `.claude/msg/pref.json`.
+- `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `llms.txt`, `.claude/skills/msg/SKILL.md`: Changed — the roster is approved only when unusual; no team/solo choice.
+
 ### [178] v6.0.0 plan-em — Step 5 script path, one agent-name format
 
 - `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 5 digest call uses the two-path lookup, so it works where scripts live only in `~/.claude/scripts/`; agent examples use `eng-<platform>`.
