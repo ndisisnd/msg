@@ -5,11 +5,13 @@ description: >
   AHA.md, GLOSSARY.md and ARCHITECTURE.md, auto-runs plan-review certification inline
   (no ask), picks the specialist agents (it asks to approve the roster only when the
   roster is unusual for the project), spins them up to write engineering sections
-  directly into the PRD, then synthesises the full output. Sizes itself on the PRD's
-  intake grade: a medium PRD runs one fused plan+build wave behind one certification, a
-  large PRD keeps the two-wave path with a certification before each. An Opus
-  orchestrator engineer decomposes each wave into file-disjoint, model-tiered packets
-  fanned out to leaf eng subagents. Refuses without a referenced PRD .md path.
+  directly into the PRD, then prints a short digest. Never builds automatically: every
+  run stops after the plan half and asks "Start the build now?"; No ends the run and a
+  later /plan-em resumes at the build half. The PRD's intake grade picks the check before
+  the build: a mechanical plan-shape check on a medium PRD, the eng certification on a
+  large one. An Opus orchestrator engineer decomposes each half into file-disjoint,
+  model-tiered packets fanned out to leaf eng subagents. Refuses without a referenced
+  PRD .md path.
 argument-hint: "<prd-path> [--quiet | --status <n>m] [--review [on|off]]"
 allowed_tools:
   - Agent
@@ -46,18 +48,22 @@ allowed_tools:
 ## Execution mode
 
 plan-em always runs the team lane and never names the lane to the user. At Step 4 it
-spawns one **orchestrator engineer agent on Opus**, backgrounded and watched, which
-decomposes the wave into file-disjoint, model-tiered packets for leaf `eng` subagents
+spawns one **orchestrator engineer agent on Opus** per half, backgrounded and watched, which
+decomposes the half into file-disjoint, model-tiered packets for leaf `eng` subagents
 (`refs/protocol-team.md`). A hidden `--solo` flag (maintainers and debugging) runs one
 leaf per roster stack for that run only; it is never saved (`refs/protocol-em.md` Step 0).
 
-## Size tier — how many invocations a PRD costs
+## Run shape and size tier
 
-Independent of the lane, the **size tier** decides the PRD's ceremony, resolved once from
-the intake complexity grade (`refs/protocol-em.md` Step 1e — no flag, no question): `C:`
-**< 8** or unresolvable ⇒ **medium**, one fused plan+build invocation behind one product
-certification (a mechanical plan-shape check replaces the eng cert); `C:` **≥ 8** ⇒
-**large**, plan wave then build wave, a certification before each. An interrupted fused run is resumed by re-invoking `/plan-em` on the same PRD — no flag, no state file.
+plan-em never builds automatically. Every run plans, prints a short summary, and asks
+**"Start the build now?"**. Yes → the build half runs in the same run. No → the run ends;
+a later `/plan-em` on the same PRD resumes at the build half. A run that dies resumes the
+same way.
+
+The **size tier**, resolved once from the intake complexity grade (`refs/protocol-em.md`
+Step 1e — no flag, no question), picks the check before the build half. Both sizes run
+the product certification before planning. `C:` **< 8** or unresolvable ⇒ **medium**: a
+mechanical plan-shape check. `C:` **≥ 8** ⇒ **large**: the plan-review eng certification.
 
 ## Inputs
 
@@ -72,7 +78,7 @@ certification (a mechanical plan-shape check replaces the eng cert); `C:` **≥ 
 |------|--------|-------------|
 | Pre-flight report | Markdown findings file — **written only when the scan found something**; a clean run emits one inline line and no file | `features/prd-[n]-[slug]/preflight.md` |
 | Engineering sections | Structured markdown per agent | Appended to the PRD file |
-| Synthesis report | Numbered findings with severity | Emitted inline at end of run |
+| Run digest | Built · Branch · Review · Findings lines, Critical findings listed below | Emitted inline above the closing message |
 | Stage timing log | Append-only TSV, one line per stage boundary | `features/prd-[n]-[slug]/reports/timings-<date>.log` |
 
 **No separate engineering plan files — all output lives in the PRD.** The pre-flight
@@ -83,9 +89,9 @@ it — do not reconstruct a bare `features/prd-[n]/` path.
 
 ## Step-by-step protocol
 
-Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and their outputs. Step 4 hands the wave to the orchestrator whose protocol is `refs/protocol-team.md`.
+Follow `refs/protocol-em.md` end-to-end — it owns the steps, their order, their scripts, and their outputs. Step 4 hands each half to the orchestrator whose protocol is `refs/protocol-team.md`.
 
-**Closing message (both lanes, every outcome):** end with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's synthesis. Take the next step from the registry's `plan-em` row; never compose it, never invoke it.
+**Closing message (every outcome):** end with the closing message per `../shared/refs/closing-message.md` — the last chat output, after Step 5's digest. Take the next step from the registry's `plan-em` row; never compose it, never invoke it.
 
 **Harness incidents (both lanes):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
 

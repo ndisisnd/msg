@@ -46,7 +46,7 @@ Emoji are the circle set only — 🟢/🟡/🔴. Never ✅/⚠️/❌ or other 
 
 Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from THIS run's actual artifacts. Fail-path commands must match `fix-loop.md` byte-for-byte.
 
-`plan-em` has three rows, one per `$MODE` at Step 4 — pick the row for the wave that just finished. A **large** PRD runs one wave per invocation (`plan`, then `build` on a second call); a **medium** PRD runs the `fused` wave, which plans *and* builds in one invocation and therefore lands on the same next step a build wave does.
+`plan-em` has two rows — pick the one for how the run ended. Every run plans, then asks "Start the build now?": a **No** ends on the plan wave row; a **Yes**, or a later run that resumed at the build half, ends on the build wave row.
 
 | Skill / mode | 🟢 | 🟡 | 🔴 |
 |---|---|---|---|
@@ -54,9 +54,8 @@ Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from T
 | plan-pm (default / --sub) | Run `/plan-review <prd>` if you want the PRD checked now, then `/plan-em <prd>` (when plan-review already ran this run: Run `/plan-em <prd>` now) | Resolve each flagged decision in `<prd>`, then run `/plan-review <prd>` or `/plan-em <prd>` | Provide the missing input named above, then re-run `/plan-pm` |
 | plan-pm --update | Run `/plan-review <prd>` to re-certify the changed PRD | Resolve each flagged item in `<prd>`, then run `/plan-review <prd>` | Fix the stated blocker, then re-run `/plan-pm --update <prd>` |
 | plan-pm --migrate | Nothing to do — you're done. | Resolve each skipped or placeholder target named above, then re-run `/plan-pm --migrate <prd>` | Fix the gate failure in `<prd>`, then re-run `/plan-pm --migrate <prd>` |
-| plan-em — plan wave | Run `/plan-review <prd>` if you want the plan checked now, then `/plan-em <prd>` again to start the build wave | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again for the build wave | Provide the missing input named above, then re-run `/plan-em <prd>` |
-| plan-em — fused wave | Run `/plan-review <prd>` if you want the plan checked, then `/pre-merge` | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` (it resumes at the build half) |
-| plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` |
+| plan-em — plan wave | Run `/plan-review <prd>` if you want the plan checked now, then `/plan-em <prd>` again to start the build | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again to start the build | Provide the missing input named above, then re-run `/plan-em <prd>` |
+| plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` (it resumes at the build half) |
 | plan-review (product / eng check) | Run `/plan-em <prd>` now | Decide on each open item in the result block, then run `/plan-em <prd>` | Resolve the open Critical named above, then re-run `/plan-review <prd>` |
 | eng --plan | Run `/eng --build` now | Review the plan's open questions in `<fix-plan path>`, then run `/eng --build` | Fix the stated blocker, then re-run `/eng --plan report=<path>` |
 | eng --build | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Run `/eng --plan report=<report .json path>` (or `/eng --build report=<path>` to fix directly, per fix-loop.md) |

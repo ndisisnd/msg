@@ -2,6 +2,16 @@
 
 ## 2026-10-17
 
+### [180] v6.0.0 plan-em — never builds automatically, short digest, internals moved out
+
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — every run (medium and large) stops after the plan half, prints a 3-line summary and asks "Start the build now?"; Yes runs the check before the build (plan-shape check on medium, eng certification on large) and the build half in the same run, No keeps the run state open with the build not started; plan-em always cuts the branch; Step 5 prints a Built · Branch · Review · Findings digest with Critical findings listed below it; history and rationale text removed (10,006 → 5,256 words).
+- `.claude/skills/plan-em/refs/internals.md`: Added — stage timing, the run-state file, the team-lane heartbeat relay and prompt-cache field order, read only at the call sites that name them.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — one orchestrator spawn per half; the fused wave and its branch-cut exception are removed; the orchestrator never touches branches or PRD status (5,976 → 3,179 words).
+- `.claude/skills/plan-em/SKILL.md`: Changed — description and § Run shape describe the stop after the plan half; the output is a digest.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the `plan-em — fused wave` row is removed; plan wave = the run ended on No, build wave = it built.
+- `.claude/scripts/script-em-state.py`: Changed — `--mode` accepts `plan` or `build`.
+- `ARCHITECTURE.md`: Changed — describes the plan → ask → build run shape and keeps the rationale for the certification precondition and the derived Files column.
+
 ### [179] v6.0.0 plan-em — roster asks only when unusual, team lane is hidden
 
 - `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 3b shows the roster as one line and asks only for a new stack, a stack missing from `devkit/ARCHITECTURE.md`, or a stack `/cook` does not support; Step 0 always runs the team lane, `--solo` is a hidden one-run flag that is never saved.
