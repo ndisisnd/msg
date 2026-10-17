@@ -587,7 +587,7 @@ signal (`aborted` / `aborted_by`). It refuses malformed input rather than quietl
 dropping a component. No `--diff` ⇒ the out-of-diff downgrade is skipped: a finding
 is never weakened on a guess.
 
-**Judgment stays out of the script**, and stays with the model:
+**Judgment stays with the model; the verdict stays with the script.** The model judges:
 
 - **reachability** (`../severity-rubric.md` §3 — dead code, compile-time-false flags),
 - **profile coverage floors** and any in-context re-grading,
@@ -595,9 +595,17 @@ is never weakened on a guess.
   what turns a repeated `component-errored` finding into a visible standing breakage
   rather than a fresh surprise each run.
 
-Apply those to the script's `issues[]`, then re-derive the verdict with the same
-rule the script used: `fail` (any blocker/high) · `pass_with_warnings` (only
-medium/low) · `pass` (zero) · `refused`/`skipped` (early-termination paths).
+Write those judgments to `.pre-merge/<ts>/regrades.json` — a JSON array, one entry per
+judged finding: `{category, file, line, rule, severity?, regression?, reason}` (the
+four key fields copied from the script's `issues[]`). Then run the script once more
+with `--regrades .pre-merge/<ts>/regrades.json`. It applies the re-grades and the
+regression marks and computes the **one** final verdict, the counts and `issues[]`.
+**The model never computes a verdict by hand**, so the verdict, the counts and the
+issues file cannot disagree. No judgments ⇒ the first run's output is final. An entry
+that matches no issue comes back in `regrades_unmatched`; fix the key and re-run.
+Verdict rule (the script's): `fail` (any **blocking** finding — blocker/high, except a
+prd-consistency finding other than `acceptance-unmet`) · `pass_with_warnings` (any
+other finding) · `pass` (zero) · `refused`/`skipped` (early-termination paths).
 
 **Verdict JSON (stdout — the final emission, `../refs/output-schema.md`).** Two
 optional fields ride along: `pipeline` — the resolved ordered wave list + what each

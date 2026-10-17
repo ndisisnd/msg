@@ -23,6 +23,10 @@ component's note (`"No <kind> runner detected — <name> component skipped."`) a
 return. A missing runner skips the component — never `fail`. Record it as
 `skipped: {reason: "no_tooling"}`.
 
+**One exception: `smoke` never skips.** With no `smoke_runner`, smoke runs its default
+liveness check (an HTTP 200, or a clean launch) and never takes the "component
+skipped" path (`platform/protocol-smoke.md` §1).
+
 ## Component-level error rule
 
 A runner crash, missing binary, unreachable target, or auth failure within a

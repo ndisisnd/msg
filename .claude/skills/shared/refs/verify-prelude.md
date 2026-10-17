@@ -37,7 +37,7 @@ retired). In v3 the executor reads each component's resolved `run` from the
 
 ## Freshness key
 
-`head` (`rtk git rev-parse HEAD`) **plus** `base` (the diff base/range). Fresh ⟺
+`head` (`git rev-parse HEAD`) **plus** `base` (the diff base/range). Fresh ⟺
 both equal the current run's HEAD and base. Any mismatch, missing file, or
 unparseable JSON → **stale**.
 

@@ -15,7 +15,7 @@ Run each mechanical runner resolved for this component in `devkit/policy.json`
 
 ```
 for runner in detected.mechanical_runners:
-  rtk <runner.command with the diff's files>
+  <runner.command with the diff's files>
 ```
 
 - Non-zero exit and `severity_on_fail == "block"` → `blocker` finding (`source: lint:` / `format:` / `typecheck:`), first error line quoted.

@@ -58,7 +58,7 @@ if "git commit" in cmd:
     ):
         deny(
             "CHANGELOG gate: before this commit, read the staged diff "
-            "(`rtk git diff --cached`), append a concise summary of these "
+            "(`git diff --cached`), append a concise summary of these "
             "changes to CHANGELOG.md under the Unreleased section, then run "
             "`git add CHANGELOG.md` and re-run the commit. This check passes "
             "automatically once CHANGELOG.md is staged."
@@ -71,7 +71,7 @@ elif "git push" in cmd:
         if files and not any(f.endswith("CHANGELOG.md") for f in files):
             deny(
                 "CHANGELOG gate: the unpushed commits don't update "
-                "CHANGELOG.md. Read their diff (`rtk git diff @{u}..HEAD`), "
+                "CHANGELOG.md. Read their diff (`git diff @{u}..HEAD`), "
                 "summarize the changes into CHANGELOG.md under the Unreleased "
                 "section, commit that, then re-run the push."
             )

@@ -1,0 +1,2 @@
+{"verdict":"pass_with_warnings","summary":{"blocker":0,"high":1,"medium":1,"low":1},"regressions":1,"regrades_applied":2,"unmatched":1,"sev":[{"rule":"out-of-scope","severity":"high","regression":null},{"rule":"acceptance-untested","severity":"medium","regression":true},{"rule":"unit-test-failure","severity":"low","regression":null}]}
+fail

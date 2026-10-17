@@ -83,8 +83,8 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | nn | id | run (detection field / mechanism) | ref | check |
 |----|----|------------------------------------|-----|-------|
 | 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `script-preflight-01-mechanical.sh` |
-| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-unit.md` | `script-preflight-02-unit.sh` |
-| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-integration.md` | `script-preflight-03-integration.sh` |
+| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-tests.md` | `script-preflight-02-unit.sh` |
+| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-tests.md` | `script-preflight-03-integration.sh` |
 | 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾ | `universal/protocol-regression.md` | `script-preflight-04-regression.sh` |
 | 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `script-preflight-05-security.sh` |
 | 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `script-preflight-06-coverage.sh` |
@@ -121,13 +121,14 @@ web-only *runner* against a broader applicability is an **enforced
   an expensive component affordable to gate — but does **not** change whether configured
   thresholds block (criticality stays `†` config-driven); diff-scoping governs *when* it
   runs, not *whether* thresholds block.
-- **ᴸ** — **advisory by epistemic limit** (C11): `prd-consistency` grades a diff with an
-  LLM. It can judge *"is there evidence someone attempted this criterion, and does a
-  test exist?"*; it cannot certify correctness. So its findings are **recorded, never
-  blocking** — they are routed to the human who can judge, via `manual-test-plan`'s
-  significance-rated checklist, walked at merge `--staging`. This includes the `out-of-scope` scope-creep finding:
-  the same limit applies, so it is evidence for the human walk-through, not a hard
-  block.
+- **ᴸ** — **blocking for unmet criteria only** (C11): `prd-consistency` grades a diff
+  with an LLM. It can judge *"is there evidence someone attempted this criterion, and
+  does a test exist?"*; it cannot certify correctness. So an **unmet acceptance
+  criterion** (`acceptance-unmet`, `high`) fails the gate, and every other finding —
+  `out-of-scope`, met-but-untested, error-case grades — is **recorded, never
+  blocking**, and routed to the human via `manual-test-plan`'s checklist, walked at
+  merge `--staging`. The component's criticality stays `advisory`: it never aborts the
+  run. `script-aggregate-verdict.sh` applies the per-rule blocking filter.
 - **ᵃ** — **`active_when: prd` resolves from PRD auto-discovery**: a `features/prd-<N>-*/`
   directory matched to the branch enables the `prd` group by default; `--prd <path>` is
   an explicit override for an unmatched or ambiguous case. **No PRD found ⇒ the whole

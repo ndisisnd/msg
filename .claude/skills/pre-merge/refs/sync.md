@@ -11,12 +11,12 @@ grades what will actually merge. The resulting sync-merge commit is pre-merge's
 
 ## Preconditions
 
-1. `rtk git fetch origin`.
+1. `git fetch origin`.
 2. **Resolve the sync target.** The v2 topology (D3) is `feature → staging → main`, so `staging` is the preferred target. If neither `origin/staging` nor a local `staging` resolves, **fall back to `main`** (`origin/main`, else local `main`) — do not refuse or warn. Use the resolved branch as the sync target below and as the OPEN-PR base. (Emit no `no_staging` refusal — that failure mode is retired.)
 
 ## Merge + conflict handling
 
-Run `rtk git merge origin/<target>` into the current feature branch, where `<target>` is the branch resolved in precondition 2 (`staging`, else `main`). When the remote branch does not resolve but a local one does (e.g. no remote yet), merge the local branch instead: `rtk git merge <target>`.
+Run `git merge origin/<target>` into the current feature branch, where `<target>` is the branch resolved in precondition 2 (`staging`, else `main`). When the remote branch does not resolve but a local one does (e.g. no remote yet), merge the local branch instead: `git merge <target>`.
 
 - **Clean merge** → commit the merge (message: `sync: merge <target> into <branch> before gate`). Proceed.
 - **Conflicts** → classify each conflicted hunk:

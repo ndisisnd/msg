@@ -16,11 +16,11 @@ Run every scanner resolved for this component in `devkit/policy.json` `component
 
 | Type | Scanner | Command | Finding |
 |---|---|---|---|
-| secret | gitleaks | `rtk gitleaks detect --no-git --source=<files> --no-banner --redact` | each hit → `blocker`, snippet **redacted** (rule name only) |
-| secret | trufflehog | `rtk trufflehog filesystem --no-update --json <files>` | as above |
-| sast | semgrep | `rtk semgrep scan --config auto <files>` (or `--config .semgrep.yml`) | `ERROR`→`high`, `WARNING`→`medium`, `INFO`→`low` |
-| dependency | pnpm/npm/yarn audit, trivy fs, snyk | `rtk <pm> audit --json` / `rtk trivy fs --format json .` | CVSS ≥ 9 → `high`, 7–8.9 → `medium`, < 7 → `low` (dev-only downgrade per `../severity-rubric.md`) |
-| container | trivy image | `rtk trivy image --format json <image>` | `CRITICAL`/`HIGH` → `high`, `MEDIUM` → `medium`, `LOW` → `low` |
+| secret | gitleaks | `gitleaks detect --no-git --source=<files> --no-banner --redact` | each hit → `blocker`, snippet **redacted** (rule name only) |
+| secret | trufflehog | `trufflehog filesystem --no-update --json <files>` | as above |
+| sast | semgrep | `semgrep scan --config auto <files>` (or `--config .semgrep.yml`) | `ERROR`→`high`, `WARNING`→`medium`, `INFO`→`low` |
+| dependency | pnpm/npm/yarn audit, trivy fs, snyk | `<pm> audit --json` / `trivy fs --format json .` | CVSS ≥ 9 → `high`, 7–8.9 → `medium`, < 7 → `low` (dev-only downgrade per `../severity-rubric.md`) |
+| container | trivy image | `trivy image --format json <image>` | `CRITICAL`/`HIGH` → `high`, `MEDIUM` → `medium`, `LOW` → `low` |
 
 Secret scanning is diff-scoped by default; `--full-secret-scan` scans the full tree.
 A secret-scanner hit is **never** downgraded (test-file / unreachable exceptions in

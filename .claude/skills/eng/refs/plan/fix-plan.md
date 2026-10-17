@@ -75,8 +75,8 @@ One ticket per table row, in the same bullet + indented-field rendering as `temp
   - **type:** test
   - **files:** `src/api/users.ts` (edit)
   - **depends-on:** none
-  - **done-when:** `rtk npx vitest run test/users.test.ts` passes and the covering test file is green.
-  - **diagnostics:** severity `high` · category `unit` · source `pre-merge:unit-int` · rule `rejects blank email on POST /users` · repro `rtk npx vitest run test/users.test.ts`
+  - **done-when:** `npx vitest run test/users.test.ts` passes and the covering test file is green.
+  - **diagnostics:** severity `high` · category `unit` · source `pre-merge:unit-int` · rule `rejects blank email on POST /users` · repro `npx vitest run test/users.test.ts`
 ```
 
 - Every projected field is carried through unchanged; the preserved diagnostic fields ride on a single `diagnostics:` line so the fix-build (and the `--gui` side panel) read them positionally without bloating the ticket.

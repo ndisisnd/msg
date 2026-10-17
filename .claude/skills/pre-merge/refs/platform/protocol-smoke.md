@@ -13,7 +13,8 @@ so a dead app short-circuits the rest. It is `blocking`, `platforms: all‡` (fo
 platform — url / artifact / sim), `active_when` the diff touches a UI **or**
 api/migration/deploy surface.
 
-Guard, error rule, envelope: `../_common.md`. Runner (`smoke_runner`) from the component's
+Guard, error rule, envelope: `../_common.md` (smoke is the guard's one exception: no
+runner ⇒ the default liveness check below, never a skip). Runner (`smoke_runner`) from the component's
 resolved tooling. The same check is the shared surface merge `--staging` runs to
 smoke-verify a deploy (`merge/refs/verify-deploy.md`) — one liveness+critical-path
 contract, two callers.

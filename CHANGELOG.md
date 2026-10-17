@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [185] v6.0.0 pre-merge — honest checks: no rtk, one tests file, smoke never skips, script-owned verdict
+
+- `.claude/skills/pre-merge/refs/{sync,universal/protocol-mechanical,universal/protocol-security,platform/protocol-e2e}.md`, `shared/refs/{verify-prelude,finding-schema}.md`, `eng/refs/plan/fix-plan.md`, `.claude/scripts/changelog-gate.py`: Changed — plain commands, no hard-coded `rtk` prefix; a missing `rtk` no longer turns every check into a silent warning.
+- `.claude/skills/pre-merge/refs/universal/protocol-tests.md`: Added — one tests stage for unit and integration; shared rules once, no guessed fallback commands ("not run: no test command").
+- `.claude/skills/pre-merge/refs/universal/protocol-unit.md`, `protocol-integration.md`: Removed — merged into `protocol-tests.md`.
+- `.claude/skills/pre-merge/refs/_common.md`, `platform/protocol-smoke.md`, `.claude/scripts/script-preflight-17-smoke.sh`: Changed — smoke is the runner guard's one exception; with no smoke suite it runs the default liveness check and reads `ready`, never `no_tooling`.
+- `.claude/skills/pre-merge/refs/severity-rubric.md`: Changed — each adjustment rule applies once and downgrades stack; PRD findings block only as `acceptance-unmet`.
+- `.claude/scripts/script-aggregate-verdict.sh`: Changed — new `--regrades` input applies the model's re-grades and regression marks; the blocking filter reads component and rule, so out-of-scope and untested PRD findings never fail the gate.
+- `.claude/skills/pre-merge/refs/executor.md` §5b, `prd/protocol-prd-consistency.md`, `shared/refs/component-catalog.md`, `pre-merge/SKILL.md`: Changed — the model writes `regrades.json` and never computes a verdict by hand; PRD check is "blocking for unmet criteria only".
+- `evals/cases/agg-verdict-prd-regrades/`: Added — covers the PRD blocking filter and the re-grade input.
+
 ### [184] v6.0.0 plan-em — verifier fixes: one lane name, no pre-approved build, history out of refs
 
 - `.claude/skills/shared/refs/fix-loop.md`, `status-heartbeat.md`, `finding-schema.md`, `ARCHITECTURE.md`: Changed — the dead "plan-em --team" lane name now reads "plan-em's orchestrator".

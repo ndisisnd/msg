@@ -188,7 +188,7 @@ when a human cancels a ship gate (`merge/refs/output-schema.md`).
     "snippet": "gitleaks rule `stripe-access-token` matched — value redacted"
   },
   "suggestion": "Move the key to an env var and rotate the leaked credential.",
-  "repro": "rtk gitleaks detect --source . --no-banner --redact",
+  "repro": "gitleaks detect --source . --no-banner --redact",
   "regression_of": null
 }
 ```
@@ -212,7 +212,7 @@ when a human cancels a ship gate (`merge/refs/output-schema.md`).
     "snippet": "expected 400, received 500"
   },
   "suggestion": "Validate email presence before the DB write.",
-  "repro": "rtk npx vitest run test/users.test.ts",
+  "repro": "npx vitest run test/users.test.ts",
   "regression_of": null
 }
 ```
