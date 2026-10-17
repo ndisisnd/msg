@@ -115,7 +115,7 @@ Conventional-commit formatter and changelog manager. Installed separately from m
 
 | # | Command | What happens | Your move |
 |---|---------|--------------|-----------|
-| 8 | `/intake` | Interviews you, fleshes out the idea, grades it, writes a row to `INTAKE.md` | Describe the feature or bug |
+| 8 | `/intake` | Asks what you are trying to build, fills in the rest from your project docs, grades it, writes a row to `INTAKE.md` | Describe the feature or bug |
 | 9 | `/plan-pm` | Drafts the full PRD solo into `features/prd-[n]-[slug]/` | Answer the batched open questions |
 | 10 | `/plan-em` | Certifies the PRD, proposes a specialist roster, writes the engineering sections | **Approve the roster** — the single gate here |
 | 11 | `/eng --plan` | Proposes file changes and writes the per-feature todo tickets | Approve the file changes |

@@ -35,8 +35,8 @@ check 3 compare every PRD against its source intent. Two ways in:
    it against `INTAKE.md` and plan it directly, no picker.
 3. **Direct prose with NO matching intake row** → **capture it, do not bounce it back.**
    Invoke `Skill("intake", "<the user's prose verbatim>")` — intake's capture mode
-   interviews within its ≤2-question budget, grades the idea against its own rubric
-   (`C:`/`T:`/`S:` bands) and appends the row. Then re-read `INTAKE.md`, take the newly
+   infers the idea from context (asking only what its `principles.md` flags as unclear),
+   grades it against its own rubric (`C:`/`S:` bands) and appends the row. Then re-read `INTAKE.md`, take the newly
    appended row, and continue as path 2. `intake` stays the sole writer of new rows
    (D14); plan-pm never appends one itself. If capture returns no row (the user
    abandoned it), stop — there is nothing to plan.

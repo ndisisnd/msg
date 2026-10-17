@@ -47,7 +47,7 @@ There are ~58 scripts. Grouped by what they own:
 | `script-prd-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2 and plan-em Step 1c |
 | `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, reviewed, completion, staging-signoff, plus the retired v5 tune stamps); single-line edit, idempotent |
 | `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `deps` union writeback (`ADDED <id>` lines, idempotent); rewrites `depends_on` instead on a v5-shape PRD |
-| `script-intake-stamp.sh` | The `INTAKE.md` ledger writer — `--append-row`, `--set-cell`, `--remove-row`, `--find-row`, `--log-append`, plus the `status`/`prd` stamps. Header-derived columns, escaped pipes, temp-file writes; never renumbers |
+| `script-intake-stamp.sh` | The `INTAKE.md` ledger reader and writer — `--list-rows` (filtered read), `--append-row`, `--set-cell`, `--remove-row`, `--find-row`, `--migrate-log`, `--log-append`, plus the `status`/`prd` stamps. Header-derived columns, escaped pipes, temp-file writes; never renumbers |
 
 **Certification (plan-review)**
 
@@ -145,7 +145,7 @@ Execution:  eng --plan → eng --build → pre-merge → merge --staging → (hu
 
 `roadmap/roadmap.md` still exists as a place to sequence PRDs into phases, and the `/msg --gui` Roadmap tab still renders it — but it is **hand-authored by a person** against `roadmap/TEMPLATE-roadmap.md`. No skill generates or executes it.
 
-The planning pipeline starts at `intake`, the graded backlog front door: it captures every feature idea and bug as a row in the root `INTAKE.md` ledger (chronological table `# | date | type | idea | goal | grade | status | prd`), owning the requirements interview (flesh-out, adjacent-idea suggestion, hybrid/XL splitting) and grading each idea in a single-turn banded judgment (complexity / token-cost / sequencing — bands only). `plan-pm` then consumes a graded row and drafts the PRD autonomously; the row's `status` walks `backlog` (intake) → `in-progress` (plan-pm, which also fills the `prd` mapping) → `completed` (`merge --production`), giving the harness a living ledger connecting "things we want" to "PRDs that shipped."
+The planning pipeline starts at `intake`, the graded backlog front door: it captures every feature idea and bug as a row in the root `INTAKE.md` ledger (chronological table `# | date | type | idea | goal | grade | status | prd`), inferring each idea from one prompt plus a light context scan (asking only when its principles flag something unclear), splitting lists and oversize ideas, suggesting in-scope related ideas when brainstorm is on, and grading each idea in a single-turn banded judgment (complexity / sequencing — bands only). `plan-pm` then consumes a graded row and drafts the PRD autonomously; the row's `status` walks `backlog` (intake) → `in-progress` (plan-pm, which also fills the `prd` mapping) → `completed` (`merge --production`), giving the harness a living ledger connecting "things we want" to "PRDs that shipped."
 
 Every skill is invoked directly and standalone; a skill's end-of-run gate recommends a next step but never invokes it automatically. The one deliberate exception is `plan-em`'s **certification preconditions**: `plan-em` auto-runs `plan-review --product` before it plans and, on a large PRD, `plan-review --eng` before it builds (D18), so a build can never start on an uncertified plan. `plan-review` itself is a **contract certifier** — it runs a fixed seven-check certification, each check bound to a named downstream consumer that executes a PRD field blindly (regression authoring, pre-merge's PRD-consistency gate, the safety pauses, `eng --build`'s row/ticket reads); "no check without a consumer" is its governing rule. It auto-fixes every Critical + Major and writes a category-tagged learning to `devkit/AHA.md`, which `plan-pm` reads on its next draft — a self-healing loop that trends fresh-PRD defect counts toward zero. `eng --plan` writes the per-feature todo tickets in the same pass as the engineering section, so execution is `eng --plan → eng --build` with no separate todo phase.
 
@@ -173,7 +173,7 @@ Run `bash evals/run.sh` before tagging a release. Any FAIL blocks the release on
 
 | Skill | Standalone |
 |-------|------------|
-| `intake` | Yes (idea/bug capture + interview + grading into the root `INTAKE.md` backlog — the planning front door) |
+| `intake` | Yes (idea/bug capture + inference + grading into the root `INTAKE.md` backlog, plus edit and `--health` — the planning front door) |
 | `plan-pm` | Yes (autonomous PRD writer — consumes a graded intake row; interview lives in `intake`) |
 | `plan-review` | Yes (contract certifier — seven consumer-bound checks; `--product` runs 1/2/3/6, `--eng` runs 2/4/5/6/7; auto-run by `plan-em` before each wave) |
 | `plan-em` | Yes |

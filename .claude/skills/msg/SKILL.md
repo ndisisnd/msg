@@ -63,7 +63,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Category | Skill | Description |
 |----------|-------|-------------|
 | Planning | msg --init | One-time project bootstrap |
-| Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one |
+| Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one, `--health` finds stale or wrong rows |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
 | Planning | plan-review | PRD contract certifier — seven consumer-bound checks, product/eng |
 | Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |

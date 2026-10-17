@@ -4,18 +4,19 @@ description: >
   The planning front-door. Captures feature ideas and bugs as graded rows in
   the root INTAKE.md ledger. Use it when the user says "log an idea", "capture
   a bug", "add to the backlog", "note this down", "track this feature", or
-  invokes `/intake`. Owns the requirements interview — fleshes out thin ideas,
-  proactively suggests adjacent ideas, splits compound/hybrid asks and ideas
-  grading C:8 or higher into discrete rows, and grades every idea in a single-turn
-  banded judgment (complexity / token-cost / sequencing). Feeds `plan-pm`, which
+  invokes `/intake`. Opens with one prompt ("What are you trying to build?"),
+  infers the rest from a light scan of the project's docs, PRDs and ledger, and
+  asks only when something is unclear. Splits pasted lists and oversize ideas
+  into discrete in-scope rows, flags duplicates, and grades every idea in a
+  single-turn banded judgment (complexity / sequencing). Feeds `plan-pm`, which
   drafts the PRD.
-  Also owns `--update`: use it when the user says "update that idea", "change the
-  goal on #4", "edit the backlog row about search", or "fix the idea I logged" —
-  it lists the un-shipped rows and edits one in place. And `--delete`: use it when
-  the user says "delete that idea", "remove row #4", "drop that from the backlog",
-  or "I logged that by mistake" — it warns about what the removal breaks, then
-  removes the row on confirmation.
-argument-hint: "[--update | --delete] <idea text | #n change>"
+  Also edits the ledger: use it when the user says "update that idea", "change
+  the goal on #4", "drop the search idea", "remove row #4", or "I logged that by
+  mistake" (`--update` / `--delete`, or plain language — deletes always warn and
+  confirm first). `--health`: use it when the user says "check the backlog",
+  "find stale ideas", or "which rows already shipped". `--brainstorm on|off`
+  turns related-idea suggestions on or off for the project.
+argument-hint: "[--update | --delete | --health | --brainstorm [on|off]] <idea text | #n change>"
 allowed_tools:
   - AskUserQuestion
   - Read
@@ -25,76 +26,63 @@ allowed_tools:
 
 # intake
 
-The front-door of the msg planning pipeline. Ideas and bugs enter here, get
-interviewed into shape, and are recorded as graded rows in the root `INTAKE.md`
-ledger — the living connective tissue between "things we want" and "PRDs that
-exist." `plan-pm` reads those rows and drafts the PRD autonomously.
+The front-door of the msg planning pipeline. Ideas and bugs enter here and become graded rows in the root `INTAKE.md` ledger. `plan-pm` reads those rows and drafts the PRD.
 
 ```
-intake (capture + interview + grade → INTAKE.md rows) → plan-pm (drafts the PRD, stamps in-progress + prd mapping) → … → merge --production (stamps the row completed)
+intake (capture + grade → INTAKE.md rows) → plan-pm (drafts the PRD, stamps in-progress + prd) → … → merge --production (stamps completed)
 ```
 
 ## Usage
 
-- `/intake [<idea text>]` — capture one or more ideas/bugs into `INTAKE.md`; pass the idea(s) as input, or be prompted. NL: "log an idea", "capture a bug", "add this to the backlog", "track this idea".
-- `/intake --update [<free text>]` — list every un-shipped row (`backlog` + `in-progress`) in full, then edit the one you pick; `#4 — goal should be …` edits directly, but unclear input still gets a follow-up question. NL: "update that idea", "change the goal on #4", "fix the idea I logged".
-- `/intake --delete [#n]` — list **every** row (including `completed`), warn about what the removal breaks, then remove on explicit confirm. NL: "delete that idea", "remove row #4", "I logged that by mistake".
+- `/intake [<idea text>]` — capture one or more ideas or bugs. No text → intake asks "What are you trying to build?".
+- `/intake --update [<text>]` — edit a `backlog` row's `idea` / `goal` / `type`. NL: "change the goal on #4".
+- `/intake --delete [<#n | text>]` — remove a row after a warning pass and a confirm. NL: "drop the search idea".
+- `/intake --health` — list stale, errant, shipped-but-open and duplicate rows; offer to fix wrong statuses.
+- `/intake --brainstorm` — suggest related ideas for this run only. `--brainstorm on` / `--brainstorm off` (or "turn brainstorm off") — save the setting for the project.
 
-**Mode dispatch.** Resolve the mode once, at entry, from the arg string — `--update` or
-`--delete` anywhere selects that mode and is stripped from the free text before target
-resolution. The two are mutually exclusive; if both appear, say so and ask which. An ask
-with **no referent to an existing row** is a capture, never an update. Then read exactly
-one protocol and follow it end-to-end.
+## Mode dispatch
 
-**Hard refusals:**
-- Never drafts a PRD, never reads the codebase, never runs an analysis pass — **in either mode**. intake captures and grades; `plan-pm` plans. A request to "plan this" or "write the PRD" hands off to `plan-pm` (recommend it; never invoke a full analysis here).
-- Never invents a fake-precise estimate (`~1,240 LOC`, `3.5 days`). Grades are **banded only** (§ Grading).
-- Never writes `status` or `prd`, in either mode (`../shared/refs/prd-lifecycle.md` § INTAKE.md row lifecycle).
-- `--update` edits **`idea` / `goal` / `type`** on **`backlog` rows only**; `grade` is never user-editable — it is **re-derived** on a material change, re-running capture's split gates. It refuses an **`in-progress`** row (the PRD is the source of truth — use `/plan-review` or `/plan-pm`) and a **`completed`** row (historical record — capture a new idea instead); neither refusal ends the run.
-- `--update` and `--delete` never scaffold a missing `INTAKE.md` — there is nothing to act on. Only capture mode scaffolds. A missing `INTAKE-UPDATE.md` is never an error: absence means empty history; the file is lazy-created on the first log write.
-- `--update` is **never destructive** — removal is `--delete`'s job, behind that mode's warning pass and confirm.
-- `--delete` **never renumbers** surviving rows (a gap is left so `blocked-by` references and log entries never silently repoint), and **never deletes anything but ledger rows** — not a PRD folder, file, or branch. It reports what it orphans; it does not clean up after itself.
-- `--delete` never proceeds without an explicit confirm, in any invocation form.
+Resolve the mode once, at entry, then read exactly one protocol:
 
-## Persona
+1. **Flag.** `--update` or `--delete` → edit; `--health` → health. Strip the flag from the text. Two mode flags at once → ask which.
+2. **Plain language with no flag.** Text that asks to change or remove an existing row (a `#n`, or "change / drop / remove / rename … the <idea> idea") → edit, with the action it names. A remove always gets delete's warning pass and confirm. A "change or remove?" doubt is an edit (`principles.md` 8). Anything else → capture.
+3. **Brainstorm.** `--brainstorm on|off` or a plain-language toggle → write the switch, report it, and stop (unless idea text follows, which is then captured):
 
-Intake triage lead. Cheap, fast, and additive: a one-liner becomes a well-formed, graded
-backlog row in ≤2 questions. Suggests neighbouring ideas, never forces them; splits
-compound asks into discrete rows; grades on instinct in a single turn — bands, not
-numbers. Keeps the ledger **true**: when an idea's meaning changes, the grade changes with it.
+   ```bash
+   .claude/scripts/script-policy-set.py --file devkit/policy.json --set policies.intake.brainstorm=<true|false>
+   ```
 
-## Protocol
+   No `devkit/policy.json` → say the setting needs `/msg --init`, and use the value for this run only. Bare `--brainstorm` → on for this run, nothing written.
 
-Three modes, one protocol each. Route on the arg string (§ Usage), then follow the
-selected file end-to-end.
+| Mode | Protocol |
+|------|----------|
+| capture (default) | `refs/protocol-intake.md` — context scan, one prompt, inference, splits, duplicates, suggestions, grade, write |
+| update · delete | `refs/protocol-edit.md` — find the row, lock gates, update or delete, the update log, the three edit surfaces |
+| `--health` | `refs/protocol-health.md` — stale / errant / shipped / duplicate scan, one-confirm status fix |
 
-| Mode | Protocol | Defines |
-|------|----------|---------|
-| capture (default) | `refs/protocol-intake.md` | scaffold-or-proceed on `INTAKE.md`, the interview (flesh-out / suggest-adjacent / goal), hybrid-ask and `≥8`-idea splitting, the single-turn grading pass, the row write |
-| `--update` | `refs/protocol-update.md` | ledger scan, the full non-`completed` review table, target resolution, the `in-progress`/`completed` lock gates, the change interview, re-grade + re-split, targeted write + update log (`INTAKE-UPDATE.md` — its own root file, append-only, lazy-created; canonical header + migration rule in § *The update log*), and § *Three edit surfaces* — how `--update` / `--delete` / the GUI split the ledger by cell |
-| `--delete` | `refs/protocol-delete.md` | full ledger table (incl. `completed`), target resolution, the four-check warning pass (orphaned PRD / ship record / dangling `blocked-by` / log history), the confirm, no-renumber removal + `remove` log entry |
+## Brainstorm
 
-**Closing message (every mode, every outcome):** end the run with the closing message per `../shared/refs/closing-message.md` — the last chat output, after the row write / update log.
+Suggestions run only when brainstorm is on: the bare `--brainstorm` flag for one run, or `policies.intake.brainstorm: true` in `devkit/policy.json`. `/msg --init` seeds `true`. A project with no key reads as off. Suggestions always stay in scope (`principles.md` 2).
 
-**Harness incidents (every mode):** log unexpected script failures, tool errors, retries, and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md` — logging never changes what the run does next.
+## Hard rules
 
-## Grading
+- Never drafts a PRD and never runs a codebase analysis. Reading for context (`protocol-intake.md` § Pre-run) is allowed; planning is `plan-pm`'s.
+- Grades are bands only — never a fake-precise estimate (`refs/rubric.md`).
+- Asks only what `refs/principles.md` flags as unclear. Capture has no fixed questions.
+- Never reads `INTAKE.md` in full — always through `script-intake-stamp.sh --list-rows` filters.
+- Never writes `prd`. Writes `status` only in `--health` (behind one confirm) and when a duplicate's PRD has shipped (`completed`).
+- Edit and health never scaffold a missing `INTAKE.md`. Capture creates it without asking.
+- Delete never renumbers and never proceeds without an explicit confirm.
 
-Every captured idea is graded in a **single-turn LLM judgment at capture time — never an
-analysis pass, never a codebase read.** Three banded dimensions stored compactly in the
-row's `grade` cell (e.g. `C:5 T:8 S:blocked-by-#4`); fake-precise numbers are forbidden.
-Full rubric, the `≥8` split gate's rationale, and the banded-only constraint:
-`refs/rubric.md` (the split question itself: `refs/protocol-intake.md` Step 4). Re-grade
-semantics for `--update`: `refs/protocol-update.md`. `devkit/AHA.md` (when present) is
-read once for calibration. Row statuses and who advances them:
-`../shared/refs/prd-lifecycle.md` § *INTAKE.md row lifecycle* — intake writes `backlog`
-and never advances a row.
+**Closing message (every mode, every outcome):** end per `../shared/refs/closing-message.md`.
+
+**Harness incidents (every mode):** log unexpected script failures, tool errors, retries and missed writes to `devkit/DOCTOR.md` per `../shared/refs/doctor-logging.md`.
 
 ## References
 
-- `refs/protocol-intake.md` · `refs/protocol-update.md` · `refs/protocol-delete.md` — the three end-to-end mode protocols (§ Protocol)
-- `refs/rubric.md` — the three-dimension grading rubric + the single-turn / banded-only / no-fake-precision constraint
-- `.claude/scripts/script-intake-stamp.sh` — the shared ledger writer **every** mode writes through: `--append-row` (capture + splits), `--set-cell` (one cell, echoes the old value), `--remove-row` (never renumbers), `--log-append` (`INTAKE-UPDATE.md`, lazy-created with the canonical header). Its `--status`/`--prd` stamp verb belongs to `plan-pm` and `merge`, not to intake
-- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the `INTAKE.md` template `/msg --init` scaffolds (row table only, no log section); **capture mode** offers to scaffold from it when the ledger is missing (update mode never does)
-- `../shared/refs/prd-lifecycle.md` — the INTAKE.md row lifecycle + PRD status lifecycle · `devkit/AHA.md` — grading calibration (G5)
-- `INTAKE.md` — the root ledger this skill writes; read by `plan-pm` and the `/msg --gui` Intake tab · `INTAKE-UPDATE.md` — the root update log (`--update`/`--delete` only); read by nobody downstream today
+- `refs/protocol-intake.md` · `refs/protocol-edit.md` · `refs/protocol-health.md` — the mode protocols
+- `refs/principles.md` — when to ask, how to split, what is a duplicate
+- `refs/rubric.md` — the `C:` / `S:` bands, their plain-English labels, the split threshold
+- `.claude/scripts/script-intake-stamp.sh` — the one ledger reader and writer: `--list-rows` (filtered read), `--append-row`, `--set-cell`, `--remove-row`, `--status` (health and shipped-duplicate fixes only), `--migrate-log`, `--log-append`
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md` — the ledger template
+- `../shared/refs/prd-lifecycle.md` § *INTAKE.md row lifecycle* · `../shared/refs/policy-schema.md` § `policies.intake`

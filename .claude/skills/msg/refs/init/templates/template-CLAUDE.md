@@ -42,7 +42,7 @@ This file is read by Claude Code on every session start. Keep it short, current,
 ## Working with msg skills
 
 - `/msg --init` — One-time project bootstrap (already run if you are reading this)
-- `/intake` — Capture + grade feature ideas and bugs into the `INTAKE.md` backlog (owns the requirements interview)
+- `/intake` — Capture + grade feature ideas and bugs into the `INTAKE.md` backlog (infers from context, asks only when unclear)
 - `/plan-pm` — Autonomous PRD writer — drafts the full PRD from a graded intake row
 - `/plan-review` — Contract certifier — seven consumer-bound checks on an existing PRD (auto-run by `/plan-em`)
 - `/plan-em` — Engineering plan generation from an approved PRD

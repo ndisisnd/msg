@@ -46,10 +46,11 @@ sign-off stamps (`staging-signoff:`) belong to `merge` and are specified in
 
 ## INTAKE.md row lifecycle (D14)
 
-intake writes every new row as `backlog`. It never advances a row itself — **in
-either mode.** intake's `--update` *reads* `status` as a gate
-(`intake/refs/protocol-update.md` § Three edit surfaces) and still never writes
-it.
+intake writes every new row as `backlog`. Its edits *read* `status` as a gate
+(`intake/refs/protocol-edit.md` § Three edit surfaces). It writes `status` in two
+correction cases only: `/intake --health` fixes a status the PRD set contradicts
+(behind one confirm), and a capture that matches a row whose PRD has shipped stamps
+that row `completed`.
 
 | Status | Set by | When |
 |--------|--------|------|

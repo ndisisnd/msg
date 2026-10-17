@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [169] v6.0.0 intake — one prompt, inference from context, plain-language edits, `--health`, smaller skill
+
+- `.claude/skills/intake/refs/protocol-intake.md`: Changed — capture opens with one prompt ("What are you trying to build?"), runs a fixed light context scan (memory, CLAUDE.md, README, glossary, architecture, PRD titles, open rows via `--list-rows`, AHA), and infers the idea, goal, type and splits. No fixed questions: the ledger is created without asking, splits need no confirm, and questions come only from `principles.md`. Duplicates are found by keyword search and offered as an update; a shipped match is stamped `completed` and the new idea becomes a follow-up row. Related ideas appear only when brainstorm is on. Every grade shown carries a plain-English label.
+- `.claude/skills/intake/refs/principles.md`: Added — eight rules of thumb for when to ask, how to split a list, what counts as a duplicate, and staying inside the product.
+- `.claude/skills/intake/refs/protocol-edit.md`: Added — replaces `protocol-update.md` and `protocol-delete.md` with one edit protocol and one shared "find the row" routine (best match first, bullets for ties). Keeps the lock gates, the re-grade, the delete warning pass and confirm, and the update-log contract.
+- `.claude/skills/intake/refs/protocol-update.md`, `.claude/skills/intake/refs/protocol-delete.md`: Removed — merged into `protocol-edit.md`.
+- `.claude/skills/intake/refs/protocol-health.md`: Added — `--health` lists stale (backlog, no PRD, over 14 days), errant (in-progress, no PRD), shipped-but-open, planned-but-backlog and duplicate rows, and fixes wrong statuses behind one confirm.
+- `.claude/skills/intake/SKILL.md`: Changed — adds `--health` and `--brainstorm [on|off]`, plain-language edit dispatch, and the context-read rule; drops the interview and the "never reads the codebase" refusal. Intake shrinks from 7,901 to about 4,480 words.
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`, `.claude/skills/shared/refs/prd-lifecycle.md`: Changed — point at `protocol-edit.md`, list the two intake status corrections, and drop the historical note.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/msg/SKILL.md`, `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`, `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`: Changed — describe the new intake behaviour, `--health` and the brainstorm switch.
+
 ### [168] v6.0.0 intake — per-project brainstorm switch, on by default at setup
 
 - `.claude/skills/shared/refs/policy-schema.md`: Changed — documents `policies.intake.brainstorm` (bool). `/msg --init` seeds `true`; an absent key reads as `false`, so projects set up before v6 see no change.

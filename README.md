@@ -137,9 +137,11 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | `/msg --doctor` | Tells you when msg itself is misbehaving. Every skill logs its own glitches; this reads that log and reports what keeps recurring, so a broken tool is visible instead of quietly absorbed. |
 | `/msg --version` | Tells you which release of msg is installed, in one line. Run it in any repo after installing or updating to confirm the new version actually landed — the skills live outside your projects, so a reinstall that silently failed otherwise looks identical to one that worked. |
 | `/msg --aha` | Keeps the learnings log worth reading. Agents append lessons to `devkit/AHA.md` as they work; this sweeps the log, merges repeats, drops noise, and flags recurring lessons that should become a workflow, memory, or code change instead. |
-| `/intake` | Where every idea and bug starts. It interviews you, fleshes out the thin ideas, suggests ones you hadn't thought of, splits anything too big to build in one go, and grades each for complexity and cost. |
-| `/intake --update` | Changes an idea you already captured. A real change to the idea re-grades it; a wording fix doesn't. |
-| `/intake --delete` | Drops an idea from the backlog. Warns you first about anything that depends on it, then asks you to confirm. |
+| `/intake` | Where every idea and bug starts. It asks what you are trying to build, fills in the rest from your project's docs and backlog, asks only when something is unclear, splits anything too big to build in one go, and grades each for complexity and order. With brainstorm on, it also suggests related ideas. |
+| `/intake --update` | Changes an idea you already captured — or just say "change the goal on #4". A real change to the idea re-grades it; a wording fix doesn't. |
+| `/intake --delete` | Drops an idea from the backlog — or just say "drop the search idea". Warns you first about anything that depends on it, then asks you to confirm. |
+| `/intake --health` | Checks the backlog: stale ideas, rows that already shipped, rows with the wrong status, and duplicates. Offers to fix wrong statuses. |
+| `/intake --brainstorm on` | Turns related-idea suggestions on or off for the project (`off` to stop them). |
 | `/plan-pm` | Writes the PRD for you — user flows, edge cases, what "done" means — stopping only for the questions it genuinely can't answer itself. |
 | `/plan-pm --update` | Brings an existing PRD up to the current template and style — one PRD or `--all`. Maintenance only: acceptance criteria, F-IDs, and everything engineering wrote stay untouched. |
 | `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. You don't invoke this one; `/plan-em` runs it for you. |
