@@ -1,0 +1,3 @@
+# script-eng-db-touch.sh needs the run base: with no argument it is a usage
+# error (exit 2), never a silent whole-branch diff against main.
+"$REPO/.claude/scripts/script-eng-db-touch.sh"

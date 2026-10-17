@@ -118,11 +118,11 @@ The `Files` column is now derived from the tickets, so the collision graph is re
 0. **Run the collision checker with `--waves` first** (§ Parallelism model) on the in-scope rows. A `MISSING_FILES row<N> <feature>` line (or an `UNPACKETED` id) on any in-scope row is a **hard failure** (§ Hard failures). The `PACKET` / `WAVE` lines are the packets and waves.
 1. **Emit the decomposition** — a short table: `packet → stack/agent → rows → Files → model (+reason) → wave`. Every column except `model (+reason)` comes straight from the script (plus any `depends_on` sub-wave split). Emit it before spawning any leaf.
 2. **Fan out wave by wave.** Open the heartbeat with `--total` = the total packet count. Dispatch each wave per § Wave dispatch: pre-announce it (`--next "wave <w> — <n> packets, ~<Xm>"`), then spawn one leaf `eng --build` per packet **in one message, backgrounded**, each on its tier, with `commit_mode=direct`, `branch=$BRANCH`, the packet's rows, the stack's **standards payload**, and the scoped context (§ Subagent contract). Register each packet, poll (`--step "wave <w> — <k>/<m> packets"`), and start the next wave when every packet has returned.
-3. **DB / data guard after every wave:**
+3. **DB / data guard after every wave**, over that wave's own changes only. Record `WAVE_BASE=$(git rev-parse HEAD)` just before you dispatch the wave, then after it lands:
    ```bash
-   S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" main
+   S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" "$WAVE_BASE"
    ```
-   Non-zero exit (it prints `category<TAB>path`) → **pause** and `AskUserQuestion` (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM schema/model, seed/fixture, `.env`, or production-config change needs sign-off.
+   Exit 1 (it prints `category<TAB>path`) → **pause** and `AskUserQuestion` (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM schema/entity, seed/fixture, `.env`, or production-config change needs sign-off. A change an earlier wave already got signed off is not asked about again.
 4. **Review coverage after every wave.** Every packet is reviewed; the packet's tier decides who spawns the reviewer:
 
    | Packet tier | Reviewer | Artifact |

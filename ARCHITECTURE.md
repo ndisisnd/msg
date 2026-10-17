@@ -71,7 +71,8 @@ There are ~58 scripts. Grouped by what they own:
 | `script-eng-plan-shape.py` | Mechanical validator for an `eng --plan` pass — the three coupled artifacts it writes must agree |
 | `script-eng-comment-scan.sh` | Deterministic A4 comment scan — flags added symbol declarations with no plain-English comment above them; run at the `eng --build` commit gate |
 | `script-eng-commit-cap.sh` | A5 small-commit cap — measures a staged diff against 500 changed LOC (300 with `--breaking`); pairs the cap with the prepared message and its `Oversize-reason:` trailer |
-| `script-eng-db-touch.sh` | DB/data/production-config touch detector on a diff (`category<TAB>path` lines); the guardrail behind every build's sign-off pause |
+| `script-eng-db-touch.sh` | DB/data/production-config touch detector over one run's own changes since its recorded run base (`category<TAB>path` lines); the guardrail behind every build's sign-off pause |
+| `script-eng-cook-flags.py` | Builds the explicit `/cook` flag set from a build's stack tokens — enumerates cook's ref shelf, keeps every ref unless the caller names a provable exclusion |
 | `script-eng-fix-grade.py` | The one simple/complex fix-complexity grader — the rubric lives in code, not in each protocol's prose |
 | `script-eng-close-loop.py` | The single sanctioned write to an issues file when `eng --build report=` closes a fix loop |
 

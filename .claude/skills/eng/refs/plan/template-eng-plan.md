@@ -25,9 +25,9 @@ The plan's length is proportional to the PRD's size, not fixed. Two shapes:
 
 **Default to medium when in doubt.** No `intake:` key, no matching row, an unparseable grade cell, or no `INTAKE.md` at all → write the medium shape. The medium shape is never wrong for a large PRD; it is only thinner than it could be. Never write the large shape "to be safe" — the cut sections have no downstream consumer, and the tokens are the whole point of the tier.
 
-**Why these four survive and the other eight do not.** The `## Todos — <Agent>` tickets are the build spec (`refs/build/protocol.md` § Spec source) — a build agent never reads plan prose. So a plan section earns its place only if it carries something a ticket structurally cannot: a cross-agent contract, a design rationale that outlives the diff, the feature-to-agent map, or an unresolved question that needs a human. Summary, PRD reference, Alternatives considered, Phases, Developer experience, Migration and Risks all restate the PRD, restate the tickets, or address a reader who never arrives.
+**Why these four survive and the other eight do not.** The `## Todos — <Agent>` tickets are the build spec (`refs/build/protocol-packet.md` Step 1) — a build agent never reads plan prose. So a plan section earns its place only if it carries something a ticket structurally cannot: a cross-agent contract, a design rationale that outlives the diff, the feature-to-agent map, or an unresolved question that needs a human. Summary, PRD reference, Alternatives considered, Phases, Developer experience, Migration and Risks all restate the PRD, restate the tickets, or address a reader who never arrives.
 
-Both shapes are read-tolerated everywhere downstream — `script-eng-plan-shape.py` check 8 accepts either, and PRDs written before v5.4 (including the legacy 13-section shape with a "Branching and CI strategy" section) keep validating unchanged.
+Both shapes are read-tolerated everywhere downstream — `script-eng-plan-shape.py` check 8 accepts either, and older PRDs (including the legacy 13-section shape with a "Branching and CI strategy" section) keep validating unchanged.
 
 ---
 

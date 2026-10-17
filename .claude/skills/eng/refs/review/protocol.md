@@ -6,7 +6,7 @@ type: reference
 
 # eng — Mode: `--review`
 
-One review, whole change, by an agent that did not write the code. Not the safety floor — `pre-merge`'s green run is; nothing below `high` blocks here. Spawned by `--build` at `refs/build/protocol.md` Step 5a, or standalone.
+One review, whole change, by an agent that did not write the code. Not the safety floor — `pre-merge`'s green run is; nothing below `high` blocks here. Spawned by the build loop at `refs/build/protocol-packet.md` Step 5, or standalone.
 
 ## Step 1 — Resolve the change set
 
@@ -43,7 +43,7 @@ Test honesty is inside (1) and (7): asserting nothing, asserting the implementat
 
 ## Step 4 — Act
 
-Two outcomes: **it breaks something** → act; **not confident enough for a human's attention** → stay silent. No hedged findings. Confirm each finding against the code, call sites included, **before reporting**; drop what you cannot. Unambiguous bug, one clear fix → fix it, one line why; nothing else, no tests. A behaviour call is a question, not yours. **Zero findings on a clean diff is a correct result** — never manufacture one. A4 is separate: write the comment, report a count, never a finding; it never breaks silence.
+Two outcomes: **it breaks something** → act; **not confident enough for a human's attention** → stay silent. No hedged findings. Confirm each finding against the code, call sites included, **before reporting**; drop what you cannot. Unambiguous bug, one clear fix → fix it, one line why; nothing else. Do not write or run tests: the build re-runs them after any fix you make (`refs/build/protocol-packet.md` Step 5). Standalone, say in the one-liner that the tests were not re-run. A behaviour call is a question, not yours. **Zero findings on a clean diff is a correct result** — never manufacture one. A4 is separate: write the comment, report a count, never a finding; it never breaks silence.
 
 ## Findings — severity and gating
 

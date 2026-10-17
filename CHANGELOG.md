@@ -2,6 +2,21 @@
 
 ## 2026-10-17
 
+### [181] v6.0.0 eng — one build loop, one question, tickets are the only spec
+
+- `.claude/skills/eng/refs/build/protocol-packet.md`: Changed — now the one build loop for a packet and a manual build: run base recorded at start, tickets are the only spec, a missing ticket stops with "F3 has no tickets. Run /plan-em again.", unclear requirement asks (user present) or assumes and logs (automatic run), tests re-run after the reviewer changes code, db-touch checks only this run's changes, one commit per ticket, result-first summary with empty lines hidden, one AHA entry per bug.
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — rewritten as the manual build's solo-only steps around the loop (4,831 → about 1,240 words): ticket check before any question, no opening approval question, one "Commit?" question at the end, the five progress-message calls in one box, standards from the new flag script.
+- `.claude/skills/eng/refs/protocol-core.md`: Changed — routing table removed (it lives in `SKILL.md` only); the summary gate applies to `--plan` only; the unclear-requirement rule points to the loop.
+- `.claude/skills/eng/SKILL.md`: Changed — the one routing table; spine and references describe the new split.
+- `.claude/skills/eng/refs/review/protocol.md`: Changed — the reviewer never runs tests; the build re-runs them after any reviewer fix.
+- `.claude/skills/eng/refs/plan/template-todo.md`, `.claude/skills/eng/refs/plan/template-eng-plan.md`, `.claude/skills/eng/refs/plan/protocol.md`: Changed — a ticket is one commit; version-history notes removed. The rule "one index to the tickets" stays because a second index (the old pointer column) can disagree with the first.
+- `.claude/scripts/script-eng-db-touch.sh`: Changed — requires the run base and checks only changes since it (plus untracked files); the `models/` rule is removed (false alarms on plain app code); `entities/` and `*.entity.*` stay.
+- `.claude/scripts/script-eng-cook-flags.py`: Added — builds the `/cook` flag set from the stack tokens and the provable exclusions.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the after-wave db guard checks only that wave's changes.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 3a builds `/cook` flags with the same script.
+- `ARCHITECTURE.md`: Changed — script table lists the flag script and the run-base db check.
+- `evals/cases/db-touch-run-base`, `evals/cases/db-touch-models-not-guarded`, `evals/cases/db-touch-no-base`, `evals/cases/cook-flags-scoped`: Added — cover the run base, the removed `models/` rule, the missing-base usage error and the flag selection.
+
 ### [180] v6.0.0 plan-em — never builds automatically, short digest, internals moved out
 
 - `.claude/skills/plan-em/refs/protocol-em.md`: Changed — every run (medium and large) stops after the plan half, prints a 3-line summary and asks "Start the build now?"; Yes runs the check before the build (plan-shape check on medium, eng certification on large) and the build half in the same run, No keeps the run state open with the build not started; plan-em always cuts the branch; Step 5 prints a Built · Branch · Review · Findings digest with Critical findings listed below it; history and rationale text removed (10,006 → 5,256 words).

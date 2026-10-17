@@ -127,8 +127,14 @@ No `AskUserQuestion` in this step — the certifier's own product-decision pause
 - **Roster already set** — the digest's `engineering_agents` already lists every agent 3b would propose. The roster was settled by the plan half. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan half: eng-backend, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-ask the roster question even when the roster is unusual.
 - **3a runs either way.** The build half needs the compiled `/cook` payloads; the standards cache (3a) usually serves them.
 
-**3a — Compile coding standards (flags) to confirm agent types.** Before proposing any roster, derive platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — using the stack→flag derivation in `.claude/skills/eng/refs/build/protocol.md` (§ Coding-standards flags): `--global` (mandatory, unscoped — guarantees the P0 floor) plus, for each platform, **diff-scoped domain sub-ref flags** rather than the bare domain flag.
-- **Scope each domain, don't over-load.** A bare domain flag (`--macos`, `--react`) compiles the domain's `SKILL.md` **plus every** `refs/*.md`. Mirror the eng derivation instead: enumerate the domain's refs (`<cook>/standards/<domain>/refs/` or its `_INDEX.md` — never a hardcoded list), keep every ref by default, and **drop a ref only when the PRD/devkit provably excludes its subject** (e.g. `distribution.md` when `CLAUDE.md` defers distribution; `localization.md` with no i18n in scope). Signals: the exec-table **Files** column, the row **concerns**, and the devkit's provable exclusions. **Never under-load:** on any uncertainty keep the ref, and if a whole domain can't be confidently scoped use the **bare** domain flag. Always keep the domain `SKILL.md` floor (emit the bare `--<domain>` flag), then `--<domain>:<ref>` for each kept ref (e.g. `--global --macos --macos:architecture-and-state --macos:windows-and-scenes`). `--global` stays whole.
+**3a — Compile coding standards (flags) to confirm agent types.** Before proposing any roster, derive platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — built by the same script a manual eng build uses:
+
+  ```bash
+  F=.claude/scripts/script-eng-cook-flags.py; [ -f "$F" ] || F="$HOME/.claude/scripts/script-eng-cook-flags.py"
+  python3 "$F" --stack "<the platform's stack tokens>" [--exclude "<domain:ref,…>"]
+  ```
+
+  The script emits `--global` whole, the bare `--<domain>` floor, and — only when a ref is excluded — one `--<domain>:<ref>` per kept ref, enumerated from cook's shelf. Your only judgment is `--exclude`: name a ref only when the PRD/devkit **provably** excludes its subject (e.g. `macos:distribution` when `CLAUDE.md` defers distribution; `macos:localization` with no i18n in scope). Signals: the exec-table **Files** column, the row **concerns**, the devkit. **Never under-load** — on any doubt, keep the ref. A `GAP=<stack>` line is an uncovered stack.
 - **Cache check before every cook call.** Once the flag set for a stack is derived:
 
   ```bash
