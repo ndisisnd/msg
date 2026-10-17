@@ -24,7 +24,7 @@ Skill("intake", "Sub-PRD of prd-<parent-n>-<parent-slug>: <follow-up scope>")
 Every PRD in the repo has an intake ancestor, sub-PRDs included — that is what keeps `plan-review` check 3 (intent fidelity) from ever being silently skipped. Two points on the row:
 
 - **It is not optional and it is marked.** The `idea` cell leads with `Sub-PRD of prd-<n>-<slug>:` so a human reading the ledger sees the relationship; the `prd` cell stamped at Step 5 carries the dotted id `prd-<n>.<m>-<slug>`, which is already the machine-readable sub-PRD signal (D1 step 3 keys off the same dot).
-- **The grade is re-derived, never inherited.** `intake` grades the row against its own rubric like any other. A follow-up's complexity is its own — inheriting a large parent's `C:`/`T:` bands would misrepresent a small fix. `type` stays `feature`/`bug` per the nature of the work; it is not overloaded with the structural relationship.
+- **The grade is re-derived, never inherited.** `intake` grades the row against its own rubric like any other. A follow-up's complexity is its own — inheriting a large parent's `C:` band would misrepresent a small fix. `type` stays `feature`/`bug` per the nature of the work; it is not overloaded with the structural relationship.
 
 Hold the new row's `#` for the Step 5 stamp, then drop into Step 2.
 

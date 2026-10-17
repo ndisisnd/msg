@@ -145,7 +145,7 @@ Then branch on whether there is anything to say:
 
 **1e. Resolve the size tier (`$SIZE`) — the one input that shapes the whole run.** v5.4 sizes the ceremony to the PRD instead of paying the large-PRD cost every time, and **intake's complexity grade is the measure**. Resolve it once here; every later step consumes the answer and never re-derives it.
 
-The Step 1b digest already returned `frontmatter`, which carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose grade cell reads `C:<band> T:<band> S:<sequencing>`. Read that row's `C:` band:
+The Step 1b digest already returned `frontmatter`, which carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose grade cell reads `C:<band> S:<sequencing>`. Read that row's `C:` band:
 
 | `C:` band | `$SIZE` | What it buys |
 |-----------|---------|--------------|

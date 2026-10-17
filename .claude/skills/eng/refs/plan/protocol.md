@@ -44,7 +44,7 @@ The engineering section has **two shapes**, and the PRD's size picks one. The te
 | `C:` **< 8**, or unresolvable | **Medium — the default** | 4: Design decisions · Integration contracts · Scope mapping · Open questions |
 | `C:` **≥ 8** | Large | 12: the medium four plus Summary, PRD reference, Alternatives considered, Phases and dependencies, Developer experience, Migration and breaking changes, Risks and mitigations, Findings — PRD gaps |
 
-**How to resolve the grade.** The PRD frontmatter carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose **grade** cell reads `C:<band> T:<band> S:<sequencing>`. Read the `C:` band from that row. On an orchestrated run `plan-em` resolves it once and injects it with the scoped context; prefer the injected value over re-reading the ledger.
+**How to resolve the grade.** The PRD frontmatter carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose **grade** cell reads `C:<band> S:<sequencing>`. Read the `C:` band from that row. On an orchestrated run `plan-em` resolves it once and injects it with the scoped context; prefer the injected value over re-reading the ledger.
 
 **Default to medium.** No `intake:` key, no matching row, an unparseable grade, or no `INTAKE.md` → write the medium shape. Never write the large shape defensively: the eight extra sections have no downstream consumer (build agents read tickets, never plan prose), and not writing them is the point of the tier.
 

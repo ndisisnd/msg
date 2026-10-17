@@ -735,8 +735,8 @@ function renderRoadmap() {
 /* ========================================================================= */
 /*  INTAKE TAB (H2)                                                            */
 /* ========================================================================= */
-// Backlog board over root INTAKE.md — one card per row, three grade chips from
-// the rubric cell (C:/T:/S:), lanes backlog / in-progress / completed, each card
+// Backlog board over root INTAKE.md — one card per row, two grade chips from
+// the rubric cell (C:/S:), lanes backlog / in-progress / completed, each card
 // cross-linking to its mapped PRD. Status cell edits are the GUI's one new write
 // path (H5): drag a card between lanes (LIVE) or use its per-card status buttons.
 var INTAKE_LANES = [
@@ -756,7 +756,6 @@ function gradeChips(g) {
   g = g || {};
   var out = "";
   if (g.complexity) out += '<span class="chip grade-c" title="Complexity">C:' + esc(g.complexity) + "</span>";
-  if (g.token)      out += '<span class="chip grade-t" title="Token cost">T:' + esc(g.token) + "</span>";
   if (g.sequence)   out += '<span class="chip grade-s" title="Sequencing">S:' + esc(g.sequence) + "</span>";
   return out;
 }

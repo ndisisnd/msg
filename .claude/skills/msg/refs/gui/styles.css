@@ -733,9 +733,8 @@ tbody tr.rowlink:focus-visible { outline: 2px solid var(--accent); outline-offse
 .pill.intake-type { text-transform: uppercase; letter-spacing: .04em; font-size: var(--fs-xs); }
 .pill.intake-type.feature { color: var(--accent); border-color: var(--accent); }
 .pill.intake-type.bug { color: var(--danger); border-color: var(--danger); background: var(--danger-bg); }
-/* Grade chips carry the rubric cell (C:/T:/S:) — colour-cued but never numeric. */
+/* Grade chips carry the rubric cell (C:/S:) — colour-cued but never numeric. */
 .chip.grade-c { border-color: var(--accent); color: var(--accent); }
-.chip.grade-t { border-color: var(--border-strong); }
 .chip.grade-s { border-color: var(--border-strong); font-style: italic; }
 .intake-prd { margin-top: 6px; font-size: var(--fs-sm); }
 .intake-prd a { color: var(--accent); text-decoration: none; }

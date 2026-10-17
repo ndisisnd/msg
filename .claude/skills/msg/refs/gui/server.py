@@ -669,7 +669,6 @@ def build_roadmap(prds):
 INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd")
 GRADE_RE = {
     "complexity": re.compile(r"\bC:\s*(\S+)"),
-    "token": re.compile(r"\bT:\s*(\S+)"),
     "sequence": re.compile(r"\bS:\s*(\S+)"),
 }
 
@@ -679,7 +678,9 @@ def _split_md_row(row):
 
 
 def parse_grade(cell):
-    """Split a `C:5 T:8 S:next` grade cell into its three chips (missing → null)."""
+    """Split a `C:5 S:next` grade cell into its two chips (missing → null).
+
+    A legacy `T:` token is ignored."""
     out = {}
     for k, rx in GRADE_RE.items():
         m = rx.search(cell or "")

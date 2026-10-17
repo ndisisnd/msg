@@ -2,6 +2,12 @@
 
 ## 2026-10-17
 
+### [167] v6.0.0 intake — grade is complexity + sequencing, with plain-English labels
+
+- `.claude/skills/intake/refs/rubric.md`: Changed — drops the token-cost (`T:`) dimension; the grade is `C:` + `S:`. Adds a plain-English label per band for terminal output. A legacy `T:` token still parses and is ignored. The split threshold at `C:8` is now a judgment, not a fixed question.
+- `.claude/skills/msg/refs/gui/server.py`, `index.html`, `styles.css`, `.claude/skills/msg/refs/protocol-gui.md`: Changed — the Intake board shows two grade chips (`C:`, `S:`); a `T:` token in old rows is ignored.
+- `.claude/skills/plan-em/refs/protocol-em.md`, `.claude/skills/eng/refs/plan/protocol.md`, `.claude/skills/eng/refs/plan/template-eng-plan.md`, `.claude/skills/plan-pm/refs/protocol-sub.md`: Changed — grade-format mentions drop `T:`. They still read only the `C:` band.
+
 ### [166] v6.0.0 intake — filtered ledger reads and log migration in the script
 
 - `.claude/scripts/script-intake-stamp.sh`: Changed — adds `--list-rows`, a read-only filtered read (`--status`, keyword `--match` best match first, `--blocked-by`, `--row`, `--limit`, plus `MAX_ROW`), so intake never reads the whole ledger as it grows. Adds `--migrate-log`, which moves a legacy in-file `## Update log` into `INTAKE-UPDATE.md`. The log header now lives in one shared function.
