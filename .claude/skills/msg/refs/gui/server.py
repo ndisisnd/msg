@@ -616,7 +616,7 @@ def collect_reports(skipped):
             if path in seen:
                 continue
             seen.add(path)
-            if path.endswith("-fix-plan.md"):
+            if path.endswith(("-fix-plan.md", "-escalation.md")):
                 continue
             r = parse_report_file(path, skipped)
             if r:

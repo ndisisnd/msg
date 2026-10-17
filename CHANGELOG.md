@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [182] v6.0.0 eng — 3 fix attempts per bug, one-layer fix loop, one learning per bug
+
+- `.claude/skills/eng/refs/build/protocol-build-debug.md`: Changed — a bug gets at most 3 fix attempts per run, counting the first fix, debug rounds and coordinator re-entries together; then it is escalated, not retried, and the user is told it needs a separate investigation; one AHA entry per bug after it is fixed or escalated; the `severity: escalated` tag (which `script-aha.sh` cannot write) is removed.
+- `.claude/skills/eng/refs/build/fix-build.md`: Changed — a fixer spawned by the coordinator always runs `orchestrate=off` and never closes the loop; new `attempts_left` field; one JSON return format the coordinator parses; escalation blocks saved to `report-prd-<N>-<K>-escalation.md`; deltas re-pointed at the build loop.
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md`: Changed — passes `orchestrate=off` and `attempts_left` to every fixer; re-enters only while attempts remain; a re-spawn counts as an attempt; closing message names `/eng --plan report=<path>` in a new session for each escalated bug.
+- `.claude/skills/eng/refs/plan/fix-plan.md`: Changed — reads the escalation file and grades those tickets `complex`, starting from what was already ruled out.
+- `.claude/skills/msg/refs/gui/server.py`: Changed — the Reports tab skips `-escalation.md` files, as it skips `-fix-plan.md`.
+
 ### [181] v6.0.0 eng — one build loop, one question, tickets are the only spec
 
 - `.claude/skills/eng/refs/build/protocol-packet.md`: Changed — now the one build loop for a packet and a manual build: run base recorded at start, tickets are the only spec, a missing ticket stops with "F3 has no tickets. Run /plan-em again.", unclear requirement asks (user present) or assumes and logs (automatic run), tests re-run after the reviewer changes code, db-touch checks only this run's changes, one commit per ticket, result-first summary with empty lines hidden, one AHA entry per bug.

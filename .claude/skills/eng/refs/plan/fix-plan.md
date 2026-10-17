@@ -35,6 +35,8 @@ P=.claude/scripts/script-project-findings.py; [ -f "$P" ] || P="$HOME/.claude/sc
 
 Each projected issue-ticket already carries `kind: "issue"`, its verbatim finding `id`, `title`, `objective`, `type`, `files`, `depends-on`, `done-when`, and the preserved diagnostic fields (`severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, `evidence.flaky`). This pass adds exactly one field: the **`complexity` tag** (below).
 
+**Earlier escalations.** When `report-prd-<N>-<K>-escalation.md` exists next to the issues file, read it. It holds the bugs an earlier fix build gave up on after 3 attempts (`../build/fix-build.md` § Escalations). For each, grade the ticket `complex`, and write the ticket's `objective` from the block's "Needed to continue" line, so the new build does not retry the hypotheses already ruled out.
+
 ## Fix-plan output — `report-prd-<N>-<K>-fix-plan.md`
 
 Write the plan to `report-prd-<N>-<K>-fix-plan.md`, colocated in the same `reports/` folder as the input issues file and sharing its **exact stem — same `N` and `K`** (`report-prd-12-3.json` → `report-prd-12-3-fix-plan.md`). This is the only file this pass writes; there is no PRD to append to. Emit a one-line confirmation after writing (e.g. `Written to features/prd-12-<slug>/reports/report-prd-12-3-fix-plan.md → 4 fix tickets`).
@@ -55,7 +57,7 @@ Same five-column shape as the exec table, with two column swaps for a bug list �
 ```
 
 - **Issue(s)** — the finding `id`(s) this row resolves. One id per row for the common case; a comma-separated list when the row is a coherent group (below).
-- **Fix steps** — the reproduce → fix → verify-green shape the fix-build runs per issue (`../build/fix-build.md` § Work-step deltas). Left terse; the ticket's `repro`/`done-when` carry the exact commands.
+- **Fix steps** — the reproduce → fix → verify-green shape the fix-build runs per issue (`../build/fix-build.md` § Deltas on the build loop). Left terse; the ticket's `repro`/`done-when` carry the exact commands.
 - **Files** — the projected `files` path(s), repo-relative. Blank/`—` when every grouped finding is suite-level (`file: null`).
 - **Ticket** — anchor into the `## Fix tickets` block below: `[<id>](#fix-<id>)` for a single issue, `[<group-slug>](#fix-<group-slug>)` for a group.
 - **Complexity** — `simple` | `complex`, mirroring the ticket's own `complexity` field (below). The ticket field is authoritative; this column is the at-a-glance view.
