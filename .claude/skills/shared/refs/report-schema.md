@@ -6,7 +6,7 @@ type: reference
 
 # Run report — `report-prd-<N>-<K>.md`
 
-The canonical post-run report artifact. Written by `eng --build`, `pre-merge`, and `merge` as the last action of a completed run. It records what the run did (features worked on, code changed, tests passed/failed) and, most importantly, **what the user can expect and how they can verify the work** — in plain language, for a human. The `/msg --gui` Reports tab parses it mechanically, so the frontmatter keys and `##` headings below are a contract: keep them verbatim.
+The canonical post-run report artifact. Written by `eng --build`, `pre-merge`, and `merge` as the last action of a completed run, and by `eng --bug` when the user reports a bug found by hand (`.claude/scripts/script-eng-bug-report.py` writes the `.md` and the issues file together, with the next `K`). It records what the run did (features worked on, code changed, tests passed/failed) and, most importantly, **what the user can expect and how they can verify the work** — in plain language, for a human. The `/msg --gui` Reports tab parses it mechanically, so the frontmatter keys and `##` headings below are a contract: keep them verbatim.
 
 The report **supplements** each skill's existing output contract (build summary, findings JSON, final emission) — it never replaces or reorders it.
 
@@ -75,6 +75,8 @@ Per-skill field sources:
 | `features` | assigned exec-table row ids | feature ids from `--prd` context, or `[]` |
 | diff stats | `git diff --numstat` over this agent's commits | resolved diff (`script-resolve-diff.sh` / prelude) |
 | test counts | per-group + full-suite results | unit-int / bucket outcomes when parsed; else `0` |
+
+**eng --bug fields.** `skill: eng`; `prd` = the PRD chosen from the branch (or named, or `none`); `branch` = the current branch; `verdict: fail` (an open bug); `features: []`; diff and test stats `0` (nothing was built or run). The paired issues file always exists, with one finding (`source: eng:bug`).
 
 **merge fields (H4).** `prd` = the shipped PRD; `branch` = the merged feature branch (`--staging`) or `staging` (`--production`); `verdict` = `pass` on a clean merge/deploy, `fail` if a production deploy errored, `n/a` on an early refusal; diff/test stats are `0`/`none` (merge changes no source and runs no test buckets — it merges and deploys). Two flavors:
 

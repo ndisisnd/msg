@@ -2,6 +2,15 @@
 
 ## 2026-10-17
 
+### [183] v6.0.0 eng — a bug found by hand gets its own report
+
+- `.claude/skills/eng/refs/build/bug-report.md`: Added — `/eng --bug "<what is wrong>"` files the bug as a new numbered report, then runs `eng --build report=` on it with the 3-attempt limit.
+- `.claude/scripts/script-eng-bug-report.py`: Added — writes `report-prd-<N>-<K>.json` + `.md` in the pre-merge format with the next `K`; the PRD comes from the branch, a named PRD, or the no-PRD fallback; never overwrites a report; exit 1 when the PRD cannot be chosen, so the skill asks once.
+- `.claude/skills/eng/SKILL.md`, `.claude/skills/eng/refs/protocol-core.md`: Changed — `--bug` is a fourth mode with its own routing row and trigger phrases.
+- `.claude/skills/shared/refs/finding-schema.md`, `.claude/skills/shared/refs/report-schema.md`: Changed — `eng:bug` source and the `eng --bug` report fields.
+- `README.md`, `llms.txt`: Changed — list `/eng --bug`; the build row says it asks one question, "Commit?".
+- `evals/cases/bug-report-next-k`, `evals/cases/bug-report-prd-unresolved`: Added — next `K` without editing older reports, the fix-flow validator accepts the file, and an unresolved or ambiguous PRD writes nothing.
+
 ### [182] v6.0.0 eng — 3 fix attempts per bug, one-layer fix loop, one learning per bug
 
 - `.claude/skills/eng/refs/build/protocol-build-debug.md`: Changed — a bug gets at most 3 fix attempts per run, counting the first fix, debug rounds and coordinator re-entries together; then it is escalated, not retried, and the user is told it needs a separate investigation; one AHA entry per bug after it is fixed or escalated; the `severity: escalated` tag (which `script-aha.sh` cannot write) is removed.

@@ -1,8 +1,8 @@
 ---
 name: eng
 description: >
-  Platform-agnostic engineering agent with three modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec), --review (one adversarial whole-change review of the working diff, run by a separate reviewer subagent — spawned by --build automatically, and available standalone on any branch at any time). Use --review when the user says "review this change", "review my diff", "code review this branch", or invokes /eng --review. Invoked by plan-em or directly by the user.
-argument-hint: "<--plan | --build | --review> [report=<path>] [--quiet | --status <n>m]"
+  Platform-agnostic engineering agent with four modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec), --review (one adversarial whole-change review of the working diff, run by a separate reviewer subagent — spawned by --build automatically, and available standalone on any branch at any time), --bug "<what is wrong>" (file a bug you found by hand as a new numbered report in the PRD's reports/ folder, then fix it with the normal fix flow). Use --bug when the user says "I found a bug", "report a bug", "this is broken", or invokes /eng --bug. Use --review when the user says "review this change", "review my diff", "code review this branch", or invokes /eng --review. Invoked by plan-em or directly by the user.
+argument-hint: "<--plan | --build | --review | --bug \"<what is wrong>\"> [report=<path>] [--quiet | --status <n>m]"
 allowed_tools:
   - Bash
   - Read
@@ -15,7 +15,7 @@ allowed_tools:
 
 # eng
 
-Platform-agnostic engineering agent with three modes — `--plan`, `--build`, `--review`. This file routes. The shared spine for every mode is `refs/protocol-core.md` (Steps 0–6); it never runs a mode's work itself.
+Platform-agnostic engineering agent with four modes — `--plan`, `--build`, `--review`, `--bug`. This file routes. The shared spine for every mode is `refs/protocol-core.md` (Steps 0–6); it never runs a mode's work itself.
 
 ## Routing — the one routing table
 
@@ -29,6 +29,7 @@ Read the invocation flag and load exactly one mode file:
 | `--build` (spawned by an orchestrator as a build packet) | `refs/build/protocol-packet.md` only — it is the whole leaf contract; stop reading here |
 | `--build report=<path>` | `refs/build/fix-build.md` |
 | `--review` | `refs/review/protocol.md` |
+| `--bug "<what is wrong>"` | `refs/build/bug-report.md` — writes the bug as a new report, then runs `--build report=` on it |
 
 **Natural-language triggers for `--review`:** "review this change", "review my diff", "code review this branch", "adversarial review", "look for bugs in what I just wrote". Anything about *style, naming or standards* is `/cook`, not this mode.
 
@@ -49,7 +50,8 @@ Exactly one mode flag must be present. Zero, several, or `--todo` hard-fail with
 
 - `refs/plan/protocol.md` — `--plan`: summary, output contract, the `## Todos — <Agent>` ticket spec, the closing shape check. `refs/plan/template-todo.md` — the ticket schema the build reads. `refs/plan/template-eng-plan.md` — the plan section shapes. `refs/plan/fix-plan.md` — planning fixes from a `report`.
 - `refs/build/protocol.md` — the manual build's solo-only steps (branch, ticket check, standards, progress messages, "Commit?", sub-branch PR, summary and run report). `refs/build/protocol-packet.md` — **the build loop**, written once: tickets, TDD, full-suite gate, review and re-test, db-touch pause, one commit per ticket, output. `refs/build/protocol-build-debug.md` — debug mode. `refs/build/fix-build.md` — the `report` source. `refs/build/fix-build-orchestrated.md` — the fix coordinator.
+- `refs/build/bug-report.md` — `--bug`: a bug found by hand becomes a new `report-prd-<N>-<K>` pair, then the normal fix flow.
 - `refs/review/protocol.md` — `--review`: change set, adversarial charter, severity, return contract, artifact, spawn rules. One review, whole change, by an agent that did not write the code.
-- `.claude/scripts/` — `script-eng-db-touch.sh` (production/data guardrail over this run's changes; a trip pauses for sign-off) · `script-eng-cook-flags.py` (the `/cook` flag set from the stack) · `script-eng-comment-scan.sh` (A4 comment presence) · `script-eng-commit-cap.sh` (A5 commit size, advisory; a missing `Oversize-reason:` trailer exits 3) · `script-eng-plan-shape.py` (the `--plan` closing check) · `script-project-findings.py` (the one finding→issue-ticket projection + issues-file validator) · `script-eng-fix-grade.py` (fix complexity + tier→model) · `script-eng-close-loop.py` (the only write to an issues file)
+- `.claude/scripts/` — `script-eng-db-touch.sh` (production/data guardrail over this run's changes; a trip pauses for sign-off) · `script-eng-cook-flags.py` (the `/cook` flag set from the stack) · `script-eng-comment-scan.sh` (A4 comment presence) · `script-eng-commit-cap.sh` (A5 commit size, advisory; a missing `Oversize-reason:` trailer exits 3) · `script-eng-plan-shape.py` (the `--plan` closing check) · `script-project-findings.py` (the one finding→issue-ticket projection + issues-file validator) · `script-eng-fix-grade.py` (fix complexity + tier→model) · `script-eng-close-loop.py` (the only write to an issues file) · `script-eng-bug-report.py` (writes a hand-found bug as a new report pair)
 - `../shared/refs/status-heartbeat.md` — the progress-message contract
 - **Contract:** the `## Engineering — <Agent>` and `## Todos — <Agent>` headings written by `--plan` are how `plan-em` detects a finished section and how `--build` finds its tickets. Do not rename them.

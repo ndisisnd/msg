@@ -154,8 +154,9 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | Skill | What it's for |
 |-------|---------------|
 | `/eng --plan` | Proposes the file changes and writes the todo list. Nothing gets written until you approve it. |
-| `/eng --build` | Writes the code, on its own branch. Pauses for your sign-off before it commits, and again before touching a database, your data, or production config. |
+| `/eng --build` | Writes the code, on its own branch. Asks one question at the end — "Commit?" — and pauses separately before touching a database, your data, or production config. |
 | `/eng --review` | A fresh agent reads the whole change looking for problems. Runs inside `--build` by default; you can also point it at any branch yourself. |
+| `/eng --bug "<what is wrong>"` | Files a bug you found by hand as its own numbered report in the PRD's `reports/` folder, then fixes it with the normal fix flow. |
 | `/pre-merge` | Runs your project's checks — tests, lint, coverage, security, a smoke test — in a throwaway sandbox, then opens the pull request. One-time `/pre-merge --init` first, so it knows what your project actually has. |
 | `/merge --staging` | Merges once CI is green, deploys to staging, and hands you a script to test it by. Your sign-off is pinned to the exact commit you tested. |
 | `/merge --production` | The release. Double-confirms, opens the release PR, merges on green CI and human review, deploys, and tags the version. If the deploy goes wrong it offers you a rollback rather than taking one on its own. |

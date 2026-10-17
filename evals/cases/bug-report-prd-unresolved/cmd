@@ -1,0 +1,6 @@
+# script-eng-bug-report.py: a branch that names no PRD, or two PRD folders with
+# the same number, writes nothing and exits 1 so the skill asks once.
+S="$REPO/.claude/scripts/script-eng-bug-report.py"
+python3 "$S" --description "x" --branch main; echo "exit=$?"
+python3 "$S" --description "x" --branch feat/prd-3-a; echo "exit=$?"
+find features -name 'report-*' | sort

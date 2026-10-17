@@ -12,10 +12,10 @@ Loaded from `../SKILL.md`. The numbered steps run for every mode and point to th
 
 The routing table (which flag reads which file) lives in `../SKILL.md` only.
 
-Exactly one mode flag must be present (`--plan` | `--build` | `--review`). Zero or more than one:
+Exactly one mode flag must be present (`--plan` | `--build` | `--review` | `--bug`). Zero or more than one:
 
 ```
-Hard failure: exactly one mode flag required (--plan | --build | --review). Got: <list>.
+Hard failure: exactly one mode flag required (--plan | --build | --review | --bug). Got: <list>.
 ```
 
 `--todo` is not a mode — `eng --plan` writes the todos in the same pass:
@@ -31,6 +31,8 @@ Stop on either. Otherwise read the active mode file **fully** first — it defin
 ## Step 1 — Input validation
 
 Two input sources. The **PRD/exec-table source** is the default for `--plan` and `--build`; **`report`** is the alternate on both.
+
+**`--bug` skips Steps 1–4** until it hands off: `build/bug-report.md` writes the report, then the run continues as `--build report=<that file>`.
 
 **`--review` skips Steps 1–4.** Its input is the working diff — no `prd-path`, `rows`, `agent` or `report`, and no preceding build. It resolves its own change set (`review/protocol.md` Step 1) and goes straight to Step 5. An optional `prd-path` and injected ticket context are used when supplied.
 
