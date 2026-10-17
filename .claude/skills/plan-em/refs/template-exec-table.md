@@ -60,12 +60,12 @@ After the agent roster is approved, plan-em **decides** the rows but **renders**
 
 | Feature — concern | Files | Agent |
 |-------------------|-------|-------|
-| F1: Set daily goal — API contract | | backend-eng |
-| F1: Set daily goal — Schema migration | | backend-eng |
-| F1: Set daily goal — iOS UI | | mobile-eng-ios |
-| F1: Set daily goal — Tests | | backend-eng |
-| F2: Track streak — Schema migration | | backend-eng |
-| F3: Daily reminder — iOS push | | mobile-eng-ios |
+| F1: Set daily goal — API contract | | eng-backend |
+| F1: Set daily goal — Schema migration | | eng-backend |
+| F1: Set daily goal — iOS UI | | eng-ios |
+| F1: Set daily goal — Tests | | eng-backend |
+| F2: Track streak — Schema migration | | eng-backend |
+| F3: Daily reminder — iOS push | | eng-ios |
 ```
 
 ## How the Files column gets filled

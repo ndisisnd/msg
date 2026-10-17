@@ -189,7 +189,7 @@ No `AskUserQuestion` in this step — the certifier is autonomous and cheap; its
 **Resume rules — Steps 1–3 re-run on every invocation.** The build wave arrives as a *second* `/plan-em` on the same PRD, so this step must be idempotent. Check the PRD's current state before doing 3b's work and take the resume path wherever it applies:
 
 - **Exec table already present** — the reserved `## 6. Feature execution table` section holds real rows rather than its `_To be populated by plan-em …_` placeholder. **Verify, do not render:** confirm (i) that section is the table's only home — no second `## Execution Table` heading was appended alongside it — and (ii) every row's Feature cell keys on an F-ID that still exists in the PRD's §3 Features & acceptance criteria table. Verified → skip the skeleton render entirely; **never append a second table.** A verification failure (a duplicate table, or a row keying on an F-ID §3 no longer carries) is a hard stop — surface it and let the user reconcile; do not re-render over it.
-- **Roster already approved** — the digest's `engineering_agents` field (the same field Step 4 mode-detection reads) already lists every agent the roster in 3b would propose. This is the build-wave case: the gate is a **per-PRD approval, not a per-wave one**, and it already happened. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan wave: backend-eng, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-fire the approval `AskUserQuestion`.
+- **Roster already approved** — the digest's `engineering_agents` field (the same field Step 4 mode-detection reads) already lists every agent the roster in 3b would propose. This is the build-wave case: the gate is a **per-PRD approval, not a per-wave one**, and it already happened. **Confirm in one line and move on** — e.g. `Roster unchanged from the plan wave: eng-backend, eng-ios.` Do not re-present the roster table, do not emit the intent summary again, and do not re-fire the approval `AskUserQuestion`.
 - **3a still runs either way — but consult the standards cache first (v5.6.5).** The build wave's dispatch (Step 4) needs the compiled `/cook` payloads; since v5.6.5 they persist across runs under `.claude/msg/cache/` (§ 3a cache check below), so "runs either way" usually means a cache hit, not a recompile. Only 3b's approval interview and the skeleton render are resumable.
 
 **3a — Compile coding standards (flags) to confirm agent types.** Before proposing any roster, derive platform identifiers from the PRD frontmatter `platform` field and the Features & acceptance criteria table. Then call `/cook` **once per implied platform via explicit flags** — never a prose summary — using the stack→flag derivation in `.claude/skills/eng/refs/build/protocol.md` (§ Coding-standards flags): `--global` (mandatory, unscoped — guarantees the P0 floor) plus, for each platform, **diff-scoped domain sub-ref flags** rather than the bare domain flag.
@@ -228,7 +228,7 @@ Do not activate any agent without explicit approval.
 
 ```bash
 S=.claude/scripts/script-em-exec-skeleton.py; [ -f "$S" ] || S="$HOME/.claude/scripts/script-em-exec-skeleton.py"
-echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}, …]' | python3 "$S" --write "$PRD_DIR/prd-[n]-[slug].md"
+echo '[{"fid":"F1","concern":"API contract","agent":"eng-backend"}, …]' | python3 "$S" --write "$PRD_DIR/prd-[n]-[slug].md"
 ```
 
 A spec `fid` absent from §3 is a hard error (exit 1, named on stderr) — fix the spec, never edit the PRD to match. `--write` puts the rendered table in the PRD's **reserved `## 6. Feature execution table` section** — the exec table's one home — replacing its `_To be populated by plan-em …_` placeholder. Never append a second `## Execution Table` heading; that legacy name is read-tolerated by the parsers for pre-v5 PRDs and is written by nothing. A missing reserved section is a hard error (exit 1) — restore it from `template-prd.md`, do not invent a heading.
@@ -324,7 +324,7 @@ Prompt fields are ordered **stable head first, varying tail last (v5.6.5)** — 
 5. Devkit digest (the shared GLOSSARY/ARCHITECTURE/DESIGN-SYSTEM distillate — run-scoped, not row-scoped)
 
 *Varying tail (per-agent):*
-6. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
+6. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `eng-backend`)
 7. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
 8. **Row-scoped context** (per § Subagent context injection): the mapped PRD feature sections and the row-matched AHA slice — these vary per agent, which is why they live in the tail
 9. The PRD-path escape hatch line
@@ -414,7 +414,7 @@ Prompt fields are ordered **stable head first, varying tail last (v5.6.5)** — 
 6. The compiled `/cook` **standards payload** for this agent's stack (retained from Step 3a, cache-served when warm). The build agent uses the injected payload and **does not call `/cook` itself**; cook is invoked at most once per distinct stack per run, and with a warm cache, zero times.
 
 *Varying tail (per-agent):*
-7. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `backend-eng`)
+7. `agent`: this agent's name from the approved roster — the exact **Agent** column value for these rows (e.g. `eng-backend`)
 8. `rows`: the semicolon-separated exec-table Feature identifiers assigned to this agent — each the exact `<ID>: <name> — <concern>` text of a Feature cell
 9. **Row-scoped context** (per § Subagent context injection): the mapped PRD feature sections and the row-matched AHA slice — per-agent by construction, so they live in the tail
 10. **Review-artifact identity:** `<K>` = this agent's name (the solo lane runs one leaf per stack, so the agent name *is* the packet key) and `built_by` = the same name. The leaf passes both through to its Step 5a reviewer, which writes `<prd-dir>/reports/review-prd-<N>-<K>.json` (`.claude/skills/eng/refs/review/protocol.md` § Artifact). A leaf never invents the key.
@@ -558,7 +558,7 @@ own relayed blocks, and `--end` closes it.
 
 **Step 5/5 — Synthesise and next steps**
 
-**Synthesise.** Read the engineering sections + feature coverage via the digest **synth** slice — `python3 .claude/scripts/script-prd-digest.py <prd-path> --slice synth` (frontmatter + `features` + `exec_table` + every agent's `engineering` block + `open_questions` — everything this synthesis summarizes). **Escape hatch:** for a cross-section conflict that needs product prose (a user-flow or design-system detail), read only that section's `prose_lines` range; do **not** default to reading the whole PRD. Produce a synthesis report inline. **Its first element is sized to the wave** — the findings list and branch line below are identical either way:
+**Synthesise.** Read the engineering sections + feature coverage via the digest **synth** slice — `G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" <prd-path> --slice synth` (frontmatter + `features` + `exec_table` + every agent's `engineering` block + `open_questions` — everything this synthesis summarizes). **Escape hatch:** for a cross-section conflict that needs product prose (a user-flow or design-system detail), read only that section's `prose_lines` range; do **not** default to reading the whole PRD. Produce a synthesis report inline. **Its first element is sized to the wave** — the findings list and branch line below are identical either way:
 
 1. **The summary — one combined, or one per agent, by `$MODE`:**
    - **`fused`** → **one combined summary**, ~5 lines for the whole run: what was planned and built, which stacks took part, the branch, and the review coverage line. **Do not write a paragraph per agent.** A fused run already returned a build summary per packet and a consolidated orchestrator report; a per-agent synthesis paragraph is a third telling of the same events, generated at the most expensive point in the run and read by no one.

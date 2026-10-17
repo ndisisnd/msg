@@ -2,6 +2,11 @@
 
 ## 2026-10-17
 
+### [178] v6.0.0 plan-em — Step 5 script path, one agent-name format
+
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 5 digest call uses the two-path lookup, so it works where scripts live only in `~/.claude/scripts/`; agent examples use `eng-<platform>`.
+- `.claude/skills/plan-em/refs/template-exec-table.md`, `.claude/scripts/script-em-exec-skeleton.py`: Changed — agent examples use `eng-backend` / `eng-ios`, the form Step 3a and eng use.
+
 ### [177] v6.0.0 plan-pm — GUI reads sub-PRD numbers
 
 - `.claude/skills/msg/refs/gui/server.py`: Changed — PRD dir and report filename patterns accept `7.1`; `num` is the display string, new `prd_num_key` sorts `7 < 7.1 < 7.10 < 10`, board list sorted by it, new `numSort` field.

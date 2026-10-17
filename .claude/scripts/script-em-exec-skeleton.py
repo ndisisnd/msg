@@ -13,7 +13,7 @@ consumed/produced.
 Two modes.
 
 RENDER (default) — build the skeleton from an assignment spec:
-  echo '[{"fid":"F1","concern":"API contract","agent":"backend-eng"}]' \\
+  echo '[{"fid":"F1","concern":"API contract","agent":"eng-backend"}]' \\
     | script-em-exec-skeleton.py [--write] [--force] <prd.md>
 
   --write   write the table into the PRD's reserved "## N. Feature execution
