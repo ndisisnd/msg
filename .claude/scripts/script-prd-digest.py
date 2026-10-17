@@ -269,13 +269,13 @@ def build(prd_path):
 # Named slice bundles — each pipeline stage reads ONLY its slice, never the whole
 # digest. Keeps per-stage token load to the minimum that stage actually needs.
 SLICES = {
-    # plan-review --product: does the PRD hold together as a product spec?
+    # plan-review product check: does the PRD hold together as a product spec?
     "product": ["frontmatter","summary","out_of_scope","features","error_cases",
                 "glossary","key_interactions"],
     # plan-em: what to build and for which platform (engineering_agents drives
     # Step 4 wave-mode detection — build once all roster agents have a section).
     "plan":    ["frontmatter","summary","features","exec_table","engineering_agents"],
-    # plan-review --eng: eng-plan integrity (exec_table + todos feed checks 4/5).
+    # plan-review eng check: eng-plan integrity (exec_table + todos feed checks 4/5).
     "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
     # `todos` carries each agent's ticket ids + the prose_lines range to read them

@@ -13,7 +13,7 @@ Usage:
                                [--features-root <dir>]
 
   --checks         comma-separated subset of 4,5,6. Default: 4,5,6.
-                   Product tune passes `--checks 6`; eng tune passes `--checks 4,5,6`.
+                   The product check passes `--checks 6`; the eng check passes `--checks 4,5,6`.
   --platforms      path to devkit/PLATFORMS.md. Default: devkit/PLATFORMS.md.
                    Absent → the bucket-coverage facet is skipped, never an error.
   --features-root  root the frontmatter graph is resolved against. Default: features.

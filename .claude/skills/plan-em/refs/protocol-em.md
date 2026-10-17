@@ -176,7 +176,7 @@ S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed straight to agent identification.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --product` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a). The certifier auto-fixes Critical+Major, stamps `reviewed: yes` (`product-tuned: yes` on a pre-v5.4 PRD), and terminates recommend-only. When it returns, **re-run the checker**:
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run the plan-review product check inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --product")` (the input PRD path resolved in Step 1a; the flag is internal — never shown to the user). The certifier auto-fixes Critical+Major, stamps the PRD through `script-prd-stamp.sh --certify`, and returns its result block for the digest. When it returns, **re-run the checker**:
   - `CERTIFIED` → proceed to agent identification.
   - The certifier hit its **product-decision pause** (a fix needing a human product choice) → it already batched that question; once the user answers and the certifier finishes, re-check. If a Critical remains genuinely unresolved after the certifier ran, **stop** and surface it — plan-em never plans on an uncertified PRD — and log one DOCTOR row (`validator-fail:script-cert-status-product`) per § Harness incidents. The *first* `UNCERTIFIED` is expected (it is what triggers the inline certify) and is never logged; only the repair-once loop's still-failing arm is.
 
@@ -345,6 +345,8 @@ S=.claude/scripts/script-em-state.py; [ -f "$S" ] || S="$HOME/.claude/scripts/sc
 
 `specced` is the v5.4 lifecycle value for "execution table + todos written" — the rung that used to be called `eng`. On a PRD written before v5.4 the frontmatter still reads `status: eng`; leave it, every consumer normalises the two to the same rung.
 
+**Auto-review (end of the plan half).** When the switch is on — the bare `--review` flag, or `policies.plan_em.review: true` in `devkit/policy.json` (absent = off; SKILL.md § Usage) — run the plan-review eng check now: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --eng")`. Its result goes into the Step 5 synthesis. A Critical it leaves open stops the run here, as in the eng certification below. Switch off → run nothing; the closing message suggests `/plan-review`. The certification gates in Step 2 and in Build mode run whatever the switch says.
+
 Then, by `$MODE`:
 - `plan` (large) — the run **ends** here. Emit the branch suggestion below and go to Step 5; the next `plan-em` invocation detects `$MODE = build`.
 - `fused` (medium) — **do not return to the user.** Continue straight into § Fused mode below, which carries the run from the written tickets to the built code without a second invocation.
@@ -358,7 +360,7 @@ S=.claude/scripts/script-cert-status.sh; [ -f "$S" ] || S="$HOME/.claude/scripts
 ```
 
 - `CERTIFIED` (exit 0) → certified; proceed to branch resolution.
-- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run `plan-review --eng` inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; the eng-side check set: 2, 4, 5, 6, 7). It auto-fixes Critical+Major, stamps `reviewed: yes` (`eng-tuned: yes` on a pre-v5.4 PRD), terminates recommend-only. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:script-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
+- `UNCERTIFIED …` (exit 1 — `no-stamp` or `open-critical <id>`) → **run the plan-review eng check inline**: `Skill("plan-review", "$PRD_DIR/prd-[n]-[slug].md --eng")` (the input PRD path from Step 1a; checks 2, 4, 5, 6, 7; the flag is internal). It auto-fixes Critical+Major, stamps through `script-prd-stamp.sh --certify`, and returns its result block. **Re-run the checker** on return; if it still reports `UNCERTIFIED` after it ran, **stop** and surface it — no build agent dispatches on an uncertified eng plan — and log one DOCTOR row (`validator-fail:script-cert-status-eng`) per § Harness incidents (the first `UNCERTIFIED` is expected and never logged). No `AskUserQuestion` here (the certifier's own product-decision pause is the only stop).
 
 Then, resolve and create the feature branch **once**.
 

@@ -2,6 +2,15 @@
 
 ## 2026-10-17
 
+### [175] v6.0.0 plan-review — one result block, no Minor question, plain check names, smaller instructions
+
+- `.claude/skills/plan-review/refs/protocol-review.md`: Changed — the ledger is written once, after the fixes and a second `script-cert-mech.py` run, with a status per finding and `--checks`; Minors are logged, never asked; the stamp (`script-prd-stamp.sh --certify`) is written only when no Critical stays open, and the run says "Not certified — N Critical open" otherwise; one result block replaces the tune line, the fix table and the "certified" line; the recurrence warning is removed.
+- `.claude/skills/plan-review/refs/certification.md`, `.claude/skills/plan-review/SKILL.md`: Changed — "product check" / "eng check" replace "tune", the flags are hidden, old-PRD handling is one line, the cut list, success metric, recurrence step and history text are removed (5,397 → 2,737 words).
+- `.claude/skills/plan-review/refs/template-review-report.md`: Removed — `script-ledger.py` writes the report scaffold.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — inline plan-review calls keep the internal flag but say "product check" / "eng check"; the end of the plan half runs plan-review when the auto-review switch is on.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the plan-review row points to `/plan-em`; plan-pm and plan-em rows suggest `/plan-review`.
+- `.claude/scripts/script-prd-digest.py`, `.claude/scripts/script-cert-mech.py`, `ARCHITECTURE.md`: Changed — comments and docs use the plain check names and describe the optional step.
+
 ### [174] v6.0.0 plan-review — fixed findings clear, the stamp script picks the field, --migrate converts v6 shapes
 
 - `.claude/scripts/script-ledger.py`: Changed — honours a per-finding `status` (Open/Fixed) on repeat rows; matches repeats on check + code + ref (script findings) or check + section (judgment findings), then on text; `--checks` clears a prior open row whose check ran clean this run to `Fixed`; prints `LEDGER_CLEARED` and `LEDGER_OPEN_CRITICAL/MAJOR/MINOR`; writes the report scaffold itself.
