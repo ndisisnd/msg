@@ -1,0 +1,4 @@
+FAIL check=2 code=bad-ac-label ref=F1 detail=several criteria in one cell must be labelled AC1, AC2 in order, one per <br> line; found (unlabelled), (unlabelled)
+FAIL check=2 code=bad-ac-label ref=F2 detail=several criteria in one cell must be labelled AC1, AC2 in order, one per <br> line; found AC1, AC3
+FAIL check=2 code=weasel-token ref=F1 detail=acceptance criterion uses the vague token 'handles' — name the observable user-goal outcome instead
+SUMMARY shape=v5.4 checks=1,2,3,4,5 failures=3

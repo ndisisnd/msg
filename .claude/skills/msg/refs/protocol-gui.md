@@ -277,7 +277,7 @@ protocol (criterion 25). The design system in `styles.css` is hardcoded and iden
 across every project (light + dark, responsive); it is **not** sourced from
 `devkit/DESIGN-SYSTEM.md` (criterion 26).
 
-### Error cases
+### Error and edge cases
 - `python3` missing / ports busy → surface it, don't fail silently (error case 1).
 - Malformed PRD frontmatter or an unparseable issues `.json` → `skipped[]`, flagged in the
   board header; the rest still render (error case 2).

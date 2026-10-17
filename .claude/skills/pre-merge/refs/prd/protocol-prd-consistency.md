@@ -51,8 +51,9 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 python3 "$G" "<prd-path>" --slice eval
 ```
 
-Consume `features[]` (each with its F-ID + verbatim acceptance criterion) and
-`error_cases[]` (id + trigger + specified behavior). *(The slice also carries
+Consume `features[]` (each with its F-ID + verbatim acceptance cell, split into
+`criteria[]` — one `{id: AC<k>, text}` per criterion; a single-criterion feature has
+one, `AC1`) and `error_cases[]` (id + checklist `type` + trigger + specified behavior). *(The slice also carries
 `edge_cases[]` — those are `manual-test-plan`'s (C22), not consumed here.)* Escape
 hatch: assertions in a non-standard section the slice omits (digest
 `unparsed_sections`) → read only that section's `prose_lines` range.
@@ -67,7 +68,8 @@ no acceptance criteria, record the component as `skipped` with `reason: "no_crit
 
 ### 1 · Coverage — evidence-strength grading
 
-For each in-scope F-ID's acceptance criterion, judge it against the diff by
+For **each criterion** of each in-scope F-ID (every `criteria[]` entry — a feature
+with three criteria is graded three times), judge it against the diff by
 **evidence strength** — is there a code path that satisfies it, and is there a test
 that covers it?
 
@@ -79,7 +81,8 @@ that covers it?
 
 Grading is **static**: "has a covering test" means a test *exists* that exercises the
 criterion — never that it passed. `source: pre-merge:prd-consistency`; message names
-the F-ID + the criterion + the evidence gap.
+the F-ID + the criterion id (`F2 AC3`; the bare F-ID when the feature has one criterion) + the
+criterion text + the evidence gap.
 
 ### 2 · Error-cases — symmetric grading
 
@@ -120,9 +123,10 @@ gitignored runtime artifact) alongside the check's result report:
   "check": "prd-consistency",
   "prd": "<prd-path>",
   "grades": [
-    { "id": "F1", "kind": "acceptance", "evidence": "tested" },
-    { "id": "F2", "kind": "acceptance", "evidence": "untested" },
-    { "id": "F3", "kind": "acceptance", "evidence": "unmet" },
+    { "id": "F1", "ac": "AC1", "kind": "acceptance", "evidence": "tested" },
+    { "id": "F2", "ac": "AC1", "kind": "acceptance", "evidence": "tested" },
+    { "id": "F2", "ac": "AC2", "kind": "acceptance", "evidence": "untested" },
+    { "id": "F3", "ac": "AC1", "kind": "acceptance", "evidence": "unmet" },
     { "id": "E1", "kind": "error_case", "evidence": "handled_tested" },
     { "id": "E2", "kind": "error_case", "evidence": "handled_untested" },
     { "id": "E5", "kind": "error_case", "evidence": "unhandled" }
@@ -130,7 +134,8 @@ gitignored runtime artifact) alongside the check's result report:
 }
 ```
 
-- One entry per in-scope F-ID acceptance criterion (`kind: acceptance`) and per
+- One entry per acceptance criterion of each in-scope F-ID (`kind: acceptance`; `id`
+  stays the F-ID, `ac` names the criterion, `AC1` for a single-criterion feature) and per
   `error_cases[]` entry (`kind: error_case`) — every graded item appears, pass or
   finding, so the consumer sees the full picture, not just the failures.
 - `evidence` is the exact tag driving the grade above:

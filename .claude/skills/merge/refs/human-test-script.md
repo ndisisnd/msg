@@ -42,8 +42,9 @@ it as the staging human-test script (the second render site).
       ("open the app, add a task, refresh — the task is still there"). Prefer the most
       recent report; concatenate distinct steps across reports for this PRD.
    b. **The PRD's acceptance criteria** (§3 / "Features & acceptance criteria") — for any
-      in-scope feature whose verification isn't already covered by a report step, turn its
-      acceptance criterion into a check ("you should be able to … and see …").
+      in-scope feature whose verification isn't already covered by a report step, turn each
+      acceptance criterion into a check ("you should be able to … and see …") — one check
+      per `AC<k>` line when the feature lists several.
 
 Do not invent behavior the PRD didn't specify (in either path). If no source yields a
 concrete step for a feature, say so plainly rather than fabricating one.

@@ -64,7 +64,7 @@ Two things this mode is not:
 - **It writes no `INTAKE.md` row and reads none.** The intake-only rule governs where a PRD's *idea* comes from, and an update introduces no idea — this is maintenance on an existing artifact. Explicit carve-out; the hard refusal against skipping the PRD stage is untouched.
 - **It changes nothing about how PRDs are read.** Every other skill still normalises the old shape in memory, and no writer emits it. The read path is exactly as it was.
 
-The run is two layers: `.claude/scripts/script-prd-update.py` does the mechanical migration (frontmatter mapping, inline findings moved out to `reports/`, section renumbering), then the model does the style pass (§5 bullets → the four-column table, §1 back to its three bullets). It finishes on `script-prd-shape.py --checks 1,2,3,4,5,6` — check 6 is opt-in and requested only here, so fresh-draft gates keep running 1–5.
+The run is two layers: `.claude/scripts/script-prd-update.py` does the mechanical migration (frontmatter mapping, inline findings moved out to `reports/`, section renumbering), then the model does the style pass (§5 bullets → the four-column table, §1 back to its two bullets). It finishes on `script-prd-shape.py --checks 1,2,3,4,5,6` — check 6 is opt-in and requested only here, so fresh-draft gates keep running 1–5.
 
 ## Step-by-step protocol
 
@@ -89,7 +89,8 @@ and stamps nothing else; every stamp goes through the shared writers, never impr
 - `refs/protocol-update.md` — the standalone `--update` protocol (target resolution → L1 → style pass → checks 1–6 gate → close); read from § Update mode when `--update` is set, and it replaces the five-step protocol rather than layering over it
 - `.claude/scripts/script-prd-update.py` — deterministic v5 → v5.4 PRD migrator (L1); called per target in `--update` Step U2
 - `.claude/scripts/script-prd-scan.sh` — deterministic lane-aware PRD inventory (JSONL); call in Step 2's prior-PRD scan
-- `refs/template-prd.md` — structured PRD format (seven sections) and its drafting rules, including the §3 F-ID contract and the §4 error-case format; used to initialize the file in Step 3
+- `refs/template-prd.md` — structured PRD format (seven sections) and its drafting rules, including the §3 F-ID and acceptance-criteria contract and the §4 error-and-edge-case format; used to initialize the file in Step 3
+- `refs/error-checklist.md` — the standard failure types (Tier 1 always, Tier 2 when the trigger fits) every §3 feature is checked against when §4 is drafted
 - `.claude/scripts/script-prd-shape.py` — deterministic PRD shape validator; call at the end of Step 3 Part 4
 - `.claude/scripts/script-prd-number prd` — deterministic next-PRD-number resolver; call in Step 3
 - `.claude/scripts/script-prd-number sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)

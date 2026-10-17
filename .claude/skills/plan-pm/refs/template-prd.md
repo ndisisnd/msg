@@ -13,13 +13,15 @@ The seven sections fall into four categories:
 | Category | Sections | Who writes them |
 |---|---|---|
 | **A · Intent** — why this exists and where it stops | §1 Product objective, §2 Out-of-scope | `plan-pm` |
-| **B · Contract** — what ships and what "done" means | §3 Features & acceptance criteria, §4 Error cases | `plan-pm` (the pipeline's load-bearing part) |
+| **B · Contract** — what ships and what "done" means | §3 Features & acceptance criteria, §4 Error and edge cases | `plan-pm` (the pipeline's load-bearing part) |
 | **C · Unresolved** | §5 Open questions | `plan-pm` authors; others amend |
 | **D · Reserved** — written downstream, never by `plan-pm` | §6 Feature execution table, §7 Todos | `plan-em`, `eng --plan` |
 
 **Certification findings do not live in the PRD.** `plan-review` writes its audit ledger to `<prd-dir>/reports/review-prd-[n]-[slug].md` and stamps `reviewed: yes` in the frontmatter — the stamp is the gate signal the pipeline reads, the report is the evidence trail. PRDs written before v5.4 carry the findings inline as a `## 7. Plan review findings` section; that stays where it is and is still read, but nothing new is written there.
 
 **Undetermined facts use a `[USER: …]` placeholder.** When a value the PRD needs is genuinely not decidable from the intake row, the devkit context, or the codebase, write it inline as `[USER: what you need decided]` and raise the same question as a §5 Open questions row. Never invent the value, and never leave the slot silently blank — the placeholder is what makes the gap visible to the reader and to `plan-review`.
+
+**Numbers come from a source, or not at all.** A precise value (a time limit, a count, a percentage, a version) may appear only when it cites its source inline — the intake row, the user's answer, or a named file (for example "per devkit/ARCHITECTURE.md"). Otherwise write the observable outcome without a number, or a `[USER: …]` placeholder when the number matters. The worked examples below follow this rule; copy their shape, not their values.
 
 ## File header
 
@@ -58,18 +60,16 @@ intake: #<n>
 
 ## 1. Product objective
 
-**Terse bullets — three of them, one line each.** This is the product spec, not an essay and not engineering:
+**Terse bullets — two of them, one line each.** This is the product spec, not an essay and not engineering:
 
 - **Who** — the user or segment this serves.
 - **What changes** — what they can do after this ships that they could not before.
-- **Success signal** — the observable measure that says it worked.
 
-No feature list, no implementation, no prose paragraph.
+No feature list, no implementation, no prose paragraph, no success metric.
 
 **Worked example:**
 > - **Who** — active streak-holders who lose a streak to an accidental miss.
-> - **What changes** — they can retroactively mark a missed day complete within a 24-hour grace window.
-> - **Success signal** — 30-day retention among active streak-holders rises.
+> - **What changes** — they can mark yesterday's missed day complete, and their streak continues.
 
 ## 2. Out-of-scope
 
@@ -81,11 +81,11 @@ Bulleted list of features or behaviors explicitly excluded. Each item has a one-
 
 ## 3. Features & acceptance criteria
 
-Every drafted feature gets one row. Every row must have a concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from the Step 2 prior-PRD scan + intake grade); use `—` if none.
+Every drafted feature gets one row. Every row must have at least one concrete, verifiable acceptance criterion phrased as an observable **user-goal outcome** — no `supports`, `handles`, or other vague verbs. The Dependencies column lists the F-IDs, external services, or data sources this feature requires (from the Step 2 prior-PRD scan + intake grade); use `—` if none.
 
 **F-IDs are sequential and permanent.** `F1`, `F2`, … in order, assigned once and never renumbered — `plan-em` keys its §6 execution table on them, so a renumber silently breaks the pipeline downstream.
 
-**Exactly one acceptance criterion per feature**, and it must be *observable by the user*. "The list loads" is not one; "the habit row appears on the Home screen within 200ms of saving" is. This is the single contract every downstream stage reads — regression authoring, `plan-review`, and `pre-merge`'s PRD-consistency gate all key off it.
+**One or more acceptance criteria per feature**, and each one is a single outcome *observable by the user*. "The list loads" is not one; "the new habit row appears on the Home screen as soon as the user saves it" is. A simple feature has one criterion, written as plain text. A complex feature lists each behaviour as its own criterion, never joined with semicolons: label them `AC1`, `AC2`, … in order and put each on its own line inside the one cell, separated by `<br>` (`AC1 … <br>AC2 …`). The F-ID stays one row — never split a feature into `F1.1` sub-rows. These criteria are the contract every downstream stage reads — regression authoring, `plan-review`, and `pre-merge`'s PRD-consistency gate check each one.
 
 **Keep this section free of engineering detail.** Do not name APIs, endpoints, schemas, components, or files here — those map to §6 Feature execution table. Acceptance criteria describe what the *user* observes, not how it is built. The product/engineering boundary is a msg convention: §1–§5 stay user-facing.
 
@@ -98,30 +98,37 @@ This table is the canonical feature list for the pipeline: `plan-em` keys its ex
 
 | ID | Feature | Acceptance criterion | Dependencies |
 |----|---------|----------------------|--------------|
-| F1 | Set daily goal | When the user saves a habit with a non-empty name and a frequency, the habit row appears on the Home screen within 200ms; an empty name shows the inline error "Name required". | — |
-| F2 | Track streak | A habit's streak increments by 1 the first time it is marked complete on a given user-profile-timezone day, and resets to 0 after one missed day. | F1 |
+| F1 | Set daily goal | When the user saves a habit with a non-empty name and a frequency, the new habit row appears on the Home screen. | — |
+| F2 | Track streak | AC1 The streak goes up by 1 the first time the habit is marked complete on a day, in the user's profile timezone.<br>AC2 The streak resets to 0 after one missed day.<br>AC3 Marking the habit complete a second time on the same day leaves the streak unchanged. | F1 |
 
-## 4. Error cases
+## 4. Error and edge cases
 
-Table form, drafted **per feature** from the §3 feature set. One row per error state. Every row requires a user-visible message or behavior.
+Table form, drafted **per feature** from the §3 feature set. One row per user-visible behaviour. Every row requires a user-visible message or behavior.
 
 | ID | Trigger | User-visible behavior |
 |----|---------|----------------------|
 
+**How to draft it:** check every §3 feature against `refs/error-checklist.md` — the Tier 1 types always, the Tier 2 types only when their trigger fits the feature. Write a row only for a type that can actually happen in that feature.
+
 **Rules:**
 
+- **This PRD's features only.** Every row traces to a §3 feature. No generic padding: a type that cannot happen in this feature is skipped silently, not written as `N/A`.
+- **Likely and user-visible only.** Skip an error the user would never see or that is not likely.
+- **One row per behaviour.** When several triggers lead to the same user-visible behaviour, merge them into one row and name every trigger in it.
+- **Type label in the ID cell.** Write `E<n> · <Type>`, with the type name from `refs/error-checklist.md` (for example `E1 · Network`). `plan-review` reads the labels to confirm the checklist ran.
 - Trigger is a concrete condition, not a category. "Network timeout on save" not "network error."
 - User-visible behavior names the exact UI element (toast, banner, inline error) and the copy.
 - Never "gracefully handle" — name the specific behavior.
-- Write the error cases the §3 features actually have. There is no row quota: a one-feature PRD with a single real failure mode gets one row, and padding it to hit a count is worse than the short table.
+- There is no row quota. Expect about 2–5 rows per feature; a feature with a single real failure mode gets one row, and padding it to hit a count is worse than the short table.
 
 **Worked example:**
 
 | ID | Trigger | User-visible behavior |
 |----|---------|----------------------|
-| E1 | Network timeout on habit save | Toast: "Couldn't save. Check your connection and try again." Save button re-enabled. |
-| E2 | Notification permission denied | Inline banner: "Enable notifications in Settings to get reminders." No crash. |
-| E3 | Empty habit name on submit | Inline field error: "Name is required." Form not submitted. |
+| E1 · Network | Network timeout or server error on habit save (F1) | Toast: "Couldn't save. Check your connection and try again." Save button re-enabled. |
+| E2 · Permission | Notification permission denied (F1 reminders) | Inline banner: "Enable notifications in Settings to get reminders." No crash. |
+| E3 · Invalid input | Empty habit name on submit (F1) | Inline field error: "Name is required." Form not submitted. |
+| E4 · Time and date | A completion saved just before midnight syncs after midnight (F2) | The streak counts the day the user tapped, not the day it synced. |
 
 ## 5. Open questions
 
@@ -135,7 +142,7 @@ Table of unresolved questions that must be answered before implementation starts
 | # | Question | Answer | Status |
 |---|----------|--------|--------|
 | 1 | PRD-2-streak-tracking also handles streak resets — which PRD owns the reset logic? | | Open |
-| 2 | Target OS minimum? | iOS 16.0+, confirmed with design. | Addressed |
+| 2 | Target OS minimum? | Same minimum as the app today, per devkit/ARCHITECTURE.md. | Addressed |
 
 ## 6. Feature execution table
 

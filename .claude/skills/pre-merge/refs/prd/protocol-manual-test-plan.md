@@ -22,9 +22,11 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 python3 "$G" "<prd-path>" --slice eval
 ```
 
-Consume `features[]` (each F-ID + acceptance criterion), `error_cases[]` (id + trigger
-+ specified behavior), and `edge_cases[]` (id + scenario + expected behavior). Every
-in-scope item across all three sources becomes one checklist row.
+Consume `features[]` (each F-ID + its `criteria[]`, one `{id: AC<k>, text}` per
+acceptance criterion), `error_cases[]` (id + trigger + specified behavior), and
+`edge_cases[]` (id + scenario + expected behavior). Every in-scope item across all
+three sources becomes one checklist row — and every **criterion** is an item, so a
+feature with three criteria gives three rows.
 
 ## Read prd-consistency's per-item evidence grades (the automation-gap input)
 
@@ -32,10 +34,11 @@ in-scope item across all three sources becomes one checklist row.
 re-derive it:
 
 ```
-.pre-merge/<ts>/prd-consistency-grades.json   # { grades: [ {id, kind, evidence}, … ] }
+.pre-merge/<ts>/prd-consistency-grades.json   # { grades: [ {id, ac, kind, evidence}, … ] }
 ```
 
-Each `grades[]` entry tags an acceptance criterion or error_case with its evidence:
+Each `grades[]` entry tags an acceptance criterion (F-ID `id` + criterion `ac`) or an
+error_case with its evidence:
 `tested` | `untested` | `unmet` (acceptance) · `handled_tested` | `handled_untested` |
 `unhandled` (error_case). This is the **automation-gap** signal — what automation could
 or could not verify — reused verbatim.
@@ -105,15 +108,15 @@ Write the checklist to **both** sinks; neither touches the verdict:
   "generated_at": "<ISO-8601>",
   "degraded": false,
   "items": [
-    { "id": "F3", "kind": "acceptance", "significance": "high",
+    { "id": "F3", "ac": "AC2", "kind": "acceptance", "significance": "high",
       "user_impact": "high", "automation_gap": "high",
-      "step": "Delete a task, then click Undo within 5s — the task returns to its original position.",
+      "step": "Delete a task, then click Undo on the toast — the task returns to its original position.",
       "note": null },
     { "id": "E5", "kind": "error_case", "significance": "high",
       "user_impact": "high", "automation_gap": "high",
       "step": "Edit the same task in two tabs, save the stale one — you see 'This task changed in another tab.'",
       "note": null },
-    { "id": "F1", "kind": "acceptance", "significance": "medium",
+    { "id": "F1", "ac": "AC1", "kind": "acceptance", "significance": "medium",
       "user_impact": "high", "automation_gap": "low",
       "step": "Add a task — it appears at the top of the list immediately.", "note": null }
   ]
@@ -122,7 +125,8 @@ Write the checklist to **both** sinks; neither touches the verdict:
 
 Each item carries its `significance` + both axes (`user_impact`, `automation_gap`) so
 the render sites can re-sort/filter without recomputing. `kind` ∈
-`acceptance` | `error_case` | `edge_case`.
+`acceptance` | `error_case` | `edge_case`; an `acceptance` item also carries `ac`, the
+criterion it checks.
 
 ## Degrade path — C11 absent or errored
 

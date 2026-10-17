@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [170] v6.0.0 plan-pm — PRD template: no invented numbers, two-bullet objective, several criteria per feature, checked error list
+
+- `.claude/skills/plan-pm/refs/template-prd.md`: Changed — a number may appear only with its source, and the worked examples no longer carry invented values; §1 drops the success signal (two bullets); a feature may list several acceptance criteria as `AC1`, `AC2`, … on `<br>` lines in its one cell; §4 is renamed "Error and edge cases", covers this PRD's features only, and labels every row with its checklist type (`E1 · Network`).
+- `.claude/skills/plan-pm/refs/error-checklist.md`: Added — the standard failure list (8 Tier 1 types always, 12 Tier 2 types when the trigger fits) and the two drafting rules that keep §4 short.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-update.md`: Changed — draft §1 as two bullets, §3 with one or more criteria, §4 against the checklist; the style pass keeps an old success-signal bullet in place.
+- `.claude/scripts/script-prd-shape.py`: Changed — accepts "Error and edge cases" (old "Error cases" still passes), checks two §1 bullets (an old third success-signal bullet still passes), checks `AC1..ACn` labels and runs the vague-word check per criterion, and accepts a dotted `intake: #7.1`.
+- `.claude/scripts/script-prd-digest.py`: Changed — each feature carries `criteria[]` (an unlabelled cell is `AC1`), each error case carries its checklist `type`, and the renamed §4 heading is read.
+- `.claude/skills/pre-merge/refs/prd/protocol-prd-consistency.md`, `.claude/skills/pre-merge/refs/prd/protocol-manual-test-plan.md`, `.claude/skills/pre-merge/refs/universal/protocol-regression.md`, `.claude/skills/plan-review/refs/certification.md`, `.claude/skills/merge/refs/human-test-script.md`, `.claude/skills/eng/refs/plan/template-todo.md`: Changed — grade, test and cite each acceptance criterion on its own; plan-review checks the §4 type labels and flags invented numbers.
+- `.claude/skills/msg/refs/gui/index.html`, `.claude/skills/msg/refs/protocol-gui.md`: Changed — the PRD view renders `<br>` criterion lines; the error heading is renamed.
+- `evals/cases/prd-shape-v6-multi-ac`, `evals/cases/prd-shape-v6-bad-ac-label`, `evals/cases/prd-digest-v6-criteria`: Added — cover the new shape, the label check and the criteria split. `evals/cases/prd-update-style-gate`: Changed — expects the two-bullet message.
+
 ### [169] v6.0.0 intake — one prompt, inference from context, plain-language edits, `--health`, smaller skill
 
 - `.claude/skills/intake/refs/protocol-intake.md`: Changed — capture opens with one prompt ("What are you trying to build?"), runs a fixed light context scan (memory, CLAUDE.md, README, glossary, architecture, PRD titles, open rows via `--list-rows`, AHA), and infers the idea, goal, type and splits. No fixed questions: the ledger is created without asking, splits need no confirm, and questions come only from `principles.md`. Duplicates are found by keyword search and offered as an update; a shipped match is stamped `completed` and the new idea becomes a follow-up row. Related ideas appear only when brainstorm is on. Every grade shown carries a plain-English label.

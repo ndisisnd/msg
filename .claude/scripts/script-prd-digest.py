@@ -5,7 +5,8 @@ script-prd-digest.py — deterministic PRD -> compact digest (no LLM).
 Splits a msg PRD on its standardized headings and emits a JSON digest that
 downstream stages consume instead of re-parsing the full prose. Contractual
 fields (F-IDs, acceptance criteria, integration contracts, glossary, exec rows)
-are copied VERBATIM; narrative prose is dropped but every section keeps a
+are copied VERBATIM (each feature also carries `criteria`, its acceptance cell
+split into AC1..ACn; each error case carries its checklist `type`); narrative prose is dropped but every section keeps a
 `prose_lines` pointer for on-demand access. See shared/refs/session-cache.md.
 
 Usage:
@@ -68,6 +69,25 @@ def bullets(block_lines):
 
 def raw(block_lines):
     return "\n".join(block_lines).strip()
+
+# A feature's acceptance cell may hold several criteria, one per `<br>` line,
+# labelled AC1, AC2, … . A single unlabelled criterion (every older PRD) is AC1.
+AC_SPLIT = re.compile(r"<br\s*/?>", re.I)
+AC_LABEL = re.compile(r"^AC(\d+)\b[\s:.·—-]*", re.I)
+
+def criteria(cell):
+    out = []
+    for n, part in enumerate([p.strip() for p in AC_SPLIT.split(cell or "") if p.strip()], 1):
+        m = AC_LABEL.match(part)
+        out.append({"id": ("AC" + m.group(1)) if m else f"AC{n}",
+                    "text": part[m.end():].strip() if m else part})
+    return out
+
+# A §4 ID cell reads `E1 · Network` (id + checklist type); older PRDs carry a
+# bare `E1`. Split it so consumers keep keying on the bare id.
+def error_id(cell):
+    m = re.match(r"^\s*(E\d+)\s*[·:—-]\s*(.+?)\s*$", cell or "")
+    return (m.group(1), m.group(2)) if m else ((cell or "").strip(), None)
 
 def pick(row, *needles):
     """Fuzzy column access: first cell whose header word-matches any needle (case-insensitive)."""
@@ -172,10 +192,12 @@ def build(prd_path):
                 if not fid:
                     label = pick(r, "feature", "name") or f"row-{n}"
                     ID_GAPS.append((title, label, headers or []))
+                acc = pick(r, "acceptance", "acceptance criterion", "acceptance criteria", "criterion")
                 d["features"].append({
                     "id": fid,
                     "title": pick(r, "feature", "name"),
-                    "acceptance": pick(r, "acceptance", "acceptance criterion", "acceptance criteria", "criterion"),
+                    "acceptance": acc,
+                    "criteria": criteria(acc),
                     "dependencies": pick(r, "dependencies", "dependency", "depends"),
                     "prose_lines": f"{s}-{e}",
                 }); KNOWN.add(title)
@@ -183,11 +205,14 @@ def build(prd_path):
             d["user_flows"] = lp; KNOWN.add(title)   # pointer only (narrative)
         elif low.startswith(("key user interaction", "key interaction")):
             d["key_interactions"] = bullets(block); KNOWN.add(title)
-        elif low.startswith("error case"):
+        elif low.startswith(("error case", "error and edge case")):
             _, rows = md_table(block)
-            d["error_cases"] = [{"id": pick(r, "id"),
-                                 "trigger": pick(r, "trigger"),
-                                 "behavior": pick(r, "user-visible behavior", "behavior", "behaviour")} for r in rows]
+            d["error_cases"] = []
+            for r in rows:
+                eid, etype = error_id(pick(r, "id"))
+                d["error_cases"].append({"id": eid, "type": etype,
+                                         "trigger": pick(r, "trigger"),
+                                         "behavior": pick(r, "user-visible behavior", "behavior", "behaviour")})
             KNOWN.add(title)
         elif low.startswith("edge case"):
             _, rows = md_table(block)

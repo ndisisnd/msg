@@ -192,6 +192,9 @@ function mdInline(s) {
     return '<a href="' + href + '" target="_blank" rel="noopener">' + txt + "</a>";
   });
   s = s.replace(/\u0001(\d+)\u0001/g, function (_, i) { return "<code>" + codes[+i] + "</code>"; });
+  // A PRD table cell may hold several acceptance criteria on <br> lines (AC1, AC2, …).
+  // The source is already escaped, so only the escaped tag itself is restored.
+  s = s.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
   return s;
 }
 function mdToHtml(src) {

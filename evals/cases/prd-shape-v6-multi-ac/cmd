@@ -1,0 +1,4 @@
+# v6 — §4 titled "Error and edge cases" with typed ids, §1 with two bullets, a
+# feature with labelled AC1/AC2 criteria, and a dotted sub-PRD intake id. All six
+# checks certify it.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md --checks 1,2,3,4,5,6

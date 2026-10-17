@@ -124,10 +124,10 @@ Canonical order per `refs/template-prd.md`:
 
 | Section | Autonomous source |
 |---------|-------------------|
-| 1. Product objective | **Three terse bullets** from the intake `goal` — who / what changes / success signal, one line each. A product spec, not an essay and not engineering: no feature list, no implementation, no paragraph |
+| 1. Product objective | **Two terse bullets** from the intake `goal` — who / what changes, one line each. A product spec, not an essay and not engineering: no feature list, no implementation, no paragraph, no success metric |
 | 2. Out-of-scope | Boundaries the draft draws around the idea; non-targeted platforms auto-added |
-| 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
-| 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. **No row quota** — write the failure modes the §3 features actually have; padding a short table to hit a count is worse than the short table. Genuinely unresolvable ones → Step 4 open questions |
+| 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one or more observable user-goal acceptance criteria per feature (labelled `AC1`, `AC2`, … when there is more than one); Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
+| 4. Error and edge cases | Check **every §3 feature** against `refs/error-checklist.md` — Tier 1 always, Tier 2 when the trigger fits — and write a row only for the types that can happen in that feature. Label each row with its type (`E1 · Network`); merge rows that share one user-visible behaviour. Format + rules in `refs/template-prd.md` §4. **No row quota** and no generic padding. Genuinely unresolvable ones → Step 4 open questions |
 | 5. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
 | 6. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
 | 7. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |

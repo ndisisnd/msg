@@ -3,8 +3,9 @@
 # §1 bullets. Three assertions, in order:
 #   1. the deterministic migrator leaves it alone — style is never guessed at (exit 0, no-op)
 #   2. the opt-in style check names exactly that drift
-#   3. the hand-converged file — §5 as the four-column table, §1 back to three
-#      bullets with the auth constraint relocated as an Addressed row and the
+#   3. the hand-converged file — §5 as the four-column table, §1 back to Who +
+#      What changes (its legacy Success signal bullet is tolerated), the auth
+#      constraint relocated as an Addressed row and the
 #      platform bullet deleted — passes the full 1–6 gate
 python3 "$REPO/.claude/scripts/script-prd-update.py" drifted.md
 python3 "$REPO/.claude/scripts/script-prd-shape.py" drifted.md --checks 6
