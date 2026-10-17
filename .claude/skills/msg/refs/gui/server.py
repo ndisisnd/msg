@@ -360,6 +360,22 @@ def prd_lane_of(rel):
     return None
 
 
+def prd_num_key(num):
+    """Sort key for a PRD number string: `7` → (7, 0), `7.1` → (7, 1), so
+    `7 < 7.1 < 7.2 < 7.10 < 8 < 10` (a float or string sort gets 7.10 and 10 wrong)."""
+    parts = str(num).split(".", 1)
+    try:
+        return (int(parts[0]), int(parts[1]) if len(parts) > 1 else 0)
+    except ValueError:
+        return (0, 0)
+
+
+def prd_num_sort(num):
+    """prd_num_key flattened to one number for the board's client-side sort."""
+    major, minor = prd_num_key(num)
+    return major * 10000 + minor
+
+
 def parse_prd_dir(d):
     rel = os.path.relpath(d, root_path())
     lane = prd_lane_of(rel)
@@ -371,8 +387,8 @@ def parse_prd_dir(d):
     if fm is None:
         return None, {"path": os.path.relpath(mds[0], root_path()), "reason": "missing/unparseable frontmatter"}
     base = os.path.basename(d)
-    nm = re.match(r"^prd-(\d+)-?(.*)$", base)
-    num = int(nm.group(1)) if nm else 0
+    nm = re.match(r"^prd-(\d+(?:\.\d+)?)-?(.*)$", base)
+    num = nm.group(1) if nm else "0"   # display string: whole (`7`) or sub-PRD (`7.1`)
     slug = nm.group(2) if nm else base
     feats, order = parse_features(body)
     has_todos = parse_todos(body, feats, order)
@@ -409,6 +425,7 @@ def parse_prd_dir(d):
     return {
         "shape": shape,
         "num": num,
+        "numSort": prd_num_sort(num),
         "id": base,
         "path": rel + "/",
         "lane": lane,
@@ -523,7 +540,7 @@ def collect_gate_issues(skipped):
         except Exception as e:
             skipped.append({"path": rel, "reason": "unparseable JSON: %s" % e})
             continue
-        pm = re.search(r"report-prd-(\d+)-(\d+)\.json$", path)
+        pm = re.search(r"report-prd-(\d+(?:\.\d+)?)-(\d+)\.json$", path)
         nm = re.search(r"report-(\d+)\.json$", path)
         out.append({
             "file": rel,
@@ -560,7 +577,7 @@ def parse_report_file(path, skipped):
         except (TypeError, ValueError):
             return None
 
-    pm = re.search(r"report-prd-(\d+)-(\d+)\.md$", path)
+    pm = re.search(r"report-prd-(\d+(?:\.\d+)?)-(\d+)\.md$", path)
     nm = re.search(r"report-(\d+)\.md$", path)
     dm = re.search(r"([^/]+)/reports/[^/]+$", rel.replace(os.sep, "/"))
     prd_id = dm.group(1) if dm and dm.group(1).startswith("prd-") else None
@@ -873,6 +890,7 @@ def build_data():
                 prds.append(prd)
             elif skip and c == d:
                 skipped.append(skip)
+    prds.sort(key=lambda p: prd_num_key(p["num"]))
     gate_issues = collect_gate_issues(skipped)
     reports = collect_reports(skipped)
     return {

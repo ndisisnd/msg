@@ -622,7 +622,7 @@ function listKanban(list) {
 
 function listTable(list) {
   var cols = [
-    { key: "num",        label: "PRD",        get: function (p) { return p.num; } },
+    { key: "num",        label: "PRD",        get: function (p) { return p.numSort != null ? p.numSort : Number(p.num) || 0; } },
     { key: "feature",    label: "Feature",    get: function (p) { return p.feature || p.id; } },
     { key: "module",     label: "Module",     get: function (p) { return p.module || ""; } },
     { key: "platform",   label: "Platform",   get: function (p) { return p.platform || ""; } },

@@ -2,6 +2,11 @@
 
 ## 2026-10-17
 
+### [177] v6.0.0 plan-pm — GUI reads sub-PRD numbers
+
+- `.claude/skills/msg/refs/gui/server.py`: Changed — PRD dir and report filename patterns accept `7.1`; `num` is the display string, new `prd_num_key` sorts `7 < 7.1 < 7.10 < 10`, board list sorted by it, new `numSort` field.
+- `.claude/skills/msg/refs/gui/index.html`: Changed — list view sorts the PRD column by `numSort`, not the string.
+
 ### [176] v6.0.0 plan-review — a step the user chooses, with an auto-review switch on plan-pm and plan-em
 
 - `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — `--review` runs plan-review at the end of this run; `--review on|off` saves `policies.plan_pm.review`; off (the default) only suggests it.
