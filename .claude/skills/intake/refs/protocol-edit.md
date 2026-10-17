@@ -1,6 +1,6 @@
 ---
 name: Intake Edit Protocol
-description: End-to-end protocol for editing the INTAKE.md ledger — the shared find-the-row routine (also used by --health), the lock gates, update (change, re-grade, re-split, targeted write) and delete (warning pass, confirm, no-renumber removal), plus the INTAKE-UPDATE.md log contract.
+description: End-to-end protocol for editing the INTAKE.md ledger — the shared find-the-row routine, the lock gates, update (change, re-grade, re-split, targeted write) and delete (warning pass, confirm, no-renumber removal), plus the INTAKE-UPDATE.md log contract.
 type: reference
 ---
 
@@ -28,7 +28,7 @@ Never draft a PRD. Never write `prd`. Never delete anything but ledger rows — 
 
 ## Step 2 — Find the row
 
-The shared routine for update, delete and `--health`. Never print the whole ledger.
+The shared routine for update and delete. Never print the whole ledger.
 
 1. **Explicit `#n`** (`#4`, `row 4`) beats any text match. Read it: `bash "$S" INTAKE.md - --list-rows --row <n>`. `COUNT=0` → say so plainly (*"there is no row #12 — the ledger ends at #<MAX_ROW>"*). Never coerce to the nearest row.
 2. **Text** → `bash "$S" INTAKE.md - --list-rows --match "<key words>" --limit 5` (update adds `--status backlog,in-progress`; delete searches every status). Results come best match first.

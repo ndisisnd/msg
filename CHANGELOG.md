@@ -2,6 +2,12 @@
 
 ## 2026-10-17
 
+### [173] v6.0.0 intake — verifier fixes: Bash tool, shipped wording, find-the-row scope
+
+- `.claude/skills/intake/SKILL.md`: Changed — `allowed_tools` adds `Bash`; every intake mode runs scripts.
+- `.claude/skills/intake/refs/protocol-health.md`: Changed — states that `complete: true` in the scan means the PRD document is complete, not shipped.
+- `.claude/skills/intake/refs/protocol-edit.md`: Changed — the find-the-row routine is shared by update and delete only; `--health` never calls it.
+
 ### [172] v6.0.0 plan-pm — PRD number equals intake row number, and sub-PRD rows are marked
 
 - `.claude/scripts/script-prd-number`: Changed — `prd <row-#>` returns the row number itself and exits 3 with `NUMBER_CLASH=<n>` when a PRD with that number exists; `sub <parent-n>` also counts `#<n>.<m>` ledger rows. The bare `prd` form stays for old callers.

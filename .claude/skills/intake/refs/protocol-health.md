@@ -13,6 +13,7 @@ type: reference
 - `INTAKE.md` absent → *"No `INTAKE.md` yet — nothing to check."* Terminate. Never scaffold.
 - Open rows: `bash "$S" INTAKE.md - --list-rows --status backlog,in-progress`.
 - PRDs: `bash .claude/scripts/script-prd-scan.sh --git` (one JSON line per PRD: `id`, `status`, `complete`, `completion`).
+- `complete: true` in the scan means the PRD document is complete, not that it shipped. Shipped is only `status: complete` or `completion: shipped`.
 
 Health reads only open rows. A `completed` row is closed and is not checked again.
 

@@ -22,6 +22,7 @@ allowed_tools:
   - Read
   - Edit
   - Write
+  - Bash
 ---
 
 # intake
