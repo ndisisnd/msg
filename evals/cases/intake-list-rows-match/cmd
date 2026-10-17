@@ -1,0 +1,3 @@
+# --match is a keyword search over idea + goal: rows with no hit are dropped and
+# the rest print best match first. --limit caps the printed rows.
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md - --list-rows --match "fast note search writers" --limit 2

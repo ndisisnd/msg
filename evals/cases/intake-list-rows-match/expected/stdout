@@ -1,0 +1,6 @@
+MAX_ROW=5
+COUNT=2
+| # | date | type | idea | goal | grade | status | prd |
+|---|------|------|------|------|-------|--------|-----|
+| 5 | 2026-01-14 | feature | search notes | find a note fast | C:3 S:blocked-by-#1 | in-progress | prd-4-search |
+| 3 | 2026-01-13 | feature | writer properties | catch second-run damage | C:5 S:blocked-by-#12 | in-progress | prd-3-writer-props |

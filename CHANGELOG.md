@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-10-17
+
+### [166] v6.0.0 intake — filtered ledger reads and log migration in the script
+
+- `.claude/scripts/script-intake-stamp.sh`: Changed — adds `--list-rows`, a read-only filtered read (`--status`, keyword `--match` best match first, `--blocked-by`, `--row`, `--limit`, plus `MAX_ROW`), so intake never reads the whole ledger as it grows. Adds `--migrate-log`, which moves a legacy in-file `## Update log` into `INTAKE-UPDATE.md`. The log header now lives in one shared function.
+- `evals/cases/intake-list-rows-filter/`, `evals/cases/intake-list-rows-match/`, `evals/cases/intake-migrate-log/`: Added — cover the status and blocked-by filters, the keyword ranking and limit, and the one-time log migration.
+
 ## 2026-10-15
 
 ### [165] — Ignore the local archive folder

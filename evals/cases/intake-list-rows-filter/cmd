@@ -1,0 +1,5 @@
+# --list-rows is read-only. --status keeps open rows only and --blocked-by keeps
+# rows whose grade cites S:blocked-by-#1 (never #12). MAX_ROW counts the whole
+# ledger, so the next capture number needs no full read. A grade with no T:
+# band parses like any other.
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md - --list-rows --status backlog,in-progress --blocked-by 1
