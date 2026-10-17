@@ -124,7 +124,7 @@ Conventional-commit formatter and changelog manager. Installed separately from m
 | 14 | `/merge --staging` | Merges on green CI, deploys, hands you a human test script | Run the script, then sign off |
 | 15 | `/merge --production` | Opens the staging→main release PR, merges on green CI + review, deploys, tags `v<x.y.z>+<build>` | **Double-confirm** |
 
-`/plan-review` runs automatically inside `/plan-em` before each wave — you don't invoke it yourself.
+`/plan-review` is suggested after `/plan-pm` and `/plan-em`; run it when you choose, or turn on `--review on` to have it run every time. `/plan-em` still runs it by itself on a PRD that was never checked.
 
 Each of `eng --build`, `pre-merge`, and `merge` ends by writing `report-[n].md` into the PRD's `reports/` folder: what was done, what to expect, and how to verify it.
 

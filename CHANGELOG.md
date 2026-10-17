@@ -2,6 +2,13 @@
 
 ## 2026-10-17
 
+### [176] v6.0.0 plan-review — a step the user chooses, with an auto-review switch on plan-pm and plan-em
+
+- `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — `--review` runs plan-review at the end of this run; `--review on|off` saves `policies.plan_pm.review`; off (the default) only suggests it.
+- `.claude/skills/plan-em/SKILL.md`: Changed — the same `--review [on|off]` flag for `policies.plan_em.review`; the certification gate is unchanged.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — documents both switches (default off when absent).
+- `.claude/skills/msg/SKILL.md`, `README.md`, `QUICKSTART.md`: Changed — plan-review shows as an optional, suggested step.
+
 ### [175] v6.0.0 plan-review — one result block, no Minor question, plain check names, smaller instructions
 
 - `.claude/skills/plan-review/refs/protocol-review.md`: Changed — the ledger is written once, after the fixes and a second `script-cert-mech.py` run, with a status per finding and `--checks`; Minors are logged, never asked; the stamp (`script-prd-stamp.sh --certify`) is written only when no Critical stays open, and the run says "Not certified — N Critical open" otherwise; one result block replaces the tune line, the fix table and the "certified" line; the recurrence warning is removed.

@@ -11,7 +11,7 @@ description: >
   engineer decomposes each wave into file-disjoint, model-tiered packets fanned out to
   leaf eng subagents) or --solo (one leaf subagent per roster stack). Refuses without a
   referenced PRD .md path.
-argument-hint: "<prd-path> [--team | --solo] [--quiet | --status <n>m]"
+argument-hint: "<prd-path> [--team | --solo] [--quiet | --status <n>m] [--review [on|off]]"
 allowed_tools:
   - Agent
   - AskUserQuestion
@@ -32,6 +32,13 @@ allowed_tools:
 
 - Slash command: `/plan-em` · natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents" · context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-review`
 - `/plan-em <prd-path> --quiet` / `--status <n>m` — suppress or retune this run's status heartbeat; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
+- `/plan-em <prd-path> --review` — run the plan-review eng check at the end of the plan half, this run only. `--review on` / `--review off` (or "always review the plan") — save it for the project:
+
+  ```bash
+  .claude/scripts/script-policy-set.py --file devkit/policy.json --set policies.plan_em.review=<true|false>
+  ```
+
+  No `devkit/policy.json` → say the setting needs `/msg --init`, and use the value for this run only. Absent = off: the closing message suggests `/plan-review` instead. The certification gate still runs plan-review on an uncertified PRD either way.
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.

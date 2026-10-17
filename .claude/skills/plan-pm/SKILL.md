@@ -8,9 +8,10 @@ description: >
   not here. Treats the row as settled and picks its own few follow-up questions
   (refs/principles.md); pauses ONLY for that one batch and for breaking/critical
   touches. --update edits an existing PRD's content and syncs its intake row;
-  --migrate converts old PRDs to the current template. Refuses requests that would
-  skip the PRD stage entirely.
-argument-hint: "[#<n> | --sub <prd-path> | --update <prd> | --migrate <prd|--all>]"
+  --migrate converts old PRDs to the current template. --review [on|off] runs
+  plan-review at the end (this run, or saved per project). Refuses requests that
+  would skip the PRD stage entirely.
+argument-hint: "[#<n> | --sub <prd-path> | --update <prd> | --migrate <prd|--all>] [--review [on|off]]"
 allowed_tools:
   - AskUserQuestion
   - Bash
@@ -33,6 +34,16 @@ allowed_tools:
 - Natural language (**sub-PRD**): "create a sub-PRD", "follow-up fixes for this PRD", "spin off a sub-PRD" — route to the `--sub` mode in the § Sub-PRD mode section below.
 - Natural language (**update**): "change PRD 3", "add a feature to this PRD", "drop F2 from the streaks PRD", "the PRD should also cover …" — route to § Update mode below.
 - Natural language (**migrate**): "migrate this PRD to the new template", "bring PRD 3 up to date with the template", "convert the old PRDs" — route to § Migrate mode below.
+
+- `/plan-pm --review` — run `/plan-review` on the new PRD at the end of this run. `--review on` / `--review off` (or "always review my PRDs") — save that for the project.
+
+**Auto-review switch.** `--review on|off` or a plain-language toggle writes the switch and reports it, then carries on with any other request:
+
+```bash
+.claude/scripts/script-policy-set.py --file devkit/policy.json --set policies.plan_pm.review=<true|false>
+```
+
+No `devkit/policy.json` → say the setting needs `/msg --init`, and use the value for this run only. The switch is on when the bare `--review` flag is set or `policies.plan_pm.review` is `true`; absent = off. On → after the digest, run `Skill("plan-review", "<prd>")` (default and `--sub` only), and its result replaces the plan-review suggestion. Off → the closing message suggests `/plan-review`.
 
 **Modes:** default (autonomous top-level PRD from an intake row), `--sub` (a numbered follow-up nested under an existing parent PRD), `--update` (change what an existing PRD says), and `--migrate` (convert existing PRDs to the current template, no content change). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first; all other steps run identically. `--update` and `--migrate` each replace the five-step protocol entirely. "Update" means a content change here, as it does in `/intake`.
 

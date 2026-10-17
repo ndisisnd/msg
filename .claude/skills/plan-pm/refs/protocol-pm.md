@@ -262,8 +262,12 @@ when the count is 0. Print the script's lines verbatim; never compose them.
 
 There is no separate completion line: the PRD path and the open-questions count are
 mandatory rows of the closing message (SKILL.md § Step-by-step protocol), which is the
-run's last output. Take the next step from the `closing-message.md` registry's plan-pm
-row — `/plan-em` on green — and **recommend** it, never invoke it.
+run's last output.
+
+**Review.** Auto-review switch on (SKILL.md § Usage) → run `Skill("plan-review", "$PRD")` now,
+after the digest; plan-review prints its result block and the closing message follows it.
+Switch off → run nothing. Take the next step from the `closing-message.md` registry's plan-pm
+row — it suggests `/plan-review` first, then `/plan-em` — and **recommend** it, never invoke it.
 
 **Multi-PRD note.** There is no multi-PRD loop in v2 — compound asks are split into discrete
 rows at `/intake` (hybrid-ask detection + the ≥8-split gate), so plan-pm always plans exactly one

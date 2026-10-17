@@ -163,6 +163,18 @@ Read only by `intake` (`intake/SKILL.md` § Usage). Written by `/msg --init` (se
 `/intake --brainstorm on|off`, both through `script-policy-set.py`. A bare `--brainstorm`
 turns suggestions on for one run and writes nothing. **Not** read by the gates.
 
+### `policies.plan_pm` / `policies.plan_em` — the auto-review switches
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `review` | bool | ✖ | `false` when absent | `true` → the skill runs `/plan-review` on its PRD at the end of its run. `false` → the closing message only suggests it |
+
+`policies.plan_pm.review` is read only by `plan-pm`; `policies.plan_em.review` only by `plan-em`
+(at the end of the plan half). Written by `/plan-pm --review on|off` and `/plan-em --review on|off`
+through `script-policy-set.py`. A bare `--review` runs plan-review for one run and writes nothing.
+`/msg --init` does not seed them. plan-em's certification gate does not depend on this switch:
+an uncertified PRD is still certified before engineering.
+
 ### `policies.status_cadence` — the status-heartbeat interval
 
 | Field | Type | Required | Default | Notes |

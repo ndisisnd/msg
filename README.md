@@ -119,7 +119,7 @@ flowchart TD
     stg -->|you sign off on the commit you tested| prod
 ```
 
-`/plan-review` doesn't appear as a step because `/plan-em` runs it for you — so a build can never start on an uncertified plan. How often depends on the PRD's size: a medium one is certified once and then planned *and* built in a single `/plan-em` run; a large one is certified twice, once before it plans and once before it builds.
+`/plan-review` is a step you choose. `/plan-pm` and `/plan-em` suggest it when they finish, and `--review on` makes either one run it for you every time. If you skip it, `/plan-em` still runs it before it builds on an uncertified PRD — so a build can never start on an uncertified plan.
 
 The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_manifest`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~58 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
 
@@ -145,7 +145,8 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | `/plan-pm` | Writes the PRD for you — user flows, edge cases, what "done" means — stopping only for the questions it genuinely can't answer itself. |
 | `/plan-pm --update` | Changes what an existing PRD says — add or drop a feature, rewrite a criterion, widen or narrow the scope. Updates the PRD's backlog row to match and sends the PRD back for review. |
 | `/plan-pm --migrate` | Brings an existing PRD up to the current template and style — one PRD or `--all`. Maintenance only: acceptance criteria, F-IDs, and everything engineering wrote stay untouched. |
-| `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. You don't invoke this one; `/plan-em` runs it for you. |
+| `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. Run it any time; `/plan-pm` and `/plan-em` suggest it, and `/plan-em` runs it by itself on a PRD that was never checked. |
+| `/plan-pm --review on` | Makes `/plan-pm` (or `/plan-em --review on` for `/plan-em`) run `/plan-review` at the end of every run in this project. `off` goes back to a suggestion; a bare `--review` does it for one run. |
 | `/plan-em` | Turns the PRD into an engineering plan. It proposes a roster of specialists for the work — approving that roster is your only decision here — then puts them to work. |
 
 ### Build

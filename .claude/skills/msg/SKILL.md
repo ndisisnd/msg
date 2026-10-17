@@ -65,7 +65,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Planning | msg --init | One-time project bootstrap |
 | Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one, `--health` finds stale or wrong rows |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
-| Planning | plan-review | PRD contract certifier — seven consumer-bound checks, product/eng |
+| Planning | plan-review | PRD contract certifier — seven consumer-bound checks; suggested after plan-pm and plan-em |
 | Planning | plan-em | Engineering plan generator — certifies each wave, roster is the one gate |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, opens PR feature→staging |
@@ -78,7 +78,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 ## End-to-end happy path
 
 ```
-/msg --init  →  /intake  →  /plan-pm  →  /plan-review --product  →  /plan-em  →  /plan-review --eng
+/msg --init  →  /intake  →  /plan-pm  →  (/plan-review)  →  /plan-em  →  (/plan-review)
                                                                          ↓
                                                              /eng --build
                                                                          ↓
@@ -88,3 +88,5 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
                                                                          ↓
                                              (human)  /merge --production  (release to main)
 ```
+
+`(/plan-review)` is a step the user chooses: plan-pm and plan-em suggest it, `--review on` makes them run it, and plan-em still certifies an unchecked PRD before engineering.
