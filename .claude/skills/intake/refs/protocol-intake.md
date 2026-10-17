@@ -75,6 +75,15 @@ bash "$S" INTAKE.md <row-#> --append-row \
 
 Capture writes **no** log entry: the row's `date` cell records it.
 
+**Sub-PRD rows.** `plan-pm --sub` calls capture with `--sub-row <n>.<m>` before the idea text. That row is one row (no split, no duplicate search, no brainstorm). Write it at the given dotted id with the parent PRD, not at `MAX_ROW + 1`:
+
+```bash
+bash "$S" INTAKE.md <n>.<m> --append-row --parent PRD-<n> \
+  --type <feature|bug> --idea "<idea>" --goal "<goal>" --grade "<grade cell>"
+```
+
+A ledger without a `parent` column gets one first (the writer prints `PARENT_COLUMN_ADDED=1`). Exit `4` (that id exists) → stop and report to plan-pm; never pick another id.
+
 Summary — every grade carries its plain-English label (rubric):
 
 ```

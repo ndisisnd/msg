@@ -15,26 +15,29 @@ A sub-PRD is a numbered follow-up (`prd-<n>.<m>`) that captures additional chang
 
 Store the resolved parent as `parent_id` = `prd-<parent-n>-<parent-slug>` and `parent_dir` = its resolved directory (whatever lane — `planned/`, `wip/`, `done/`, or the legacy flat path — it currently sits in; the resolver locates it lane-agnostically), and read its frontmatter (`feature`) — needed for D3/D4.
 
-**D2 — Seed the idea from the parent, then capture its own intake row (Step 1).** The parent supplies the idea and goal, not the backlog picker. Compose the working idea as `Sub-PRD of prd-<parent-n>-<parent-slug>: <the user's stated follow-up scope>` (parent `feature` from its frontmatter for context) — then **capture it as an `INTAKE.md` row of its own**, exactly as Step 1 path 3 does for a top-level PRD:
-
-```
-Skill("intake", "Sub-PRD of prd-<parent-n>-<parent-slug>: <follow-up scope>")
-```
-
-Every PRD in the repo has an intake ancestor, sub-PRDs included — that is what keeps `plan-review` check 3 (intent fidelity) from ever being silently skipped. Two points on the row:
-
-- **It is not optional and it is marked.** The `idea` cell leads with `Sub-PRD of prd-<n>-<slug>:` so a human reading the ledger sees the relationship; the `prd` cell stamped at Step 5 carries the dotted id `prd-<n>.<m>-<slug>`, which is already the machine-readable sub-PRD signal (D1 step 3 keys off the same dot).
-- **The grade is re-derived, never inherited.** `intake` grades the row against its own rubric like any other. A follow-up's complexity is its own — inheriting a large parent's `C:` band would misrepresent a small fix. `type` stays `feature`/`bug` per the nature of the work; it is not overloaded with the structural relationship.
-
-Hold the new row's `#` for the Step 5 stamp, then drop into Step 2.
-
-**D3 — Number and place the sub-PRD (Step 3 Part 1 + 2).** Replace the top-level number resolver with the sub resolver:
+**D2 — Number the sub-PRD, seed the idea from the parent, then capture its own intake row (Step 1).** The sub-PRD and its row share one number, `<parent-n>.<m>` — PRD number = row number holds for sub-PRDs too. Resolve the minor first:
 
 ```bash
 S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" sub <parent-n>
 ```
 
-Store the output as `m` (the minor). Derive `sub_slug` (kebab-case, ≤6 words) from the follow-up scope. Create the sub-PRD **nested inside the parent's existing folder — whatever lane (`planned/`, `wip/`, `done/`, or the legacy flat path) that folder currently occupies**. A sub-PRD gets **no lane slot of its own**: it rides the parent's lane and only ever relocates when the parent folder is moved. Use the full `refs/template-prd.md` structure (not a delta doc), writing `<parent_dir>` for the parent directory resolved in D1:
+Store the output as `m`. It counts both existing sub-PRD folders and existing `#<parent-n>.<m>` ledger rows, so it never hands out a minor that is already taken.
+
+The parent supplies the idea and goal, not the backlog picker. Compose the working idea as `Sub-PRD of prd-<parent-n>-<parent-slug>: <the user's stated follow-up scope>` (parent `feature` from its frontmatter for context) — then **capture it as an `INTAKE.md` row of its own** at the dotted id, through intake's capture mode:
+
+```
+Skill("intake", "--sub-row <parent-n>.<m> Sub-PRD of prd-<parent-n>-<parent-slug>: <follow-up scope>")
+```
+
+Every PRD in the repo has an intake ancestor, sub-PRDs included — that is what keeps `plan-review` check 3 (intent fidelity) from ever being silently skipped. Three points on the row:
+
+- **Its id is `<parent-n>.<m>`, and its `parent` cell is `PRD-<parent-n>`.** Intake writes both (its `protocol-intake.md` § Sub-PRD rows). `status` keeps tracking backlog / in-progress / completed; the relationship lives in `parent`, never in `status`.
+- **It is marked for humans too.** The `idea` cell leads with `Sub-PRD of prd-<n>-<slug>:`; the `prd` cell stamped at Step 5 carries the dotted id `prd-<n>.<m>-<slug>` (D1 step 3 keys off the same dot).
+- **The grade is re-derived, never inherited.** `intake` grades the row against its own rubric like any other. A follow-up's complexity is its own — inheriting a large parent's `C:` band would misrepresent a small fix. `type` stays `feature`/`bug` per the nature of the work; it is not overloaded with the structural relationship.
+
+Hold the row's `#` (`<parent-n>.<m>`) for the Step 5 stamp, then drop into Step 2.
+
+**D3 — Place the sub-PRD (Step 3 Part 1 + 2).** Skip the top-level `script-prd-number prd` call: the number is `<parent-n>.<m>` from D2. Derive `sub_slug` (kebab-case, ≤6 words) from the follow-up scope. Create the sub-PRD **nested inside the parent's existing folder — whatever lane (`planned/`, `wip/`, `done/`, or the legacy flat path) that folder currently occupies**. A sub-PRD gets **no lane slot of its own**: it rides the parent's lane and only ever relocates when the parent folder is moved. Use the full `refs/template-prd.md` structure (not a delta doc), writing `<parent_dir>` for the parent directory resolved in D1:
 
 ```
 <parent_dir>/prd-<parent-n>.<m>-<sub_slug>/prd-<parent-n>.<m>-<sub_slug>.md
@@ -44,7 +47,8 @@ Store the output as `m` (the minor). Derive `sub_slug` (kebab-case, ≤6 words) 
 - `name`: `prd-<parent-n>.<m>-<sub_slug>`
 - `parent`: `prd-<parent-n>-<parent-slug>` — **new field, sub-PRD only.** This is the field `plan-em`/`eng --build` read to resolve the shared branch (a sub-PRD never gets its own branch).
 - `summary`: authored fresh for the sub-PRD's own follow-up scope (2–3 single-line sentences), exactly as a top-level PRD — do not inherit the parent's.
-- All other fields (`status: backlog`, `reviewed: no`, `created`, `intake`, `deps`) exactly as a top-level PRD. `parent` is the only field a sub-PRD has that a top-level PRD does not; there is nothing to inherit from the parent beyond it, because v5.4 removed the `module` and `platform` fields that used to be inherited.
+- `intake`: `#<parent-n>.<m>` — the sub-PRD's own dotted row from D2, never the parent's row.
+- All other fields (`status: backlog`, `reviewed: no`, `created`, `deps`) exactly as a top-level PRD. `parent` is the only field a sub-PRD has that a top-level PRD does not; there is nothing to inherit from the parent beyond it, because v5.4 removed the `module` and `platform` fields that used to be inherited.
 
 **Lifecycle:** unchanged. A sub-PRD runs the full pipeline with no stage skipped — `plan-pm --sub` (Steps 1–5) → `plan-review` → `plan-em` → `eng --build`. Step 5 stamps the D2 row (`status: in-progress`, `prd: prd-<parent-n>.<m>-<sub_slug>`) and terminates exactly as for a top-level PRD, using the nested sub-PRD path.
 

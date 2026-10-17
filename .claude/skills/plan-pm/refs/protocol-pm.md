@@ -89,13 +89,18 @@ The intake `grade` cell's `S:blocked-by-#n`/`prd-<n>` is a second dependency sig
 
 ## Step 3/5 — Autonomous draft (pre-flight + populate)
 
-**Part 1 — Pre-flight.** Resolve the next PRD number (ships in the global scripts dir; resolve there when the project has no vendored copy):
+**Part 1 — Pre-flight.** The PRD number is the intake row number: row `#7` becomes
+`prd-7-<slug>`, so the PRD id and its source row always match. Numbers have gaps (rows
+never planned, deleted rows); old PRDs keep the numbers they have. Resolve and check it
+(ships in the global scripts dir; resolve there when the project has no vendored copy):
 
 ```bash
-S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" prd
+S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" prd <row-#>
 ```
 
-Store as `n`. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
+Store the output as `n`. **Exit 3 (`NUMBER_CLASH=<n>`)** — a PRD with that number already
+exists (an old PRD numbered before this rule, or a row that is already planned): stop, name
+the existing folder the script printed, and tell the user. Never pick another number. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
 
 ```bash
 bash -c '[[ -f devkit/ARCHITECTURE.md ]] || exit 0; for e in "Expo:\bExpo\b" "Flutter:\bFlutter\b" "React Native:\bReact Native\b" "iOS:\biOS\b" "Android:\bAndroid\b" "Desktop:\b(Electron|Tauri)\b" "Web:\b(web app|web application|web frontend|web client|browser|SPA|PWA)\b" "Backend:\b(REST API|GraphQL|microservice|server-side|backend|API server)\b"; do grep -qiE "${e#*:}" devkit/ARCHITECTURE.md && echo "${e%%:*}"; done'

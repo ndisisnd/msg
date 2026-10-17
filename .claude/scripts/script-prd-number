@@ -2,10 +2,19 @@
 # script-prd-number — deterministic n-resolver for plan-pm and plan-em
 #
 # Usage:
-#   script-prd-number prd                  next available PRD number (plan-pm)
-#   script-prd-number sub <parent-n>       next available sub-PRD minor for parent <parent-n> (plan-pm --sub)
+#   script-prd-number prd <row-#>          the PRD number for intake row <row-#> (plan-pm):
+#                                          the row number itself. Exit 3 + NUMBER_CLASH=<n>
+#                                          when a PRD folder with that number already exists.
+#   script-prd-number prd                  legacy: next free number after the highest PRD
+#   script-prd-number sub <parent-n>       next available sub-PRD minor for parent <parent-n>
+#                                          (plan-pm --sub); the sub-PRD and its intake row
+#                                          are both <parent-n>.<m>
 #
-# Run from the project root. Reads from features/.
+# Run from the project root. Reads features/ and, for `sub`, INTAKE.md.
+#
+# PRD number = intake row number: row #7 becomes prd-7-<slug>, row #7.1 becomes
+# prd-7.1-<slug>. Numbers have gaps (rows never planned, deleted rows); old PRDs
+# keep the numbers they already have.
 
 set -euo pipefail
 
@@ -13,6 +22,23 @@ mode="${1:-}"
 
 case "$mode" in
   prd)
+    row="${2:-}"
+    if [[ -n "$row" ]]; then
+      row="${row#\#}"
+      [[ "$row" =~ ^[0-9]+$ ]] || { echo "script-prd-number prd: row-# must be a whole number, got '$row'" >&2; exit 1; }
+      # Any PRD folder with this exact number, in any lane or nesting depth, is
+      # a clash. `prd-<n>-*` never matches a sub-PRD `prd-<n>.<m>-*`.
+      if [[ -d features ]]; then
+        hit=$(find features -type d -name "prd-$row-*" 2>/dev/null | sort | head -n 1)
+        if [[ -n "$hit" ]]; then
+          echo "NUMBER_CLASH=$row"
+          echo "script-prd-number: intake row #$row maps to prd-$row, but $hit already exists — refusing; the PRD number must equal the row number" >&2
+          exit 3
+        fi
+      fi
+      echo "$row"
+      exit 0
+    fi
     max=0
     # Lane-agnostic: a PRD may sit in any of the three lifecycle lanes or at the
     # legacy flat path. Scan all four; a missing glob expands to a literal that
@@ -75,11 +101,19 @@ case "$mode" in
       m="${BASH_REMATCH[1]}"
       (( m > max )) && max=$m
     done
+    # The sub-PRD's intake row is #<parent>.<m>. A row captured for a sub-PRD
+    # that was never drafted still holds its minor, so count ledger rows too.
+    if [[ -f INTAKE.md ]]; then
+      while IFS= read -r m; do
+        (( m > max )) && max=$m
+      done < <(grep -oE "^\|[[:space:]]*#?$parent\.[0-9]+[[:space:]]*\|" INTAKE.md 2>/dev/null \
+                 | sed -E "s/^\|[[:space:]]*#?$parent\.([0-9]+).*/\1/")
+    fi
     echo $(( max + 1 ))
     ;;
 
   *)
-    echo "Usage: script-prd-number prd | script-prd-number sub <parent-n>" >&2
+    echo "Usage: script-prd-number prd [<row-#>] | script-prd-number sub <parent-n>" >&2
     exit 1
     ;;
 esac

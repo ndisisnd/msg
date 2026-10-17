@@ -666,7 +666,9 @@ def build_roadmap(prds):
 
 # --------------------------------------------------------------------------- intake ledger
 
-INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd")
+# `parent` (sub-PRD rows only, e.g. `PRD-7` on row `7.1`) is optional: ledgers
+# written before it existed simply lack the column and parse unchanged.
+INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd", "parent")
 GRADE_RE = {
     "complexity": re.compile(r"\bC:\s*(\S+)"),
     "sequence": re.compile(r"\bS:\s*(\S+)"),
@@ -718,7 +720,7 @@ def build_intake(prds):
                 return j
         return -1
 
-    ci = {k: col(k) for k in ("#", "date", "type", "idea", "goal", "grade", "status", "prd")}
+    ci = {k: col(k) for k in INTAKE_COLS}
     rows = []
     for ln in lines[hdr_idx + 1:]:
         if "|" not in ln:
@@ -732,7 +734,7 @@ def build_intake(prds):
         def get(key):
             j = ci[key]
             return cells[j] if 0 <= j < len(cells) else ""
-        num = get("#")
+        num = get("#").lstrip("#").strip()   # whole (`7`) or dotted sub-PRD row (`7.1`)
         idea = get("idea")
         if not num and not idea:
             continue
@@ -759,6 +761,7 @@ def build_intake(prds):
             "gradeRaw": get("grade"),
             "status": status,
             "prd": prd_cell,
+            "parent": get("parent"),
             "prdKnown": live is not None,
             "prdPath": (live or {}).get("path"),
             "prdFeature": (live or {}).get("feature"),
@@ -798,7 +801,7 @@ def set_intake_status(num, status):
         if re.match(r"^\s*\|?[\s:|-]+\|?\s*$", raw):
             continue
         cells = _split_md_row(raw)
-        if num_idx < len(cells) and cells[num_idx] == str(num) and st_idx < len(cells):
+        if num_idx < len(cells) and cells[num_idx].lstrip("#").strip() == str(num) and st_idx < len(cells):
             cells[st_idx] = status
             lines[i] = "| " + " | ".join(cells) + " |\n"
             open(full, "w", encoding="utf-8").write("".join(lines))

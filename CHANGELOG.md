@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [172] v6.0.0 plan-pm — PRD number equals intake row number, and sub-PRD rows are marked
+
+- `.claude/scripts/script-prd-number`: Changed — `prd <row-#>` returns the row number itself and exits 3 with `NUMBER_CLASH=<n>` when a PRD with that number exists; `sub <parent-n>` also counts `#<n>.<m>` ledger rows. The bare `prd` form stays for old callers.
+- `.claude/scripts/script-intake-stamp.sh`: Changed — row ids may be dotted (`7.1`); `--append-row --parent PRD-<n>` writes the new `parent` column, adding it to an older ledger first; `--find-row` matches dotted PRD ids and prints `PARENT`; `MAX_ROW` counts whole-number rows only. Ledgers without the column parse unchanged.
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`, `ARCHITECTURE.md`: Changed — the ledger gains a `parent` column and documents PRD number = row number.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/plan-pm/refs/protocol-sub.md`, `.claude/skills/plan-pm/SKILL.md`: Changed — Step 3 numbers the PRD from its row and stops on a clash; `--sub` resolves the minor first and captures its row at `#<n>.<m>` with `parent`.
+- `.claude/skills/intake/refs/protocol-intake.md`, `.claude/skills/intake/SKILL.md`: Changed — capture accepts `--sub-row <n>.<m>` from plan-pm and writes that one row at the dotted id.
+- `.claude/skills/plan-em/refs/protocol-em.md`, `.claude/skills/eng/refs/plan/protocol.md`, `.claude/skills/eng/refs/plan/template-eng-plan.md`: Changed — the intake row lookup accepts dotted ids and reads one row through `--list-rows --row`.
+- `.claude/skills/msg/refs/gui/server.py`, `.claude/skills/msg/refs/gui/index.html`, `.claude/skills/msg/refs/protocol-gui.md`: Changed — the Intake tab reads the optional `parent` column, tolerates `#`-prefixed and dotted ids, and shows a "sub of PRD-n" pill.
+- `evals/cases/prd-number-row-match`, `evals/cases/prd-number-row-clash`, `evals/cases/prd-number-sub-ledger`, `evals/cases/intake-append-sub-row`: Added — cover row-number PRDs, the clash stop, ledger-aware sub minors and the parent column.
+
 ### [171] v6.0.0 plan-pm — own question rules, a PRD digest, `--update` edits content, `--migrate` converts format
 
 - `.claude/skills/plan-pm/refs/principles.md`: Added — plan-pm's own rules for asking: the intake row is settled, never widen it, ask only what changes the PRD, send scope changes to `/intake --update`.

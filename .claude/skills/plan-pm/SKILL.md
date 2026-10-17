@@ -105,7 +105,7 @@ and stamps nothing else; every stamp goes through the shared writers, never impr
 - `refs/template-prd.md` — structured PRD format (seven sections) and its drafting rules, including the §3 F-ID and acceptance-criteria contract and the §4 error-and-edge-case format; used to initialize the file in Step 3
 - `refs/error-checklist.md` — the standard failure types (Tier 1 always, Tier 2 when the trigger fits) every §3 feature is checked against when §4 is drafted
 - `.claude/scripts/script-prd-shape.py` — deterministic PRD shape validator; call at the end of Step 3 Part 4
-- `.claude/scripts/script-prd-number prd` — deterministic next-PRD-number resolver; call in Step 3
-- `.claude/scripts/script-prd-number sub <parent-n>` — deterministic next sub-PRD minor resolver; call in Step 3 Part 1 when in `--sub` mode (see § Sub-PRD mode)
+- `.claude/scripts/script-prd-number prd <row-#>` — PRD number = intake row number; exit 3 `NUMBER_CLASH` when that PRD already exists; call in Step 3 Part 1
+- `.claude/scripts/script-prd-number sub <parent-n>` — deterministic next sub-PRD minor `m` (counts sub-PRD folders and `#<n>.<m>` ledger rows); call in `--sub` D2, before the row is captured (see § Sub-PRD mode)
 - `INTAKE.md` — the root backlog ledger written by `/intake`; the **only** source of a PRD's idea — read in Step 1 to resolve the row (calling `/intake` to capture one first when the user came in with raw prose), stamped in Step 5
 - `devkit/` — project-level agent context directory created by `/msg --init`; contains AHA.md, GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md

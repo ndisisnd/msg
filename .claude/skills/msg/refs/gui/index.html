@@ -770,6 +770,7 @@ function intakeCard(row) {
       '<div class="title">' +
         '<span class="num">#' + esc(row.num) + "</span> " +
         '<span class="pill intake-type ' + typeCls + '">' + esc(row.type) + "</span> " +
+        (row.parent ? '<span class="pill muted" title="Sub-PRD row of ' + esc(row.parent) + '">sub of ' + esc(row.parent) + "</span> " : "") +
         esc(row.idea || "(untitled)") + "</div>" +
       (row.goal ? '<div class="intake-goal">' + esc(row.goal) + "</div>" : "") +
       '<div class="meta">' + gradeChips(row.grade) +

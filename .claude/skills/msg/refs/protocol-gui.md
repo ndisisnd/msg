@@ -317,6 +317,8 @@ across every project (light + dark, responsive); it is **not** sourced from
   are the whole point). A `type` pill (`feature`/`bug`) and the capture `date` sit alongside.
 - **PRD cross-link.** When a row's `prd` cell is set, the card links to that PRD's detail page
   (`#/prd/<id>`); an unresolved mapping is tagged `unmapped`.
+- **Sub-PRD rows.** A row id may be dotted (`7.1`). When the optional `parent` column is set
+  (`PRD-7`), the card shows a `sub of PRD-7` pill. A ledger without the column renders as before.
 - **Status is the only editable cell (H5).** In live mode a card is draggable between lanes,
   and carries per-lane status buttons (an accessible alternative to drag); both `POST
   /api/intake/status {num, status}`. Nothing else on the card is editable — `idea`, `goal`,

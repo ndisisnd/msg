@@ -1,0 +1,7 @@
+# pm-7 — a sub-PRD's row takes the dotted id <parent>.<m> and the parent column.
+# This ledger predates the column, so the writer adds it first (empty on every
+# old row), then appends the row. MAX_ROW ignores the dotted id.
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md 2.1 --append-row \
+  --type feature --idea "Sub-PRD of prd-2-tally: count retries" --goal "retries are counted once" \
+  --grade "C:1 S:now" --date 2026-01-15 --parent PRD-2
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md - --list-rows --row 2.1 | head -n 2

@@ -145,7 +145,7 @@ Then branch on whether there is anything to say:
 
 **1e. Resolve the size tier (`$SIZE`) — the one input that shapes the whole run.** v5.4 sizes the ceremony to the PRD instead of paying the large-PRD cost every time, and **intake's complexity grade is the measure**. Resolve it once here; every later step consumes the answer and never re-derives it.
 
-The Step 1b digest already returned `frontmatter`, which carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose grade cell reads `C:<band> S:<sequencing>`. Read that row's `C:` band:
+The Step 1b digest already returned `frontmatter`, which carries `intake: #<n>` — the row id in the root `INTAKE.md` ledger, whose grade cell reads `C:<band> S:<sequencing>`. The id is a whole number (`#7`) or, for a sub-PRD, dotted (`#7.1` — its own row, never the parent's). Read that one row through the ledger writer, never the whole ledger — `bash "$S" INTAKE.md - --list-rows --row <id>` with `S=.claude/scripts/script-intake-stamp.sh` (two-path resolution) — and take its `C:` band:
 
 | `C:` band | `$SIZE` | What it buys |
 |-----------|---------|--------------|

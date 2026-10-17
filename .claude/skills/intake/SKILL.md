@@ -44,7 +44,7 @@ intake (capture + grade → INTAKE.md rows) → plan-pm (drafts the PRD, stamps 
 
 Resolve the mode once, at entry, then read exactly one protocol:
 
-1. **Flag.** `--update` or `--delete` → edit; `--health` → health. Strip the flag from the text. Two mode flags at once → ask which.
+1. **Flag.** `--update` or `--delete` → edit; `--health` → health. `--sub-row <n>.<m>` (sent only by `plan-pm --sub`) → capture of one sub-PRD row at that id (`protocol-intake.md` § Sub-PRD rows). Strip the flag from the text. Two mode flags at once → ask which.
 2. **Plain language with no flag.** Text that asks to change or remove an existing row (a `#n`, or "change / drop / remove / rename … the <idea> idea") → edit, with the action it names. A remove always gets delete's warning pass and confirm. A "change or remove?" doubt is an edit (`principles.md` 8). Anything else → capture.
 3. **Brainstorm.** `--brainstorm on|off` or a plain-language toggle → write the switch, report it, and stop (unless idea text follows, which is then captured):
 

@@ -3,8 +3,10 @@
 # and its sidecar update log, INTAKE-UPDATE.md.
 #
 # The ledger is the markdown table at the repo root with the canonical header
-#   | # | date | type | idea | goal | grade | status | prd |
-# (see .claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md). Every verb
+#   | # | date | type | idea | goal | grade | status | prd | parent |
+# (see .claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md). Older
+# ledgers have no `parent` column and parse unchanged. Row ids are whole
+# numbers (`7`) or, for a sub-PRD's row, dotted (`7.1`, parent PRD-7). Every verb
 # below touches ONLY what it names — the header, every other row, and every
 # other byte of the file are left identical. Replaces the improvised row edits
 # in plan-pm (in-progress + prd), merge (completed) and the freehand
@@ -19,8 +21,13 @@
 #   append-row   script-intake-stamp.sh <intake.md> <row-#> --append-row
 #                  --type <t> --idea <s> --goal <s> --grade <s>
 #                  [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>]
-#                Append one full 8-cell row after the last ledger row.
-#                Defaults: --date today, --status backlog, --prd empty.
+#                  [--parent <PRD-n>]
+#                Append one full row after the last ledger row.
+#                Defaults: --date today, --status backlog, --prd and parent empty.
+#                --parent marks a sub-PRD's row (row-# `<n>.<m>`, parent PRD-<n>);
+#                a ledger with no `parent` column gets one first (prints
+#                PARENT_COLUMN_ADDED=1; header,
+#                separator, and an empty cell on every row — nothing else moves).
 #                Refuses a `#` that already exists (never renumbers).
 #
 #   set-cell     script-intake-stamp.sh <intake.md> <row-#> --set-cell <cell> <value>
@@ -37,7 +44,8 @@
 #                READ-ONLY row lookup by PRD id — the fixed-result half of
 #                merge's Step 8 "find the row whose prd cell matches this
 #                PRD's id, take that row's #". Writes nothing. Emits KEY=value
-#                (FOUND / ROW / STATUS / PRD / TYPE / IDEA / GOAL / GRADE) so
+#                (FOUND / ROW / STATUS / PRD / TYPE / IDEA / GOAL / GRADE, and
+#                PARENT when the ledger has that column) so
 #                the caller feeds ROW straight back into the stamp verb. The
 #                positional row-# is unused — pass `-`. Reuses this file's one
 #                parser rather than growing a second one elsewhere.
@@ -46,7 +54,8 @@
 #                  [--status <s>[,<s>...]] [--match "<words>"] [--blocked-by <n>]
 #                  [--row <n>[,<n>...]] [--limit <n>]
 #                READ-ONLY filtered read — intake never reads the whole ledger.
-#                Emits MAX_ROW=<n> (highest `#` in the ledger, 0 when empty),
+#                Emits MAX_ROW=<n> (highest whole-number `#` in the ledger, 0
+#                when empty — a dotted sub-PRD row never moves it),
 #                COUNT=<n> (rows printed), then the header, the separator and
 #                each matching row verbatim. Filters AND together:
 #                  --status      keep rows whose status is in the list
@@ -94,7 +103,7 @@ usage() {
 usage: script-intake-stamp.sh <intake.md-path> <row-#> <verb>
   --status <value> [--prd <id>]                                   (stamp)
   --append-row --type <t> --idea <s> --goal <s> --grade <s>
-               [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>]
+               [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>] [--parent <PRD-n>]
   --set-cell <type|idea|goal|grade> <value>
   --remove-row
   --find-row --prd <prd-id>                        (read-only; pass `-` as row-#)
@@ -128,6 +137,8 @@ match=""
 blocked=""
 rows_want=""
 limit=""
+parent=""
+have_parent=0
 
 set_verb() {
   if [[ -n "$verb" ]]; then
@@ -142,6 +153,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --status)     status="${2:-}"; have_status=1; shift 2 || { usage; exit 2; } ;;
     --prd)        prd="${2:-}"; have_prd=1; shift 2 || { usage; exit 2; } ;;
+    --parent)     parent="${2:-}"; have_parent=1; shift 2 || { usage; exit 2; } ;;
     --append-row) set_verb append-row; shift ;;
     --remove-row) set_verb remove-row; shift ;;
     --find-row)   set_verb find-row; shift ;;
@@ -214,7 +226,8 @@ function issep(arr, n,   j,b) {
   for (j=1;j<=n;j++) { b=trim(arr[j]); if (b=="") continue; if (b !~ /^:?-+:?$/) return 0 }
   return 1
 }
-function rownum(x) { x=trim(x); sub(/^#/, "", x); return (x ~ /^[0-9]+$/) ? x : "" }
+# A row id is a whole number, or `<n>.<m>` for a sub-PRD row.
+function rownum(x) { x=trim(x); sub(/^#/, "", x); return (x ~ /^[0-9]+(\.[0-9]+)?$/) ? x : "" }
 '
 
 # ── header column resolver (A12) ─────────────────────────────────────────────
@@ -272,6 +285,42 @@ commit_tmp() {
   mode=$(stat -f '%Lp' "$file" 2>/dev/null || stat -c '%a' "$file" 2>/dev/null || echo 644)
   chmod "$mode" "$tmp" 2>/dev/null || true
   mv "$tmp" "$file" || { echo "script-intake-stamp: cannot write $file" >&2; exit 5; }
+}
+
+# Add the `parent` column to a ledger written before it existed: header and
+# separator gain one cell, every ledger row gains an empty one. Every other byte
+# stays. Called only by append-row when a sub-PRD row needs the column.
+add_parent_col() {
+  local tmp
+  tmp=$(mktmp) || return 5
+  awk "$awk_lib"'
+  BEGIN { header_found=0; done_sep=0; intable=0 }
+  {
+    line=$0
+    if (!header_found) {
+      if (line ~ /\|/) {
+        n=splitcells(line, hc); ci_num=0; ci_status=0
+        for (j=1;j<=n;j++) { name=tolower(trim(hc[j])); if (name=="#") ci_num=j; else if (name=="status") ci_status=j }
+        if (ci_num>0 && ci_status>0) {
+          header_found=1; intable=1; col_num=ci_num
+          sub(/[[:space:]]*$/, "", line); print line " parent |"; next
+        }
+      }
+      print; next
+    }
+    if (intable && line ~ /\|/) {
+      n=splitcells(line, dc)
+      sub(/[[:space:]]*$/, "", line)
+      if (issep(dc, n) && !done_sep) { done_sep=1; print line "--------|"; next }
+      if (rownum(dc[col_num]) != "") { print line "  |"; next }
+      print $0; next
+    }
+    if (intable && line !~ /\|/ && line !~ /^[[:space:]]*$/) intable=0
+    print
+  }
+  END { if (!header_found) exit 2 }' "$file" > "$tmp" || { rm -f "$tmp"; echo "script-intake-stamp: internal error (add parent column)" >&2; return 2; }
+  commit_tmp "$tmp"
+  echo "PARENT_COLUMN_ADDED=1"
 }
 
 logfile="$(dirname "$file")/INTAKE-UPDATE.md"
@@ -405,15 +454,24 @@ append-row)
 
   # Every cell below is written unconditionally (date and status via their
   # defaults), so any of these columns missing means a silently partial row.
+  if [[ $have_parent -eq 1 ]]; then
+    [[ "$row" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "script-intake-stamp: --parent marks a sub-PRD row; row-# must be <n>.<m>, got '$row'" >&2; exit 2; }
+    cols_dump=$(header_cols)
+    if [[ -n "$cols_dump" && "$(col_index parent)" == "0" ]]; then
+      add_parent_col || exit $?
+    fi
+  fi
+
   cols_dump=$(header_cols)
   require_col '#' date type idea goal grade status
   [[ $have_prd -eq 1 ]] && require_col prd
+  [[ $have_parent -eq 1 ]] && require_col parent
 
   tmp=$(mktmp) || exit 5
   trap 'rm -f "$tmp"' EXIT
 
   SI_NUM="$row" SI_DATE="$rdate" SI_TYPE="$rtype" SI_IDEA="$idea" SI_GOAL="$goal" \
-  SI_GRADE="$grade" SI_STATUS="$status" SI_PRD="$prd" \
+  SI_GRADE="$grade" SI_STATUS="$status" SI_PRD="$prd" SI_PARENT="$parent" \
   awk -v target="$row" "$awk_lib"'
   function put(name, val,   i) { i=cols[name]; if (i>0) out[i]=" " esc(val) " " }
   BEGIN { header_found=0; col_num=0; hn=0; hdridx=0; sepidx=0; last=0; dup=0; nl=0 }
@@ -452,6 +510,7 @@ append-row)
     put("type", ENVIRON["SI_TYPE"]); put("idea", ENVIRON["SI_IDEA"])
     put("goal", ENVIRON["SI_GOAL"]); put("grade", ENVIRON["SI_GRADE"])
     put("status", ENVIRON["SI_STATUS"]); put("prd", ENVIRON["SI_PRD"])
+    put("parent", ENVIRON["SI_PARENT"])
     for (i=1;i<=nl;i++) { print lines[i]; if (i==ins) print join(out, hn) }
     exit 0
   }' "$file" > "$tmp"
@@ -596,7 +655,7 @@ find-row)
   SI_WANT="$prd" awk "$awk_lib"'
   function token(v,   t) {
     t = tolower(unesc(trim(v)))
-    if (match(t, /prd-[0-9]+(-[a-z0-9._-]+)?/)) return substr(t, RSTART, RLENGTH)
+    if (match(t, /prd-[0-9]+(\.[0-9]+)?(-[a-z0-9._-]+)?/)) return substr(t, RSTART, RLENGTH)
     return t
   }
   BEGIN {
@@ -631,6 +690,7 @@ find-row)
     if (cols["idea"]>0)  print "IDEA="  unesc(trim(dc[cols["idea"]]))
     if (cols["goal"]>0)  print "GOAL="  unesc(trim(dc[cols["goal"]]))
     if (cols["grade"]>0) print "GRADE=" unesc(trim(dc[cols["grade"]]))
+    if (cols["parent"]>0) print "PARENT=" unesc(trim(dc[cols["parent"]]))
     exit 0
   }
   END {
@@ -692,7 +752,7 @@ list-rows)
     if (issep(dc, n)) { if (sep=="") sep=line; next }
     v=rownum(dc[cols["#"]])
     if (v=="") next
-    if (v+0 > maxrow) maxrow=v+0
+    if (v ~ /^[0-9]+$/ && v+0 > maxrow) maxrow=v+0
     if (ns>0 && ENVIRON["SI_STATUSES"]!="" && !(tolower(trim(dc[cols["status"]])) in want_st)) next
     if (have_rows && !(v in want_row)) next
     if (blocked!="") {

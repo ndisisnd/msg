@@ -31,6 +31,18 @@ the identical content when the ledger is missing at capture time.
 `intake` never writes `prd`, and writes `status` only in the two correction cases
 above.
 
+## Row ids, PRD numbers and the `parent` column
+
+**PRD number = row number.** Row `#7` becomes `prd-7-<slug>`; numbers have gaps
+(rows never planned, deleted rows). A sub-PRD's row takes the dotted id
+`<parent>.<m>` — row `#7.1` becomes `prd-7.1-<slug>` — and its `parent` cell names
+the parent PRD (`PRD-7`). Every other row leaves `parent` empty. `status` keeps
+tracking backlog / in-progress / completed for both kinds. `MAX_ROW` and the next
+capture number count whole-number rows only.
+
+A ledger written before the `parent` column existed still parses. The writer adds
+the column (empty on every old row) the first time it appends a sub-PRD row.
+
 ## Grade-cell format
 
 `C:<1|2|3|5|8|13> S:<now|next|later|blocked-by-#n>` — a single-turn banded
@@ -64,6 +76,9 @@ board and may hand-edit `status`. Edit history lives in `INTAKE-UPDATE.md`
 **Status lifecycle:** `backlog` → `in-progress` (plan-pm creates + maps the PRD)
 → `completed` (merge --production ships the mapped PRD).
 
+**PRD number = row number:** row `#7` becomes `prd-7-…`. A sub-PRD's row is
+`#7.1` with `parent` = `PRD-7`; every other row leaves `parent` empty.
+
 **Grade cell** `C:… S:…` — a single-turn, banded judgment made at capture:
 - `C:` complexity — `1` / `2` / `3` / `5` / `8` / `13`
 - `S:` sequencing — `now` / `next` / `later` / `blocked-by-#n`
@@ -71,6 +86,6 @@ board and may hand-edit `status`. Edit history lives in `INTAKE-UPDATE.md`
 **Banded estimates ONLY.** Never write a fake-precise number (`~1,240 LOC`,
 `3.5 days`) — grades are triage signals, not estimates.
 
-| # | date | type | idea | goal | grade | status | prd |
-|---|------|------|------|------|-------|--------|-----|
+| # | date | type | idea | goal | grade | status | prd | parent |
+|---|------|------|------|------|-------|--------|-----|--------|
 ```
