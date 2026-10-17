@@ -154,6 +154,8 @@ Every skill is invoked directly and standalone; a skill's end-of-run gate recomm
 
 Two plan-em rules carry their reason with them. Certification is a **precondition**, not advice: an advisory check decays into documentation, so plan-em runs plan-review itself on an uncertified PRD. And the exec table's `Files` column is **derived from the tickets**, never typed: a typed cell that disagrees with the tickets makes every collision result wrong.
 
+The exec table has three columns (`Feature — concern | Files | Agent`). v5.4 removed two: **Execution steps** (`→ F2-T1, F2-T2`), a pointer that duplicated the ticket ids and could drift from them (the source of every `unresolved-pointer` / `unpointed-ticket` failure); and **Todos** (`[F1](#todos-f1)`), a navigation anchor nothing mechanical read. Rows written before v5.4 keep both columns and keep working, because every reader resolves columns by name (`script-em-exec-collision.py`, `script-eng-plan-shape.py` check 6, `script-prd-digest.py`).
+
 Parallelism lives *inside* a wave, not across skills. An Opus orchestrator engineer decomposes the wave into file-disjoint, model-tiered packets and fans them out to leaf `eng` subagents (a hidden `--solo` debug flag runs one leaf per roster stack for one run). Either way the guardrails hold: all work on `feat/prd-<n>-*` branches, a sign-off pause on any database/data/production-config touch (`script-eng-db-touch.sh`), no skill merges with its own hands, and production is always a human release.
 
 ## Self-healing loop
@@ -227,7 +229,7 @@ it fans out but because its phases now *are* leaves: the dispatcher below watche
 the one phase in flight. Loop + ladder contract: `shared/refs/agent-watch.md`;
 thresholds per project: `policies.agent_watch`.
 
-From v5.6.2 the same shape covers `plan-em --team`, whose orchestrator spawn used to
+From v5.6.2 the same shape covers plan-em's orchestrator, whose spawn used to
 block the session for the whole wave. plan-em now backgrounds it, watches it as one
 leaf, and relays the orchestrator's `REPORT` blocks from a file the orchestrator appends
 to. The relay is a **file**, never a shared run-id: a shared heartbeat state drains into
@@ -288,4 +290,4 @@ Write powers are scoped per skill rather than blanket-forbidden: eng commits to 
 
 ## Cook integration
 
-`cook` is an optional but recommended dependency. MSG skills load project-specific coding standards from cook before generating code. Standalone skill runs call cook directly (`eng`/`plan-em` pass explicit `--<domain>` flags, e.g. `--flutter --dart`, for a cacheable, P0-guaranteed compile). On orchestrated paths, the orchestrator (`plan-em --team`, `eng --build`'s review spawn) compiles cook **once per stack** and injects the compiled standards payload into each subagent prompt, so leaf agents never re-invoke cook. Without cook, skills still work — they just skip the standards-loading step.
+`cook` is an optional but recommended dependency. MSG skills load project-specific coding standards from cook before generating code. Standalone skill runs call cook directly (`eng`/`plan-em` pass explicit `--<domain>` flags, e.g. `--flutter --dart`, for a cacheable, P0-guaranteed compile). On orchestrated paths, the orchestrator (plan-em's orchestrator, `eng --build`'s review spawn) compiles cook **once per stack** and injects the compiled standards payload into each subagent prompt, so leaf agents never re-invoke cook. Without cook, skills still work — they just skip the standards-loading step.

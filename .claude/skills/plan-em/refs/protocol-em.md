@@ -264,7 +264,7 @@ Then `AskUserQuestion` — "Start the build now?":
 - **Start the build (Recommended)** — runs the check before the build, cuts `feat/<prd-id>`, and builds in this run. Recommended because the plan is complete and nothing else is needed from you.
 - **Stop here** — ends the run with the plan written. Pick this to read or review the plan first (for example with `/plan-review`). A later `/plan-em <prd>` starts at the build half.
 
-**Yes** → § Build half. **No** → record `waves.build.status not-started` in the run state, keep it open, and go to Step 5. Under an autonomy contract (a caller running hands-off), Yes is pre-approved.
+**Yes** → § Build half. **No** → record `waves.build.status not-started` in the run state, keep it open, and go to Step 5.
 
 ### Build half (`$MODE = build`, or Yes)
 

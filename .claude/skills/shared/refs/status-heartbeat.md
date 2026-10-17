@@ -103,7 +103,7 @@ is sanctioned.
 ## Relaying across a subagent boundary
 
 When the orchestrator itself runs inside a subagent — a gate behind a dispatcher
-([`gate-dispatch.md`](gate-dispatch.md)), a `plan-em --team` orchestrator behind
+([`gate-dispatch.md`](gate-dispatch.md)), plan-em's orchestrator behind
 plan-em — its ticks are real and recorded but **nobody sees them**. Only a
 subagent's final return payload reaches the user; its intermediate output does
 not. Two rules make the inner run's progress visible, and both are load-bearing.

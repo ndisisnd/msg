@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [184] v6.0.0 plan-em — verifier fixes: one lane name, no pre-approved build, history out of refs
+
+- `.claude/skills/shared/refs/fix-loop.md`, `status-heartbeat.md`, `finding-schema.md`, `ARCHITECTURE.md`: Changed — the dead "plan-em --team" lane name now reads "plan-em's orchestrator".
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — removed the "autonomy contract pre-approves the build" sentence; plan-em never builds automatically.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the Output contract pointer uses the full eng path.
+- `.claude/skills/plan-em/refs/template-exec-table.md`, `ARCHITECTURE.md`: Changed — the v5.4 removed-columns history moved to ARCHITECTURE.md.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the plan-wave row no longer suggests `/plan-review` when the auto-review already ran.
+
 ### [183] v6.0.0 eng — a bug found by hand gets its own report
 
 - `.claude/skills/eng/refs/build/bug-report.md`: Added — `/eng --bug "<what is wrong>"` files the bug as a new numbered report, then runs `eng --build report=` on it with the 3-attempt limit.

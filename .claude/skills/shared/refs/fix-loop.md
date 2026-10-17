@@ -62,7 +62,7 @@ rubric.
 
 ## Autonomy contract
 
-Under an autonomy contract (a caller running hands-off, e.g. plan-em --team), **both
+Under an autonomy contract (a caller running hands-off, e.g. plan-em's orchestrator), **both
 offers are pre-approved** — proceed through Offer #1 → `eng --plan` → Offer #2 →
 orchestrated `eng --build` without asking.
 

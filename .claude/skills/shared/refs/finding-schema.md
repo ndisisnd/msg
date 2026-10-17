@@ -11,7 +11,7 @@ migration, PRD-consistency, smoke), eng's whole-change review, and the
 `report-prd-<N>-<K>.json` issues file (in the PRD's `reports/` folder, written on
 a failed run) that `eng --build report=` consumes. Every producer conforms to
 this object so downstream consumers (the `/msg --gui` board, `eng --build`'s
-issues-file read, plan-em --team's orchestrator) can merge, dedup, and
+issues-file read, plan-em's orchestrator) can merge, dedup, and
 regression-match findings mechanically — without per-producer translation.
 
 Replaces the divergent shapes that previously drifted apart (disjoint severity
