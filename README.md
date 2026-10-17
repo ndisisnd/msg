@@ -143,7 +143,8 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | `/intake --health` | Checks the backlog: stale ideas, rows that already shipped, rows with the wrong status, and duplicates. Offers to fix wrong statuses. |
 | `/intake --brainstorm on` | Turns related-idea suggestions on or off for the project (`off` to stop them). |
 | `/plan-pm` | Writes the PRD for you — user flows, edge cases, what "done" means — stopping only for the questions it genuinely can't answer itself. |
-| `/plan-pm --update` | Brings an existing PRD up to the current template and style — one PRD or `--all`. Maintenance only: acceptance criteria, F-IDs, and everything engineering wrote stay untouched. |
+| `/plan-pm --update` | Changes what an existing PRD says — add or drop a feature, rewrite a criterion, widen or narrow the scope. Updates the PRD's backlog row to match and sends the PRD back for review. |
+| `/plan-pm --migrate` | Brings an existing PRD up to the current template and style — one PRD or `--all`. Maintenance only: acceptance criteria, F-IDs, and everything engineering wrote stay untouched. |
 | `/plan-review` | Checks the PRD is actually buildable before anyone builds it, and fixes what it can. You don't invoke this one; `/plan-em` runs it for you. |
 | `/plan-em` | Turns the PRD into an engineering plan. It proposes a roster of specialists for the work — approving that roster is your only decision here — then puts them to work. |
 

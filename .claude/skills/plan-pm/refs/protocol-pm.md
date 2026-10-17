@@ -17,7 +17,8 @@ cases — with **no per-section gates**. Do not re-interview the user and do not
 gate section by section: the instinct to check in mid-draft is the one this contract
 overrides. It pauses for **exactly two** things: batched open questions the draft
 couldn't resolve (Step 4), and breaking/critical touches (Step 4 safety pause).
-Nothing else.
+Nothing else. Which questions are worth asking is decided by
+[`principles.md`](principles.md) — plan-pm's own rules, separate from intake's.
 
 ## Step 1/5 — Resolve the intake row
 
@@ -44,9 +45,21 @@ check 3 compare every PRD against its source intent. Two ways in:
 The capture happens **here, before Step 2** — the prior-PRD scan reconciles against the
 row's `S:blocked-by-#n` grade, which does not exist until the row does.
 
+Read a single row with the ledger writer, never the whole ledger:
+`bash "$S" INTAKE.md - --list-rows --row <n>` (the picker in path 1 uses
+`--list-rows --status backlog,in-progress`), with `S` resolved as in Step 5.
+
 Hold the resolved row in context: `idea`, `goal`, `type`, `grade`, and its `#`
-(for the Step 5 stamp). A `--sub` invocation seeds from the parent and captures its own
-marked row instead (§ Sub-PRD mode, D2). Produce no file in this step.
+(for the Step 3 PRD number and the Step 5 stamp). A `--sub` invocation seeds from the
+parent and captures its own marked row instead (§ Sub-PRD mode, D2). Produce no file in
+this step.
+
+**The row is settled ([`principles.md`](principles.md) rules 1–2).** Intake folds what it
+inferred and what it asked into the row's `idea` and `goal` text. Treat both as answered:
+never re-ask them, never contradict them, never widen them. When the draft can only work
+by changing the row's scope — at any step — stop, write no PRD, and tell the user to run
+`/intake --update #<n>` first — the row stays the single source of truth until the PRD
+exists.
 
 ## Step 2/5 — Scan prior PRDs for overlap + breaking surface
 
@@ -175,10 +188,13 @@ on a failing shape, and never edit the checker to match the draft.
 
 ## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 
-**Open questions.** Batch everything the draft couldn't resolve into **one**
-`AskUserQuestion` (≤4 questions per call, `multiSelect` where apt; each entry offers plausible
-answers + "Skip"). Apply every answer **autonomously** — write it into the relevant section and
-mark its §5 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
+**Open questions.** Choose the questions yourself, by [`principles.md`](principles.md):
+only the ones whose answer changes a feature, a criterion, or the scope, and never one the
+intake row already answers. Batch them into **one** `AskUserQuestion` (≤4 questions per call,
+`multiSelect` where apt; each entry offers your best reading first, marked recommended, plus
+plausible alternatives + "Skip"). Apply every answer **autonomously** — write it into the
+relevant section and mark its §5 row `Addressed`. Skipped questions stay `Open`. A question
+that is not worth asking stays a §5 `Open` row. No questions worth asking → skip this pause
 entirely.
 
 **Breaking-change / critical-cut safety pause (never relaxed).** If Step 2 flagged a
@@ -220,6 +236,24 @@ Missing `INTAKE.md` → the writer exits 2; skip with a one-line note. Row not f
 on this PRD?":
 - **No, done** — terminate.
 - **Yes** — capture the follow-up (batched, ≤4), apply it autonomously, then terminate.
+
+**PRD digest.** Directly above the closing message, print the four-line digest (default
+and `--sub` modes alike):
+
+```bash
+G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "$PRD" --terminal
+```
+
+```
+Title   PRD-7 · Streak grace day
+Change  active streak-holders — they can mark yesterday's missed day complete
+Builds  Grace complete, Grace limit
+Open    2 question(s) still open in §5
+```
+
+`Title` is the PRD id + name, `Change` is §1's who + outcome on one line, `Builds` is the
+§3 feature names, and `Open` counts the §5 rows still `Open` — the script omits that line
+when the count is 0. Print the script's lines verbatim; never compose them.
 
 There is no separate completion line: the PRD path and the open-questions count are
 mandatory rows of the closing message (SKILL.md § Step-by-step protocol), which is the

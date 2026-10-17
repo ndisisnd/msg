@@ -68,6 +68,7 @@ bash "$S" INTAKE.md <row-#> --append-row \
 ```
 
 - `<row-#>` — `MAX_ROW + 1`, then increment across a multi-row capture.
+- **Carry the understanding.** Fold what you inferred and every answer the user gave into the `idea` and `goal` text — the surface, the user, a scope limit they confirmed. `plan-pm` treats this text as settled and never asks it again, so a decision left out of the row is a decision lost. Keep each cell to one or two plain sentences.
 - `--goal` — the user outcome. Write `[USER: …]` only when the user declined to give one. Never invent a goal.
 - The writer sets `date` (today), `status` (`backlog`) and an empty `prd`. It escapes pipes and leaves every other byte alone.
 - **Exit codes:** `0` written · `1` no ledger table · `2` usage error · `4` that `#` exists (re-run `--list-rows` for the true `MAX_ROW`, then retry) · `5` write failure. Any other non-zero → stop and report. Never fall back to a hand-edit.

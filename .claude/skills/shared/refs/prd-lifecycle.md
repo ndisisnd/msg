@@ -64,5 +64,11 @@ rewrite that leaves every other row byte-identical. plan-pm stamps the source
 row when it creates the PRD: `status` cell → `in-progress`, `prd` cell →
 `prd-[n]-[feature_slug]` (F4/D14).
 
+Before a PRD exists, the row is the source of truth for the idea. After, the PRD
+is the source and the row mirrors it: `plan-pm --update` rewrites the row's
+`idea` / `goal` / `type` / `grade` cells (`--set-cell`, logged to
+`INTAKE-UPDATE.md`) when it changes the PRD's content, and stamps the PRD
+`reviewed: no` so plan-review re-certifies it.
+
 The `/msg --gui` Intake tab may hand-edit statuses (same trust level as its
 PRD-board edits).

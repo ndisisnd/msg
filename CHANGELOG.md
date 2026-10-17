@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [171] v6.0.0 plan-pm — own question rules, a PRD digest, `--update` edits content, `--migrate` converts format
+
+- `.claude/skills/plan-pm/refs/principles.md`: Added — plan-pm's own rules for asking: the intake row is settled, never widen it, ask only what changes the PRD, send scope changes to `/intake --update`.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — Step 1 reads the one row through the ledger writer and treats it as settled; Step 4 picks its own few questions by the principles; Step 5 prints the four-line digest above the closing message.
+- `.claude/skills/intake/refs/protocol-intake.md`: Changed — the row write folds what intake inferred and asked into the `idea` and `goal` text, so plan-pm never asks it again.
+- `.claude/scripts/script-prd-digest.py`: Changed — `--terminal` prints the Title / Change / Builds / Open digest (Open omitted at 0); `--mark` flags the parts an update changed.
+- `.claude/skills/plan-pm/refs/protocol-migrate.md`: Renamed from `protocol-update.md` — the format-only mode is now `--migrate`, and it prints a one-line count instead of a digest.
+- `.claude/skills/plan-pm/refs/protocol-update.md`: Added — the new `--update` edits an existing PRD's content on the template, re-runs the shape gate, stamps `reviewed: no`, re-grades a material change, syncs the PRD-linked intake row through `--set-cell` with one log entry per cell, and prints the marked digest.
+- `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/shared/refs/closing-message.md`, `.claude/skills/shared/refs/prd-lifecycle.md`, `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`, `.claude/skills/intake/refs/protocol-edit.md`, `.claude/scripts/script-prd-update.py`, `README.md`: Changed — name both modes, add the `--migrate` registry row, list plan-pm as the second writer of PRD-linked row content, and point the intake edit lock at `/plan-pm --update`.
+- `evals/cases/prd-digest-terminal`: Added — covers the digest lines and the change marks.
+
 ### [170] v6.0.0 plan-pm — PRD template: no invented numbers, two-bullet objective, several criteria per feature, checked error list
 
 - `.claude/skills/plan-pm/refs/template-prd.md`: Changed — a number may appear only with its source, and the worked examples no longer carry invented values; §1 drops the success signal (two bullets); a feature may list several acceptance criteria as `AC1`, `AC2`, … on `<br>` lines in its one cell; §4 is renamed "Error and edge cases", covers this PRD's features only, and labels every row with its checklist type (`E1 · Network`).

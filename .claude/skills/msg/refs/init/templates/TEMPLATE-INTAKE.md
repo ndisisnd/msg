@@ -20,6 +20,7 @@ the identical content when the ledger is missing at capture time.
 |---|---|---|
 | new row, `status: backlog`, `prd` empty | `intake` | on capture |
 | content cells `idea` / `goal` / `type` (+ re-derived `grade`) | `intake` update (`--update` or plain language) | on user request; **`backlog` rows only** — `in-progress` and `completed` are refused |
+| content cells `idea` / `goal` / `type` / `grade` of a **PRD-linked** row | `plan-pm --update` | when the user changes the PRD's content — the PRD is the source, the row mirrors it. Same columns, formats and grade rules, through `script-intake-stamp.sh --set-cell`, one `INTAKE-UPDATE.md` entry per cell |
 | `INTAKE-UPDATE.md` log entries (separate file, not a section here) | `intake` update / delete / `--health` | one per changed cell, append-only, same write as the row edit |
 | `status` correction (`completed` / `in-progress`) | `intake --health`, or capture when a duplicate's PRD has shipped | `--health` only behind one confirm |
 | `status: in-progress` + `prd: prd-<n>-<slug>` | `plan-pm` | when it creates the PRD from the row |

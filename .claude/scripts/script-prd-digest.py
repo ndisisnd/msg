@@ -11,6 +11,7 @@ split into AC1..ACn; each error case carries its checklist `type`); narrative pr
 
 Usage:
   script-prd-digest.py <prd.md> [--out <path>] [--stdout] [--force]
+  script-prd-digest.py <prd.md> --terminal [--mark <part,...>]
 
 Behaviour:
   - Default out: .claude/msg/cache/prd-<slug>.digest.json (repo root inferred).
@@ -19,6 +20,14 @@ Behaviour:
   - Non-standard headings are recorded under `unparsed_sections` so a consumer
     can fall back to prose for them (never a hard failure).
 Prints the digest path on success (or the JSON with --stdout).
+
+--terminal prints plan-pm's four-line PRD digest instead (no cache write):
+  Title   PRD id + feature name
+  Change  who + what changes, from the §1 bullets, on one line
+  Builds  the §3 feature names
+  Open    the number of §5 rows still Open (line omitted when 0)
+--mark title,change,builds,open appends "  (changed)" to those lines
+(plan-pm --update marks what the edit changed).
 
 Exit codes:
   0  digest written / printed
@@ -326,6 +335,51 @@ def verify_rows(d, rows, agent):
                 fails.append(f"Hard failure: row '{r}' is owned by '{owner}', not '{agent}'")
     return fails
 
+TERMINAL_PARTS = ("title", "change", "builds", "open")
+
+def terminal_digest(prd_path, d, mark):
+    """plan-pm's four-line digest, read from the PRD text and the built digest."""
+    with open(prd_path, encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    _, body_start = parse_frontmatter(lines)
+    who = what = ""
+    open_n = 0
+    for title, _, _, block in sections(lines, body_start, 2):
+        low = re.sub(r"^\d+\.\s*", "", title.lower()).strip()
+        if low.startswith("product objective"):
+            for b in bullets(block):
+                m = re.match(r"^\*\*(.+?)\*\*\s*[—–:-]?\s*(.*)$", b)
+                if not m:
+                    continue
+                label = m.group(1).strip().lower()
+                if label == "who" and not who:
+                    who = m.group(2).strip().rstrip(".")
+                elif label == "what changes" and not what:
+                    what = m.group(2).strip().rstrip(".")
+        elif low.startswith("open question"):
+            _, rows = md_table(block)
+            if rows:
+                for r in rows:
+                    st = pick(r, "status").lower()
+                    ans = pick(r, "answer")
+                    if st == "open" or (not st and not ans):
+                        open_n += 1
+            else:
+                open_n = len(bullets(block))
+    fm = d["frontmatter"]
+    name = fm.get("name") or os.path.splitext(os.path.basename(prd_path))[0]
+    num = re.match(r"^prd-(\d+(?:\.\d+)?)", name or "")
+    pid = f"PRD-{num.group(1)}" if num else name
+    feats = [f.get("title") or f.get("id") for f in d["features"] if f.get("title") or f.get("id")]
+    change = "; ".join(x for x in (who, what) if x) or "(no §1 bullets)"
+    out = [("title", f"Title   {pid} · {fm.get('feature') or name}"),
+           ("change", f"Change  {who} — {what}" if who and what else f"Change  {change}"),
+           ("builds", f"Builds  {', '.join(feats) or '(no features)'}")]
+    if open_n:
+        out.append(("open", f"Open    {open_n} question(s) still open in §5"))
+    for key, text in out:
+        print(text + ("  (changed)" if key in mark else ""))
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("prd")
@@ -337,6 +391,10 @@ def main():
     ap.add_argument("--verify-rows", dest="verify_rows",
                     help="semicolon-separated exec-table Feature identifiers to verify exist and are owned by --agent")
     ap.add_argument("--agent", help="with --verify-rows: the agent that must own every named row")
+    ap.add_argument("--terminal", action="store_true",
+                    help="print plan-pm's four-line PRD digest (Title / Change / Builds / Open)")
+    ap.add_argument("--mark", default="",
+                    help="with --terminal: comma list of title,change,builds,open to mark (changed)")
     a = ap.parse_args()
     prd = a.prd
     if not os.path.isfile(prd):
@@ -356,6 +414,14 @@ def main():
               f"{', '.join(headers) or '(none)'}; refusing to emit a digest whose "
               "features cannot be addressed by F-ID", file=sys.stderr)
         sys.exit(2)
+
+    if a.terminal:
+        mark = {m.strip().lower() for m in a.mark.split(",") if m.strip()}
+        bad = mark - set(TERMINAL_PARTS)
+        if bad:
+            print(f"error: --mark accepts {','.join(TERMINAL_PARTS)}; got {','.join(sorted(bad))}",
+                  file=sys.stderr); sys.exit(2)
+        terminal_digest(prd, d, mark); return
 
     if a.verify_rows is not None:
         fails = verify_rows(d, a.verify_rows, a.agent)

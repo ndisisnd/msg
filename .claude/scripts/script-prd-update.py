@@ -3,12 +3,12 @@
 script-prd-update.py — deterministic PRD migrator, v5 shape → v5.4 (no LLM).
 
 The read path never rewrites a PRD: every reader normalises the old shape in
-memory and no writer emits it. `plan-pm --update` is the one deliberate,
+memory and no writer emits it. `plan-pm --migrate` is the one deliberate,
 user-invoked exception, and this script is its mechanical half (L1). It does
 only the edits a machine can make without judgement — frontmatter keys, the
 findings-section move, section renumbering. Everything that needs reading
 comprehension (§5 bullets → the 4-column table, §1 bullet pruning) is L2 and
-lives in `plan-pm/refs/protocol-update.md`.
+lives in `plan-pm/refs/protocol-migrate.md`.
 
 Usage:
   script-prd-update.py <prd.md> [--dry-run] [--intake <INTAKE.md>] [--date YYYY-MM-DD]

@@ -46,7 +46,7 @@ With several picks, run Steps 3–5 for **one row at a time**, in `#` order.
 
 Both refusals explain themselves, write nothing, and re-offer the pick. Neither ends the run.
 
-- **`in-progress`** → *"`#4` is `in-progress` (PRD: `prd-7-search`). The PRD is the source of truth now — run `/plan-review <path>` or `/plan-pm` to revise it."* The one escape hatch: drag the card back to **Backlog** in the `/msg --gui` Intake tab, then re-run the edit.
+- **`in-progress`** → *"`#4` is `in-progress` (PRD: `prd-7-search`). The PRD is the source of truth now — run `/plan-pm --update <path>` to change it; plan-pm syncs this row."* The one escape hatch: drag the card back to **Backlog** in the `/msg --gui` Intake tab, then re-run the edit.
 - **`completed`** → *"`#2` shipped; completed rows are a historical record. Capture a new idea with `/intake`."* No escape hatch. Removing it is a delete.
 
 ## Step 4u — Update: resolve, re-grade, write
