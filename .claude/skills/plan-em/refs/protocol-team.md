@@ -122,7 +122,7 @@ The `Files` column is now derived from the tickets, so the collision graph is re
    ```bash
    S=.claude/scripts/script-eng-db-touch.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$S" "$WAVE_BASE"
    ```
-   Exit 1 (it prints `category<TAB>path`) → **pause** and `AskUserQuestion` (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM schema/entity, seed/fixture, `.env`, or production-config change needs sign-off. A change an earlier wave already got signed off is not asked about again.
+   Exit 1 (it prints `category<TAB>path`) → **pause** and `AskUserQuestion` (Approve & continue / Stop) before the next wave — a migration, `.sql`, ORM schema/entity, seed/fixture, `.env`, or production-config change needs sign-off. A path a leaf already got signed off at its own db-touch pause in this wave is not asked about again; drop those paths from the question, and skip the pause when none remain. A change an earlier wave already got signed off is not asked about again.
 4. **Review coverage after every wave.** Every packet is reviewed; the packet's tier decides who spawns the reviewer:
 
    | Packet tier | Reviewer | Artifact |
@@ -141,6 +141,8 @@ The `Files` column is now derived from the tickets, so the collision graph is re
    - **Exit 1** — one `MISSING <k>` / `SELF-REVIEWED <k>` line per gap. **Repair it yourself, silently:** spawn **one** `eng --review` over that packet's diff (a reviewer, never the builder), injecting the packet's rows, its `Files` set as the change scope, `built_by=<the packet's agent>` and `<K>=<k>`. Do not re-run the builder. Re-run the check **once**. A batched key reading `MISSING` is repaired the same way, per packet — never by editing the wave artifact's `packets` list.
    - **Still missing on the re-check** — name each uncovered packet in the consolidated summary and log one `tool-error:review-<k>` row to `devkit/DOCTOR.md` per `../../shared/refs/doctor-logging.md`.
    - **Exit 2** (usage) or a missing script — a harness fault: log `validator-fail:script-eng-review-check` and say in the summary that coverage could not be established. Never read a non-zero exit as "reviewed".
+
+   **Re-test after a review you spawned.** This applies to the batched wave review and to every repair review. When the reviewer's `fixed[]` is not empty, run the project's unit + integration suite before the next wave. A failure goes to debug mode (`../../eng/refs/build/protocol-build-debug.md`). Then commit the reviewer's fixes as `fix(review): <what> [W<w>]`. When `fixed[]` is empty, nothing extra runs. The next wave starts only after this commit.
 5. **Consolidate.** When the last wave lands, merge the leaf build summaries into one report (packets built, models used, files touched, any packet that failed or was capped), close both states, and return it to plan-em.
 
    **The consolidation must state review coverage** — one line per wave (`reviewed <n>/<n> packets`) plus the aggregate finding counts (`<b> blocker, <h> high, <x> medium`). A consolidation that cannot state coverage is **itself a hard failure**: say so and escalate. Findings gate nothing here — `pre-merge` is the safety floor.

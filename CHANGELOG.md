@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [189] v6.0.0 eng — reviewer fixes are re-tested, packets check only their own files
+
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — a wave or repair review with fixes re-runs the unit + integration suite and commits `fix(review): … [W<w>]` before the next wave; the wave db-touch guard does not re-ask a path a leaf already got signed off.
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md`: Changed — Step 3a re-review with fixes re-runs the suite and commits the fixes before loop-close.
+- `.claude/skills/eng/refs/review/protocol.md`: Changed — "your caller re-runs" the tests after a reviewer fix.
+- `.claude/skills/eng/refs/build/protocol-packet.md`: Changed — an orchestrated packet pipes only its own ticket `files` to `script-eng-db-touch.sh -`; a manual build keeps the run-base form; a manual build runs Steps 0–7.
+- `.claude/skills/eng/refs/plan/protocol.md`, `eng/refs/build/bug-report.md`: Changed — summary heading names Step 3; "Commit?" is asked only with `orchestrate=off`.
+
 ### [188] v6.0.0 pre-merge — stays local, sets itself up, finds its PRD, tags critical tests by itself
 
 - `.claude/skills/pre-merge/SKILL.md`: Changed — no `--init`, `--update-criticality`, `--prd`, `--quiet`, `--status`; first run sets up then gates; never pushes or opens a PR; ends "Next: /merge"; questions and the fix loop stay in the main conversation.

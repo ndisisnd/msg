@@ -19,7 +19,7 @@ No implementation files are written in this mode. Inline code snippets and pseud
 
 ---
 
-## Summary content (Step 3 — Pre-run 1 of 2)
+## Summary content (Step 3)
 
 The 3–4 line summary covers:
 

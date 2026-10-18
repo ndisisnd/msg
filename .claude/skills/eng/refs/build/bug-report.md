@@ -27,4 +27,4 @@ The script owns the format (`../../../shared/refs/report-schema.md`): `report-pr
 
 ## Step 3 — Fix it
 
-Run the normal fix flow on the new issues file: `eng --build report=<REPORT_JSON>` (`fix-build.md`). The limit of 3 fix attempts per bug applies (`protocol-build-debug.md`). A manual run asks the one "Commit?" question at the end; the db-touch pause stays separate.
+Run the normal fix flow on the new issues file: `eng --build report=<REPORT_JSON>` (`fix-build.md`). The limit of 3 fix attempts per bug applies (`protocol-build-debug.md`). Only a run with `orchestrate=off` asks the one "Commit?" question at the end; the orchestrated default commits without asking. The db-touch pause stays separate.

@@ -81,7 +81,11 @@ R=.claude/scripts/script-eng-review-check.sh; [ -f "$R" ] || R="$HOME/.claude/sc
 bash "$R" --reports-dir "features/prd-<N>-<slug>/reports" --expect "<K>-fix-<id1>,<K>-fix-<id2>,…"
 ```
 
-Exit 0 → quote the coverage line in the roll-up summary. Exit 1 → spawn **one** `eng --review` over that issue's commits (never the subagent that wrote the fix), injecting `built_by` and the same `<K>-fix-<issue-id>`, then re-check once; a second miss escalates in the roll-up and logs a `tool-error:review-<K>-fix-<id>` row per `../../../shared/refs/doctor-logging.md`. Exit 2 or an absent script is `validator-fail:script-eng-review-check`, never coverage. A re-review never re-runs a fix subagent and never touches its commits. The roll-up must state coverage (`reviewed <n>/<n> issues`); one that cannot is a hard failure, not a footnote.
+Exit 0 → quote the coverage line in the roll-up summary. Exit 1 → spawn **one** `eng --review` over that issue's commits (never the subagent that wrote the fix), injecting `built_by` and the same `<K>-fix-<issue-id>`, then re-check once; a second miss escalates in the roll-up and logs a `tool-error:review-<K>-fix-<id>` row per `../../../shared/refs/doctor-logging.md`. Exit 2 or an absent script is `validator-fail:script-eng-review-check`, never coverage. A re-review never re-runs a fix subagent and never touches its commits.
+
+**Re-test after a re-review.** When the re-reviewer's `fixed[]` is not empty, run the project's unit + integration suite before the loop-close. A failure goes to debug mode (`protocol-build-debug.md`). Then commit the reviewer's fixes as `fix(review): <what> [<K>-fix-<issue-id>]`. When `fixed[]` is empty, nothing extra runs.
+
+The roll-up must state coverage (`reviewed <n>/<n> issues`); one that cannot is a hard failure, not a footnote.
 
 ## Step 4 — Close the loop
 

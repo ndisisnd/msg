@@ -9,7 +9,7 @@ type: reference
 This file is the build loop, written once. Two readers:
 
 - **An orchestrated packet** (spawned by `plan-em` or another orchestrator) reads **only this file**. Do not read `eng/SKILL.md` or `refs/build/protocol.md`.
-- **A manual build** reads `refs/build/protocol.md` first. That file adds the solo-only steps (branch, standards, progress messages, the "Commit?" question, the sub-branch PR) and then runs Steps 1–7 below.
+- **A manual build** reads `refs/build/protocol.md` first. That file adds the solo-only steps (branch, standards, progress messages, the "Commit?" question, the sub-branch PR) and then runs Steps 0–7 below.
 
 ## What the orchestrator guarantees a packet (do not re-derive)
 
@@ -91,7 +91,15 @@ After all groups are green, run the project's **unit + integration** suite and l
 Before committing, run the production guardrail over **this run's own changes** — never skipped under any autonomy contract (`shared/refs/safety-floor.md`):
 
 ```bash
-D=.claude/scripts/script-eng-db-touch.sh; [ -f "$D" ] || D="$HOME/.claude/scripts/script-eng-db-touch.sh"; bash "$D" "$RUN_BASE"
+D=.claude/scripts/script-eng-db-touch.sh; [ -f "$D" ] || D="$HOME/.claude/scripts/script-eng-db-touch.sh"
+bash "$D" "$RUN_BASE"                                   # manual build
+```
+
+**An orchestrated packet checks only its own ticket `files`.** Sibling packets share the branch and the working tree, so their changes must not trip your pause. Collect the changed paths, keep only the paths named in your tickets' `files`, and pipe the list to the script:
+
+```bash
+{ git diff --name-only "$RUN_BASE" HEAD; git diff --name-only; git diff --name-only --cached; git ls-files --others --exclude-standard; } \
+  | sort -u | grep -Fx -f <(printf '%s\n' <each path in your tickets' files>) | bash "$D" -   # orchestrated packet
 ```
 
 Exit 1 prints `category<TAB>path` lines (migration, SQL, ORM schema/entity, seed/fixture, `.env`/secrets, production config). On exit 1 — or when your change removes/renames a public API or alters a contract or schema — **pause via `AskUserQuestion` and require explicit sign-off before committing.** No pre-approval reaches this pause, and it is never merged into another question.
