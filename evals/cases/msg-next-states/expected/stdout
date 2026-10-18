@@ -1,0 +1,20 @@
+SETUP=no
+FLOW=direct
+NEXT=/msg --init|this project is not set up yet|-
+COUNT=1
+MORE=0
+SETUP=yes
+FLOW=staged
+NEXT=/merge|signed off on staging — ready for production|prd-1-alpha
+NEXT=/merge|pre-merge passed — ready to merge into staging|prd-2-beta
+NEXT=/pre-merge|the last pre-merge check did not pass|prd-3-gamma
+NEXT=/pre-merge|built — not checked by pre-merge yet|prd-6-zeta
+COUNT=4
+MORE=2
+---
+NEXT=/merge|signed off on staging — ready for production
+NEXT=/merge|pre-merge passed — ready to merge into staging
+NEXT=/pre-merge|the last pre-merge check did not pass
+NEXT=/pre-merge|built — not checked by pre-merge yet
+NEXT=/plan-em features/planned/prd-4-delta/prd-4-delta.md|drafted — plan-em reviews and plans it
+NEXT=/plan-pm #7|intake row #7 has no PRD yet (2 rows waiting)

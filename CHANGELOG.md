@@ -2,6 +2,12 @@
 
 ## 2026-10-17
 
+### [197] v6.0.0 msg — bare /msg says the next step for each PRD in progress
+
+- `.claude/scripts/script-msg-next.py`: Added — reads devkit, PRDs, tickets, eng reports, pre-merge's last check, git and INTAKE.md; prints up to 4 `NEXT=<command>|<why>|<prd>` lines.
+- `.claude/skills/msg/refs/protocol-default.md`: Changed — prints the next steps, then one question: run one, or "Show menu" (the old two-question menu).
+- `evals/cases/msg-next-states/`: Added — covers no devkit, sign-off, pass, failed check, built, drafted, intake rows and the 4-line cap.
+
 ### [196] v6.0.0 merge — a re-run after "Not yet" asks for the sign-off again; seed takes many scopes
 
 - `.claude/skills/merge/refs/open-pr.md`: Changed — new §0: an already-merged staging PR that holds the tip skips push, PR and CI wait and resumes at the test script and sign-off.
