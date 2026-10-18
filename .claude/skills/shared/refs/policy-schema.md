@@ -29,10 +29,10 @@ The **env-setup contract** is not in `policy.json` at all: it is [`devkit/ENV.md
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow`, and `policies.github_actions` when the CI question was asked (nothing else) |
 | `/msg --update` | **CI decision** — sets/changes `policies.github_actions`, and the **test-selection decision** `policies.test_selection` (the only keys it writes; it otherwise delegates to `/msg --init`'s top-up) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
-| pre-merge setup (the first `/pre-merge` run) | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling, then writes `init:true` with an explicit `--set init=true`. Also scaffolds `devkit/ENV.md` — a devkit doc, not a policy key |
+| pre-merge setup (the first `/pre-merge` run) and `/pre-merge --update` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling, then writes `init:true` with an explicit `--set init=true`. Also scaffolds `devkit/ENV.md` — a devkit doc, not a policy key |
 | merge setup (the first `/merge` run) and `/merge --update` | **completion / reconcile** — fills `branch_protection`, `steps.deploy_*`/`smoke`, `policies.merge` (`risky_paths`, `ci_wait_minutes`), records `staging_ready` (`staged` flow only), writes `init:true`. Reads `release_flow` and reports a mismatch — never writes it (`/msg --init` is its one writer) |
 | a `/merge` run | **risky-path growth** — appends a newly found auth/payment folder to `policies.merge.risky_paths` (never removes one) |
-| `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`run`/`tooling`/`status`/`active_when` changes and new components, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
+| `/pre-merge --update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`run`/`tooling`/`status`/`active_when` changes and new components, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
 | pre-merge's critical-test tagging (gate step, test selection on) | **criticality stamp** — writes critical markers into the test files (committed on the branch) and restamps `criticality_review` (`{reviewed_at, suite_hash}`). Never re-grades or removes an existing tag (AC-TS7); writes **no other** policy key |
 
 Every write goes through **`.claude/scripts/script-policy-set.py`** — the one sanctioned
@@ -50,7 +50,7 @@ critical-test tagging step. Setup never writes `devkit/PLATFORMS.md` (that stays
 ```json
 {
   "version": 1,                          // must be 1; any other value → file treated as absent
-  "init": true,                          // lifecycle gate: false → the next gate run sets itself up first
+  "init": true,                          // lifecycle gate — pre-merge: no components[] ⇒ setup runs first; merge: setup runs first (merge-1)
   "generated": "2026-07-16",             // YYYY-MM-DD, stamped by script-policy-set.py
   "generated_by": "merge setup",   // last writer; informational
   "repo": {                              // evidence/audit only — gates never branch on it
@@ -81,7 +81,7 @@ critical-test tagging step. Setup never writes `devkit/PLATFORMS.md` (that stays
 
 ## Seed skeleton — what `/msg --init` writes
 
-Release-flow answers captured, tooling not yet resolved, `init:false` so the first gate run triggers `--init`. Idempotent: `/msg --init` never overwrites an existing `policy.json` (AC-LC7).
+Release-flow answers captured, tooling not yet resolved, `init:false` so the first run of each gate runs its own setup (§0). Idempotent: `/msg --init` never overwrites an existing `policy.json` (AC-LC7).
 
 ```json
 {
@@ -206,14 +206,14 @@ setting can create one. Only a human stops a leaf.
 
 ## Validation rules
 
-Fail-safe throughout — a malformed policy never aborts a gate run.
+Fail-safe throughout — a malformed policy never aborts a merge run (pre-merge stops on it, rule 1).
 
-1. **Parse failure** — malformed JSON, or `version` ≠ 1 → **treat the whole file as absent**; gates use built-in defaults; emit exactly **one** info line. Never abort the run on a parse error. (AC-S1)
+1. **Parse failure** — malformed JSON, or `version` ≠ 1 → **treat the whole file as absent**; merge uses built-in defaults; emit exactly **one** info line. Never abort a merge run on a parse error. Pre-merge is the one exception: it stops and names the parse error, because its setup never overwrites a file it cannot read (`pre-merge/refs/executor.md` §0). (AC-S1)
 2. **Bad enum** — any enum field out of range → **that field** falls to its documented default + one warn naming it; every other field is still honored. (AC-S2)
 3. **Missing justification** — required `reason` missing (relaxed protection `optional`/`skip`, or a non-`ready` step) → decision **honored**, one `unjustified-policy` warn per offending field. A missing justification is a docs smell, not a safety failure — never let it flip to a stricter default. (AC-S3)
 4. **Unknown key** — unknown `steps` key or unknown top-level key → ignored, one warn each; known keys unaffected. (AC-S4)
 5. **Contradictory flow** — `release_flow.mode:"staged"` with null/absent `staging_branch` → contradictory; **discard `release_flow`** and use the built-in "staging if the branch exists, else prod" fallback + one warn. (AC-S5)
-6. **Self-healing `init`** — `init` missing on an existing file → treated as `false`; the next gate run triggers `--init`, which sets it `true`.
+6. **Self-healing `init`** — `init` missing on an existing file → treated as `false`; the next gate run runs its setup (§0), which sets it `true`.
 
 An `--init`-written file re-loaded by a gate produces **zero** validation warnings (round-trip clean, AC-S6).
 
@@ -221,7 +221,7 @@ An `--init`-written file re-loaded by a gate produces **zero** validation warnin
 
 # Read-contract — how the gates resolve the policy file
 
-Both gates load + validate **once per run**. **No file / malformed / `version` ≠ 1 → built-in defaults (today's behavior) + one info line.** Otherwise parse and apply per-field validation (bad enum → that field's default + warn; the rest is honored).
+Both gates load + validate **once per run**. **No file / malformed / `version` ≠ 1 → built-in defaults (today's behavior) + one info line** — except pre-merge, which runs setup on no file and stops on a malformed file (§0). Otherwise parse and apply per-field validation (bad enum → that field's default + warn; the rest is honored).
 
 The sections below are the **shared** half. Pre-merge additionally loads
 [`policy-schema-pre-merge.md`](policy-schema-pre-merge.md) (§2c); merge additionally

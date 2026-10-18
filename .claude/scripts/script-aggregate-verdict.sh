@@ -48,8 +48,9 @@
 #                array of {category, file, line, rule, severity?, regression?, reason}.
 #                Each entry matches one deduped issue on (category, file, line, rule);
 #                `severity` replaces its grade, `regression: true` marks it. An entry
-#                that matches nothing is reported in `regrades_unmatched`. Absent or
-#                missing file ⇒ no re-grades
+#                that matches nothing is reported in `regrades_unmatched`. Flag absent
+#                ⇒ no re-grades; a path given but missing ⇒ exit 1 (a lost re-grade
+#                file must never pass as "no judgments")
 #   --prd        PRD path, echoed into the document
 #   --eval-set   eval-set path, echoed into the document
 #   --parallel   records that the waves ran concurrently
@@ -79,6 +80,7 @@ done
 [[ -n "$RUN_DIR" ]] || { echo "--run-dir <dir> is required" >&2; exit 1; }
 [[ -d "$RUN_DIR" ]] || { echo "run-dir not found: $RUN_DIR" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "jq is required (brew install jq)" >&2; exit 1; }
+[[ -z "$REGRADES" || -f "$REGRADES" ]] || { echo "regrades file not found: $REGRADES" >&2; exit 1; }
 
 # ── collect + validate the result reports ────────────────────────────────────
 reports=()

@@ -1,0 +1,3 @@
+{"check":"unit","group":"universal","verdict":"fail","runner":"vitest","ran_at":"2026-10-17T00:00:00Z","totals":{"passed":3,"failed":1,"skipped":0,"flaky":0},"findings":[
+ {"severity":"blocker","category":"unit","rule":"unit-test-failure","source":"unit","file":"src/b.ts","line":9,"message":"fails"}],
+ "log_path":".pre-merge/x/unit.log","skip_reason":null}

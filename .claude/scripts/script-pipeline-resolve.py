@@ -58,7 +58,7 @@ Output (--check-complete, stdout):
 Exit codes:
   0  resolved (or --check-complete found everything)
   1  usage error
-  2  policy.json absent / unparseable / no components[]  (the no_manifest case)
+  2  policy.json absent / no components[]  (the no_manifest case — setup runs)
   3  catalog unparseable, or the manifest names an id with no catalog row
   4  dependency cycle — refuse rather than loop (AC-PF3)
   5  --check-complete found a missing report
@@ -70,6 +70,9 @@ Exit codes:
   7  --platforms-file exists but could not be read (A19). An ABSENT file keeps
      its old behaviour (no targets, no coverage-gap findings); an unreadable
      one is a tooling failure, not "this repo ships nothing".
+  8  policy.json present but unparseable, or `version` != 1 (bad_manifest).
+     Stop and name the parse error: setup never overwrites a file it cannot
+     read, so this is never the exit-2 setup path.
 
 Deterministic: same policy + catalog + flags + diff ⇒ byte-identical plan.
 """
@@ -329,9 +332,9 @@ def resolve(args):
         with open(args.policy, "r", encoding="utf-8") as fh:
             policy = json.load(fh)
     except ValueError as exc:
-        fail(2, "no_manifest", "%s unparseable: %s" % (args.policy, exc))
+        fail(8, "bad_manifest", "%s unparseable: %s" % (args.policy, exc))
     if not isinstance(policy, dict) or policy.get("version") != 1:
-        fail(2, "no_manifest", "%s: version != 1" % args.policy)
+        fail(8, "bad_manifest", "%s: version != 1" % args.policy)
     entries = policy.get("components")
     if not isinstance(entries, list) or not entries:
         fail(2, "no_manifest",

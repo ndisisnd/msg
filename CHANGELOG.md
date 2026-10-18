@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [195] v6.0.0 pre-merge — an unreadable policy.json stops instead of starting setup; a missing re-grade file fails
+
+- `.claude/scripts/script-pipeline-resolve.py`: Changed — unparseable or `version` ≠ 1 now exits 8 (`bad_manifest`); only absent / no `components[]` exits 2 and leads to setup.
+- `.claude/scripts/script-aggregate-verdict.sh`: Changed — a `--regrades` path that is given but missing exits 1.
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — §0 and §1 name exit 8; §0 names the setup commit; regression tail is the last gate before `/merge`.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — `/pre-merge --update` writer name, per-gate setup note, no stale `--init` trigger, pre-merge stops on a malformed file.
+- `evals/cases/pipeline-bad-manifest-stops/`, `evals/cases/agg-verdict-regrades-missing/`: Added — cover both exits.
+
 ### [194] v6.0.0 pre-merge — setup and tag passes commit their files; write scope and docs match
 
 - `.claude/skills/pre-merge/refs/protocol-init.md`: Changed — setup step 7 commits its approved outputs as one `chore(pre-merge): setup` commit before the gate continues.
@@ -9,7 +17,7 @@
 - `.claude/skills/pre-merge/SKILL.md`, `pre-merge/refs/{sync,executor}.md`, `shared/refs/safety-floor.md`: Changed — write scope names the setup commit and the tag commit beside the sync merge.
 - `.claude/skills/shared/refs/check-report-schema.md`: Fixed — dangling links to removed `protocol-unit`/`-integration` refs.
 - `.claude/skills/pre-merge/refs/{refusal-patterns,output-schema,platform-profiles}.md`: Changed — no `--base` advice, no `user_declined`, blocking-finding wording, `head` field, green CI enforced at `/merge`.
-- `.claude/skills/shared/refs/policy-schema.md`, `msg/refs/protocol-update.md`, `llms.txt`: Changed — `/pre-merge --update` writer name, per-gate setup note, pre-merge stays local.
+- `.claude/skills/msg/refs/protocol-update.md`, `llms.txt`: Changed — `/pre-merge --update` names the scaffold step; pre-merge stays local.
 
 ### [193] v6.0.0 merge — docs and menu match the new merge
 

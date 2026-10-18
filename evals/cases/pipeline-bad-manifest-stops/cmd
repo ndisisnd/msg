@@ -1,0 +1,17 @@
+# A policy.json that is present but unparseable, or has version != 1, must stop
+# with its own exit code (8, bad_manifest). It must never take the exit-2
+# no_manifest path, because exit 2 sends the executor into setup, and setup
+# never overwrites a file it cannot read. An absent file and a file with no
+# components[] still exit 2. One line per probe: "<probe> <exit> <slug>".
+R="$REPO/.claude/scripts/script-pipeline-resolve.py"
+C="$REPO/.claude/skills/shared/refs/component-catalog.md"
+probe() {
+  local name="$1" pol="$2" err rc slug
+  err="$(python3 "$R" --policy "$pol" --catalog "$C" 2>&1 >/dev/null)"; rc=$?
+  slug="$(printf '%s\n' "$err" | sed -n 's/.*ERROR=\([a-z_]*\).*/\1/p' | head -1)"
+  echo "$name $rc $slug"
+}
+probe unparseable broken.json
+probe version-2 v2.json
+probe absent missing.json
+probe no-components empty.json
