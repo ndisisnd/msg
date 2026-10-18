@@ -69,7 +69,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Planning | plan-em | Engineering plan generator — certifies each wave, asks about the roster only when it is unusual |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
 | Build & Ship | pre-merge | The quality gate — sync, mechanical, tests, regression, security/migration, PRD-consistency; fixes failures by itself (≤2 rounds); first run sets it up; stays local, ends "Next: /merge" |
-| Build & Ship | merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
+| Build & Ship | merge | The ship gate — bare `/merge` does the next step; `--staging` (pre-merge pass check, push, PR, CI wait, merge, deploy, human test, sign-off), `--production` (confirmed release to main), `--update` (refresh settings); first run sets it up |
 | Build & Ship | emulate | The local run lane — boots a simulator/emulator on the current branch and opens the window; a leaf, never part of the pipeline |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
 
@@ -84,9 +84,9 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
                                                                          ↓
                                              /pre-merge  (quality gate; then /merge)
                                                                          ↓
-                              /merge --staging  (merge on green CI, deploy, human test)
+                      /merge  (staging step: push, PR, CI, merge, deploy, human test)
                                                                          ↓
-                                             (human)  /merge --production  (release to main)
+                                     (human)  /merge  (production step: release to main)
 ```
 
 `(/plan-review)` is a step the user chooses: plan-pm and plan-em suggest it, `--review on` makes them run it, and plan-em still certifies an unchecked PRD before engineering.

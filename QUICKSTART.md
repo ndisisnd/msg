@@ -4,7 +4,7 @@ Two setup phases — **machine**, then **repo** — followed by one guided run t
 
 Every step below carries a **verify** line. If a verify fails, stop and fix it before continuing; the gates are ordered and a skipped step surfaces later as a refusal, not a warning.
 
-> **The one thing people miss:** `/merge` needs its own one-time `--init` (step 6). `/pre-merge` sets itself up on its first run (step 5) — it asks a few setup questions, then runs the gate. Bootstrapping the repo with `/msg --init` alone is not enough.
+> **The one thing people miss:** `/msg --init` sets up the repo, but each gate has its own settings. `/pre-merge` (step 5) and `/merge` (step 6) each set themselves up on their first run — they ask a few setup questions, then carry on.
 
 ---
 
@@ -83,17 +83,19 @@ There is no separate setup command. The first `/pre-merge` run detects your pipe
 
 Use `/pre-merge --update` later to redo setup or reconcile the manifest as the code drifts.
 
-### 6. `/merge --init`
+### 6. merge setup — automatic on the first `/merge`
 
-Sets up branch protection and deploy tooling, records the release flow, verifies staging is actually ready per platform, and flips `policy.json` to `init:true`.
+There is no separate setup command. The first `/merge` run sets up branch protection and deploy tooling, checks the release flow `/msg --init` recorded, verifies staging is actually ready per platform, records the risky paths (database, dependency, auth, payment and CI files) and the CI wait limit, then carries on with the merge step.
 
-**Verify:**
+**Verify (after your first `/merge`):**
 
 ```bash
 ~/.claude/scripts/script-branch-protection.sh --verify
 ```
 
 Expect `PROTECTED main` / `PROTECTED staging`. `NO_GH` means `gh` is missing; `UNPROTECTED` names what's missing. On a private Free-plan repo that cannot set protection, policy records the stance as `optional` and the gate is not blocked — that's expected, not a failure.
+
+Use `/merge --update` later when the repo changes — a new platform, a new deploy tool, a staging branch added.
 
 ### 7. `/kermit --init` *(optional)*
 
@@ -108,9 +110,9 @@ Conventional-commit formatter and changelog manager. Installed separately from m
                                                     ↓
                                 /pre-merge   (checks + fixes; then /merge)
                                                     ↓
-                        /merge --staging   (merge, deploy, human test)
+                                    /merge   (push, PR, CI, merge to staging, deploy, human test)
                                                     ↓
-                     /merge --production   (double-confirmed release)
+                                    /merge   (confirmed release to main)
 ```
 
 | # | Command | What happens | Your move |
@@ -121,8 +123,10 @@ Conventional-commit formatter and changelog manager. Installed separately from m
 | 11 | `/eng --plan` | Proposes file changes and writes the per-feature todo tickets | Approve the file changes |
 | 12 | `/eng --build` | Writes the code on a `feat/prd-<n>-*` branch | — |
 | 13 | `/pre-merge` | Runs the pipeline in an ephemeral test sandbox and fixes failures by itself (up to 2 rounds); the first run asks a few setup questions first. Stays local — ends with "Next: /merge" | Answer the setup questions on the first run |
-| 14 | `/merge --staging` | Merges on green CI, deploys, hands you a human test script | Run the script, then sign off |
-| 15 | `/merge --production` | Opens the staging→main release PR, merges on green CI + review, deploys, tags `v<x.y.z>+<build>` | **Double-confirm** |
+| 14 | `/merge` (staging step) | Checks pre-merge passed, pushes the branch, opens the PR, waits for CI, merges to staging, deploys, hands you a human test script. The first run asks a few setup questions first | Run the script, then sign off |
+| 15 | `/merge` (production step) | Opens the staging→main release PR, merges on green CI + review, deploys, tags `v<x.y.z>+<build>` | **Double-confirm** |
+
+`/merge` with no flag picks the next step by itself; `--staging` and `--production` force one. With no staging branch, `/merge` gives you the test script, asks one "Tested and ready to ship?" question, then ships the feature branch straight to main.
 
 `/plan-review` is suggested after `/plan-pm` and `/plan-em`; run it when you choose, or turn on `--review on` to have it run every time. `/plan-em` still runs it by itself on a PRD that was never checked.
 
@@ -154,13 +158,10 @@ verify check and report the result. If a verify fails, STOP and tell me what fai
    Verify: a remote `staging` branch exists and policy.json shows release_flow=staged.
    Skip this step entirely if the flow is already `staged` or I want direct-to-prod.
 
-3. /merge --init
-   Verify: ~/.claude/scripts/script-branch-protection.sh --verify prints PROTECTED
-   for each branch. NO_GH or a Free-plan `optional` stance is an acceptable result
-   — report it rather than treating it as a failure.
-
-When all three are done, summarise the resolved release flow and the
-branch-protection stance. (pre-merge sets itself up on the first /pre-merge run.)
+When both are done, summarise the resolved release flow. (pre-merge and merge each
+set themselves up on their first run; after the first /merge,
+~/.claude/scripts/script-branch-protection.sh --verify prints PROTECTED for each
+branch — NO_GH or a Free-plan `optional` stance is an acceptable result.)
 ```
 
 Then start the feature loop with `/intake`.
@@ -176,6 +177,8 @@ Then start the feature loop with `/intake`.
 | `/merge --production` refuses `stale_signoff` | Commits landed on staging after the sign-off sha | Re-run `/merge --staging` and re-test |
 | `/merge --production` refuses `release_in_flight` | Another release holds the lock | Wait, or follow the printed manual unlock if the lock is over 2h stale |
 | `/merge --production` refuses `no_signoff` | Staging was never signed off | Run `/merge --staging` first |
+| `/merge` says "Run /pre-merge first." | No pre-merge pass on the branch tip, or the commits since it are not small (over 20 lines, or a risky file) | Run `/pre-merge`, then `/merge` |
+| `/merge` refuses `push_rejected` | The remote branch has commits yours lacks | Pull them, run `/pre-merge`, then `/merge` |
 | `script-branch-protection.sh` prints `NO_GH` | `gh` missing or unauthenticated | Install `gh`, then `gh auth login` |
 | `script-branch-protection.sh` prints `NO_REMOTE` | No git remote configured | `git remote add origin <url>` |
 | `/msg --init-staging` stops immediately | No `devkit/policy.json` — repo was never bootstrapped | `/msg --init` first |

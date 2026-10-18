@@ -3,7 +3,7 @@
 script-ci-status.py — the check-state set + policy → ONE CI verdict.
 
 Three merge call sites spelled the identical logic in prose: `--staging`'s
-"locate the PR + verify green CI" step, `--production`'s Step 1 staging-green
+"open the PR + wait for CI" step (`merge/refs/open-pr.md`), `--production`'s Step 1 staging-green
 precondition, and `--production`'s Step 5 release-PR check (which explicitly
 says "the same check `--staging` runs, including its empty-check-set branch").
 Three copies of a five-way branch is three chances to drift — and the branch
@@ -16,7 +16,7 @@ locates the open PR and reports it, so the model never hand-rolls that
 `gh pr list` invocation either.
 
 Contract:
-  .claude/skills/merge/refs/staging.md    § Step 2
+  .claude/skills/merge/refs/open-pr.md    § Wait for CI
   .claude/skills/merge/refs/production.md § Step 1, Step 5
   .claude/skills/shared/refs/policy-schema.md            §2b github_actions
   .claude/skills/shared/refs/policy-schema-merge.md §3 steps.ci

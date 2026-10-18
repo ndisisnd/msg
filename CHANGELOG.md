@@ -2,6 +2,12 @@
 
 ## 2026-10-17
 
+### [193] v6.0.0 merge — docs and menu match the new merge
+
+- `.claude/skills/msg/SKILL.md`, `msg/refs/{protocol-help,protocol-init}.md`: Changed — menu row and flow line: bare `/merge`, `--update`, first-run setup.
+- `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `llms.txt`: Changed — no `/merge --init`; merge pushes and opens the PR; bare `/merge`; `--update`; one direct-flow question; automatic fix after a failed ship.
+- `.claude/skills/shared/refs/policy-schema.md`, `.claude/scripts/script-ci-status.py`: Changed — leftover `--init` and old step names.
+
 ### [192] v6.0.0 merge — direct flow gets a test script and one confirmation; the fix loop after a failed ship runs by itself
 
 - `.claude/skills/merge/refs/production.md`: Changed — Step 3 split by flow: staged keeps Ask A + Ask B; direct gives the human test script, then one "Tested and ready to ship?" question before the merge and the lock.

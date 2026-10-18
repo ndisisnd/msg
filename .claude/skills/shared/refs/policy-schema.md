@@ -263,7 +263,7 @@ stg  = policies.release_flow.staging_branch ?? "staging"
 
 **Direct-mode human-gate note.** In `direct` mode the `--production` ship keeps a human gate before the merge: the human test script, then **one** confirmation ("Tested and ready to ship?", defined once in `merge/refs/production.md` § *`direct` flow — test script, then one confirmation*), asked before the release lock — the merge to `prod` is the irreversible action, so a Cancel leaves nothing merged and nothing held. Deploy and smoke still run. The **staging-scoped stages** — enumerated once in `policy-schema-merge.md` §1b, never re-listed here — are **inactive because they do not apply**: there is no staging to deploy, test, or sign off. Inactive is not *skipped* (tooling missing) and not *relaxed* (threshold lowered): every stage that still applies runs at **full rigor**, and the safety floor is never among the inactive set. Fewer checks, never weaker ones. (AC-RF3, AC-RF4, AC-NS1/NS2/NS3) — canonical definition in `policy-schema-merge.md` §1b.
 
-## 2b · `github_actions` (merge green-CI checks; both `--init`s)
+## 2b · `github_actions` (merge green-CI checks; both gates' setup)
 
 ```
 ga = policies.github_actions.enabled ?? true
@@ -281,7 +281,7 @@ pending still refuses (`red_ci`/`pending_ci`). The opt-out governs **only** the
 *empty-set* case, i.e. the absence of a pipeline (AC-GA2).
 
 **Inactive, not skipped or relaxed.** No threshold moves and no human gate is
-removed: double-confirmation, human-test approval, deploy, smoke, and the safety
+removed: the release confirmation, the human test, deploy, smoke, and the safety
 floor are untouched (AC-GA4). Canonical vocabulary in `policy-schema-merge.md` §1b.
 
 **Branch protection is unaffected.** `script-branch-protection.sh --bootstrap`

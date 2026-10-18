@@ -61,7 +61,7 @@ It installs as nine slash commands in Claude Code. There is no server and no acc
 
 **Closing message.** Every run ends by telling you where you stand — a 🟢 / 🟡 / 🔴 headline, one line of plain English, a short table of what happened, and the concrete next thing to run. Same shape whether it passed, needs your call, or hit a blocker.
 
-**Safety floor.** No skill can quietly widen its own reach. `/eng` only commits to feature branches, `/pre-merge` stays on your machine — it never pushes and never opens a pull request, and `/merge` is the only skill that merges anything — nothing reaches production except through a release you confirmed twice. The human gates don't disappear either: you sign off on staging, you're offered a rollback rather than given one, and production asks twice. See [ARCHITECTURE.md § Safety floor](ARCHITECTURE.md#safety-floor).
+**Safety floor.** No skill can quietly widen its own reach. `/eng` only commits to feature branches, `/pre-merge` stays on your machine — it never pushes and never opens a pull request, and `/merge` is the only skill that pushes it, opens the PR and merges anything — nothing reaches production except through a release you confirmed. The human gates don't disappear either: you sign off on staging, you're asked about a rollback rather than given one, and production asks twice (once, after a test script, when there is no staging). See [ARCHITECTURE.md § Safety floor](ARCHITECTURE.md#safety-floor).
 
 ## Install
 
@@ -93,7 +93,7 @@ halfway leaves every project looking exactly as it did before.
 
 Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session.
 
-New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/merge` needs its own one-time `--init`. `/pre-merge` sets itself up on its first run.
+New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/pre-merge` and `/merge` each set themselves up on their first run, so the first run of each asks a few setup questions.
 
 **Current release: v5.0.1** — see [RELEASES.md](./RELEASES.md) for what's new, release by release.
 
@@ -109,13 +109,13 @@ flowchart TD
     plan["<b>/eng --plan</b><br/>propose changes + todos"]
     build["<b>/eng --build</b><br/>write the code"]
     pre["<b>/pre-merge</b><br/>run the pipeline, fix what fails"]
-    stg["<b>/merge --staging</b><br/>merge, deploy, hand you a test script"]
+    stg["<b>/merge --staging</b><br/>push, open the PR, merge, deploy, hand you a test script"]
     prod["<b>/merge --production</b><br/>release PR, deploy, tag"]
 
     intake --> pm --> em --> plan
     plan -->|you approve the changes| build
     build --> pre
-    pre -->|Next: /merge — opens the PR to staging| stg
+    pre -->|Next: /merge — it opens the PR to staging| stg
     stg -->|you sign off on the commit you tested| prod
 ```
 
@@ -158,8 +158,10 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | `/eng --review` | A fresh agent reads the whole change looking for problems. Runs inside `--build` by default; you can also point it at any branch yourself. |
 | `/eng --bug "<what is wrong>"` | Files a bug you found by hand as its own numbered report in the PRD's `reports/` folder, then fixes it with the normal fix flow. |
 | `/pre-merge` | Runs your project's checks — tests, lint, coverage, security, a smoke test — in a throwaway sandbox. When a check fails, it plans and builds the fix by itself and checks again, up to 2 rounds. Its first run asks a few setup questions first, then carries on. It stays local; its last line says "Next: /merge". |
-| `/merge --staging` | Merges once CI is green, deploys to staging, and hands you a script to test it by. Your sign-off is pinned to the exact commit you tested. |
-| `/merge --production` | The release. Double-confirms, opens the release PR, merges on green CI and human review, deploys, and tags the version. If the deploy goes wrong it offers you a rollback rather than taking one on its own. |
+| `/merge` | Does the next ship step for you: the staging step when your work has no sign-off yet, the release when a signed-off build is on staging. With no staging branch it always does the release. Its first run asks a few setup questions first, then carries on. |
+| `/merge --staging` | Checks that pre-merge passed on your latest commit (a small fix since then gets a quick check instead), pushes the branch, opens the PR, waits for CI, merges, deploys to staging, and hands you a script to test it by. Your sign-off is pinned to the exact commit you tested. |
+| `/merge --production` | The release. Double-confirms, opens the release PR, merges on green CI and human review, deploys, and tags the version (`--version x.y.z` sets a number other than the next minor). With no staging it hands you the test script and asks one "Tested and ready to ship?" question instead. If the deploy goes wrong it asks about a rollback first, then plans and builds the fix by itself; the fix comes back through `/pre-merge` and `/merge`. |
+| `/merge --update` | Refreshes merge's settings when the repo changes — protection, deploy tools, platforms, risky paths, the CI wait limit. Shows the changes and asks once. |
 | `/emulate` | Runs the app on a simulator or emulator and opens the window on your desktop, from whatever branch you're on. Clears the leftover build processes from your last attempt first. `--ios` / `--adr` / `--expo` pick the lane; with no flag it reads which platform you ship from `devkit/PLATFORMS.md`. It never writes to your repo. |
 
 Every flag and refusal each skill supports is in [ARCHITECTURE.md](./ARCHITECTURE.md).
@@ -180,6 +182,7 @@ Restart Claude Code afterwards, the same as a first install.
 |---------|-----------|
 | `/msg --update` | `devkit/` files and template rows added to msg after your repo was bootstrapped |
 | `/pre-merge --update` | the `components[]` manifest, as your test and lint tooling drifts |
+| `/merge --update` | merge's settings — branch protection, deploy and smoke tools, platforms and staging readiness, risky paths, the CI wait limit |
 
 None of them rewrite a line you already have.
 
@@ -191,7 +194,7 @@ Because the gate needs a `components[]` manifest in `devkit/policy.json` describ
 
 **Why doesn't `/pre-merge` stop for my approval?**
 
-Deliberately. The human look at a running build belongs to `/merge --staging`, where you get a real test script against a deployed build. Putting a gate in both places would mean testing the same content twice, so pre-merge holds none.
+Deliberately. The human look at a running build belongs to `/merge`, where you get a real test script against a deployed build (or a local run, with no staging). Putting a gate in both places would mean testing the same content twice, so pre-merge holds none.
 
 **Why does the gate say it's running "in a subagent"?**
 
@@ -203,7 +206,7 @@ No. cook supplies the domain-specific coding standards msg loads before generati
 
 **Can I ship without a staging branch?**
 
-Yes. `/msg --init` asks for your release flow, and `direct` is a supported answer. The staging sign-off is replaced by an inline human test at merge time — the gate moves, it doesn't disappear. If you start direct and later want staging, `/msg --init-staging` is the only path that creates the branch.
+Yes. `/msg --init` asks for your release flow, and `direct` is a supported answer. `/merge` then hands you the test script and asks one "Tested and ready to ship?" question before it merges — the gate moves, it doesn't disappear. If you start direct and later want staging, `/msg --init-staging` is the only path that creates the branch.
 
 **Why is `features/` gitignored?**
 
