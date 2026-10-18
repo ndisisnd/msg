@@ -106,7 +106,7 @@ human test script and **one confirmation** (version, PRDs, platforms, commits �
 "Tested and ready to ship?", asked before the merge and the lock), the production
 deploy and smoke. This is the one place two ship questions merge into one: there is
 no staging, so the staging sign-off and the double confirmation have nothing separate
-to guard (`merge/refs/production.md` § *Direct-flow confirmation*). The staging-scoped stages are **inactive**, not
+to guard (`merge/refs/production.md` § *`direct` flow — test script, then one confirmation*). The staging-scoped stages are **inactive**, not
 relaxed: there is no staging to deploy, test, or sign off, so those questions do
 not apply. Every question that *does* still apply is answered at full rigor.
 

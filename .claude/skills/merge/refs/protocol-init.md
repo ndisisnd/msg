@@ -208,7 +208,7 @@ check*). **Always present** after setup. Scripted:
 
 ```bash
 S=.claude/scripts/script-merge-checks.py
-python3 "$S" seed --scope <web|python|go|apple|android>…   # RISKY_PATHS_JSON (catalog seed)
+python3 "$S" seed --scope <scope> [<scope>…]   # RISKY_PATHS_JSON (catalog seed); e.g. --scope web python
 python3 "$S" libs --all                                     # FOUND_PATHS / NEW_RISKY_PATHS
 ```
 

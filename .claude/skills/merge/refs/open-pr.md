@@ -22,6 +22,26 @@ pre-merge pass to check (`refs/production.md` Step 4).
 `$PROD`, or a detached head ⇒ refuse `not_feature_branch` ("check out the feature
 branch, then run `/merge`").
 
+## 0 · Already merged into staging (`--staging` only)
+
+A re-run after a **Not yet** sign-off answer (`refs/staging.md` Step 7) finds the
+feature PR already merged. Check this first, before the pass check, the push and the PR:
+
+```bash
+gh pr list --head "$BRANCH" --base "$STG" --state merged --json number,url,mergeCommit --limit 1
+git fetch origin "$STG" --quiet
+git merge-base --is-ancestor HEAD "origin/$STG"   # exit 0 ⇒ the tip is already in staging
+```
+
+A merged feature → `$STG` PR exists **and** the tip is in `origin/$STG` ⇒ skip §1–§4 (no
+pass check, no push, no PR, no CI wait) and skip `refs/staging.md` Steps 3–5. Set
+`CERTIFIED_SHA` to that PR's merge commit (`mergeCommit.oid`, full 40 chars), and resume
+at `refs/staging.md` Step 6 (test script), then Step 7 (sign-off). Report one line:
+"Already merged into staging as `<PR_URL>` — asking for the sign-off again."
+
+Otherwise (no merged PR, or new commits since it) ⇒ continue at §1; §3 opens a new PR
+for the new commits.
+
 ## 1 · Pass check — pre-merge passed on this commit
 
 pre-merge stores its last check per branch — the commit it checked **and** the verdict,
@@ -93,7 +113,8 @@ gh pr list --head "$BRANCH" --base "$BASE" --state open --json number,url --limi
 
 - **An open PR exists** ⇒ reuse it. When the pass check was `small`, add the new-commit
   list as one PR comment (`gh pr comment <n> --body …`).
-- **None** ⇒ open it:
+- **None** ⇒ open it. (An already-merged staging PR whose merge holds the tip never
+  reaches here: §0 skipped to the sign-off.)
   ```bash
   gh pr create --base "$BASE" --head "$BRANCH" --title "<PRD title, else branch>" --body "<body>"
   ```

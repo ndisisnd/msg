@@ -448,7 +448,7 @@ def main():
     l.add_argument("--all", action="store_true")
     l.add_argument("--files", nargs="*")
     s = sub.add_parser("seed")
-    s.add_argument("--scope", action="append", default=[])
+    s.add_argument("--scope", action="extend", nargs="+", default=[])
     c = sub.add_parser("ci-limit")
     c.add_argument("--input")
     c.add_argument("--runs", type=int, default=20)

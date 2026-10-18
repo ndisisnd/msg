@@ -2,6 +2,16 @@
 
 ## 2026-10-17
 
+### [196] v6.0.0 merge — a re-run after "Not yet" asks for the sign-off again; seed takes many scopes
+
+- `.claude/skills/merge/refs/open-pr.md`: Changed — new §0: an already-merged staging PR that holds the tip skips push, PR and CI wait and resumes at the test script and sign-off.
+- `.claude/skills/merge/refs/staging.md`: Changed — Step 2 names the already-merged skip; the "Not yet" option says re-run `/merge` to be asked again.
+- `.claude/skills/shared/refs/policy-schema-merge.md`: Changed — cites the real direct-flow section name.
+- `.claude/scripts/script-merge-checks.py`: Changed — `seed --scope` takes several values (`--scope web python`).
+- `.claude/skills/merge/refs/protocol-init.md`: Changed — the seed call shows several scopes.
+- `.claude/skills/merge/refs/human-test-script.md`: Changed — description and opening name the direct-flow call site, which does not stop.
+- `evals/cases/merge-checks-libs-seed/`: Changed — covers a two-scope seed call.
+
 ### [195] v6.0.0 pre-merge — an unreadable policy.json stops instead of starting setup; a missing re-grade file fails
 
 - `.claude/scripts/script-pipeline-resolve.py`: Changed — unparseable or `version` ≠ 1 now exits 8 (`bad_manifest`); only absent / no `components[]` exits 2 and leads to setup.

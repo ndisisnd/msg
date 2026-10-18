@@ -1,15 +1,17 @@
 ---
 name: merge-human-test-script
-description: merge --staging Step 6 and direct-flow --production Step 3 — render the plain-language human test script by CONSUMING pre-merge's structured, significance-rated manual-test-plan artifact (the 2nd render site — HIGH first), with a graceful fallback to deriving it from the report "How to verify" prose + acceptance criteria when the artifact is absent (older PRDs), then STOP for a human to test staging.
+description: merge --staging Step 6 and direct-flow --production Step 3 — render the plain-language human test script by CONSUMING pre-merge's structured, significance-rated manual-test-plan artifact (the 2nd render site — HIGH first), with a graceful fallback to deriving it from the report "How to verify" prose + acceptance criteria when the artifact is absent (older PRDs). At --staging it then STOPs for a human to test staging; in the direct flow it does not stop — the one "Tested and ready to ship?" question follows at once.
 ---
 
-# Step 6 — Emit a human test script, then STOP
+# Emit a human test script
 
-Merge **never self-certifies staging.** After deploying and passing the
-smoke verification (Step 5, `refs/verify-deploy.md` — a smoke failure skips this
-step entirely), it hands a human a concrete, plain-language script for exercising
-the deployed staging environment, then stops and waits. The sign-off (Step 7)
-only happens after the human returns.
+Merge **never self-certifies staging.** At `--staging` Step 6, after deploying and
+passing the smoke verification (Step 5, `refs/verify-deploy.md` — a smoke failure skips
+this step entirely), it hands a human a concrete, plain-language script for exercising
+the deployed staging environment, then stops and waits. The sign-off (Step 7) only
+happens after the human returns. In the `direct` flow (`--production` Step 3) there is
+no stop: the script targets a local run or a preview link, and the one "Tested and ready
+to ship?" question comes right after it.
 
 ## Two call sites
 

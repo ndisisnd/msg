@@ -107,7 +107,9 @@ force), the `feature → staging` PR (opened, or the open one reused, linking
 pre-merge's report), and the CI wait (up to `MERGE_CI_WAIT_MINUTES`, ticking the
 heartbeat). Green ⇒ Step 3. Every stop there (`no_premerge_pass`, `push_rejected`,
 `red_ci`, `pending_ci`, a `gh` error) happens **before** the merge, so nothing has
-changed on `staging`.
+changed on `staging`. **Already merged** (`refs/open-pr.md` §0 — a re-run after **Not
+yet**, with no new commits) ⇒ skip Steps 3–5 with that PR's merge commit as
+`CERTIFIED_SHA`, and go to Step 6.
 
 ## Test-selection-miss detection (`policies.test_selection` backstop attribution)
 
@@ -265,7 +267,7 @@ Only after the human returns. Ask once:
 
 > `AskUserQuestion` — header **Staging**, question "Did staging pass your testing?"
 > - **Staging works** — stamp the sign-off and finish
-> - **Not yet** — leave unstamped; re-run `--staging` (or fix + re-gate) later
+> - **Not yet** — leave unstamped; re-run `/merge`; it asks for the sign-off again (or fix + re-gate first)
 
 On **Staging works**, stamp the PRD frontmatter through the shared scalar writer
 — the one sanctioned writer for this field, never a hand-rolled edit or a

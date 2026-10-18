@@ -7,6 +7,7 @@ G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgs
 S="$REPO/.claude/scripts/script-merge-checks.py"
 C="--catalog $REPO/.claude/skills/shared/refs/component-catalog.md"
 python3 "$S" seed --scope web $C
+python3 "$S" seed --scope web python $C
 python3 "$S" seed --scope cobol $C >/dev/null 2>&1; echo "unknown scope exit=$?"
 $G init -q -b main .
 mkdir -p app/session app/checkout lib/ui devkit docs
