@@ -1,0 +1,7 @@
+NEXT_VERSION=1.5.0
+BUMP=minor
+NEXT_VERSION=1.4.1
+BUMP=explicit
+VERSION_REGRESSION=false
+regression exit=3
+bump exit=2

@@ -8,7 +8,7 @@ description: >
   `--production` ships the confirmed release to `main` and deploys production.
   `--update` refreshes merge's settings. Never self-certifies staging; nothing
   reaches `main` any other way. Activates on /merge after pre-merge passes.
-argument-hint: "<--staging | --production> [--prd <path>] [--bump <major|minor|patch>] [--version <x.y.z>]"
+argument-hint: "[--staging | --production | --update] [--version <x.y.z>]"
 allowed_tools:
   - Bash
   - Read
@@ -32,9 +32,10 @@ pre-merge (local pass) → merge --staging (push, PR feature→staging, CI, merg
 
 ## Usage
 
-- `/merge --staging [--prd <path>]` — merge the feature→staging PR on green CI, deploy + verify staging, emit a human test script, stamp the sign-off on approval (`refs/staging.md`); `--prd` names the shipped PRD explicitly (else resolved from the PR head branch `feat/prd-<n>-*`)
-- `/merge --production [--prd <path>]...` — the double-confirmed release: PR to `prod`, merge, deploy, verify, tag (`refs/production.md`); `--prd` (repeatable) names the PRD(s) this release ships — the release body + the sign-off precondition
-- `/merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod); the resolved `v<x.y.z>+<build>` is shown in the confirm (`refs/release-identity.md`)
+- `/merge` — do the next step (§ *Mode pick*): the staging step when the current work has no staging sign-off, the production step when a signed-off build is on staging, and always the production step with no staging
+- `/merge --staging` — override: push, open the feature→staging PR, merge on green CI, deploy + verify staging, emit a human test script, stamp the sign-off on approval (`refs/staging.md`)
+- `/merge --production` — override: the confirmed release — PR to `prod`, merge, deploy, verify, tag (`refs/production.md`)
+- `/merge --production --version <x.y.z>` — set the release version; it must be higher than the current one. Default: a **minor** bump from the last `v*` tag on prod. The resolved `v<x.y.z>+<build>` is shown in the confirm (`refs/release-identity.md`)
 - `/merge --update` — re-check what changed since setup (protection, deploy and smoke tools, platforms and staging readiness, risky paths, CI wait limit; release flow is read and reported only), show the changes, ask one approval, save `devkit/policy.json`; performs **no** merge, PR, or deploy (`refs/protocol-init.md`)
 - First run sets merge up by itself, then continues (§ *Pre-flight*)
 - Progress messages are always on, every 5 minutes (`../shared/refs/status-heartbeat.md`)
@@ -83,6 +84,37 @@ S=.claude/scripts/script-policy-read.py; python3 "$S"     # devkit/policy.json
 | file **absent** | run `/msg --init` first (it seeds the file), then merge setup inline, then continue |
 | no `policies.merge` record (`MERGE_RISKY_PATHS_STATE=absent`), or `init: false` | **run merge setup inline first** (`refs/protocol-init.md`), save, then continue into the mode in the same run; user aborts setup → stop, run no protocol step |
 | set up | proceed to Step 1 directly |
+
+## Mode pick — bare `/merge`
+
+With no mode flag, pick the step in the main conversation and say it in one line
+("Next step: `--staging` — prd-4 has no staging sign-off"):
+
+| Flow | Current work | Step |
+|---|---|---|
+| `direct` | any | `--production` |
+| `staged` | the PRD found from the branch (§ *Find the PRD*) has no `staging-signoff` stamp | `--staging` |
+| `staged` | that PRD is signed off, or the current branch is `staging` / the prod branch | `--production` |
+
+`--staging` / `--production` override the pick. `no_staging_stage` fires only on an
+explicit `--staging` in `direct` flow. A wrong pick cannot ship by itself: the
+production step still asks for confirmation before anything merges.
+
+## Find the PRD — never a flag
+
+merge finds the PRD itself, in the main conversation, before the first subagent phase:
+
+| Mode | PRD |
+|---|---|
+| `--staging`, `direct`-flow `--production` | from the branch name `feat/prd-<n>-<slug>` → the one `features/**/prd-<n>-*/` directory |
+| `staged`-flow `--production` | every PRD with a merged feature → staging PR since the last release (`refs/production.md` Step 1), plus any signed-off PRD that owns new commits on staging (sign-off lag) |
+
+The branch name does not match, one PRD number matches several folders, or the staged
+set is empty ⇒ list the open PRDs (`features/planned/`, `features/wip/`) and ask
+**once** (`AskUserQuestion`, header **PRD**, one option per PRD). Never refuse for a
+missing PRD. With no user present: one match ⇒ use it; no or several matches ⇒ stop and
+report the candidates, never guess. The PRD path is passed to the scripts as their
+internal `--prd` argument.
 
 ## Modes
 

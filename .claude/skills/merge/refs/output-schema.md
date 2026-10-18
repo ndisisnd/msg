@@ -38,7 +38,7 @@ holds for the whole file and is not restated per block.
     "version": "2.3.0",
     "build": 418,
     "tag": "v2.3.0+418",                // null on a failed/skipped tag
-    "bump": "minor"                     // "major" | "minor" | "patch" | "explicit"
+    "bump": "minor"                     // "minor" (default) | "explicit" (--version)
   },
   "release_lock": {                     // --production only
     "ref": "release-lock-main",

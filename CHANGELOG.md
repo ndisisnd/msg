@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [191] v6.0.0 merge — no `--prd` or `--bump`; bare `/merge` picks the next step
+
+- `.claude/skills/merge/SKILL.md`: Changed — § Mode pick (bare `/merge`: staging step without a sign-off, production step with one or with no staging); § Find the PRD (branch name, else one question); `--prd` and `--bump` removed from usage.
+- `.claude/skills/merge/refs/production.md`: Changed — shipping PRDs found by merge; a signed-off PRD whose stamp lags is added by itself and listed in the confirmation; Step 4 has no `no_prd` refusal.
+- `.claude/skills/merge/refs/{refusal-patterns,release-identity,output-schema}.md`: Changed — `no_prd` removed; `no_staging_stage` only on an explicit `--staging`; `--version` is the only version override.
+- `.claude/scripts/script-release-identity.sh`: Changed — `--bump` removed; default minor, `--version` for any other number.
+- `evals/cases/release-identity-no-bump/`: Added; `a04-release-identity-no-reachable-tag/cmd`: Changed — no `--bump`.
+
 ### [190] v6.0.0 merge — merge sets itself up, opens the PR, waits for CI; `--update` replaces `--init`
 
 - `.claude/skills/merge/refs/open-pr.md`: Added — the PR step: pre-merge's pass on the branch tip (small-change allowance + quick check), normal push, open or reuse the PR, wait for CI up to the limit.

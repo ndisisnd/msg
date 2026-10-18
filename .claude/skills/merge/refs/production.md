@@ -43,7 +43,7 @@ writes nothing and never touches git.
 Before the double-confirm, so the human sees exactly what will be tagged:
 
 ```bash
-bash "$S" --prod "$PROD" [--bump <level>] [--version <x.y.z>]
+bash "$S" --prod "$PROD" [--version <x.y.z>]
 ```
 
 Read `CURRENT_TAG`, `NEXT_VERSION`, `BUILD`, `NEXT_TAG`. `VERDICT=version_regression`
@@ -70,7 +70,9 @@ RUN_ID="merge-$(date +%s)"
 
 ## Step 1 — Preconditions (refuse without all three)
 
-For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
+For each shipping PRD — found by merge, never named by a flag (`../SKILL.md` § *Find the
+PRD*): in `staged` flow, every PRD with a merged feature→staging PR since the last
+release:
 
 1. **Staging CI is green** — the same scripted verdict `--staging` Step 2 runs, in branch mode:
    ```bash
@@ -101,11 +103,13 @@ bash "$S" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> [--stamp …]
 | `no_stamps` (5) | nothing pinned | refuse `no_signoff` |
 
 On `head_ahead` the script emits `UNCERTIFIED_COUNT`, `UNCERTIFIED_SHAS` and the
-oneline commit list as comment lines. The refusal quotes them and gives **both**
-exits, so it never dead-ends: (a) if the owning PRD is already signed off and its
-stamp merely lags the tip, **add `--prd <owning PRD>`** to fold it into this
-release; (b) if the commits are genuinely un-signed-off, run **`/merge
---staging`** for only that work. Never order a bare `--staging` re-run for a PRD
+oneline commit list as comment lines. **Sign-off lag — handled by merge, no flag.** When every uncertified commit belongs to
+a PRD that is already signed off (its own stamp merely lags the tip — the commits came
+in through that PRD's feature → staging PR), merge **adds that PRD to the release by
+itself**, re-runs the coverage script with its stamp, and lists it in the confirmation
+("Added prd-<n>: signed off, owns <k> newer commits"). Otherwise — the commits are
+genuinely un-signed-off — refuse `stale_signoff`, quoting the commit list, and name
+**`/merge --staging`** for only that work, so it never dead-ends. Never order a bare `--staging` re-run for a PRD
 whose feature→staging PR already merged — there is nothing left to open a PR for.
 
 **Why coverage and not per-PRD equality.** A multi-PRD release stamps each PRD at
@@ -188,13 +192,11 @@ On Cancel → stop (verdict `skipped`, no findings).
 
 **Ask B — final confirm (only after Ask A = Yes).** List *exactly what ships*.
 The release head is **flow-dependent** (`../../shared/refs/policy-schema-merge.md` §1b): `$STG` in
-`staged` flow, the resolved **feature branch** in `direct` flow (resolved exactly
-as `--staging` does: the shipping `--prd`'s `feat/prd-<n>-<slug>`, else the
-current branch). Compute the shipping commits as `$PROD..<release-head>` either way:
+`staged` flow, the current **feature branch** in `direct` flow. Compute the shipping commits as `$PROD..<release-head>` either way:
 
 > header **Confirm release**, question "Confirm — this ships to production:"
-> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>`, `<bump-level>` bump — the **preview** build; the tag is cut on prod only on success with the recomputed build)
-> - **PRDs:** `<prd-ids + features>`
+> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>` — a minor bump, or the `--version` given; the **preview** build; the tag is cut on prod only on success with the recomputed build)
+> - **PRDs:** `<prd-ids + features>` — plus any PRD merge added for sign-off lag, marked "added: signed off, owns newer commits"
 > - **Commits:** `<count>` commits (`<short shas / titles>`)
 > - **Platforms:** `<from devkit/PLATFORMS.md>`
 > - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`; the halt/redeploy lever is **offered on failure** (Step 7)
@@ -315,7 +317,7 @@ bash "$S" release --prod "$PROD"
 and a failed delete is a `low` note, never a hard stop — the TTL reclaims it.
 
 - **Every refusal, skip, or error after acquisition** — release **before**
-  emitting the refusal/skip. That covers Step 4 (`no_prd`, `push_rejected`, `gh` errors), Step 5
+  emitting the refusal/skip. That covers Step 4 (`push_rejected`, `gh` errors), Step 5
   (`red_ci`/`pending_ci`/`no_review`/`merge_failed`), post-acquire coverage drift,
   and Step 6's `nonmonotonic_build`.
 - **A failed ship** (deploy / smoke / provenance `fail`) — release **at
@@ -348,8 +350,8 @@ The PR head is **flow-dependent**, never hardcoded to `staging`: `$STG` in
 - **`staged` flow** — open the `staging` → prod PR below (staging was already pushed
   by the `--staging` merge; there is no pre-merge pass to check on `staging`).
 
-If no `--prd` is given **and** none is resolvable for the release body, refuse
-`no_prd` — release the lock first.
+The shipping PRDs were found before the lock (`../SKILL.md` § *Find the PRD*), so the
+release body always has them — there is no PRD refusal here.
 
 ```bash
 gh pr create --base "$PROD" --head "$HEAD" --title "Release: <prds / date>" --body "<release body>"
@@ -583,7 +585,7 @@ touches `src/` or writes source code, and both are named in
 Write `report-prd-<N>-<K>.md` (`skill: merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored, its smoke check failed, or provenance mismatched.
-- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success; skipped-with-note or absent on a failed release), the bump level, per-platform provenance (`verified` / `asserted (unverified)` / `fail`). On a failed ship, also the **rollback offer outcome** (offered/executed/declined + cmd exit). A clean uncontended acquire/release adds nothing here; a **stale lock** never appears at all — it terminates *that* run as a `release_in_flight` refusal.
+- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success; skipped-with-note or absent on a failed release), the bump (`minor` or `explicit`), per-platform provenance (`verified` / `asserted (unverified)` / `fail`). On a failed ship, also the **rollback offer outcome** (offered/executed/declined + cmd exit). A clean uncontended acquire/release adds nothing here; a **stale lock** never appears at all — it terminates *that* run as a `release_in_flight` refusal.
 - `## Work done` — PRDs shipped, commit count, platforms deployed; on success, note that each shipped PRD was stamped `status: done` and filed into `features/done/`. **Under `release_flow=direct`, open with one `Stages` line** so the reduced set is visible rather than invisible:
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (tooling missing) or *relaxed* (threshold lowered). In `staged` flow the line is omitted entirely.

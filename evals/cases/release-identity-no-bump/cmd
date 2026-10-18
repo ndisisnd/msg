@@ -1,0 +1,12 @@
+# merge-4(c) — `--bump` is gone. The default is a minor bump; any other number
+# comes from `--version x.y.z`, which must be higher than the current tag.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+S="$REPO/.claude/scripts/script-release-identity.sh"
+$G init -q -b main .
+echo a > f.txt; $G add -A; $G commit -qm c1; $G tag v1.4.0
+echo b > f.txt; $G commit -qam c2
+bash "$S" --prod main | grep -E '^(NEXT_VERSION|BUMP)='
+bash "$S" --prod main --version 1.4.1 | grep -E '^(NEXT_VERSION|BUMP|VERSION_REGRESSION)='
+bash "$S" --prod main --version 1.3.9 >/dev/null; echo "regression exit=$?"
+bash "$S" --prod main --bump patch >/dev/null 2>&1; echo "bump exit=$?"

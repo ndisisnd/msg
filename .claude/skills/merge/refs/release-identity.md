@@ -13,7 +13,7 @@ Every part of that is deterministic, so it is **scripted, not reasoned**:
 
 ```bash
 S=.claude/scripts/script-release-identity.sh
-bash "$S" --prod "$PROD" [--bump major|minor|patch] [--version <x.y.z>] [--probe-sha <sha>]
+bash "$S" --prod "$PROD" [--version <x.y.z>] [--probe-sha <sha>]
 ```
 
 It emits `key=value` lines — `CURRENT_TAG`, `CURRENT_VERSION`, `CURRENT_BUILD`,
@@ -47,10 +47,9 @@ the first release is `v0.1.0`.
 
 | Override | Effect |
 |---|---|
-| `--bump major` \| `minor` \| `patch` | pick the semver level |
-| `--version <x.y.z>` | set the exact next version; must be **strictly greater** than the current tag's version, else `VERSION_REGRESSION=true` → refuse **`version_regression`** (`refs/refusal-patterns.md`) — a release never goes backward. Resolved early, so this refusal fires **before** the lock is acquired |
+| `--version <x.y.z>` | set any other next version — a patch (`--version 1.4.1`) or a major (`--version 2.0.0`) release names its number. It must be **strictly greater** than the current tag's version, else `VERSION_REGRESSION=true` → refuse **`version_regression`** (`refs/refusal-patterns.md`) — a release never goes backward. Resolved early, so this refusal fires **before** the lock is acquired |
 
-Neither given → **minor**. The resolved version + tag is surfaced in the Step-3
+Not given → **minor**. There is no level flag. The resolved version + tag is surfaced in the Step-3
 final confirm and the release-PR body **before** anything ships, so the human
 sees which tag will be cut and can cancel.
 
@@ -121,5 +120,5 @@ hand-typed:
 
 - No `VERSION`/manifest file, ever — tags only.
 - No bump **commit** — the version is computed and tagged, never committed.
-- No auto-bump beyond the default-minor rule; the human sees and can override the resolved version at the double-confirm before any tag is cut.
+- No auto-bump beyond the default-minor rule; the human sees and can override the resolved version at the confirmation before any tag is cut.
 - No store-number probing — build numbers come from git history, and the monotonicity check compares against merge's own last tag, not a store query.

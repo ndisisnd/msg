@@ -9,4 +9,4 @@ echo b > f.txt; $G add -A; $G commit -qm c2
 $G tag v4.0.0
 $G checkout -q main
 echo c > g.txt; $G add -A; $G commit -qm c3
-"$REPO/.claude/scripts/script-release-identity.sh" --prod main --bump minor
+"$REPO/.claude/scripts/script-release-identity.sh" --prod main
