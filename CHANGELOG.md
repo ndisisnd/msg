@@ -2,6 +2,11 @@
 
 ## 2026-10-18
 
+### [204] v6.0.0 release — version 6.0.0 and release notes
+
+- `RELEASES.md`: Added — v6.0.0 notes covering [166]–[203]: new (bare `/msg` next steps, setup runs by itself, one-pass `/msg --update`, `/eng --bug`, `/intake --health` and brainstorm switch, `/plan-pm --update`, `--review on|off`), improved (fewer questions, honest pre-merge checks, automatic fix loops, bare `/merge` picks the step) and breaking changes (pre-merge stays local and `/merge` pushes and opens the PR; `--init` on both gates, `--bump`, `--prd`, `--update-criticality`, `--quiet`, `--status` and the `--cto`/`--eng` setup modes removed).
+- `package.json`: Changed — version `5.6.6` → `6.0.0`; `/msg --version` reads it at install time.
+
 ### [203] v6.0.0 final — staging and production heartbeat calls reach the status script
 
 - `.claude/skills/merge/refs/staging.md`: Fixed — the release-lock, test-selection-miss and PRD-stamp calls use their own variables (`L`, `M`, `P`), so every `"$S" --tick`/`--end` reaches the status-tick script.
