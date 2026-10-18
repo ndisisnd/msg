@@ -8,7 +8,7 @@ type: reference
 
 Loaded only when `--plan` is invoked with `report=<path>` (see `../protocol-core.md` § Step 1). Plans the fixes for a `/pre-merge` (or `/merge`) failed run instead of decomposing PRD exec-table rows. The spec is a **bug list** — canonical findings already recorded in the issues file `report-prd-<N>-<K>.json` — so this pass produces no `## Engineering —` section and no PRD write: it projects the findings into fix tickets and emits a standalone **fix plan** the orchestrated fix-build (`../build/fix-build-orchestrated.md`) then executes.
 
-This is the target of the fix loop's Offer #1 (`../../../shared/refs/fix-loop.md`), invoked as `eng --plan report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`.
+This is the target of the fix loop's **Plan** step (`../../../shared/refs/fix-loop.md`), invoked as `eng --plan report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`.
 
 ## Required fields and rejections
 
@@ -108,7 +108,7 @@ Take each `GRADE … complexity=…` line as the ticket's tag. **You may escalat
 ## References
 
 - `../build/fix-build.md` — the canonical finding→issue-ticket projection + `kind` discriminator (cited above, not duplicated); the fix-build source that consumes this plan's tickets and `complexity` tags.
-- `../build/fix-build-orchestrated.md` — the orchestrated per-issue fix-build (Offer #2) that reads each ticket's `complexity` tag and falls back to self-grading when absent.
+- `../build/fix-build-orchestrated.md` — the orchestrated per-issue fix-build (the fix loop's **Build** step) that reads each ticket's `complexity` tag and falls back to self-grading when absent.
 - `template-todo.md` — the ticket schema/rendering reused above. `../../../plan-em/refs/template-exec-table.md` — the execution-table shape the fix table swaps columns on.
 - `../../../shared/refs/finding-schema.md` — the canonical finding shape read from the issues file `report-prd-<N>-<K>.json`.
-- `../../../shared/refs/fix-loop.md` — the post-failure offer sequence that invokes this pass (Offer #1) and the fix-build (Offer #2).
+- `../../../shared/refs/fix-loop.md` — the post-failure sequence that invokes this pass (**Plan**) and the fix-build (**Build**).

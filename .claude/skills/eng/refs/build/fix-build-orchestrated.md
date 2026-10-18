@@ -18,7 +18,7 @@ This session runs as **Opus** and does not write code itself. It coordinates per
 
 Resolve the issue set and each issue's `complexity` (`simple` | `complex` — § Complexity rubric), in priority order:
 
-1. **Fix plan present** — `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` exists (same `<N>`/`<K>` as the issues file; written by `eng --plan report=…` per `../plan/fix-plan.md`). Read its tickets and take each ticket's `complexity` tag as authoritative. This is the normal path — `pre-merge`/`merge` reach here through the § fix-loop offer sequence (`../../../shared/refs/fix-loop.md`), which plans before it builds.
+1. **Fix plan present** — `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` exists (same `<N>`/`<K>` as the issues file; written by `eng --plan report=…` per `../plan/fix-plan.md`). Read its tickets and take each ticket's `complexity` tag as authoritative. This is the normal path — `pre-merge`/`merge` reach here through the automatic fix loop (`../../../shared/refs/fix-loop.md`), which plans before it builds.
 2. **No fix plan** — project the tickets directly from the issues file's `issues[]` by running `script-project-findings.py` (**`fix-build.md` § Finding → issue-ticket projection** — read-time view, never a rewrite; call it, do not re-derive), then grade each projected issue's `complexity` via the rubric below.
 
 ## Complexity rubric
@@ -110,4 +110,4 @@ Emit an `Issue`-keyed roll-up (per ticket: status, attempts, model), result line
 - `../review/protocol.md` § Artifact — the review evidence file Step 3a checks for · `.claude/scripts/script-eng-review-check.sh` — the coverage check itself
 - `protocol-build-debug.md` — the 3-attempt limit per bug and the escalation block
 - `../plan/fix-plan.md` — writes `features/prd-<N>-<slug>/reports/report-prd-<N>-<K>-fix-plan.md` with the `complexity` tags this orchestrator reads
-- `../../../shared/refs/fix-loop.md` — the post-failure offer sequence that routes here as Offer #2
+- `../../../shared/refs/fix-loop.md` — the post-failure sequence that routes here as its **Build** step

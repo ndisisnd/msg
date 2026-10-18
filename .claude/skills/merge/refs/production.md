@@ -1,9 +1,9 @@
 ---
 name: merge-production
-description: merge --production — the double-confirmed release to prod. Preconditions (green staging + a sign-off that still covers the tip), two separate approvals, the direct-flow human-test attestation before the merge, the release lock, a release-style PR, merge only on green CI + human review, production deploy, and per-release_model verification.
+description: merge --production — the confirmed release to prod. Preconditions (green staging + a sign-off that still covers the tip, or pre-merge's pass in direct flow), two separate approvals in staged flow, the test script and one confirmation in direct flow, both before the merge, the release lock, a release-style PR, merge only on green CI + human review, production deploy, and per-release_model verification.
 ---
 
-# `--production` — the double-confirmed release to prod
+# `--production` — the confirmed release to prod
 
 Ships everything currently on the release head to `prod`. This is the harness's
 single path to `prod` — **always human-initiated** (no orchestrator invokes it)
@@ -27,8 +27,8 @@ S=.claude/scripts/script-intake-stamp.sh --find-row   # PRD id → ledger row # 
 `sanctioned-writes.md`.)
 
 **Phase markers.** Release identity through Step 2 is **subagent phase 1**; Step 3's
-double-confirmation and the `direct`-flow inline human-test approval are **main
-thread**; the release lock acquire through Step 10 is **subagent phase 2**; the
+confirmation (the double confirmation in `staged` flow, the test script and one
+confirmation in `direct` flow) is **main thread**; the release lock acquire through Step 10 is **subagent phase 2**; the
 failed-ship rollback / rollout-halt offer and the fix-loop handoff are **main thread**
 (they already were). See
 `../../shared/refs/gate-dispatch.md`. Step order, wording and refusals below are
@@ -40,7 +40,7 @@ writes nothing and never touches git.
 
 ## Release identity (resolved early)
 
-Before the double-confirm, so the human sees exactly what will be tagged:
+Before the confirmation, so the human sees exactly what will be tagged:
 
 ```bash
 bash "$S" --prod "$PROD" [--version <x.y.z>]
@@ -142,7 +142,7 @@ Record a `low` `unpinned-signoff` note in the run report either way.
 staging, so there is no sign-off to check and nothing to pin. Record it as
 `inactive (no staging)` in the run report, never as skipped or relaxed
 (`../../shared/refs/policy-schema-merge.md` §1b). The human judgment it represents moves to the
-**inline human-test approval** below, which fires before the merge.
+**direct-flow confirmation** (Step 3), which fires before the merge.
 
 What `direct` flow checks here instead is **pre-merge's pass** on the feature branch tip
 — `refs/open-pr.md` § *Pass check* (with its small-change quick check). It runs now,
@@ -166,18 +166,33 @@ proceeds; `skip` doesn't verify; `NO_GH`/`NO_REMOTE` refuse regardless). Under
 `enforced`, `main` protection additionally requires ≥1 approving review.
 
 ```bash
-"$S" --tick --run-id "$RUN_ID" --note "branch protection verified" --step "double-confirmation"
+"$S" --tick --run-id "$RUN_ID" --note "branch protection verified" --step "confirmation"
 ```
 
 ## ▸ PHASE 1 ENDS — hand back to the main thread
 
 Phase 1 returns the verdict-so-far (preconditions, sign-off coverage, protection,
-lock status, the resolved release identity) plus a gate request naming Step 3's two
-asks. Everything from here to the lock acquire runs in the **main thread**; both
-approvals and the `direct`-flow attestation are `AskUserQuestion` calls a subagent
-cannot make.
+lock status, the resolved release identity) plus a gate request naming Step 3's
+asks. Everything from here to the lock acquire runs in the **main thread**; every
+confirmation is an `AskUserQuestion` call a subagent cannot make.
 
-## Step 3 — Double-confirmation (two separate asks)
+## Step 3 — Confirmation (flow-dependent)
+
+The release head is **flow-dependent** (`../../shared/refs/policy-schema-merge.md` §1b):
+`$STG` in `staged` flow, the current **feature branch** in `direct` flow. Compute the
+shipping commits as `$PROD..<release-head>` either way. The shared **ship list** both
+flows show:
+
+> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>` — a minor bump, or the `--version` given; the **preview** build; the tag is cut on prod only on success with the recomputed build)
+> - **PRDs:** `<prd-ids + features>` — plus any PRD merge added for sign-off lag, marked "added: signed off, owns newer commits"
+> - **Commits:** `<count>` commits (`<short shas / titles>`)
+> - **Platforms:** `<from devkit/PLATFORMS.md>`
+> - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`; the halt/redeploy lever is **offered on failure** (Step 7)
+
+Never infer approval. Under an autonomy contract with no human present, default to
+**Cancel** — a release never ships unattended.
+
+### `staged` flow — double confirmation (two separate asks)
 
 Two **separately-asked** `AskUserQuestion` calls — never one combined question,
 never a single multiSelect. The first gates the second.
@@ -188,61 +203,50 @@ never a single multiSelect. The first gates the second.
 > - **Yes, proceed** — continue to the final confirmation
 > - **Cancel** — stop; nothing ships
 
-On Cancel → stop (verdict `skipped`, no findings).
+On Cancel → stop (verdict `skipped`, reason `release_cancelled`, no findings).
 
-**Ask B — final confirm (only after Ask A = Yes).** List *exactly what ships*.
-The release head is **flow-dependent** (`../../shared/refs/policy-schema-merge.md` §1b): `$STG` in
-`staged` flow, the current **feature branch** in `direct` flow. Compute the shipping commits as `$PROD..<release-head>` either way:
+**Ask B — final confirm (only after Ask A = Yes).** List *exactly what ships*:
 
-> header **Confirm release**, question "Confirm — this ships to production:"
-> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>` — a minor bump, or the `--version` given; the **preview** build; the tag is cut on prod only on success with the recomputed build)
-> - **PRDs:** `<prd-ids + features>` — plus any PRD merge added for sign-off lag, marked "added: signed off, owns newer commits"
-> - **Commits:** `<count>` commits (`<short shas / titles>`)
-> - **Platforms:** `<from devkit/PLATFORMS.md>`
-> - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`; the halt/redeploy lever is **offered on failure** (Step 7)
+> header **Confirm release**, question "Confirm — this ships to production:" + the ship list.
 > Options: **Ship it** / **Cancel**
 
-On Cancel → stop (`skipped`). Only **Ship it** proceeds. Never infer approval —
-both asks must return an affirmative.
+On Cancel → stop (`skipped`, `release_cancelled`). Only **Ship it** proceeds — both
+asks must return an affirmative.
 
-## Inline human-test approval (`direct` flow only — after Step 3, before the lock)
+### `direct` flow — test script, then one confirmation
 
-**This is the single definition of the direct-flow human-test gate; every other
-reference cites it here.** Under `release_flow=direct` there is no staging stage,
-so the staging sign-off is **inactive** (not waived). The human judgment that
-sign-off would have carried is not dropped: it moves to an explicit attestation
-that fires **before the merge** — the direct flow's equivalent of the staging
-sign-off (`../shared/refs/safety-floor.md` § *Human gates*), asked immediately
-after the Step-3 double-confirm and **before the lock is acquired**. In `staged`
-flow this gate does **not** run; the staging sign-off already carried that
-judgment.
+**This is the single definition of the direct-flow ship gate; every other reference
+cites it here.** Under `release_flow=direct` there is no staging stage, so the staging
+sign-off is **inactive** (not waived). Its human judgment is not dropped: it moves into
+**one** confirmation that fires **before the merge and before the lock** — the direct
+flow's equivalent of the staging sign-off (`../../shared/refs/safety-floor.md` § *Human
+gates*). It replaces Ask A, Ask B and the old separate human-test question: with no
+staging, those three asked about the same build at the same moment.
 
-**Why before the merge.** The merge to `prod` is the irreversible action; the
-deploy is not. Asked after the merge, a Cancel would leave `main` permanently
-carrying untested commits that the next release ships silently. Asked here, a
-Cancel means nothing was opened, nothing merged, nothing held. The release PR's
-CI still validates the merged result afterwards, and there is no deployed target
-the human could have tested between merge and deploy anyway.
+1. **Emit the human test script first** (`refs/human-test-script.md`) — the same script
+   the staging step gives, built from pre-merge's manual test plan, aimed at a **local
+   run or a preview link** instead of a staging URL. Never ask "tested?" about a build
+   the user was never guided through.
+2. **Ask once:**
 
-Ask exactly once:
+   > `AskUserQuestion` — header **Ship**, question: "No staging in this repo
+   > (`release_flow=direct`). This ships straight to production:" + the ship list +
+   > "Tested and ready to ship?"
+   > - **Ship** — proceed to the lock + Step 4
+   > - **Cancel** — stop; nothing merges and nothing deploys
 
-> `AskUserQuestion` — header **Human test**, question: "There is no staging stage
-> in this repo (`release_flow=direct`), so nothing was staged for testing. About
-> to merge and deploy **`<prds>`** on **`<platforms>`** (`v<NEXT_VERSION>+<BUILD>`)
-> straight to production. Have you tested this build?"
-> - **I have tested this build** — proceed to the lock + Step 4
-> - **Cancel** — stop; nothing merges and nothing deploys
-
-- **I have tested this build** → continue. Record a `low` `direct-human-test`
-  note in the run report (the gate fired and passed).
+- **Ship** → continue. Record a `low` `direct-human-test` note in the run report (the
+  gate fired and passed).
 - **Cancel** → **skipped**, reason **`human_test_declined`**
-  (`refs/refusal-patterns.md`; exits 0). Nothing was merged, nothing deployed,
-  and **no lock was acquired** — the gate sits before acquisition, so there is
-  nothing to release. Under an autonomy contract with no human present, default
-  to **Cancel** (do not ship an untested build unattended).
+  (`refs/refusal-patterns.md`; exits 0). Nothing was merged, nothing deployed, and
+  **no lock was acquired** — there is nothing to release.
 
-Both human gates above have now resolved (an affirmative on every ask, plus the
-inline attestation under `direct` flow) — the heartbeat may speak again:
+**Why before the merge.** The merge to `prod` is the irreversible action; the deploy is
+not. Asked after the merge, a Cancel would leave `main` permanently carrying untested
+commits that the next release ships silently. Asked here, a Cancel means nothing was
+merged and nothing held. The PR's CI still validates the result afterwards.
+
+The human gate has now resolved — the heartbeat may speak again:
 
 ```bash
 "$S" --tick --run-id "$RUN_ID" --note "release confirmed by human" --step "acquire release lock"
@@ -250,7 +254,7 @@ inline attestation under `direct` flow) — the heartbeat may speak again:
 
 ## ▸ PHASE 2 (subagent) — lock acquire through Step 10
 
-With both approvals in hand the dispatcher spawns phase 2, passing the approvals and
+With the confirmation in hand the dispatcher spawns phase 2, passing the approvals and
 the resolved release identity forward. Phase 2 executes the ship: lock acquire →
 release PR → merge → deploy → verify + provenance → intake stamp → tag → PRD lane
 move. It ends by handing back the verdict; on a **failed** ship the rollback /
@@ -282,7 +286,7 @@ bash "$S" acquire --prod "$PROD" --prds "<prd ids>"
 
 **Where acquisition sits — after the human gates, before the first mutating
 step.** Late enough that no pre-flight refusal ever touches the lock (Step 1,
-Step 2, a Step-3 Cancel and a declined inline human-test all exit before it, so
+Step 2 and a Step-3 Cancel (either flow) all exit before it, so
 there is nothing to release). Early enough to cover the whole mutating window:
 Step 4 onward runs inside it — two runs can both clear Step 3 concurrently, and
 the acquire is what serializes them.

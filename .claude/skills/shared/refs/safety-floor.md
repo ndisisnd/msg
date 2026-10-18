@@ -18,13 +18,13 @@ lanes:
 |---|---|---|
 | `eng` | commits to `feat/prd-<n>-*` **feature branches only** | push to / merge into / open a PR against `staging` or `main` |
 | `pre-merge` | the D7 sync-merge commit, and the critical-test tag commit when test selection is on — all local | push; open or merge any PR; touch `main`; modify source |
-| `merge` | the **only** skill that merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `merge/SKILL.md` (Hard refusals) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
+| `merge` | the **only** skill that pushes a feature branch, opens its PR and merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `merge/refs/sanctioned-writes.md` | force-push; open a PR without pre-merge's pass on the tip; reach `main` any other way than the confirmed release; merge on red/pending CI; self-certify staging; modify source |
 | `emulate` | **nothing in the repo** — no commit, branch, PR, stamp or report; its only writes are its own launch logs under `.emulate/` | modify source; write any tracked file; touch `.gitignore` |
 | all others | their own artifacts (PRDs, reports, tickets, devkit appends) | push, merge, or open PRs |
 
-**Nothing reaches `main` except from `staging`, and only via `merge
---production`.** That is the single production path; no flag or orchestrator
-opens another.
+**Nothing reaches `main` except via `merge --production`** — from `staging` in
+`staged` flow, from the feature branch in `direct` flow. That is the single
+production path; no flag or orchestrator opens another.
 
 **Killing processes is a write power too.** `/emulate` is the only skill that
 signals a process it did not start, and the power is bounded three ways: an
@@ -41,8 +41,8 @@ on `main`) — machine-enforced, not convention. On top of that, these human gat
 always fire:
 
 - **Staging sign-off** — a human tests staging before `merge --production` will run (`staging-signoff:` stamp). In `staged` flow this is **the** human look at the running feature; the old pre-merge preview approval was removed because it tested the same content twice, and its judgment moved here — not away.
-- **Direct-flow human test** — with no staging branch, `merge --production` asks the human to attest they have tested the build **before** the merge. This is the `direct` flow's equivalent of the staging sign-off, and it is the only remaining pre-merge-time human look.
-- **Production double-confirmation** — two separate approvals before anything ships to `main`.
+- **Production confirmation** — in `staged` flow, two separate approvals before anything ships to `main`.
+- **Direct-flow confirmation** — with no staging branch, `merge --production` gives the human test script, then asks **one** question that lists what ships and asks "Tested and ready to ship?" — **before** the merge and the lock. It is the `direct` flow's equivalent of both the staging sign-off and the double confirmation, and the one place two ship gates become one: with no staging there is only one moment to ask. Cancel ships nothing.
 
 ## Secret-scan floor — never hollow
 

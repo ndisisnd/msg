@@ -1,6 +1,6 @@
 ---
 name: fix-loop
-description: The shared post-failure sequence pre-merge and merge run after a FAILED gate — plan the fixes (eng --plan), then build them (orchestrated eng --build) off the same report's issues file. pre-merge runs it automatically in the main conversation, up to 2 rounds, with named stop rules; merge runs it as two offers. The issues file's followUp.suggested_command is the fallback.
+description: The shared post-failure sequence pre-merge and merge run after a FAILED gate — plan the fixes (eng --plan), then build them (orchestrated eng --build) off the same report's issues file. Both callers run it automatically in the main conversation, with named stop rules — pre-merge up to 2 rounds with a gate re-run, merge one round after its rollback question. The issues file's followUp.suggested_command is the fallback.
 type: reference
 ---
 
@@ -59,51 +59,48 @@ or "2 rounds used"), what is still open (the issue count and the report path), a
 the next command — for example `eng --build report=<path>` to try again by hand, or
 `/pre-merge` after the user resolves the pause or the conflict.
 
-## merge — two offers
+## merge — automatic, after the rollback question
 
-`merge` runs the same two steps as **offers**, after its own recovery offer.
+After a **failed ship**, merge runs the same two steps **with no question**, in the
+main conversation:
 
-### Ordering — merge's rollback offer runs first
+1. **The rollback question comes first — always asked, unchanged.** merge presents its
+   **rollback / rollout-halt question** (restore last-good for a `deploy` platform, halt
+   the staged rollout for a `submission` platform — always-ask, never auto, D12;
+   `merge/refs/failed-ship.md` step 1). Rolling back limits the live damage; this loop
+   still fixes the broken commit forward, so a rolled-back release **still** runs the
+   steps below (AC-RB3). This ref never rolls anything back.
+2. **Write the bug report** — the issues file (`merge/refs/failed-ship.md` step 2).
+3. **Plan** the fixes (above).
+4. **Build** the fixes (above). eng's end-of-build "Commit?" question is pre-approved
+   inside this loop.
 
-This loop is entered **after** any caller-owned recovery offer, never instead of
-one. On a failed **ship**, `merge` presents its **rollback / rollout-halt
-offer first** (restore last-good for a `deploy` platform, halt the staged rollout
-for a `submission` platform — always-ask, never auto, D12; `merge/refs/failed-ship.md`
-§ *Failed-ship loop* step 1), and only then hands off here. The two are
-complementary, not alternatives: rolling back mitigates the live blast radius;
-this loop still fixes the broken commit forward. A rolled-back release therefore
-**still runs Offer #1 → Offer #2** (AC-RB3). This ref owns only the fix steps; it
-never rolls anything back.
+**One round, then hand to the user.** merge never re-runs the ship: the fixed code goes
+back through `/pre-merge` and `/merge`, and nothing ships again by itself. The
+hand-off message names the report path and the next command — `/pre-merge`, then
+`/merge`.
 
-### Offer #1 — plan the fixes
+**Stop early and hand to the user** on the same rules as pre-merge, minus the merge
+conflict (merge's loop runs no sync):
 
-After the report + issues file are written, present via **AskUserQuestion**:
-
-- **Question:** `<N> issue(s) found. Plan the fixes with eng?` (`<N>` = count of the issues file's `issues[]`).
-- **Options:**
-  - `Yes — plan the fixes` → the **Plan** step above
-  - `No — stop here`
-
-### Offer #2 — build the fixes
-
-After the fix plan is written, present via **AskUserQuestion**:
-
-- **Question:** `Fix plan ready (<M> tickets). Build the fixes now?` (`<M>` = fix-plan ticket count).
-- **Options:**
-  - `Yes — build the fixes` → the **Build** step above
-  - `No — I'll build later`
+| Stop rule | Why |
+|---|---|
+| **No progress** — the build closes with an issue still open (`followUp.status` `partially_resolved` or unresolved) | another automatic round would repeat the same fix; the user decides |
+| **A safety pause fires** — eng's database/data pause (`script-eng-db-touch.sh`) or a breaking-change pause | these pauses are never pre-approved; the user answers them |
+| **A bug reaches eng's limit** — 3 fix attempts used, the bug is escalated | `eng/refs/build/protocol-build-debug.md` |
 
 ### Autonomy contract
 
-Under an autonomy contract (a caller running hands-off, e.g. plan-em's orchestrator), **both
-offers are pre-approved** — proceed through Offer #1 → `eng --plan` → Offer #2 →
-orchestrated `eng --build` without asking.
+Under an autonomy contract (a caller running hands-off, e.g. plan-em's orchestrator),
+both callers already run the steps without asking. Only the stop rules and merge's
+rollback question differ: with no human present, the rollback question defaults to
+**decline** (`merge/refs/failed-ship.md`), and a safety pause still stops the loop.
 
 ## Fallback + re-entry
 
 - **Fallback.** The caller keeps `followUp.suggested_command` in the issues file
-  as the deep-link fallback when the loop stops or an offer is declined — the user
-  can resume straight from the issues file.
+  as the deep-link fallback when the loop stops — the user can resume straight from
+  the issues file.
 - **Re-entry.** After the fix build closes the loop (writes `followUp.status`
   `resolved` / `partially_resolved`), the fixed branch comes back through the same
   gate (`/pre-merge`, or `/merge`).

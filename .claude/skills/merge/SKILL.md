@@ -21,13 +21,14 @@ allowed_tools:
 
 **The** ship gate. Runs after `/pre-merge` passed on the feature branch and takes it the
 rest of the way: it pushes the branch and opens the PR, then onto `staging` (tested by a
-human), then onto `main` (production, double-confirmed). It is the **only** skill in the
+human), then onto `main` (production, confirmed). It is the **only** skill in the
 harness that pushes a feature branch, opens a PR or merges — eng commits to feature
 branches, pre-merge checks and fixes them on the machine. Nothing reaches `main` any
 other way.
 
 ```
 pre-merge (local pass) → merge --staging (push, PR feature→staging, CI, merge) → (human tests staging) → merge --production → (double-confirm) → PR staging→main → main (live)
+pre-merge (local pass) → merge (direct flow: test script → one confirmation → push, PR feature→main, CI, merge) → main (live)
 ```
 
 ## Usage
@@ -46,10 +47,13 @@ Natural language: "ship this to staging", "merge the staging PR", "promote to pr
 
 Release manager on a small product team. Owns the two irreversible-ish moments — the
 staging merge and the production release. Compact and checklist-driven. **Ship gates
-never collapse**: the green-CI check, the human test, and the production
-double-confirmation run in **every** invocation. Under `release_flow=direct` the staging
-stage is **inactive — not waived**; its human judgment moves to the inline human-test
-approval, before the merge (`../shared/refs/policy-schema-merge.md` §1b).
+never collapse — with one exception.** The green-CI check, the human test, and the
+production confirmation run in **every** invocation. In `staged` flow the production
+confirmation is two separate asks. In `release_flow=direct` the human test script and
+the release confirmation become **one** question ("Tested and ready to ship?"), asked
+before the merge: with no staging there is no second moment for a second ask. The
+staging stage there is **inactive — not waived** (`../shared/refs/policy-schema-merge.md` §1b,
+`refs/production.md` Step 3).
 
 ## Hard refusals
 
@@ -60,7 +64,7 @@ Shapes and JSON in `refs/refusal-patterns.md`. Merge:
 
 - Does NOT merge on red or pending CI. An **empty** check set under `github_actions.enabled:false` is inactive by the user's decision — accepted with one report line (`../shared/refs/policy-schema.md` §2b); checks that *do* report are graded as always.
 - Does NOT run `--production` without staging-green **and** a `staging-signoff:` stamp whose pinned sha still covers `staging`'s tip — later commits refuse (`stale_signoff`), never ride along uncertified.
-- Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals.
+- Does NOT open or merge a `staging→main` PR without BOTH double-confirmation approvals, or a direct-flow feature→`main` PR without the one direct-flow confirmation.
 - Does NOT run a second `--production` while one is in flight — the release lock refuses `release_in_flight` naming the holder; a `--staging` merge during an in-flight production ship refuses the same way (`refs/production.md`, `../shared/refs/policy-schema-merge.md` §6).
 - Does NOT run when the branch is unprotected and `branch_protection` resolves `enforced`; `optional` warns + proceeds, `skip` doesn't verify; `NO_GH`/`NO_REMOTE` refuse regardless (`../shared/refs/policy-schema-merge.md` §2).
 - Does NOT run `--staging` into a staging environment recorded **unready** when `staging_readiness` resolves `enforced`; `optional` warns, `skip` doesn't guard, a missing record only warns (`../shared/refs/policy-schema-merge.md` §5).
@@ -133,6 +137,6 @@ doctor-log any harness incidents (`../shared/refs/doctor-logging.md`).
 
 ## References
 
-- `refs/open-pr.md` — pass check, push, PR, CI wait · `refs/sanctioned-writes.md` — the canonical write enumeration + the script-resolution form · `refs/failed-ship.md` — rollback/rollout-halt offer, issues file, fix-loop handoff · `refs/deploy.md` · `refs/verify-deploy.md` · `refs/submission.md` · `refs/human-test-script.md` · `refs/protection.md` · `refs/refusal-patterns.md` · `refs/output-schema.md`
+- `refs/open-pr.md` — pass check, push, PR, CI wait · `refs/sanctioned-writes.md` — the canonical write enumeration + the script-resolution form · `refs/failed-ship.md` — rollback/rollout-halt question, issues file, automatic fix loop · `refs/deploy.md` · `refs/verify-deploy.md` · `refs/submission.md` · `refs/human-test-script.md` · `refs/protection.md` · `refs/refusal-patterns.md` · `refs/output-schema.md`
 - `../shared/refs/` — `policy-schema.md` (§0 `init`, §1 `release_flow`, §2b `github_actions`) · `policy-schema-merge.md` (§1b flow behavior, §2 protection, §3 steps, §4 `release_model`, §5 `staging_ready`, §6 release lock) · `gate-dispatch.md` · `fix-loop.md` · `finding-schema.md` · `report-schema.md` · `safety-floor.md` · `status-heartbeat.md` · `prd-lifecycle.md`
 - `.claude/scripts/` — `script-branch-protection.sh` · `script-signoff-coverage.sh` · `script-release-lock.sh` · `script-release-identity.sh` · `script-prd-stamp.sh` · `script-intake-stamp.sh` · `script-policy-read.py` · `script-policy-set.py` · `script-merge-checks.py` · `script-premerge-last-check.sh` · `script-ci-status.py` · `script-platforms-parse.py` · `script-smoke-run.sh` · `script-ts-miss.py`

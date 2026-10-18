@@ -92,9 +92,9 @@ Emitted when a human cancels at a gate — exits **0**, carries no findings:
 }
 ```
 
-- `release_cancelled` — the `--production` double-confirmation was cancelled at Ask A or Ask B.
+- `release_cancelled` — the `staged`-flow `--production` double confirmation was cancelled at Ask A or Ask B.
 - `signoff_declined` — a **sign-off/human-test gate was declined**, covering both modes: the `--staging` sign-off ask returned "Not yet", **or** the `--production` unpinned-legacy sign-off re-ask (Step 1) was **Cancel**led. The merge/deploy still stand; only the stamp was withheld.
-- `human_test_declined` — the **`direct`-flow inline human-test approval** (`refs/production.md` § *Inline human-test approval*) returned **Cancel**. It fires **after the Step 3 double-confirm and before the merge**, so nothing was merged, nothing deployed, and no lock was acquired — there is nothing to release and `prod` is untouched.
+- `human_test_declined` — the **one `direct`-flow confirmation** (`refs/production.md` § *`direct` flow — test script, then one confirmation*) returned **Cancel**. It fires **before the merge and before the lock**, so nothing was merged, nothing deployed, and no lock was acquired — there is nothing to release and `prod` is untouched.
 - `deploy_skipped` — **terminal only when *every* platform's deploy is skipped** (no command configured anywhere, and the human chose to skip). When only *some* platforms skip, the deploy is **not** terminal: `refs/deploy.md`'s per-platform proceed-with-note is authoritative — the run continues, records a note for the skipped platform, and skips only that platform's verification.
 
 ## macOS release-check findings (NOT refusals)
@@ -115,7 +115,7 @@ such pre-flight case.)
 ## Never
 
 - **Never merge on red or pending CI.** Branch protection would reject it; merge refuses first with the clearer reason.
-- **Never open or merge a staging→main PR without both double-confirmation approvals.**
+- **Never open or merge a staging→main PR without both double-confirmation approvals**, and never a direct-flow feature→main PR without the one direct-flow confirmation.
 - **Never stamp `staging-signoff:` without the explicit approval question returning "Staging works".**
 - **Never stamp a sign-off without its certified sha**, and never pin it to a commit other than the one that was deployed and human-tested. An unpinned stamp is unverifiable — it is exactly the hole `stale_signoff` exists to close.
 - **Never `--force`-steal a live (non-stale) release lock.** A held lock < 2h old is a running ship; only its own run releases it, or the human clears a stale one manually. Auto-stealing reopens the exact race the lock closes.

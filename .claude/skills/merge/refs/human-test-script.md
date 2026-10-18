@@ -1,6 +1,6 @@
 ---
 name: merge-human-test-script
-description: merge --staging Step 6 — render the plain-language human test script by CONSUMING pre-merge's structured, significance-rated manual-test-plan artifact (the 2nd render site — HIGH first), with a graceful fallback to deriving it from the report "How to verify" prose + acceptance criteria when the artifact is absent (older PRDs), then STOP for a human to test staging.
+description: merge --staging Step 6 and direct-flow --production Step 3 — render the plain-language human test script by CONSUMING pre-merge's structured, significance-rated manual-test-plan artifact (the 2nd render site — HIGH first), with a graceful fallback to deriving it from the report "How to verify" prose + acceptance criteria when the artifact is absent (older PRDs), then STOP for a human to test staging.
 ---
 
 # Step 6 — Emit a human test script, then STOP
@@ -10,6 +10,16 @@ smoke verification (Step 5, `refs/verify-deploy.md` — a smoke failure skips th
 step entirely), it hands a human a concrete, plain-language script for exercising
 the deployed staging environment, then stops and waits. The sign-off (Step 7)
 only happens after the human returns.
+
+## Two call sites
+
+| Caller | Target | Then |
+|---|---|---|
+| `--staging` Step 6 | the **deployed staging target** | STOP; Step 7 asks "Did staging pass your testing?" |
+| `--production` Step 3, `direct` flow (`refs/production.md` § *`direct` flow — test script, then one confirmation*) | a **local run** of the feature branch (the platform's run command, or `/emulate` for a mobile app), or a **preview link** when the platform's deploy gives one | the one "Tested and ready to ship?" question |
+
+The list, its order and its wording are the same at both sites; only the target and the
+closing line differ.
 
 ## Source the list (structured artifact first, prose fallback)
 
@@ -51,13 +61,14 @@ concrete step for a feature, say so plainly rather than fabricating one.
 
 ## Shape of the emitted script
 
-- Point it at the **deployed staging target** (the URL / build from `refs/deploy.md`), not localhost.
+- Point it at the call site's target: the **deployed staging target** (the URL / build from `refs/deploy.md`) for `--staging`, not localhost; the **local run or preview link** for direct flow, naming the command to start it.
 - Numbered steps, each = an action + the expected observation, in everyday language.
-- End with the sign-off prompt framing: "When you've checked these on staging, come back and tell merge whether it works."
+- End with the call site's framing: "When you've checked these on staging, come back and tell merge whether it works." (`--staging`) or "Check these, then answer the ship question below." (direct flow).
 
-## Then STOP
+## Then STOP (`--staging`)
 
-Emit the script as the run's visible output and **halt the autonomous flow** —
+In direct flow the script is followed straight away by the one confirmation; there is no
+separate stop. In `--staging`, emit the script as the run's visible output and **halt the autonomous flow** —
 do not proceed to Step 7, do not stamp anything. The human runs the script; when
 they return, Step 7's `AskUserQuestion` records their verdict.
 

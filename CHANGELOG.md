@@ -2,6 +2,16 @@
 
 ## 2026-10-17
 
+### [192] v6.0.0 merge — direct flow gets a test script and one confirmation; the fix loop after a failed ship runs by itself
+
+- `.claude/skills/merge/refs/production.md`: Changed — Step 3 split by flow: staged keeps Ask A + Ask B; direct gives the human test script, then one "Tested and ready to ship?" question before the merge and the lock.
+- `.claude/skills/merge/refs/human-test-script.md`: Changed — second call site (direct flow, local run or preview link).
+- `.claude/skills/merge/SKILL.md`, `shared/refs/safety-floor.md`: Changed — "ship gates never collapse" has one exception: the direct-flow confirmation.
+- `.claude/skills/merge/refs/{failed-ship,refusal-patterns,submission}.md`: Changed — after the rollback question, the bug report, fix plan and fix build run with no question (one round, pre-merge's stop rules); `human_test_declined` names the one confirmation.
+- `.claude/skills/shared/refs/fix-loop.md`: Changed — § merge is automatic after the rollback question; offers removed.
+- `.claude/skills/shared/refs/{policy-schema-merge,policy-schema,gate-dispatch}.md`: Changed — new § `policies.merge` (`risky_paths`, `ci_wait_minutes`); §1b names the bare-`/merge` pick and the one direct-flow confirmation; merge's main-thread steps and failed-ship hand-back.
+- `.claude/skills/eng/refs/plan/fix-plan.md`, `eng/refs/build/fix-build-orchestrated.md`: Changed — name the fix loop's Plan and Build steps, not offers.
+
 ### [191] v6.0.0 merge — no `--prd` or `--bump`; bare `/merge` picks the next step
 
 - `.claude/skills/merge/SKILL.md`: Changed — § Mode pick (bare `/merge`: staging step without a sign-off, production step with one or with no staging); § Find the PRD (branch name, else one question); `--prd` and `--bump` removed from usage.

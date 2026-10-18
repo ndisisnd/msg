@@ -48,6 +48,11 @@ both may need the user: **first-run setup** when `devkit/policy.json` has no
 **finding the PRD** from the branch name, asking once when none or several match
 (`pre-merge/refs/executor.md` §0b). The resolved PRD is passed to the subagent.
 
+merge does the same three main-thread steps before its first phase: **first-run setup**
+when `devkit/policy.json` has no `policies.merge` (`merge/refs/protocol-init.md`), the
+**mode pick** for a bare `/merge`, and **finding the PRD** (`merge/SKILL.md` § *Mode
+pick*, § *Find the PRD*).
+
 Anything that needs the pipeline resolved, the policy fully read, or a network call
 is **not** a cheap probe. Those refusals happen inside the subagent and come back
 through the normal relay.
@@ -160,6 +165,13 @@ automatic fix rounds in `fix-loop.md` § *pre-merge — automatic, up to 2 round
 build, dispatch the gate again. The gate subagent never plans or builds fixes itself,
 because those steps can pause for the user.
 
+### Hand-back after a failed ship (merge)
+
+A failed ship hands back to the main conversation, which asks the rollback question
+first (always asked), then runs `fix-loop.md` § *merge — automatic, after the rollback
+question*: write the bug report, plan, build — one round, no question. It never ships
+again by itself.
+
 Two rules bound this, and neither bends:
 
 - **No gate weakens.** Every `AskUserQuestion` in today's protocols still fires, in
@@ -174,7 +186,7 @@ Two rules bound this, and neither bends:
 Interactive and interview modes are cheap, conversational and gate-dense. They stay
 inline, unchanged, and never dispatch:
 
-- any setup, `--update`, or other interview mode (pre-merge's first-run setup included);
+- any setup, `--update`, or other interview mode (pre-merge's and merge's first-run setup included);
 - refusals answered by the pre-spawn probe;
 - every human gate, per the phase-split rule above.
 
