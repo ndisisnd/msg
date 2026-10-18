@@ -15,7 +15,6 @@ intake: #14
 
 - **Who** — users who keep a parallel copy of their tasks in a spreadsheet.
 - **What changes** — they can download the current task list as a CSV in one click.
-- **Success signal** — the manual copy-paste path stops being used, measured as exports per active user.
 
 ## 2. Out-of-scope
 
@@ -25,9 +24,9 @@ intake: #14
 
 | ID | Feature | Acceptance criterion | Dependencies |
 |----|---------|----------------------|--------------|
-| F1 | Download CSV | When the user selects Export, a `.csv` file containing every task currently in the list downloads within 2 seconds. | — |
+| F1 | Download CSV | AC1 When the user selects Export, a `.csv` file containing every task currently in the list downloads within 2 seconds. | — |
 
-## 4. Error cases
+## 4. Error and edge cases
 
 | ID | Trigger | User-visible behavior |
 |----|---------|----------------------|

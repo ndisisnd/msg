@@ -73,6 +73,42 @@ cannot derive from the diff.
 - **No size context** (the default) → **flat severity, no adjustment, no nag.** The
   finding still fires; only its grade stays put.
 
+## Round-trip — up, down, up (env wave, sandbox only)
+
+Proves each new migration can be applied, rolled back and re-applied. It is
+destructive, so it runs **only** in the C23 sandbox database (`../executor.md` §3b),
+never against shared state.
+
+1. **Pick the commands** from the migration framework detected in the diff. Setup
+   records them on the `migration` component's tooling; with none recorded, use this
+   table:
+
+   | Framework | Up | Down (one step) |
+   |---|---|---|
+   | Rails | `bin/rails db:migrate` | `bin/rails db:rollback STEP=<n>` |
+   | Django | `python manage.py migrate` | `python manage.py migrate <app> <previous>` |
+   | Alembic | `alembic upgrade head` | `alembic downgrade -<n>` |
+   | Flyway | `flyway migrate` | `flyway undo` (needs undo scripts) |
+   | numbered `*.up.sql` / `*.down.sql` | apply each `.up.sql` in order | apply the matching `.down.sql` in reverse order |
+   | Prisma, Supabase | — | **forward-only** |
+
+   `<n>` = the number of migrations this diff adds.
+2. **Run up → down → up** in the sandbox database, after `seed`. Each step's exit code
+   and first error line are recorded.
+3. **Any error is a `blocker`**: `rule: migration-roundtrip-failed`,
+   `category: architecture`, `file` = the failing migration, message naming the step
+   (`down` failed on `20261017_add_due_date`) and the quoted error. `migration` is a
+   `critical` component, so this aborts the run (`../severity-rubric.md` § *Fail-fast*).
+
+Record `roundtrip: {ran: true, steps: ["up","down","up"], ok: true|false}`.
+
+**Not run, said honestly.** Forward-only framework (Prisma, Supabase) ⇒
+`roundtrip: {ran: false, reason: "forward-only"}`, matching the down-migration rule
+above. No sandbox (`devkit/ENV.md` absent or its provisioner unresolved) ⇒
+`roundtrip: {ran: false, reason: "no sandbox"}`. The report line reads *"migration
+round-trip: not run — <reason>"*. Never "passed", never omitted, and never listed as a
+check that ran.
+
 ## Semantic pass (/cook-backed)
 
 Only when a DB flag assembles: `--supabase:migrations` (Supabase active + diff touches

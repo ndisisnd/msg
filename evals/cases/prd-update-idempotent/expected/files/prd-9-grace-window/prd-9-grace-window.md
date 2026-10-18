@@ -15,7 +15,6 @@ intake: #7
 
 - **Who** — active streak-holders who lose a streak to an accidental miss.
 - **What changes** — they can retroactively complete a missed day.
-- **Success signal** — 30-day retention among streak-holders rises.
 
 ## 2. Out-of-scope
 
@@ -25,9 +24,9 @@ intake: #7
 
 | ID | Feature | Acceptance criterion | Dependencies |
 |----|---------|----------------------|--------------|
-| F1 | Grace complete | The missed day shows a filled ring on the Home screen within 200ms of confirming the grace action. | — |
+| F1 | Grace complete | AC1 The missed day shows a filled ring on the Home screen within 200ms of confirming the grace action. | — |
 
-## 4. Error cases
+## 4. Error and edge cases
 
 | ID | Trigger | User-visible behavior |
 |----|---------|----------------------|

@@ -1,0 +1,8 @@
+# script-eng-bug-report.py: a bug found by hand becomes a NEW numbered report
+# pair in the PRD chosen from the branch (K = max existing + 1, report-prd-7-2
+# untouched), and the issues file passes the fix flow's own validator.
+S="$REPO/.claude/scripts/script-eng-bug-report.py"
+python3 "$S" --description "Login button does nothing on the second tap" \
+  --branch feat/prd-7-login --file src/login.ts --date 2026-01-15T00:00:00Z
+python3 "$REPO/.claude/scripts/script-project-findings.py" features/wip/prd-7-login/reports/report-prd-7-3.json --validate-only && echo VALID
+cat features/wip/prd-7-login/reports/report-prd-7-2.json

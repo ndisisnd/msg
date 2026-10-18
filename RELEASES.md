@@ -2,6 +2,52 @@
 
 What's new for you, release by release.
 
+## v6.0.0 — 2026-10-18
+
+> msg now asks you far fewer questions and does more of the routine work by itself. Setup happens the first time you need it, not as a separate chore. Every step tells you what to run next. The gates are more honest about what they actually checked. This is a major release: several flags are gone and the hand-off between `/pre-merge` and `/merge` changed, so read "Changed or removed" before your next run.
+
+### ✨ New
+
+- Type a bare `/msg` and it tells you the next step for each feature in progress — up to four suggestions, each with a one-line reason. Pick one to run it, or open the full menu.
+- You never have to remember to set up. If your project has no msg setup yet, any command runs setup first, then carries on with what you asked.
+- `/msg --update` now refreshes everything in one pass — msg's own files, the pre-merge settings and the merge settings — behind a single approval.
+- `/eng --bug "<what is wrong>"` files a bug you found by hand as a numbered report, then fixes it.
+- `/intake --health` finds backlog rows that went stale, were shipped but never closed, or duplicate each other, and fixes wrong statuses after one confirmation.
+- `/intake --brainstorm on|off` decides, per project, whether intake suggests related ideas. New projects start with it on.
+- `/plan-pm --update` edits the content of an existing plan document and shows you what changed.
+- `--review on|off` on `/plan-pm` and `/plan-em` turns an automatic plan review on or off. It is off by default; msg only suggests the review.
+
+### 📈 Improved
+
+- Intake starts with one question — "What are you trying to build?" — and works out the idea, goal, type and splits from your project. It asks more only when it truly cannot tell.
+- Grades are simpler: complexity and sequencing, each with a plain-English label.
+- A plan document's number now matches its backlog row number, so `#7` in the backlog is PRD 7.
+- Plan documents no longer carry invented numbers. A feature can list several acceptance criteria. The error section is checked against a standard list of failure types.
+- Plan review gives one result block, logs minor findings without asking you, and says plainly "Not certified" when a critical issue is still open.
+- `/plan-em` shows the team it picked in one line and only asks when something is unusual. After planning it gives a three-line summary and asks "Start the build now?" — it never starts building on its own.
+- `/eng --build` runs one build loop, asks one question at the end ("Commit?"), and treats the tickets as the only spec. Each bug gets at most three fix attempts; after that it is handed to you instead of looping.
+- `/pre-merge` gives honest results. A check that could not run says "not run" and why, rather than passing quietly. Quick smoke checks always run. The final verdict is computed by a script, not by the model.
+- When `/pre-merge` finds problems, it fixes them by itself — up to two rounds — in the same conversation.
+- `/pre-merge` tags your critical tests by itself as part of the gate, and asks about merge conflicts outside the gate rather than in the middle of it.
+- `/merge` with no flag picks the right step: staging if it has not been signed off, production if it has (or if you have no staging).
+- On a direct-to-production project, `/merge` now gives you a test script and asks one "Tested and ready to ship?" question before it ships.
+- If a release fails after shipping, the fix loop — bug report, fix plan and fix build — runs by itself once you have answered the rollback question.
+- Progress messages during long runs are always on.
+
+### ⚠️ Changed or removed (breaking)
+
+- **`/pre-merge` now stays on your machine.** It checks your branch and ends with "Next: /merge". It never pushes and never opens a pull request.
+- **`/merge` now pushes your branch, opens the pull request and waits for CI.** Run it after `/pre-merge` passes.
+- **`/pre-merge --init` and `/merge --init` are removed.** Each sets itself up on its first run. To re-scan an existing project, use `/pre-merge --update`, `/merge --update`, or `/msg --update` for all of them at once.
+- **`/merge --bump` and `/merge --prd` are removed.** The next version defaults to a minor bump; use `--version` for any other number. The plan document is found from the branch name, or msg asks you once.
+- **`/pre-merge --update-criticality`, `--prd`, `--quiet` and `--status` are removed.** Test tagging is now automatic and the plan document is found from the branch name.
+- **`--quiet` and `--status` are removed from `/eng`, `/plan-em` and `/merge`.** Progress messages are always on.
+- **The `--cto` and `--eng` setup modes of `/msg --init` are removed.** There is one setup interview for everyone.
+- **The team-or-solo choice in `/plan-em` is gone.** It always runs as a team; it is no longer a saved preference.
+- **`/plan-pm --update` changed meaning.** It now edits a plan's content. The old format-only conversion moved to `/plan-pm --migrate`.
+- **Plan review is now a step you choose.** msg suggests it; turn on `--review on` to have it run by itself. The check `/plan-em` runs before a build is unchanged.
+- The token-cost part of an intake grade is dropped. Older rows that still carry it read fine; the extra part is ignored.
+
 ## v5.6.6 — 2026-08-17
 
 > Every msg command now starts lighter. The instructions each command loads up front were cut by more than half, and the long procedural detail only loads at the moment it is actually needed. You get the same behaviour, the same gates and the same wording, with more of the conversation left for your work instead of the tool's own text.

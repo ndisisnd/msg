@@ -1,12 +1,12 @@
 ---
 name: merge-staging
-description: merge --staging — locate the feature→staging PR, verify green CI, merge into staging, verify the deploy with the platform smoke check, and stamp the harness-readable staging sign-off. Deploy, verification, and the human test script have their own refs.
+description: merge --staging — check pre-merge's pass, push the feature branch, open (or reuse) the feature→staging PR, wait for green CI, merge into staging, verify the deploy with the platform smoke check, and stamp the harness-readable staging sign-off. Deploy, verification, and the human test script have their own refs.
 ---
 
 # `--staging` — merge to staging, hand off to a human
 
-Runs after `/pre-merge` opened a `feature → staging` PR. `/merge` merges it on
-green CI, deploys, verifies the deploy with the platform's smoke check, hands a
+Runs after `/pre-merge` passed on the feature branch. `/merge` checks that pass,
+pushes the branch, opens the `feature → staging` PR, merges it on green CI, deploys, verifies the deploy with the platform's smoke check, hands a
 human a test script, and — only on the human's explicit approval — stamps the
 sign-off that `--production` requires. Merge **never self-certifies
 staging**: Step 6 STOPS and waits for a human.
@@ -39,14 +39,14 @@ RUN_ID="merge-$(date +%s)"
 
 ## Staging-readiness guard (pre-flight, after Step 1)
 
-Before locating the PR, read the `staging_ready` record `--init` wrote
+Before opening the PR, read the `staging_ready` record merge setup wrote
 (`../shared/refs/policy-schema-merge.md` §5) — verify staging is a **real environment**,
 not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"`
 (mirrors `branch_protection`'s stance + default). Then:
 
-- **Record absent** (the repo was never `/merge --init`ed) →
+- **Record absent** (merge setup never recorded it) →
   add **one `low` note** to the run report — *"staging readiness was never
-  recorded; run `/merge --init` to verify the staging environment"* — and
+  recorded; run `/merge --update` to verify the staging environment"* — and
   **proceed**. Never refuse solely because the record predates the readiness check.
 - **Present, every shipping platform `ready:true`** → proceed silently.
 - **Present, any platform with `gaps[]`:**
@@ -60,10 +60,10 @@ not just a branch. Resolve `mode = policies.staging_readiness.mode ?? "enforced"
 This guard only bites under `release_flow=staged`; in `direct` flow `--staging`
 has already refused `no_staging_stage` (there is no staging to check).
 
-`staging_ready` is a **resolved fact** re-derived at each `--init`, so it can go
-**stale** between init and this run (a platform's declared artifacts changed since
-readiness was last derived) — accepted (the record reflects the last
-`--init`, not live state; re-run `/merge --init` to refresh it).
+`staging_ready` is a **resolved fact** re-derived at each setup or `--update`, so it
+can go **stale** between then and this run (a platform's declared artifacts changed
+since readiness was last derived) — accepted (the record reflects the last setup,
+not live state; run `/merge --update` to refresh it).
 
 ## In-flight-production check (pre-flight, before Step 2)
 
@@ -75,7 +75,7 @@ reopening the uncertified-commit hole at the concurrency level. So `--staging`
 **reads** the production release lock (`../shared/refs/policy-schema-merge.md` §6):
 
 ```bash
-S=.claude/scripts/script-release-lock.sh; bash "$S" status --prod "$PROD"
+L=.claude/scripts/script-release-lock.sh; bash "$L" status --prod "$PROD"
 ```
 
 | Exit | Meaning | Do |
@@ -96,40 +96,21 @@ the long-lived production ship is the only acquirer. A staging merge (a single
 mid-staging-merge) is sub-second and not worth the machinery or the friction.
 
 ```bash
-"$S" --tick --run-id "$RUN_ID" --note "staging-readiness + in-flight-production checks passed" --step "locate PR + verify CI"
+"$S" --tick --run-id "$RUN_ID" --note "staging-readiness + in-flight-production checks passed" --step "open PR + wait for CI"
 ```
 
-## Step 2 — Locate the PR + verify green CI
+## Step 2 — Open the PR + wait for CI
 
-**Scripted.** PR resolution and the five-way CI verdict are one deterministic
-call — the identical logic `--production` Steps 1 and 5 run, so it lives in one
-place (`script-ci-status.py`), not three:
-
-```bash
-S=.claude/scripts/script-ci-status.py
-python3 "$S" --base "$STG" --prd <prd-path>          # or --head <feature-branch>
-```
-
-The branch resolves from `--prd`'s `feat/prd-<n>-<slug>`, else pass `--head`
-with the current branch:
-
-| `VERDICT` (exit) | Do |
-|---|---|
-| — (7) `REASON=no_pr` | **refuse** `no_pr` — pre-merge hasn't opened one, or it already merged |
-| `green` (0) | proceed to Step 3 |
-| `red` (3) | **refuse** `red_ci`, listing `FAILING_CHECKS` verbatim |
-| `pending` (4) | **refuse** `pending_ci`, listing `PENDING_CHECKS`. Do not wait/poll — the human re-runs merge when CI settles |
-| `empty-inactive` (5) | proceed. `REASON=policy_disabled` → record `NOTE` as the one report line; `step_opted_out`/`step_na`/`no_ci_record` → proceed silently |
-| `empty-vacuous` (6) | proceed **+ one `low` `vacuous-ci` note** (`NOTE` carries it verbatim) |
-| — (8) `REASON=gh_error` | the CI state could not be read — **never a green**; surface `ERROR` and stop rather than merging blind |
-
-Branch protection is the machine enforcement; this check exists so merge
-refuses with a clear reason instead of a raw merge rejection. The script owns
-the whole empty-set branch — `github_actions` outranking `steps.ci`
-(`../shared/refs/policy-schema.md` §2b,
-`../shared/refs/policy-schema-merge.md` §3) — here and at both `--production`
-call sites, so "no red" is never read as green. The opt-out governs **only**
-the empty set: checks that *do* report are graded exactly as always.
+Per `refs/open-pr.md`, with `BASE=$STG`: the pass check (pre-merge passed on the branch
+tip, or the new commits are small and pass the quick check), the push (normal, never
+force), the `feature → staging` PR (opened, or the open one reused, linking
+pre-merge's report), and the CI wait (up to `MERGE_CI_WAIT_MINUTES`, ticking the
+heartbeat). Green ⇒ Step 3. Every stop there (`no_premerge_pass`, `push_rejected`,
+`red_ci`, `pending_ci`, a `gh` error) happens **before** the merge, so nothing has
+changed on `staging`. **Already merged** (`refs/open-pr.md` §0 — a re-run after **Not
+yet**, with no new commits) ⇒ skip Steps 3–5 with that PR's merge commit as
+`CERTIFIED_SHA`, close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "already merged — asking for the sign-off again"`),
+and go to Step 6.
 
 ## Test-selection-miss detection (`policies.test_selection` backstop attribution)
 
@@ -148,8 +129,8 @@ run full or minified → the 30-day count. `script-ts-miss.py` is the one
 implementation; the model never re-derives it.
 
 ```bash
-S=.claude/scripts/script-ts-miss.py
-python3 "$S" --report features/**/prd-<n>-<slug>/reports/report-prd-<N>-<K>.json \
+M=.claude/scripts/script-ts-miss.py
+python3 "$M" --report features/**/prd-<n>-<slug>/reports/report-prd-<N>-<K>.json \
              --failing-check "<name>" [--failing-check "<name>" …]
 ```
 
@@ -196,8 +177,8 @@ test_selection is enabled; consider whether a selected-away test caused it."
 `test-selection-miss` findings across this PRD's committed reports plus the rest
 of the repo's `features/**/reports/report-*.json`, restricted to the most recent
 30 days, **plus this run's misses**. `RECOMMENDATION` names
-`/pre-merge --update-criticality` (tag the escapee critical so it stops being
-selected away) or `/msg --update` to disable `policies.test_selection` outright,
+tagging the escapee critical in its test file (so it stops being selected away;
+pre-merge's automatic tagging step never removes a tag) or `/msg --update` to disable `policies.test_selection` outright,
 and points at `force_full_paths`
 (`../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection.force_full_paths`)
 — a cross-cutting-enough surface that selection should stop trying to prune
@@ -287,15 +268,15 @@ Only after the human returns. Ask once:
 
 > `AskUserQuestion` — header **Staging**, question "Did staging pass your testing?"
 > - **Staging works** — stamp the sign-off and finish
-> - **Not yet** — leave unstamped; re-run `--staging` (or fix + re-gate) later
+> - **Not yet** — leave unstamped; re-run `/merge`; it asks for the sign-off again (or fix + re-gate first)
 
 On **Staging works**, stamp the PRD frontmatter through the shared scalar writer
 — the one sanctioned writer for this field, never a hand-rolled edit or a
 whole-file re-emit (`sanctioned-writes.md`, item 2):
 
 ```bash
-S=.claude/scripts/script-prd-stamp.sh
-bash "$S" <prd-path> staging-signoff "$(date -u +%Y-%m-%d)@${CERTIFIED_SHA}"   # CERTIFIED_SHA from Step 3
+P=.claude/scripts/script-prd-stamp.sh
+bash "$P" <prd-path> staging-signoff "$(date -u +%Y-%m-%d)@${CERTIFIED_SHA}"   # CERTIFIED_SHA from Step 3
 ```
 
 - Value shape `<YYYY-MM-DD>@<sha>` — today's date **and the certified sha**, full

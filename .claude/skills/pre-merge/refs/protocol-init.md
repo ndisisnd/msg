@@ -1,18 +1,22 @@
 ---
 name: pre-merge-protocol-init
-description: Spec for /pre-merge --init and --update — run the preflight checks, cross-reference nulls against the Step-0 required_buckets, interview + gated-install the gaps OSS-first, assemble the delta-only components[] manifest in devkit/policy.json, and scaffold the devkit/ENV.md env contract.
+description: Spec for pre-merge setup (runs inline on the first /pre-merge run, then the gate continues) and /pre-merge --update — run the preflight checks, classify nulls against the catalog's applicability for the repo's platforms, ask the real gaps in batches, gated-install them OSS-first, assemble the delta-only components[] manifest in devkit/policy.json, and scaffold the devkit/ENV.md env contract.
 type: reference
 ---
 
-# `/pre-merge --init`
+# pre-merge setup (first run) and `/pre-merge --update`
 
-The setup half of the pre-merge gate. It **detects** each step's tooling, **interviews** the user
+The setup half of the pre-merge gate. **It runs by itself on the first `/pre-merge`
+run** — no `components[]` in `devkit/policy.json` ⇒ setup runs inline in the main
+conversation, saves `devkit/policy.json`, then **the gate continues in the same run**
+(`executor.md` §0). There is no separate setup command; to redo or refresh setup, run
+`/pre-merge --update`. It **detects** each step's tooling, **interviews** the user
 about the real gaps, **offers to install** the missing pieces (gated, per-item, OSS-first), and
 **records** every decision into `devkit/policy.json` — turning today's silent "no tooling → skip"
 into an explicit, persisted `components[]` decision the gate reads at run time.
 
-`--init` **never runs the gate, never opens a PR, never merges, never deploys, and never writes
-`devkit/PLATFORMS.md`**. Its only outputs are repo mutations under explicit per-item
+Setup itself **never opens a PR, never merges, never deploys, and never writes
+`devkit/PLATFORMS.md`** (the gate that follows a first-run setup runs as usual). Its only outputs are repo mutations under explicit per-item
 approval (binaries, stub configs) and the `policy.json` write.
 
 The `devkit/policy.json` schema, status vocabulary, validation rules, and gate read-contract are
@@ -21,10 +25,9 @@ anything schema-shaped and never redefines it.
 
 ---
 
-## Shared `--init` contract
+## Shared setup contract
 
-Both gate skills run the same seven-step contract (canonical text: the plan's "Shared `--init`
-contract"). Pre-merge's flavor:
+Both gate skills run the same seven-step setup contract. Pre-merge's flavor:
 
 1. **Prerequisites** — `jq` (the detector needs it) and a `git` remote. Offer `brew install jq` if
    missing; without a remote, note that PR-shaped steps are inert. (`gh` auth is merge's
@@ -32,18 +35,31 @@ contract"). Pre-merge's flavor:
 2. **Load or seed** the policy file — read `devkit/policy.json` if present (re-run = update in
    place, never overwrite from scratch); else start empty.
 3. **Detect** — run the `script-preflight-*.sh` family (the preflight ingestion below) and resolve the platform profile.
-4. **Interview** — one `AskUserQuestion` per real **tooling gap** only. Component tuning
-   questions are seeded with their documented default instead of being asked
-   (§ *Component questions are seeded, not asked*), and `policies.test_selection` is not
-   raised at all. Every answer is recorded, including "skip" and "N/A", so the choice is
-   durable and the next run does not re-ask.
+4. **Interview — in batches, gaps only** (§ *Interview + gated-install flow*). Up to **4**
+   related questions per `AskUserQuestion` prompt, each with the recommended default as
+   its first option. A question detection already answered is **not asked**. The tuning
+   questions (mobile matrix, a11y, regression composition) are asked in the same
+   batches when detection left them open — never postponed, never dropped
+   (§ *Component questions*). `policies.test_selection` is not raised at all. Every
+   answer is recorded, including "skip" and "N/A", so the choice is durable and the
+   next run does not re-ask. A new repo expects about 2–3 prompts.
 5. **Offer install** — for each gap the user wants filled, run the OSS-first command, gated
    per-item. A tool installed this run is persisted as `ready` — never `installed` (that
    is a transient terminal-display state only; see policy-schema.md's status vocabulary).
 6. **Write** `devkit/policy.json` via `.claude/scripts/script-policy-set.py` — the one
-   sanctioned writer. It stamps `generated` + `generated_by` from the system clock (`--stamp-by "pre-merge --init"`) and flips `init:true`. The written file must re-load
-   with **zero** validation warnings. Scaffold `devkit/ENV.md` in the same pass.
-7. **Summary** — a step→status table to the terminal. No gate run, no PR, no merge.
+   sanctioned writer — as the **last** write of setup, with `--set init=true` and
+   `--stamp-by "pre-merge setup"` (stamps `generated` + `generated_by` from the system
+   clock). `--stamp-by` alone never sets `init`; the explicit `--set init=true` is what
+   flips it. The written file must re-load with **zero** validation warnings. Scaffold
+   `devkit/ENV.md` in the same pass.
+7. **Commit, then summary** — commit the setup outputs on the feature branch as **one**
+   commit, `chore(pre-merge): setup`, staging explicit paths only: `devkit/policy.json`,
+   `devkit/ENV.md`, each approved stub config and workflow file, and any dependency
+   manifest or lockfile an approved install changed. Nothing else is staged; an output
+   the user did not approve is never committed. Then print a step→status table to the
+   terminal and **continue into the gate** (first run) or end (`--update`). The gate
+   needs a clean tree, so a first run never enters it with setup files uncommitted.
+   Setup opens no PR and merges nothing.
 
 ---
 
@@ -52,8 +68,8 @@ contract"). Pre-merge's flavor:
 The `script-preflight-*.sh` family emits one normalized detect report per component, together
 covering the full fingerprint of detected tooling — one slot per runner (the probe primitives
 live in `script-check-common.sh`).
-**Every `null`/`no_tooling` slot is a candidate gap.** `--init` does not re-detect by hand; it
-reads the reports and the Step-0 profile, then classifies.
+**Every `null`/`no_tooling` slot is a candidate gap.** Setup does not re-detect by hand; it
+reads the reports and the repo's target platforms, then classifies.
 
 **Detector slot → component `id`** (the `components[]` entry the detection lands in —
 one entry per catalog row; the slot names are the catalog's `run` column):
@@ -73,48 +89,46 @@ one entry per catalog row; the slot names are the catalog's `run` column):
 | `security_scanners[]`, `secret_scanner` | `security` |
 | _(static SQL scan — no runner slot)_ | `migration` |
 | _(subagent — no runner slot)_ | `prd-consistency` · `manual-test-plan` |
-| _(`.github/workflows/*.yml` presence — no runner slot)_ | **`steps.ci`** — the one non-component key `--init` writes |
+| _(`.github/workflows/*.yml` presence — no runner slot)_ | **`steps.ci`** — the one non-component key setup writes |
 
-**Cross-reference against `required_buckets`.** Resolve the Step-0 profile from `devkit/PLATFORMS.md` (`refs/platform-profiles.md`): a `null` slot is only a **gap** if its component is in the profile's
-`required_buckets`. A `null` slot whose component is **not** required (e.g. `a11y` on a backend-only
-repo) is *correctly absent* — propose it as `n/a`, never nag it as a gap (territory). The
-`security` and `migration` safety-floor steps run in every profile, so their nulls are always real
-gaps, never `n/a`.
+**Cross-reference against the catalog's applicability.** Read the repo's target platforms
+from `devkit/PLATFORMS.md` (the `platform` column): a `null` slot is only a **gap** if the
+component's catalog `platforms` applicability covers one of those targets
+(`../../shared/refs/component-catalog.md` — the same rule as the executor's coverage-gap
+check, `executor.md` §1b). A `null` slot whose component does **not** apply (e.g. `a11y` on a
+backend-only repo) is *correctly absent* — propose it as `n/a`, never nag it as a gap. The
+platform profile never decides this: it only sets strictness (`platform-profiles.md`). The
+`security` and `migration` safety-floor steps apply everywhere, so their nulls are always
+real gaps, never `n/a`.
 
-> `migration` has no external binary — it's pre-merge's static SQL-safety scan. `--init` records it
+> `migration` has no external binary — it's pre-merge's static SQL-safety scan. Setup records it
 > `ready` when the diff surface warrants it and `n/a` for repos with no migrations; there is
 > nothing to install.
 
-> **Component questions are seeded, not asked (default-and-defer).** Several components
-> can be *tuned* by a project fact — `mobile`'s target `{platform, os}` matrix, `a11y`'s
-> enablement/criticality, `regression`'s `needs_env` composition. **`--init` asks none of
-> them.** It records the documented sane default silently and moves on, because a repo
-> that has never run the gate has no basis to answer, and nine upfront questions are the
-> most expensive part of first-run setup.
+> **Component questions — asked in the same batches, only when detection left them
+> open.** Several components can be *tuned* by a project fact. Setup asks these in the
+> interview batches, recommended default first, and skips any that detection answered:
 >
-> | Component | Seeded default at `--init` | Asked when |
+> | Component | Asked when | Recommended default (first option) |
 > |---|---|---|
-> | `mobile` | the matrix detection resolved (`.flutter-test-matrix.json` / project settings); nothing declared ⇒ no enforced matrix | the first gate run where `mobile` actually activates |
-> | `a11y` | the catalog default (`blocking`) for a UI surface | the first gate run where `a11y` actually activates |
-> | `regression` | `needs_env` resolved from the suite's composition; ambiguous ⇒ `false` | the first gate run where the resolution is still ambiguous |
-> | `migration` | no `hot_tables[]` — lock findings keep flat severity | only if the project asks for size-aware grading |
-> | `load` | no declared `traffic_mix` — the runner's own profile is used | only if the project asks for a declared mix |
-> | `api` | no `consumers[]` — breaking-change findings name endpoint + change | only if the project asks for consumer-named findings |
+> | `mobile` | the repo ships iOS/Android and detection found no matrix (`.flutter-test-matrix.json` / project settings) | no enforced matrix |
+> | `a11y` | the repo has a UI surface | the catalog default (`blocking`) |
+> | `regression` | the suite's composition is ambiguous (`needs_env`) | `false` |
+> | `migration` | never — no `hot_tables[]`; lock findings keep flat severity | — (set later via `--update` if the project wants size-aware grading) |
+> | `load` | never — no declared `traffic_mix`; the runner's own profile is used | — (`--update` on request) |
+> | `api` | never — no `consumers[]`; breaking-change findings name endpoint + change | — (`--update` on request) |
 >
-> **Ask-on-first-activation.** The first time a component actually runs in a gate run
-> with its question unanswered, the gate prints **one** line naming the tuning it could
-> use and the command that records it — *"`a11y` ran on its default (blocking); run
-> `/pre-merge --update` to set its project-level enablement."* The answer is written by
-> `--update` through its existing approved-delta path, so **the gate stays a pure
-> reader** — it never writes `policy.json`. One nudge per component per repo; the
-> defaults keep working if it is ignored forever.
+> The gate stays a pure reader of these answers — it never writes `policy.json`.
 
 > **Env provisioner (C23).** When any `needs_env: true` component is present
 > (catalog `env` column — integration, migration, e2e, a11y, perf, load, smoke, mobile,
-> api-live), `--init` **detects** the project's sandbox provisioner candidates —
+> api-live), setup **detects** the project's sandbox provisioner candidates —
 > `docker-compose*.yml` / a testcontainers dep / an ephemeral-DB-branch CLI (e.g.
-> Neon/`pg_tmp`) / a deploy command / a mobile simulator — and asks **one**
-> `AskUserQuestion` to confirm the pick (or declare one, or skip). When **two**
+> Neon/`pg_tmp`) / a deploy command / a mobile simulator — and asks **one** question in
+> the interview batches to confirm the pick (or declare one, or skip); a single clear
+> candidate is the recommended first option. It also records the migration
+> framework's up/down commands for the round-trip (`platform/protocol-migration.md`
+> § *Round-trip*) on the `migration` component's tooling. When **two**
 > candidates apply at once (full-stack mobile: a simulator **and** a compose backend),
 > record a composite **`stacks[]`** — one logical sandbox, both stacks. The answer is
 > written into **`devkit/ENV.md`** — the committed env-setup contract
@@ -128,7 +142,7 @@ gaps, never `n/a`.
 > `[USER: …]` placeholder — naming exactly what to put there — wherever it didn't.
 > `ENV.md` is **committed** (not gitignored): it is documentation.
 >
-> Alongside it, `--init` detects/asks for the **committed seed script** (S-Q1:
+> Alongside it, setup detects/asks for the **committed seed script** (S-Q1:
 > migrate-from-zero + versioned fixture — never a prod-like snapshot) and the optional
 > `perf`/`load` **`scale_factor`**, and may offer the companion stubs
 > ([`stubs/docker-compose.test.yml`](stubs/docker-compose.test.yml),
@@ -142,11 +156,10 @@ gaps, never `n/a`.
 > without a seed script is also recorded and flagged loudly. The provisioner itself may
 > be an install offer (e.g. Docker absent) under the normal per-item gate.
 
-> **Regression suite composition.** `--init` resolves **`regression.needs_env`** from the
+> **Regression suite composition.** Setup resolves **`regression.needs_env`** from the
 > accumulated suite's composition: integration-level tests (DB/network-touching —
 > detectable from the suite's imports/markers) → `true`; a pure-unit suite → `false`;
-> **ambiguous → `false`, recorded, and re-resolved on the first run that proves
-> otherwise** (no upfront question). `--update` re-resolves it as a fact when the
+> **ambiguous → asked in the interview batches** (recommended: `false`). `--update` re-resolves it as a fact when the
 > suite's composition changes.
 
 > `ci` has no runner slot either — it's the **CI workflow** that runs the gate on the PR and
@@ -159,7 +172,7 @@ gaps, never `n/a`.
 > ```
 >
 > Empty result → gap: nothing runs the gate on the PR, so "all checks green" is **vacuously true**
-> and branch protection has no check to require. Present → record `ci` as `ready`. `--init`
+> and branch protection has no check to require. Present → record `ci` as `ready`. Setup
 > **scaffolds** the workflow (below) but never edits an existing one; if a workflow exists but
 > looks unrelated to the gate, record `ready` and note it rather than overwriting.
 >
@@ -174,14 +187,14 @@ gaps, never `n/a`.
 > notice CI that exists.
 >
 > Otherwise `ci` is a repo-wide floor (like `security`/`migration`), so its gap is always real —
-> never `n/a`. `--init` never writes `policies.github_actions`; that decision belongs to
+> never `n/a`. Setup never writes `policies.github_actions`; that decision belongs to
 > `/msg --init` / `/msg --update` and is only read here. `steps.ci` stays this protocol's own key
 > (merge reads it, never writes it).
 
 **Covered:** every catalog component (`component-catalog.md`), plus the cross-cutting `ci`
 workflow. The `deploy_staging` / `deploy_production` / `smoke` **step-keys** are
-**merge's** — pre-merge `--init` leaves them untouched. (merge `--init` *reads*
-the `ci` record at item 2 but never writes it — see its `protocol-init.md`.)
+**merge's** — pre-merge setup leaves them untouched. (merge's setup *reads*
+the `ci` record but never writes it — see its `protocol-init.md`.)
 
 ---
 
@@ -189,19 +202,19 @@ the `ci` record at item 2 but never writes it — see its `protocol-init.md`.)
 
 Every gap the detector surfaces is one of these flavors, read off the detector's own signals (plus, for `ci`, the `policies.github_actions` decision):
 
-| Flavor | How the detector shows it | `--init` action | Recorded status |
+| Flavor | How the detector shows it | Setup action | Recorded status |
 |---|---|---|---|
 | **Binary missing** | `command -v` slot empty (gitleaks, semgrep, trivy, k6, hurl, osv-scanner…) | offer the install command (per-item, gated) | `ready` on install · `deferred`/`opted_out` on decline |
 | **Config missing** | dep may exist but no `eslint.config.*` / `playwright.config.*` / `.semgrep.yml` etc. | scaffold a **minimal stub config** + the dep | `ready` on scaffold · `deferred`/`opted_out` on decline |
 | **Workflow missing** | no `.github/workflows/*.yml` triggers on `pull_request` (the `ci` gap) **and** `policies.github_actions.enabled ?? true` is true | scaffold `pre-merge.yml` with the detected gate commands substituted in | `ready` on scaffold · `deferred`/`opted_out` on decline |
 | **Actions opted out** | same detector signal, but `policies.github_actions.enabled` is `false` | not a gap — offer nothing, report nothing missing | `opted_out` (the policy's `reason`) |
-| **N/A for surface** | slot `null` **and** the component is **not** in `required_buckets` | record only — offer nothing | `n/a` (with `reason`) |
+| **N/A for surface** | slot `null` **and** the component's catalog applicability covers none of the repo's target platforms | record only — offer nothing | `n/a` (with `reason`) |
 
 Declining any offered install always records `opted_out` (won't revisit) or `deferred` (will
 revisit) **with a `reason`** and installs nothing. Both non-`ready` statuses require a
 `reason` per the schema.
 
-**Secret scanner — the safety-floor exception (C9).** The `security` secret scanner (gitleaks/trufflehog) is **not** an ordinary declinable tool. `--init` **strongly offers** it and,
+**Secret scanner — the safety-floor exception (C9).** The `security` secret scanner (gitleaks/trufflehog) is **not** an ordinary declinable tool. Setup **strongly offers** it and,
 if the user declines, records the decision as an explicit **safety-floor gap** (not a quiet
 `opted_out`): the interview states that **the gate will `blocker` on every run until a secret
 scanner is configured** — there is no green-gate path without secret-scan coverage (`refs/universal/protocol-security.md`, C9). The **install itself still goes through per-item
@@ -213,9 +226,9 @@ ordinary best-effort gap — declining it is a plain note, not a floor gap.
 
 ## OSS-first install catalog
 
-**Reputable, open-source, free only.** `--init` offers the Preferred tool first, the OSS fallback if
+**Reputable, open-source, free only.** Setup offers the Preferred tool first, the OSS fallback if
 the user prefers it, and **never auto-offers a paid/SaaS tool**. When a step's only real
-option is paid, `--init` **names it, explains why**, and records `deferred`/`opted_out` with the paid
+option is paid, setup **names it, explains why**, and records `deferred`/`opted_out` with the paid
 tool named in `reason` — it never installs it.
 
 | Step / slot | Preferred (OSS, free) | Fallback (OSS) | Flagged paid — **not** auto-offered |
@@ -243,8 +256,12 @@ tool named in `reason` — it never installs it.
 
 ## Interview + gated-install flow
 
-For each real gap (after the `required_buckets` cross-reference), `--init` asks **one
-`AskUserQuestion`** — never a bulk prompt, never a bulk install:
+Ask the real gaps (after the applicability cross-reference) **in batches**: up to **4
+related questions per `AskUserQuestion` prompt** (for example the mechanical tools in one
+prompt, the test runners in the next), each question with the **recommended default as
+its first option**. **Skip every question detection already answered.** Each question
+is still its own choice — a batch is never a bulk "install all", and every install is
+still approved per item:
 
 - **Offer choices** = the catalog's Preferred and Fallback for that slot, plus a **Skip** option.
 - **Install** (Preferred/Fallback chosen) → run the OSS-first command for the picked tool; on
@@ -265,7 +282,7 @@ For each real gap (after the `required_buckets` cross-reference), `--init` asks 
 - **Paid-only slot** → present the free `deferred`/`opted_out` path only; name the paid tool in the
   `reason`. Never an install button.
 
-**Re-run behavior.** A second `--init` reads the existing `policy.json` and updates it in
+**Re-run behavior.** `--update` reads the existing `policy.json` and updates it in
 place. A step already `opted_out` is **not** re-prompted unless the user explicitly asks to
 re-tune. Answers persist across runs precisely so the interview shrinks each time.
 
@@ -273,7 +290,7 @@ re-tune. Answers persist across runs precisely so the interview shrinks each tim
 
 ## Minimal-stub config scaffolding
 
-For the **config-missing** flavor, `--init` copies a **minimal runnable stub** — just enough that the
+For the **config-missing** flavor, setup copies a **minimal runnable stub** — just enough that the
 gate can execute the tool on the next run (not a curated house style). The templates live in
 [`stubs/`](stubs/) (see [`stubs/README.md`](stubs/README.md) for the full stub→step→dep map):
 
@@ -288,10 +305,14 @@ gate can execute the tool on the next run (not a curated house style). The templ
 | `.size-limit.json` | perf (bundle) | `size-limit` + `@size-limit/preset-app` |
 | `pre-merge.yml` → `.github/workflows/` | ci | — (no dep; substitute the detected gate commands) |
 
-`pre-merge.yml` is the one stub that is **command-dependent**: `--init` copies it to
-`.github/workflows/pre-merge.yml`, then substitutes the `mechanical` / `unit` / `security`
-commands it detected (from the fingerprint) into the `[init: …]` placeholders and drops any step
-whose component the repo lacks. It installs no dependency of its own. Everything else about the gated,
+`pre-merge.yml` is the one stub that is **command-dependent** and **language-dependent**:
+setup copies it to `.github/workflows/pre-merge.yml`, keeps **only** the `setup:` block that
+matches the detected language (node / python / go / rust / flutter — for node, the detected
+package manager's install command), deletes the other blocks, substitutes the `mechanical` /
+`unit` / `security` commands it detected (from the fingerprint) into the `[setup: …]`
+placeholders, and drops any step whose component the repo lacks. A language with no block
+keeps the `setup: other` placeholder, and the summary names it as the one line to fill in.
+The scaffolded file never ships Node steps into a non-Node repo. It installs no dependency of its own. Everything else about the gated,
 per-item `AskUserQuestion` approval is identical to a config stub.
 
 `.semgrep.yml` is intentionally **not** stubbed — semgrep runs with `--config auto` (its OSS
@@ -299,11 +320,11 @@ ruleset) when no project config exists, so no scaffold is needed.
 
 Scaffolding is a mutation, so it is **gated by the same per-item `AskUserQuestion`** as a binary
 install — the user approves the config write explicitly. The dep is installed alongside the stub so
-the pairing is runnable. `--init` should confirm a copied stub matches the installed tool version (pinned schema/toolchain refs can drift).
+the pairing is runnable. Setup should confirm a copied stub matches the installed tool version (pinned schema/toolchain refs can drift).
 
 ---
 
-## Recording each decision and flipping `init`
+## Recording each decision and setting `init: true`
 
 Every decision lands on its **`components[]` entry's `status`**, using the persisted
 vocabulary — **the schema, statuses, and required-field rules are defined in
@@ -312,16 +333,22 @@ vocabulary — **the schema, statuses, and required-field rules are defined in
 - **installed / already present** → `ready` (+ the resolved `run` and `tooling`).
 - **user skipped, won't revisit** → `opted_out` (+ `reason`), `present:false`.
 - **user skipped, will revisit / paid-only** → `deferred` (+ `reason`), `present:false`.
-- **not in `required_buckets`** → `n/a` (+ `reason`), `present:false`.
+- **not applicable to the repo's platforms** → `n/a` (+ `reason`), `present:false`.
 - **known unresolved gap left as-is** → `no_tooling` (+ `reason`), `present:false`.
 
-The one **`steps`** key `--init` writes is `ci` (`../../shared/refs/policy-schema-merge.md` § `steps.<key>`) — merge's green-CI
+The one **`steps`** key setup writes is `ci` (`../../shared/refs/policy-schema-merge.md` § `steps.<key>`) — merge's green-CI
 check reads it. Pre-merge itself never consults `steps`.
 
-On completion `--init` **flips `init:true`** (from the `{init:false}` seed `/msg --init` wrote)
-and stamps `generated` + `generated_by: "pre-merge --init"` — all three via
-`.claude/scripts/script-policy-set.py --stamp-by "pre-merge --init"`, which dates the file
-from the system clock. `--init`'s job is to *record*; the gate's job is to *read*.
+On completion setup **writes `init: true`** (over the `{init:false}` seed `/msg --init` wrote)
+and stamps `generated` + `generated_by: "pre-merge setup"` — in one final call:
+
+```bash
+.claude/scripts/script-policy-set.py --file devkit/policy.json \
+  --set init=true --stamp-by "pre-merge setup"
+```
+
+`--stamp-by` alone never touches `init`, so the explicit `--set init=true` is required.
+Setup's job is to *record*; the gate's job is to *read*.
 
 The written file must round-trip clean — re-loading it in a gate run produces **zero** validation
 warnings. Never write `installed`, and never write a `steps` key other than `ci`.
@@ -330,7 +357,7 @@ warnings. Never write `installed`, and never write a `steps` key other than `ci`
 
 ## Preflight ingestion → `components[]`
 
-`--init` runs a preflight-driven assembly step: it runs the `script-preflight-*.sh`
+Setup runs a preflight-driven assembly step: it runs the `script-preflight-*.sh`
 family, ingests their normalized reports, and writes the `components[]` manifest into
 `devkit/policy.json`. The per-check `script-preflight-*.sh` family is the only detector;
 the executor reads each component's resolved `run` from the manifest and every
@@ -371,15 +398,15 @@ detected) and **before** the write:
    sanctioned `policy.json` writer — never a hand-authored edit.
 5b. **Scaffold `devkit/ENV.md`** from the provisioner interview (below) — a devkit
    doc, not a policy key.
-6. **Everything `--init` already did stays:** the interview, the gated per-item install,
-   and the `init:true` flip on completion.
+6. **Everything else setup does stays:** the batched interview, the gated per-item
+   install, and the final `--set init=true` write.
 
 ---
 
 ## Enabling the flag — the test-selection interview (`policies.test_selection`)
 
 Test selection is **opt-in and off by default** — an absent key means the gate runs
-full suites, which is the safe shape. So `--init` **does not ask about it**: it seeds
+full suites, which is the safe shape. So setup **does not ask about it**: it seeds
 nothing, explains nothing, and adds no key. The interview below runs **on request** —
 `/pre-merge --update` or `/msg --update`, or whenever the user asks to stop paying for
 the whole suite on every run. Schema + read-contract:
@@ -400,7 +427,7 @@ needs the resolved `run_minified` slots and the detected platforms), as **one**
    never **whether**. Say both halves — the win and the deferral — in the same
    breath.
 2. **Verify the backstop before accepting it.** `full_run_backstop` is required
-   when `enabled:true`, and `--init` checks the named one actually exists:
+   when `enabled:true`, and the interview checks the named one actually exists:
 
    | `full_run_backstop` | Verified by |
    |---|---|
@@ -416,12 +443,10 @@ needs the resolved `run_minified` slots and the detected platforms), as **one**
    `false` — the decision stays the user's.
 4. **On enable — run the initial tagging pass** so the critical floor is non-empty
    from day one instead of accumulating over the first N PRDs. This is
-   `refs/protocol-update-criticality.md` in **full-inventory mode** (§§1–4 with no
-   `criticality_review` stamp to diff against): propose with cited evidence → one
-   reviewable gate → write the approved markers as one
-   `test(criticality): tag prd-<n>..<m> additions` commit → stamp
-   `criticality_review`. Same machinery, same human gate — not a second
-   implementation.
+   `protocol-criticality.md` in **full-inventory mode** (§§1–3 with no
+   `criticality_review` stamp to diff against): tag with cited evidence → one
+   `test(criticality): …` commit → stamp `criticality_review`. Same machinery as the
+   gate's automatic pass (`executor.md` §3c.4) — not a second implementation.
 5. **Write the key** — `enabled`, `reason`, `full_run_backstop`, plus the
    catalog-defaulted `force_full_paths` / `tiers` / `max_affected_ratio` /
    `critical_markers` resolved for the detected platforms ([`../../shared/refs/component-catalog.md`](../../shared/refs/component-catalog.md)).
@@ -446,7 +471,7 @@ feature created is **inert by design** when the key is off:
 | critical tags in test code / `Critical.xctestplan` / `@Critical` annotations | inert markers — a runner ignores them unless invoked with the selection filter; harmless to keep, instantly reusable on re-enable |
 | `components[].run_minified` | never consulted — the executor's §3c rule is only entered when selection resolves on; it runs `run` |
 | `tiers`, `force_full_paths`, `critical_markers`, the `criticality_review` stamp | dead config — read **only** inside the selection path |
-| staleness nudge + untagged-test count | not computed — the count is taken only on a minified run |
+| critical-test tagging pass (`executor.md` §3c.4) | not run — it runs only when selection is on |
 | verdict `test_selection` block / pipeline-line suffix | absent — emitted only when selection actually ran |
 
 The disable run ends with a **one-line retained-inert audit** naming what remains
@@ -472,11 +497,18 @@ reconciles **facts about the code**, never settled policy choices.
    flipped (tool added/removed), which `active_when` surface appeared/vanished (first
    migration, new API/mobile surface), any newly-detected component not yet in the
    manifest.
-3. **Present the delta for approval BEFORE writing** — a compact
-   added/changed/removed table; nothing is written until the user approves.
+3. **Present the delta for approval BEFORE writing** — one line per change in the
+   shared change-list format (`pre-merge · <key>: <old> → <new>`,
+   `../../msg/refs/protocol-update.md` § *The shared change-list format*); nothing is
+   written until the user approves. **Inside `/msg --update`** this step only returns
+   the lines: `/msg --update` shows them with msg's and merge's and asks the one
+   approval, and steps 4–6 then run without a second question.
 4. **Apply only**:
    - `present` flips (a runner appeared or disappeared),
-   - `active_when` flips (a surface appeared or disappeared),
+   - `active_when` changes — an approved trigger change is written as the entry's own
+     `active_when` override in `components[]`, which `script-pipeline-resolve.py` reads
+     before the catalog default, so it takes effect on the next run
+     (`../../shared/refs/policy-schema-pre-merge.md` § *optional per-entry overrides*),
    - **new** components, seeded with **catalog defaults**,
    - `regression.needs_env` re-resolution (C23 — the suite's composition changed) — a **fact**, re-detected like `present`,
    - **`devkit/ENV.md` deltas** — a compose file appeared, a seed script moved, a
@@ -490,33 +522,28 @@ reconciles **facts about the code**, never settled policy choices.
    key's **factual** halves (a `run_minified` that appeared or vanished, a
    newly-detected platform's `critical_markers` default) and it is where an
    **explicit** enable/disable is performed (§ *Enabling the flag* — the disable is complete in this one run).
-5. **Fill genuinely-new gaps** by reusing `--init`'s gated per-item install/scaffold
-   offer — a newly-detected-but-untooled component follows the same
-   OSS-first `AskUserQuestion` path.
+5. **Fill genuinely-new gaps** by reusing setup's batched, gated per-item
+   install/scaffold offer — a newly-detected-but-untooled component follows the same
+   OSS-first path.
 6. **Restamp `source_signature`** and stamp `generated_by: "pre-merge --update"`
    — both via `.claude/scripts/script-policy-set.py`. Re-validate the DAG
-   before writing. `--update` writes no pre-merge `steps` entry; it only touches the
-   merge-owned `ci`/`deploy_*`/`smoke` step-keys, same as `--init`.
+   before writing. `--update` writes no step-key other than `ci`, same as setup.
 
-`--update` never runs the gate, opens a PR, merges, or deploys — same boundaries as
-`--init`. A `policy.json` with no `components[]` is an `--init` case, not
-`--update` (there's nothing to reconcile against) — `--update` says so and points to
-`--init`.
+`--update` never runs the gate, opens a PR, merges, or deploys. A `policy.json` with no
+`components[]` has nothing to reconcile against, so `--update` runs the full setup
+instead (and ends after the save — it does not continue into the gate).
 
-### Gate staleness nudges (read-only — the gate never writes)
+### Gate staleness nudge (read-only — the gate never writes policy)
 
-Two nudges exist and neither lives here: the **manifest** nudge (`source_signature`
-mismatch → *"pipeline may be stale — run `/pre-merge --update`"*) is stated in
-`refs/executor.md` §0, and its **test-tree sibling** (untagged tests since the last
-`criticality_review`) in `refs/protocol-update-criticality.md` § *Staleness nudge*.
-Both print one line and proceed; the gate reads, `--init`/`--update`/
-`--update-criticality` write.
+The **manifest** nudge (`source_signature` mismatch → *"pipeline may be stale — run
+`/pre-merge --update`"*) is stated in `executor.md` §0. It prints one line and
+proceeds; setup and `--update` write.
 
 ---
 
-## Boundaries (what `--init` never does)
+## Boundaries (what setup never does)
 
-- Never runs the pre-merge protocol, opens a PR, merges, or deploys.
+- Never opens a PR, merges, or deploys (on a first run, the gate that follows is a normal gate run).
 - Never writes `devkit/PLATFORMS.md` — it *reports* PLATFORMS.md-shaped gaps and delegates to
   `/msg --init` (that file stays `/msg --init`'s; policy-schema.md's writer table has the boundary).
 - Never installs a paid/SaaS tool.
@@ -524,7 +551,8 @@ Both print one line and proceed; the gate reads, `--init`/`--update`/
 - Never writes `policies.github_actions` — it only *reads* it to decide whether the missing `ci`
   workflow is a gap or a settled opt-out (and to verify a `ci` backstop, § *Enabling the flag*).
   Changing that decision is `/msg --update`'s job. `policies.test_selection` is the asymmetric
-  case: pre-merge `--init`/`--update` **do** write it (shared with `/msg --update`), because the
+  case: pre-merge setup/`--update` **do** write it (shared with `/msg --update`), because the
   interview that sets it needs the resolved manifest.
-- Never writes a **critical tag** into a test file — that is `--update-criticality`'s write (`refs/protocol-update-criticality.md`), which `--init` only *invokes* for the initial tagging
-  pass under its own human gate.
+- Never writes a **critical tag** itself — tags are written by the critical-test tagging pass
+  (`protocol-criticality.md`), which setup only *invokes* for the initial tagging pass when
+  test selection is enabled.

@@ -29,7 +29,7 @@ retired). In v3 the executor reads each component's resolved `run` from the
 ```
 
 - `diff` — from `pre-merge/scripts/script-resolve-diff.sh <base>`.
-- `tooling` — **superseded in v3**: tooling is resolved at `--init`/`--update` into each
+- `tooling` — **superseded in v3**: tooling is resolved at setup/`--update` into each
   component's `run` command in `devkit/policy.json` `components[]` (via the
   `script-preflight-*.sh` family), which the executor reads directly. The prelude no
   longer caches a tooling fingerprint (the field stays `null` for back-compat); it caches
@@ -37,7 +37,7 @@ retired). In v3 the executor reads each component's resolved `run` from the
 
 ## Freshness key
 
-`head` (`rtk git rev-parse HEAD`) **plus** `base` (the diff base/range). Fresh ⟺
+`head` (`git rev-parse HEAD`) **plus** `base` (the diff base/range). Fresh ⟺
 both equal the current run's HEAD and base. Any mismatch, missing file, or
 unparseable JSON → **stale**.
 

@@ -32,7 +32,7 @@ needs lives beside the half a machine needs.
 
 | Actor | Does |
 |---|---|
-| `pre-merge --init` | **scaffolds** it — detects the provisioner and fills what it can; writes `[USER: …]` placeholders where detection failed |
+| pre-merge setup (first `/pre-merge` run) / `--update` | **scaffolds** it — detects the provisioner and fills what it can; writes `[USER: …]` placeholders where detection failed |
 | `pre-merge --update` | **re-detects and proposes deltas** (a compose file appeared, a seed script moved) under the normal approved-delta write |
 | `pre-merge` gate run | **reads only** (executor §3b). Never writes — the Fork E pattern |
 | `merge` | **reads only** — the same fenced block, same shape (schema shared, machinery not) |
@@ -106,15 +106,16 @@ Fail-safe throughout; **absence is never a validation error, and never a silent 
 | present, **any consumed verb is a `[USER: …]` placeholder** | `provisioner: "none"` | the loud `sandbox-unprovisioned` degrade, naming the placeholder line to fill |
 | present, `provisioner: "none"` | `none` | the loud degrade |
 | present, **no `env` fence** or the fence is unparseable JSON | `none` | the loud degrade + one line naming the malformed file |
-| **absent** | `none` | the loud degrade + a line naming `/pre-merge --init` |
+| **absent** | `none` | the loud degrade + a line naming `/pre-merge --update` |
 
 The **loud degrade** is unchanged from the pre-`ENV.md` behaviour (AC-SBX6, the D28
 safety-floor pattern), defined once in `pre-merge/refs/executor.md` §3b:
 
 - **Non-destructive** env-needing checks run against the **ambient** environment, each
   carrying a `high` finding (`rule: sandbox-unprovisioned`, `source: pre-merge:executor`).
-- **Destructive** checks (the migration up→down→up round-trip) are **skipped-with-note** —
-  never run against shared state.
+- **Destructive or server-bound** checks (the migration up→down→up round-trip and the
+  live API check) are **not run** and report *"not run: no sandbox"* — never run
+  against shared state, never listed as run.
 - A provisioner **without** a `seed_script` runs the sandbox but flags the same loud note
   for seed-dependent realism (`load`/`perf`/`integration` against an empty DB).
 
@@ -127,7 +128,7 @@ the run does not consume (e.g. `reset` on a run with no fix loop) is inert.
 
 ## Companion stubs
 
-`--init` may offer, under the usual per-item approval, the optional starter files in
+Setup may offer, under the usual per-item approval, the optional starter files in
 `pre-merge/refs/stubs/`: `docker-compose.test.yml` and `seed-test.ts` / `seed-test.py`.
 Accepting them fills the corresponding verbs in `ENV.md` so the pairing is runnable
 immediately; declining leaves `[USER: …]` placeholders.

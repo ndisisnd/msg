@@ -24,8 +24,9 @@ app=false
 if [[ -n "$runner" ]]; then
   mk_report smoke 17 platform true ui-or-deploy-surface "$(tooling "$runner")" "platform/protocol-smoke.md" blocking cheap "$DEPS" ready "smoke runner: $runner (runs against the C23 sandbox)"
 elif [[ "$app" == true ]]; then
-  # a runnable app but no explicit smoke suite → default liveness check at gate time (AC-SMK1)
-  mk_report smoke 17 platform true ui-or-deploy-surface "$NO_TOOLING" "platform/protocol-smoke.md" blocking cheap "$DEPS" no_tooling "runnable app surface present, no smoke suite — default liveness check applies (AC-SMK1)"
+  # a runnable app but no explicit smoke suite → the default liveness check IS the runner (AC-SMK1).
+  # status stays `ready`, never `no_tooling`: smoke never skips and is never a coverage gap.
+  mk_report smoke 17 platform true ui-or-deploy-surface "$(tooling "default liveness")" "platform/protocol-smoke.md" blocking cheap "$DEPS" ready "runnable app surface present, no smoke suite — default liveness check runs (AC-SMK1)"
 else
   mk_report smoke 17 platform false ui-or-deploy-surface "$NO_TOOLING" "platform/protocol-smoke.md" blocking cheap "$DEPS" n/a "no runnable app surface — nothing for smoke to probe"
 fi

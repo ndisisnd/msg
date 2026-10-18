@@ -103,7 +103,7 @@ is sanctioned.
 ## Relaying across a subagent boundary
 
 When the orchestrator itself runs inside a subagent — a gate behind a dispatcher
-([`gate-dispatch.md`](gate-dispatch.md)), a `plan-em --team` orchestrator behind
+([`gate-dispatch.md`](gate-dispatch.md)), plan-em's orchestrator behind
 plan-em — its ticks are real and recorded but **nobody sees them**. Only a
 subagent's final return payload reaches the user; its intermediate output does
 not. Two rules make the inner run's progress visible, and both are load-bearing.
@@ -149,25 +149,13 @@ specified in [`agent-watch.md`](agent-watch.md). It stays a mitigation for a sin
 long *foreground* command, which has no leaves to watch and nothing to poll but its
 own log.
 
-## Cadence resolution
+## Cadence
 
-Resolved once at `--start`, highest first — a mid-run policy edit must not move an
-already-open report window:
-
-| Source | Meaning |
-|---|---|
-| `MSG_STATUS_INTERVAL` env var | minutes; `0` disables the heartbeat entirely for this run. Where the per-run `--quiet` / `--status <n>m` flags land |
-| `policies.status_cadence` in `devkit/policy.json` | `{enabled, interval_minutes}`; absent, unreadable or malformed falls through silently |
-| default | enabled, 5 minutes |
-
-The per-run flags are how a human reaches the env var. Before the `--start` call,
-the orchestrator exports it once: `--quiet` → `MSG_STATUS_INTERVAL=0`,
-`--status <n>m` → `MSG_STATUS_INTERVAL=<n>`. Neither flag given, nothing is
-exported and policy decides. No skill parses the interval further than that.
-
-Any resolved interval below **2 minutes** is clamped to 2 with one stderr note — a
-30-second heartbeat on a 40-minute gate is spam, not visibility. `0` is a distinct
-state and is never clamped.
+**Always on, every 5 minutes.** There is no off switch: no per-run flag, no env var,
+no policy key. Every skill with progress messages (pre-merge, eng, plan-em, merge)
+reports on this one cadence. An old `MSG_STATUS_INTERVAL` value or an old
+`policies.status_cadence` key in `devkit/policy.json` is ignored without error. The
+interval is fixed at `--start` and stored with the run.
 
 ## Degradation
 

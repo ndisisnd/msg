@@ -20,9 +20,13 @@
 #   3. downgrade the two path-pattern rules from severity-rubric.md that are
 #                decidable from paths alone: §2 dev-only scope and §4 out-of-diff.
 #                Reachability (§3) and in-context grading stay with the model.
-#   4. verdict   blocker|high → fail · medium|low → pass_with_warnings · none → pass
-#                plus the critical-abort signal when a `critical` component failed
-#   5. counts    per-severity summary + the checks[] roll-up
+#   4. re-grade  apply the model's judgment re-grades and regression marks from
+#                --regrades (executor.md §5b) — the model never computes a verdict
+#   5. verdict   a BLOCKING finding → fail · any other finding → pass_with_warnings
+#                · none → pass, plus the critical-abort signal when a `critical`
+#                component failed. Blocking = blocker|high, except a prd-consistency
+#                finding, which blocks only as `acceptance-unmet` (severity-rubric.md)
+#   6. counts    per-severity summary + the checks[] roll-up
 #
 # It refuses malformed input so a broken component fails loudly instead of silently
 # downgrading the verdict. Components that did not run are simply absent from the
@@ -32,7 +36,7 @@
 # Usage:
 #   script-aggregate-verdict.sh --run-dir <dir>
 #     [--plan <plan.json>] [--diff <resolve-diff.json>]
-#     [--prd <path>] [--eval-set <path>] [--parallel]
+#     [--regrades <regrades.json>] [--prd <path>] [--eval-set <path>] [--parallel]
 #
 #   --run-dir    .pre-merge/<ts>/ — the result reports (required)
 #   --plan       script-pipeline-resolve.py output; supplies each component's
@@ -40,6 +44,13 @@
 #   --diff       script-resolve-diff.sh output; supplies files_changed for the out-of-diff
 #                downgrade. Absent ⇒ that downgrade is skipped (fail open: no
 #                finding is ever weakened on a guess)
+#   --regrades   .pre-merge/<ts>/regrades.json — the model's judgment calls, a JSON
+#                array of {category, file, line, rule, severity?, regression?, reason}.
+#                Each entry matches one deduped issue on (category, file, line, rule);
+#                `severity` replaces its grade, `regression: true` marks it. An entry
+#                that matches nothing is reported in `regrades_unmatched`. Flag absent
+#                ⇒ no re-grades; a path given but missing ⇒ exit 1 (a lost re-grade
+#                file must never pass as "no judgments")
 #   --prd        PRD path, echoed into the document
 #   --eval-set   eval-set path, echoed into the document
 #   --parallel   records that the waves ran concurrently
@@ -48,18 +59,19 @@
 
 set -uo pipefail
 
-RUN_DIR=""; PLAN=""; DIFF=""; PRD=""; EVAL_SET=""; PARALLEL=false
+RUN_DIR=""; PLAN=""; DIFF=""; REGRADES=""; PRD=""; EVAL_SET=""; PARALLEL=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --run-dir)   RUN_DIR="$2"; shift 2;;
     --plan)      PLAN="$2"; shift 2;;
     --diff)      DIFF="$2"; shift 2;;
+    --regrades)  REGRADES="$2"; shift 2;;
     --prd)       PRD="$2"; shift 2;;
     --eval-set)  EVAL_SET="$2"; shift 2;;
     --parallel)  PARALLEL=true; shift;;
     -h|--help)
-      sed -n '2,48p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,60p' "$0" | sed 's/^# \{0,1\}//'
       exit 0;;
     *) echo "unknown arg: $1" >&2; exit 1;;
   esac
@@ -68,6 +80,7 @@ done
 [[ -n "$RUN_DIR" ]] || { echo "--run-dir <dir> is required" >&2; exit 1; }
 [[ -d "$RUN_DIR" ]] || { echo "run-dir not found: $RUN_DIR" >&2; exit 1; }
 command -v jq >/dev/null 2>&1 || { echo "jq is required (brew install jq)" >&2; exit 1; }
+[[ -z "$REGRADES" || -f "$REGRADES" ]] || { echo "regrades file not found: $REGRADES" >&2; exit 1; }
 
 # ── collect + validate the result reports ────────────────────────────────────
 reports=()
@@ -112,6 +125,16 @@ if [[ -n "$PLAN" && -f "$PLAN" ]]; then
   gap_findings=$(jq -c '.gap_findings // []' "$PLAN")
 fi
 
+regrades='[]'
+if [[ -n "$REGRADES" && -f "$REGRADES" ]]; then
+  if ! jq -e 'type == "array"' "$REGRADES" >/dev/null 2>&1; then
+    echo "malformed regrades (expected a JSON array): $REGRADES" >&2; exit 1
+  fi
+  bad=$(jq -r '[.[] | select((.severity // "low") | IN("low","medium","high","blocker") | not)] | length' "$REGRADES")
+  [[ "$bad" == "0" ]] || { echo "invalid severity in regrades: $REGRADES" >&2; exit 1; }
+  regrades=$(jq -c '.' "$REGRADES")
+fi
+
 HEAD_SHA=$(git rev-parse HEAD 2>/dev/null || echo "")
 
 # ── aggregate ────────────────────────────────────────────────────────────────
@@ -120,6 +143,7 @@ jq -n \
   --argjson files_changed "$files_changed" \
   --argjson crit "$criticality_map" \
   --argjson gap_findings "$gap_findings" \
+  --argjson regrades "$regrades" \
   --argjson parallel "$PARALLEL" \
   --arg head "$HEAD_SHA" \
   --arg prd "$PRD" \
@@ -141,6 +165,15 @@ def exempt:
     or ((.category // "") == "build")
     or ((.file // null) == null);
 
+def key: [(.category // ""), (.file // ""), (.line // -1), (.rule // "")];
+
+# severity-rubric.md § PRD-consistency findings — only an unmet acceptance
+# criterion blocks; every other prd-consistency finding is reported, never fails.
+def blocking:
+  ((.severity // "low") == "blocker" or (.severity // "low") == "high")
+  and ((((.source // "") | test("prd-consistency")) | not)
+       or ((.rule // "") == "acceptance-unmet"));
+
 def downgrade:
   if exempt then .
   else
@@ -161,8 +194,21 @@ def downgrade:
       (max_by(.severity | rank)) as $top
       | $top + { source: (map(.source // "") | map(select(. != "")) | unique | join(",")) }
     )
+  # the model judgment re-grades + regression marks (executor.md §5b)
+  | map(. as $i
+        | ([$regrades[] | select(key == ($i | key))] | last) as $r
+        | if $r == null then $i
+          else $i
+               + (if $r.severity then {severity: $r.severity} else {} end)
+               + (if $r.regression == true then {regression: true} else {} end)
+               + (if $r.reason then {regrade_reason: $r.reason} else {} end)
+          end)
   | sort_by([-(.severity | rank), (.category // ""), (.file // ""), (.line // 0)])
   as $issues
+
+| ($issues | map(key)) as $issue_keys
+| [$regrades[] | select((key) as $k | ($issue_keys | index([$k])) == null)]
+  as $unmatched
 
 | ($reports | map({check, group, verdict, totals, runner, log_path, skip_reason}))
   as $checks
@@ -174,7 +220,7 @@ def downgrade:
 
 | {
     verdict:
-      (if ($issues | map(select(.severity == "blocker" or .severity == "high")) | length) > 0
+      (if ($issues | map(select(blocking)) | length) > 0
        then "fail"
        elif ($issues | length) > 0 then "pass_with_warnings"
        else "pass" end),
@@ -197,6 +243,9 @@ def downgrade:
       flaky:   ($reports | map(.totals.flaky   // 0) | add // 0)
     },
     checks: $checks,
+    regressions: ($issues | map(select(.regression == true)) | length),
+    regrades_applied: (($regrades | length) - ($unmatched | length)),
+    regrades_unmatched: $unmatched,
     skipped: ($reports | map(select(.verdict == "skipped")
                              | {bucket: .check, reason: (.skip_reason // "unknown")})),
     issues: $issues

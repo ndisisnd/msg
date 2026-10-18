@@ -1,6 +1,6 @@
 ---
 name: policy-schema-merge
-description: The merge half of the devkit/policy.json schema — branch_protection (§2), staging_readiness, steps.<key> (+ §3), release_model (§4), staging_ready (§5), and the release lock (§6). Pre-merge never loads this file.
+description: The merge half of the devkit/policy.json schema — branch_protection (§2), staging_readiness, policies.merge (risky_paths, ci_wait_minutes), steps.<key> (+ §3), release_model (§4), staging_ready (§5), and the release lock (§6). Pre-merge never loads this file.
 type: reference
 ---
 
@@ -31,15 +31,35 @@ vocabulary and default** — same three modes, same safe default.
 | `mode` | enum `enforced` \| `optional` \| `skip` | ✖ | `enforced` | `enforced` → a recorded gap **refuses** the ship; `optional` → **warns + proceeds**; `skip` → don't guard. Default matches `branch_protection` (`enforced`) — the safe stance |
 | `reason` | string | required when `mode` ≠ `enforced` | — | governance note; missing → honored + `unjustified-policy` warn (AC-S3), as with `branch_protection` |
 
-A **missing `staging_ready` record** (pre-C9 init, or never `--init`ed) is
+A **missing `staging_ready` record** (pre-C9 setup, or never set up) is
 handled by the guard as a *warn + proceed regardless of `mode`* — it is never a
 refusal (see §5); `mode` governs only the **recorded-gap** case.
+
+## `policies.merge` — merge's PR step
+
+Written by merge setup and `/merge --update` (`merge/refs/protocol-init.md` items 7–8).
+Its presence is also merge's "set up" marker: no `policies.merge` ⇒ the next `/merge`
+runs setup first.
+
+```json
+"merge": {
+  "risky_paths": ["devkit/**", "**/migrations/**", "package.json", "**/auth/**", "**/payments/**", ".github/workflows/**", "src/billing/**"],
+  "ci_wait_minutes": 30
+}
+```
+
+| Field | Type | Required | Default | Notes |
+|---|---|---|---|---|
+| `risky_paths` | string[] (globs) | ✔ after setup | catalog seed | a change touching one is **not small**, so new commits since pre-merge's pass need a fresh `/pre-merge` (`merge/refs/open-pr.md` § *Pass check*). Seeded from the `force_full_paths` defaults + `**/auth/**`, `**/payments/**`, `.github/workflows/**`; grown by the auth/payment library search (`component-catalog.md` § *Risky libraries*). merge only **adds** paths — a user-added path is never removed. Lock files are always risky, listed or not |
+| `ci_wait_minutes` | int ≥ 1 | ✖ | `30` | how long merge waits for CI on its PR. Setup sets it above the slowest recent CI run (×1.5, rounded up to 5). No flag |
+
+A bad value → that field's default + one warn (`script-policy-read.py`).
 
 ## `steps.<key>` — merge's per-step decisions
 
 **Four live keys** — `ci`, `deploy_staging`, `deploy_production`, `smoke`. These are the
 only `steps` entries any consumer still reads; pre-merge decides run-vs-skip from
-`components[]` presence and never consults `steps` (AC-PF6). Pre-merge `--init` still
+`components[]` presence and never consults `steps` (AC-PF6). Pre-merge setup still
 *writes* `steps.ci` (it detects the workflow) — merge reads it.
 
 ```json
@@ -73,12 +93,20 @@ The `release_flow` key itself is shared core ([`policy-schema.md`](policy-schema
 
 | `flow` | `--staging` | `--production` |
 |---|---|---|
-| `staged` (default) | merge feature→`stg` | PR `stg`→`prod` |
-| `direct` | **refuse** `no_staging_stage`, naming both `/merge --production` and `/msg --init-staging` | single ship feature→`prod`, preserving every human gate |
+| `staged` (default) | push + PR feature→`stg`, merge | PR `stg`→`prod` |
+| `direct` | **refuse** `no_staging_stage` (explicit `--staging` only), naming both `/merge --production` and `/msg --init-staging` | single ship feature→`prod`: push + PR, one confirmation |
+
+**Bare `/merge` picks the step** (`merge/SKILL.md` § *Mode pick*): `staged` with no
+sign-off for the current work ⇒ `--staging`; a signed-off build on `stg` ⇒
+`--production`; `direct` ⇒ always `--production`. Bare `/merge` never refuses
+`no_staging_stage`.
 
 **`direct` + `--production`** — a single feature→`prod` ship that still runs the
-double-confirmation, the **inline human-test approval** (asked before the merge),
-the production deploy and smoke. The staging-scoped stages are **inactive**, not
+human test script and **one confirmation** (version, PRDs, platforms, commits —
+"Tested and ready to ship?", asked before the merge and the lock), the production
+deploy and smoke. This is the one place two ship questions merge into one: there is
+no staging, so the staging sign-off and the double confirmation have nothing separate
+to guard (`merge/refs/production.md` § *`direct` flow — test script, then one confirmation*). The staging-scoped stages are **inactive**, not
 relaxed: there is no staging to deploy, test, or sign off, so those questions do
 not apply. Every question that *does* still apply is answered at full rigor.
 
@@ -94,7 +122,7 @@ not apply. Every question that *does* still apply is answered at full rigor.
 user wanted is missing (not *skipped*) and no threshold moved (not *relaxed*).
 
 **The safety floor is never inactive.** Security, migration, and the human
-double-confirmation are not staging-scoped — no `release_flow` or
+release confirmation (double in `staged`, single in `direct`) are not staging-scoped — no `release_flow` or
 `github_actions` value deactivates them. A change that would move one of them
 into the inactive column is a floor violation
 ([`safety-floor.md`](safety-floor.md)), not a configuration.
@@ -130,7 +158,7 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 | key absent / no file | **built-in fall-back, unchanged** (back-compat invariant, AC-ST5) |
 
 **`ci` — read by merge's green-CI check, not run as a step.** It records whether a
-`.github/workflows/` pipeline runs the gate on PRs (written by `pre-merge --init`). It has
+`.github/workflows/` pipeline runs the gate on PRs (written by pre-merge setup). It has
 no runner and never runs as a gate *step*; it exists so a missing pipeline surfaces instead
 of passing vacuously. When merge's PR check finds an **empty** status-check set
 (nothing ran), it resolves `steps.ci`: `ready` → emit one `low` `vacuous-ci` note
@@ -193,23 +221,23 @@ column directly.
 
 `staging_ready` is a **resolved fact, not settled policy** — the same additive
 style as `release_model`'s resolution, but persisted rather than re-derived each
-run. Merge `--init` writes it (item 6, `refs/protocol-init.md`) by running
+run. Merge setup and `--update` write it (item 6, `refs/protocol-init.md`) by running
 the **declared-artifact checks** per shipping platform under `release_flow=staged`;
 `--staging` **reads** it to guard the ship. Because it is a fact, it is
-**re-derived on every re-init** and carries no user decisions to preserve (unlike
+**re-derived on every setup and `--update`** and carries no user decisions to preserve (unlike
 `branch_protection`/`opted_out`, which `--update` never re-grades). In `direct`
 flow it is **absent** — there is no staging to verify (AC-SR4).
 
 ```json
 "staging_ready": {
   "resolved_at": "2026-07-21",
-  "resolved_by": "merge --init",
+  "resolved_by": "merge setup",
   "platforms": {
     "web": { "ready": true,  "gaps": [] },
     "ios": {
       "ready": false,
       "gaps": [
-        "staging_deploy_cmd is a [USER: …] placeholder — set it to your internal/TestFlight track deploy (e.g. `fastlane beta`), then re-run /merge --init"
+        "staging_deploy_cmd is a [USER: …] placeholder — set it to your internal/TestFlight track deploy (e.g. `fastlane beta`), then run /merge --update"
       ]
     }
   }
@@ -219,7 +247,7 @@ flow it is **absent** — there is no staging to verify (AC-SR4).
 | Field | Type | Notes |
 |---|---|---|
 | `resolved_at` | `YYYY-MM-DD` | when readiness was last derived (stamped by `script-policy-set.py` from the system clock) |
-| `resolved_by` | string | writer provenance — `merge --init` (informational) |
+| `resolved_by` | string | writer provenance — `merge setup` / `merge --update` (informational) |
 | `platforms` | object `<platform, {ready, gaps}>` | one entry per shipping platform in `PLATFORMS.md` |
 | `platforms.<p>.ready` | bool | `true` iff every declared staging artifact for `<p>` is present + non-placeholder (item 6) |
 | `platforms.<p>.gaps` | string[] | empty when `ready`; else each entry names the **exact missing artifact + the exact fix** (AC-SR2) |
@@ -229,7 +257,7 @@ flow it is **absent** — there is no staging to verify (AC-SR4).
 
 | Record state | Guard behavior |
 |---|---|
-| **absent** (pre-C9 init / never `--init`ed) | **warn + proceed regardless of `mode`** — one `low` note recommending `/merge --init`; **never a refusal** solely because the record predates C9 |
+| **absent** (pre-C9 setup / never set up) | **warn + proceed regardless of `mode`** — one `low` note recommending `/merge --update`; **never a refusal** solely because the record predates C9 |
 | present, **every** shipping platform `ready:true` | proceed silently |
 | present, **any** platform with `gaps[]` | `enforced` → **refuse** (`staging_unready`), listing each platform's gaps + fix; `optional` → **warn + proceed**, one `low` note per unready platform; `skip` → don't guard |
 
@@ -252,8 +280,8 @@ release-shape contract (`release_model` §4, `staging_ready` §5).
 | **Where the state lives** | the **remote** (`refs/tags/release-lock-<prod>`) — survives across machines, so a teammate on another laptop sees the same lock. Not in `policy.json`, not a local file |
 | **Atomicity** | a tag ref is never fast-forwarded — pushing an existing tag name is **rejected** without `--force`; that rejection is the atomic compare-and-swap-to-absent (create ⇒ acquired, reject ⇒ someone holds it) |
 | **Holder metadata** | the annotated tag message carries `held-by` / `mode` / `at` / `sha` / `prds` — read to name the in-flight run in a `release_in_flight` refusal (AC-LK1) |
-| **Acquire point** | `--production` only, **after Step 3 (double-confirm), before Step 4 (open PR)** — late enough that every pre-flight refusal (Steps 1–2, a Step 3 cancel) skips the lock, early enough to cover the mutating window (Steps 4–9). Both flows (`staged` + `direct`) acquire — a direct feature→`prod` ship races the same way |
-| **Release** | unconditional for any run that acquired it — deletes the remote tag, never dangles on a graceful exit (AC-LK2). Timing: success / refusal-after-acquire (Step 4 `no_prd`, post-acquire coverage-drift `stale_signoff`, `direct` inline human-test `human_test_declined`, Step 5 `red_ci`/`no_review`/`merge_failed`, Step 6 `nonmonotonic_build`) → at run termination; **failed ship → at ship-terminal, *before* the fix-loop handoff**, so the long fix loop never holds the lock (`merge/refs/production.md` § *Release lock*) |
+| **Acquire point** | `--production` only, **after Step 3 (the double confirmation, or the one direct-flow confirmation), before Step 4 (open PR)** — late enough that every pre-flight refusal (Steps 1–2, a Step 3 cancel) skips the lock, early enough to cover the mutating window (Steps 4–9). Both flows (`staged` + `direct`) acquire — a direct feature→`prod` ship races the same way |
+| **Release** | unconditional for any run that acquired it — deletes the remote tag, never dangles on a graceful exit (AC-LK2). Timing: success / refusal-after-acquire (Step 4 `push_rejected`, post-acquire coverage-drift `stale_signoff`, Step 5 `red_ci`/`pending_ci`/`no_review`/`merge_failed`, Step 6 `nonmonotonic_build`) → at run termination; **failed ship → at ship-terminal, *before* the fix-loop handoff**, so the long fix loop never holds the lock (`merge/refs/production.md` § *Release lock*) |
 | **TTL / staleness** | **120 minutes (2h)**, from the tagger date. A lock older than the TTL is **stale** — reported with the manual-unlock instruction, **never** blindly refused forever and **never** auto-stolen (auto-steal reopens the race). Fixed constant (no new config surface — CV1/D4) |
 | **Manual unlock (escape hatch)** | `git push origin :refs/tags/release-lock-<prod>` (delete the remote tag), then `git tag -d release-lock-<prod>` locally. A wedged lock must never dead-end a solo dev (CV1) — this one-liner is documented prominently in `production.md`, `staging.md`, and `refusal-patterns.md` |
 | **`--staging` interaction** | `--staging` **reads** the lock as a pre-flight (before Step 2) and **refuses** `release_in_flight` if a non-stale production release holds it — a staging merge mid-production-ship advances `staging` past the certified window (C2). Asymmetric: `--staging` never **acquires** (its merge is near-atomic) |

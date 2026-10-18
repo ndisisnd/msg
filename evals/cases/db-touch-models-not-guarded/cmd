@@ -1,0 +1,4 @@
+# script-eng-db-touch.sh no longer treats models/ as a database surface (it
+# raised false alarms on plain app code); entities/ and *.entity.* still trip.
+printf 'src/models/user.ts\napp/models/order.rb\nsrc/entities/user.ts\nsrc/order.entity.ts\n' \
+  | "$REPO/.claude/scripts/script-eng-db-touch.sh" -

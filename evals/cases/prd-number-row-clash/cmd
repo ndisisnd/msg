@@ -1,0 +1,2 @@
+# pm-3 — row #7 already has prd-7-streaks: refuse rather than mint a second prd-7.
+"$REPO/.claude/scripts/script-prd-number" prd 7

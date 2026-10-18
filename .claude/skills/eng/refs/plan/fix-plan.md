@@ -8,7 +8,7 @@ type: reference
 
 Loaded only when `--plan` is invoked with `report=<path>` (see `../protocol-core.md` § Step 1). Plans the fixes for a `/pre-merge` (or `/merge`) failed run instead of decomposing PRD exec-table rows. The spec is a **bug list** — canonical findings already recorded in the issues file `report-prd-<N>-<K>.json` — so this pass produces no `## Engineering —` section and no PRD write: it projects the findings into fix tickets and emits a standalone **fix plan** the orchestrated fix-build (`../build/fix-build-orchestrated.md`) then executes.
 
-This is the target of the fix loop's Offer #1 (`../../../shared/refs/fix-loop.md`), invoked as `eng --plan report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`.
+This is the target of the fix loop's **Plan** step (`../../../shared/refs/fix-loop.md`), invoked as `eng --plan report=features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json`.
 
 ## Required fields and rejections
 
@@ -35,6 +35,8 @@ P=.claude/scripts/script-project-findings.py; [ -f "$P" ] || P="$HOME/.claude/sc
 
 Each projected issue-ticket already carries `kind: "issue"`, its verbatim finding `id`, `title`, `objective`, `type`, `files`, `depends-on`, `done-when`, and the preserved diagnostic fields (`severity`, `category`, `source`, `rule`, `evidence.snippet`, `repro`, `regression_of`, `suggestion`, `evidence.flaky`). This pass adds exactly one field: the **`complexity` tag** (below).
 
+**Earlier escalations.** When `report-prd-<N>-<K>-escalation.md` exists next to the issues file, read it. It holds the bugs an earlier fix build gave up on after 3 attempts (`../build/fix-build.md` § Escalations). For each, grade the ticket `complex`, and write the ticket's `objective` from the block's "Needed to continue" line, so the new build does not retry the hypotheses already ruled out.
+
 ## Fix-plan output — `report-prd-<N>-<K>-fix-plan.md`
 
 Write the plan to `report-prd-<N>-<K>-fix-plan.md`, colocated in the same `reports/` folder as the input issues file and sharing its **exact stem — same `N` and `K`** (`report-prd-12-3.json` → `report-prd-12-3-fix-plan.md`). This is the only file this pass writes; there is no PRD to append to. Emit a one-line confirmation after writing (e.g. `Written to features/prd-12-<slug>/reports/report-prd-12-3-fix-plan.md → 4 fix tickets`).
@@ -55,7 +57,7 @@ Same five-column shape as the exec table, with two column swaps for a bug list �
 ```
 
 - **Issue(s)** — the finding `id`(s) this row resolves. One id per row for the common case; a comma-separated list when the row is a coherent group (below).
-- **Fix steps** — the reproduce → fix → verify-green shape the fix-build runs per issue (`../build/fix-build.md` § Work-step deltas). Left terse; the ticket's `repro`/`done-when` carry the exact commands.
+- **Fix steps** — the reproduce → fix → verify-green shape the fix-build runs per issue (`../build/fix-build.md` § Deltas on the build loop). Left terse; the ticket's `repro`/`done-when` carry the exact commands.
 - **Files** — the projected `files` path(s), repo-relative. Blank/`—` when every grouped finding is suite-level (`file: null`).
 - **Ticket** — anchor into the `## Fix tickets` block below: `[<id>](#fix-<id>)` for a single issue, `[<group-slug>](#fix-<group-slug>)` for a group.
 - **Complexity** — `simple` | `complex`, mirroring the ticket's own `complexity` field (below). The ticket field is authoritative; this column is the at-a-glance view.
@@ -73,8 +75,8 @@ One ticket per table row, in the same bullet + indented-field rendering as `temp
   - **type:** test
   - **files:** `src/api/users.ts` (edit)
   - **depends-on:** none
-  - **done-when:** `rtk npx vitest run test/users.test.ts` passes and the covering test file is green.
-  - **diagnostics:** severity `high` · category `unit` · source `pre-merge:unit-int` · rule `rejects blank email on POST /users` · repro `rtk npx vitest run test/users.test.ts`
+  - **done-when:** `npx vitest run test/users.test.ts` passes and the covering test file is green.
+  - **diagnostics:** severity `high` · category `unit` · source `pre-merge:unit-int` · rule `rejects blank email on POST /users` · repro `npx vitest run test/users.test.ts`
 ```
 
 - Every projected field is carried through unchanged; the preserved diagnostic fields ride on a single `diagnostics:` line so the fix-build (and the `--gui` side panel) read them positionally without bloating the ticket.
@@ -106,7 +108,7 @@ Take each `GRADE … complexity=…` line as the ticket's tag. **You may escalat
 ## References
 
 - `../build/fix-build.md` — the canonical finding→issue-ticket projection + `kind` discriminator (cited above, not duplicated); the fix-build source that consumes this plan's tickets and `complexity` tags.
-- `../build/fix-build-orchestrated.md` — the orchestrated per-issue fix-build (Offer #2) that reads each ticket's `complexity` tag and falls back to self-grading when absent.
+- `../build/fix-build-orchestrated.md` — the orchestrated per-issue fix-build (the fix loop's **Build** step) that reads each ticket's `complexity` tag and falls back to self-grading when absent.
 - `template-todo.md` — the ticket schema/rendering reused above. `../../../plan-em/refs/template-exec-table.md` — the execution-table shape the fix table swaps columns on.
 - `../../../shared/refs/finding-schema.md` — the canonical finding shape read from the issues file `report-prd-<N>-<K>.json`.
-- `../../../shared/refs/fix-loop.md` — the post-failure offer sequence that invokes this pass (Offer #1) and the fix-build (Offer #2).
+- `../../../shared/refs/fix-loop.md` — the post-failure sequence that invokes this pass (**Plan**) and the fix-build (**Build**).

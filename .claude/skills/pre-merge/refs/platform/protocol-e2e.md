@@ -11,10 +11,10 @@ Guard, error rule, envelope, `--flaky`/`--changed-only`: `../_common.md`. Runner
 
 | Detected runner | Command |
 |---|---|
-| Playwright | `rtk npx playwright test` |
-| Cypress | `rtk npx cypress run` |
-| Flutter integration | `rtk flutter test integration_test/` |
-| CI override | `rtk <package_manager> run <ci_script>` |
+| Playwright | `npx playwright test` |
+| Cypress | `npx cypress run` |
+| Flutter integration | `flutter test integration_test/` |
+| CI override | `<package_manager> run <ci_script>` |
 
 Full suite by default. With a diff base + runner spec-filtering (Playwright `--grep`,
 Cypress `--spec`), best-effort map changed source files to spec files by name and

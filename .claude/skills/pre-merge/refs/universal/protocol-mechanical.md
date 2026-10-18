@@ -15,7 +15,7 @@ Run each mechanical runner resolved for this component in `devkit/policy.json`
 
 ```
 for runner in detected.mechanical_runners:
-  rtk <runner.command with the diff's files>
+  <runner.command with the diff's files>
 ```
 
 - Non-zero exit and `severity_on_fail == "block"` → `blocker` finding (`source: lint:` / `format:` / `typecheck:`), first error line quoted.
@@ -27,7 +27,7 @@ Run the plain-English-comment scan on the branch diff:
 
 ```
 S=.claude/scripts/script-eng-comment-scan.sh; [ -f "$S" ] || S="$HOME/.claude/scripts/script-eng-comment-scan.sh"
-bash "$S" origin/staging...HEAD
+bash "$S" origin/<base>...HEAD   # <base> = the run's resolved base (../executor.md §0a)
 ```
 
 - `UNCOMMENTED <file>:<line> <symbol>` lines → one `low` finding each (`source: comment-scan`, `category: readability`, `rule: uncommented-symbol`), message names the symbol. Deterministic; the pair-programmer already checks this per ticket (A4) — this is the gate backstop.
@@ -50,11 +50,20 @@ lockfiles/generated skipped: package-lock.json, yarn.lock, pnpm-lock.yaml,
 **Scope — why "new since the last run".** An oversize commit that is already pushed
 cannot gain an `Oversize-reason:` trailer without rewriting history, so auditing the
 whole branch every run re-flags the same unfixable commit forever — noise the author
-cannot clear. The audit range is therefore `<last-gated-sha>..HEAD`, where
-`<last-gated-sha>` is the branch tip recorded by the previous run's artifacts
-(`.pre-merge/<prev-ts>/plan.json`). **No prior run recorded** (first gate run on this
-branch) → audit the full `origin/<base>..HEAD` range once; every later run only sees
-what the author has added since. The real control is eng-side prevention
+cannot clear. The audit range is therefore `<last-checked>..HEAD`, where
+`<last-checked>` is the commit the previous run on this branch checked — stored with
+its verdict in `.pre-merge/last-check.json` (`../executor.md` §6) and copied into this
+run's `plan.json` as `last_checked`:
+
+```
+L=.claude/scripts/script-premerge-last-check.sh; [ -f "$L" ] || L="$HOME/.claude/scripts/script-premerge-last-check.sh"
+bash "$L" --read --branch "$(git branch --show-current)"   # → {"head": …, "verdict": …}
+```
+
+**No record** (exit 3 — the first gate run on this branch), or the recorded commit is
+no longer an ancestor of `HEAD` (history was rewritten) → audit the full
+`origin/<base>..HEAD` range once; every later run only sees what the author has added
+since. The real control is eng-side prevention
 (`script-eng-commit-cap.sh` at commit time), not repeated gate flagging.
 
 Cap = **500** LOC, or **300** when the commit contains a breaking change. A commit

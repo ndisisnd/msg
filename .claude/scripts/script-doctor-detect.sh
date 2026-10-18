@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # script-doctor-detect.sh — repo topology + branch-protection-availability probe.
-# Consumed by /pre-merge --init and /merge --init to seed devkit/policy.json's
-# `repo` block and `policies.release_flow` (see shared/refs/policy-schema.md).
+# Consumed by pre-merge setup (first /pre-merge run, /pre-merge --update) and merge setup (first /merge run, /merge --update)
+# to seed devkit/policy.json's `repo` block and read `policies.release_flow` (see shared/refs/policy-schema.md).
 # Unrelated to `/msg --doctor`, which reads devkit/DOCTOR.md and touches no policy.
 #
 # What the script DOES:

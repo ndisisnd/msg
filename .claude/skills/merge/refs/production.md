@@ -1,9 +1,9 @@
 ---
 name: merge-production
-description: merge --production — the double-confirmed release to prod. Preconditions (green staging + a sign-off that still covers the tip), two separate approvals, the direct-flow human-test attestation before the merge, the release lock, a release-style PR, merge only on green CI + human review, production deploy, and per-release_model verification.
+description: merge --production — the confirmed release to prod. Preconditions (green staging + a sign-off that still covers the tip, or pre-merge's pass in direct flow), two separate approvals in staged flow, the test script and one confirmation in direct flow, both before the merge, the release lock, a release-style PR, merge only on green CI + human review, production deploy, and per-release_model verification.
 ---
 
-# `--production` — the double-confirmed release to prod
+# `--production` — the confirmed release to prod
 
 Ships everything currently on the release head to `prod`. This is the harness's
 single path to `prod` — **always human-initiated** (no orchestrator invokes it)
@@ -13,22 +13,24 @@ Every deterministic check here is **scripted, not reasoned**. Each emits
 `key=value` lines the protocol below reads; none of them is re-derived by hand:
 
 ```bash
-S=.claude/scripts/script-signoff-coverage.sh   # coverage verdict + uncertified commits
-S=.claude/scripts/script-release-lock.sh       # acquire | release | status
-S=.claude/scripts/script-release-identity.sh   # tag, version, build, monotonicity, provenance
-S=.claude/scripts/script-ci-status.py          # the CI verdict (Steps 1 + 5)
-S=.claude/scripts/script-policy-read.py        # every policy mode + its `?? default`
-S=.claude/scripts/script-platforms-parse.py    # PLATFORMS.md → per-platform key=value
-S=.claude/scripts/script-smoke-run.sh          # the v2 smoke loops + macOS checks
-S=.claude/scripts/script-intake-stamp.sh --find-row   # PRD id → ledger row # (Step 8)
+COV=.claude/scripts/script-signoff-coverage.sh   # coverage verdict + uncertified commits
+LOCK=.claude/scripts/script-release-lock.sh      # acquire | release | status
+ID=.claude/scripts/script-release-identity.sh    # tag, version, build, monotonicity, provenance
+CI=.claude/scripts/script-ci-status.py           # the CI verdict (Steps 1 + 5)
+POL=.claude/scripts/script-policy-read.py        # every policy mode + its `?? default`
+PLAT=.claude/scripts/script-platforms-parse.py   # PLATFORMS.md → per-platform key=value
+SMOKE=.claude/scripts/script-smoke-run.sh        # the v2 smoke loops + macOS checks
+INTAKE=.claude/scripts/script-intake-stamp.sh    # PRD id → ledger row # (Step 8, --find-row)
+P=.claude/scripts/script-prd-stamp.sh            # PRD frontmatter stamps (sign-off, status)
+S=.claude/scripts/script-status-tick.sh          # the run heartbeat (opened below)
 ```
 
 (Resolution form — repo copy first, global install second — is stated once in
 `sanctioned-writes.md`.)
 
 **Phase markers.** Release identity through Step 2 is **subagent phase 1**; Step 3's
-double-confirmation and the `direct`-flow inline human-test approval are **main
-thread**; the release lock acquire through Step 10 is **subagent phase 2**; the
+confirmation (the double confirmation in `staged` flow, the test script and one
+confirmation in `direct` flow) is **main thread**; the release lock acquire through Step 10 is **subagent phase 2**; the
 failed-ship rollback / rollout-halt offer and the fix-loop handoff are **main thread**
 (they already were). See
 `../../shared/refs/gate-dispatch.md`. Step order, wording and refusals below are
@@ -40,10 +42,10 @@ writes nothing and never touches git.
 
 ## Release identity (resolved early)
 
-Before the double-confirm, so the human sees exactly what will be tagged:
+Before the confirmation, so the human sees exactly what will be tagged:
 
 ```bash
-bash "$S" --prod "$PROD" [--bump <level>] [--version <x.y.z>]
+bash "$ID" --prod "$PROD" [--version <x.y.z>]
 ```
 
 Read `CURRENT_TAG`, `NEXT_VERSION`, `BUILD`, `NEXT_TAG`. `VERDICT=version_regression`
@@ -70,11 +72,13 @@ RUN_ID="merge-$(date +%s)"
 
 ## Step 1 — Preconditions (refuse without all three)
 
-For each `--prd` (or every PRD with a merged feature→staging PR since the last release):
+For each shipping PRD — found by merge, never named by a flag (`../SKILL.md` § *Find the
+PRD*): in `staged` flow, every PRD with a merged feature→staging PR since the last
+release:
 
 1. **Staging CI is green** — the same scripted verdict `--staging` Step 2 runs, in branch mode:
    ```bash
-   S=.claude/scripts/script-ci-status.py; python3 "$S" --branch "$STG"
+   CI=.claude/scripts/script-ci-status.py; python3 "$CI" --branch "$STG"
    ```
    `green` (0) → proceed. `red`/`pending` (3/4) → refuse (`staging_not_green`), quoting `FAILING_CHECKS`/`PENDING_CHECKS`. `empty-inactive` (5) → the precondition is **inactive**: proceed, recording `NOTE` when it is non-empty. `empty-vacuous` (6) → proceed + the `low` `vacuous-ci` note. The empty-set branch is the script's (`github_actions` outranking `steps.ci`), so a real failing or in-flight status still refuses.
 2. **`staging-signoff:` stamp present** in the PRD frontmatter. Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
@@ -90,7 +94,7 @@ once*; it cannot prove nothing landed afterwards. The pin closes that hole, and
 the script decides it:
 
 ```bash
-bash "$S" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> [--stamp …]
+bash "$COV" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> [--stamp …]
 ```
 
 | `VERDICT` (exit) | Meaning | Do |
@@ -101,12 +105,14 @@ bash "$S" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> [--stamp …]
 | `no_stamps` (5) | nothing pinned | refuse `no_signoff` |
 
 On `head_ahead` the script emits `UNCERTIFIED_COUNT`, `UNCERTIFIED_SHAS` and the
-oneline commit list as comment lines. The refusal quotes them and gives **both**
-exits, so it never dead-ends: (a) if the owning PRD is already signed off and its
-stamp merely lags the tip, **add `--prd <owning PRD>`** to fold it into this
-release; (b) if the commits are genuinely un-signed-off, run **`/merge
---staging`** for only that work. Never order a bare `--staging` re-run for a PRD
-whose feature→staging PR already merged — it would refuse `no_pr`.
+oneline commit list as comment lines. **Sign-off lag — handled by merge, no flag.** When every uncertified commit belongs to
+a PRD that is already signed off (its own stamp merely lags the tip — the commits came
+in through that PRD's feature → staging PR), merge **adds that PRD to the release by
+itself**, re-runs the coverage script with its stamp, and lists it in the confirmation
+("Added prd-<n>: signed off, owns <k> newer commits"). Otherwise — the commits are
+genuinely un-signed-off — refuse `stale_signoff`, quoting the commit list, and name
+**`/merge --staging`** for only that work, so it never dead-ends. Never order a bare `--staging` re-run for a PRD
+whose feature→staging PR already merged — there is nothing left to open a PR for.
 
 **Why coverage and not per-PRD equality.** A multi-PRD release stamps each PRD at
 *its own* merge sha, so older stamps legitimately lag the tip. What must hold is
@@ -129,7 +135,7 @@ On **Yes**, re-stamp via the shared writer, then re-run the coverage script with
 the now-pinned set:
 
 ```bash
-S=.claude/scripts/script-prd-stamp.sh; bash "$S" <prd-path> staging-signoff "<today>@<STAGING_HEAD>"
+P=.claude/scripts/script-prd-stamp.sh; bash "$P" <prd-path> staging-signoff "<today>@<STAGING_HEAD>"
 ```
 
 Record a `low` `unpinned-signoff` note in the run report either way.
@@ -138,7 +144,12 @@ Record a `low` `unpinned-signoff` note in the run report either way.
 staging, so there is no sign-off to check and nothing to pin. Record it as
 `inactive (no staging)` in the run report, never as skipped or relaxed
 (`../../shared/refs/policy-schema-merge.md` §1b). The human judgment it represents moves to the
-**inline human-test approval** below, which fires before the merge.
+**direct-flow confirmation** (Step 3), which fires before the merge.
+
+What `direct` flow checks here instead is **pre-merge's pass** on the feature branch tip
+— `refs/open-pr.md` § *Pass check* (with its small-change quick check). It runs now,
+before any question, so a missing pass refuses `no_premerge_pass` before the human is
+asked anything and before the lock exists.
 
 A `submission`-model platform under `direct` flow still runs the full submission
 lifecycle on the single feature→`prod` ship (`refs/submission.md`) —
@@ -157,18 +168,33 @@ proceeds; `skip` doesn't verify; `NO_GH`/`NO_REMOTE` refuse regardless). Under
 `enforced`, `main` protection additionally requires ≥1 approving review.
 
 ```bash
-"$S" --tick --run-id "$RUN_ID" --note "branch protection verified" --step "double-confirmation"
+"$S" --tick --run-id "$RUN_ID" --note "branch protection verified" --step "confirmation"
 ```
 
 ## ▸ PHASE 1 ENDS — hand back to the main thread
 
 Phase 1 returns the verdict-so-far (preconditions, sign-off coverage, protection,
-lock status, the resolved release identity) plus a gate request naming Step 3's two
-asks. Everything from here to the lock acquire runs in the **main thread**; both
-approvals and the `direct`-flow attestation are `AskUserQuestion` calls a subagent
-cannot make.
+lock status, the resolved release identity) plus a gate request naming Step 3's
+asks. Everything from here to the lock acquire runs in the **main thread**; every
+confirmation is an `AskUserQuestion` call a subagent cannot make.
 
-## Step 3 — Double-confirmation (two separate asks)
+## Step 3 — Confirmation (flow-dependent)
+
+The release head is **flow-dependent** (`../../shared/refs/policy-schema-merge.md` §1b):
+`$STG` in `staged` flow, the current **feature branch** in `direct` flow. Compute the
+shipping commits as `$PROD..<release-head>` either way. The shared **ship list** both
+flows show:
+
+> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>` — a minor bump, or the `--version` given; the **preview** build; the tag is cut on prod only on success with the recomputed build)
+> - **PRDs:** `<prd-ids + features>` — plus any PRD merge added for sign-off lag, marked "added: signed off, owns newer commits"
+> - **Commits:** `<count>` commits (`<short shas / titles>`)
+> - **Platforms:** `<from devkit/PLATFORMS.md>`
+> - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`; the halt/redeploy lever is **offered on failure** (Step 7)
+
+Never infer approval. Under an autonomy contract with no human present, default to
+**Cancel** — a release never ships unattended.
+
+### `staged` flow — double confirmation (two separate asks)
 
 Two **separately-asked** `AskUserQuestion` calls — never one combined question,
 never a single multiSelect. The first gates the second.
@@ -179,63 +205,50 @@ never a single multiSelect. The first gates the second.
 > - **Yes, proceed** — continue to the final confirmation
 > - **Cancel** — stop; nothing ships
 
-On Cancel → stop (verdict `skipped`, no findings).
+On Cancel → stop (verdict `skipped`, reason `release_cancelled`, no findings).
 
-**Ask B — final confirm (only after Ask A = Yes).** List *exactly what ships*.
-The release head is **flow-dependent** (`../../shared/refs/policy-schema-merge.md` §1b): `$STG` in
-`staged` flow, the resolved **feature branch** in `direct` flow (resolved exactly
-as `--staging` does: the shipping `--prd`'s `feat/prd-<n>-<slug>`, else the
-current branch). Compute the shipping commits as `$PROD..<release-head>` either way:
+**Ask B — final confirm (only after Ask A = Yes).** List *exactly what ships*:
 
-> header **Confirm release**, question "Confirm — this ships to production:"
-> - **Version:** `v<NEXT_VERSION>+<BUILD>` (from `<CURRENT_TAG>`, `<bump-level>` bump — the **preview** build; the tag is cut on prod only on success with the recomputed build)
-> - **PRDs:** `<prd-ids + features>`
-> - **Commits:** `<count>` commits (`<short shas / titles>`)
-> - **Platforms:** `<from devkit/PLATFORMS.md>`
-> - **Rollback:** per-platform (Step 4) — iOS `IRREVERSIBLE`; the halt/redeploy lever is **offered on failure** (Step 7)
+> header **Confirm release**, question "Confirm — this ships to production:" + the ship list.
 > Options: **Ship it** / **Cancel**
 
-On Cancel → stop (`skipped`). Only **Ship it** proceeds. Never infer approval —
-both asks must return an affirmative.
+On Cancel → stop (`skipped`, `release_cancelled`). Only **Ship it** proceeds — both
+asks must return an affirmative.
 
-## Inline human-test approval (`direct` flow only — after Step 3, before the lock)
+### `direct` flow — test script, then one confirmation
 
-**This is the single definition of the direct-flow human-test gate; every other
-reference cites it here.** Under `release_flow=direct` there is no staging stage,
-so the staging sign-off is **inactive** (not waived). The human judgment that
-sign-off would have carried is not dropped: it moves to an explicit attestation
-that fires **before the merge** — the direct flow's equivalent of the staging
-sign-off (`../shared/refs/safety-floor.md` § *Human gates*), asked immediately
-after the Step-3 double-confirm and **before the lock is acquired**. In `staged`
-flow this gate does **not** run; the staging sign-off already carried that
-judgment.
+**This is the single definition of the direct-flow ship gate; every other reference
+cites it here.** Under `release_flow=direct` there is no staging stage, so the staging
+sign-off is **inactive** (not waived). Its human judgment is not dropped: it moves into
+**one** confirmation that fires **before the merge and before the lock** — the direct
+flow's equivalent of the staging sign-off (`../../shared/refs/safety-floor.md` § *Human
+gates*). It replaces Ask A, Ask B and the old separate human-test question: with no
+staging, those three asked about the same build at the same moment.
 
-**Why before the merge.** The merge to `prod` is the irreversible action; the
-deploy is not. Asked after the merge, a Cancel would leave `main` permanently
-carrying untested commits that the next release ships silently. Asked here, a
-Cancel means nothing was opened, nothing merged, nothing held. The release PR's
-CI still validates the merged result afterwards, and there is no deployed target
-the human could have tested between merge and deploy anyway.
+1. **Emit the human test script first** (`refs/human-test-script.md`) — the same script
+   the staging step gives, built from pre-merge's manual test plan, aimed at a **local
+   run or a preview link** instead of a staging URL. Never ask "tested?" about a build
+   the user was never guided through.
+2. **Ask once:**
 
-Ask exactly once:
+   > `AskUserQuestion` — header **Ship**, question: "No staging in this repo
+   > (`release_flow=direct`). This ships straight to production:" + the ship list +
+   > "Tested and ready to ship?"
+   > - **Ship** — proceed to the lock + Step 4
+   > - **Cancel** — stop; nothing merges and nothing deploys
 
-> `AskUserQuestion` — header **Human test**, question: "There is no staging stage
-> in this repo (`release_flow=direct`), so nothing was staged for testing. About
-> to merge and deploy **`<prds>`** on **`<platforms>`** (`v<NEXT_VERSION>+<BUILD>`)
-> straight to production. Have you tested this build?"
-> - **I have tested this build** — proceed to the lock + Step 4
-> - **Cancel** — stop; nothing merges and nothing deploys
-
-- **I have tested this build** → continue. Record a `low` `direct-human-test`
-  note in the run report (the gate fired and passed).
+- **Ship** → continue. Record a `low` `direct-human-test` note in the run report (the
+  gate fired and passed).
 - **Cancel** → **skipped**, reason **`human_test_declined`**
-  (`refs/refusal-patterns.md`; exits 0). Nothing was merged, nothing deployed,
-  and **no lock was acquired** — the gate sits before acquisition, so there is
-  nothing to release. Under an autonomy contract with no human present, default
-  to **Cancel** (do not ship an untested build unattended).
+  (`refs/refusal-patterns.md`; exits 0). Nothing was merged, nothing deployed, and
+  **no lock was acquired** — there is nothing to release.
 
-Both human gates above have now resolved (an affirmative on every ask, plus the
-inline attestation under `direct` flow) — the heartbeat may speak again:
+**Why before the merge.** The merge to `prod` is the irreversible action; the deploy is
+not. Asked after the merge, a Cancel would leave `main` permanently carrying untested
+commits that the next release ships silently. Asked here, a Cancel means nothing was
+merged and nothing held. The PR's CI still validates the result afterwards.
+
+The human gate has now resolved — the heartbeat may speak again:
 
 ```bash
 "$S" --tick --run-id "$RUN_ID" --note "release confirmed by human" --step "acquire release lock"
@@ -243,7 +256,7 @@ inline attestation under `direct` flow) — the heartbeat may speak again:
 
 ## ▸ PHASE 2 (subagent) — lock acquire through Step 10
 
-With both approvals in hand the dispatcher spawns phase 2, passing the approvals and
+With the confirmation in hand the dispatcher spawns phase 2, passing the approvals and
 the resolved release identity forward. Phase 2 executes the ship: lock acquire →
 release PR → merge → deploy → verify + provenance → intake stamp → tag → PRD lane
 move. It ends by handing back the verdict; on a **failed** ship the rollback /
@@ -263,7 +276,7 @@ acquire, the holder metadata, the 2h staleness read, the remote holder read, and
 the manual-unlock line:
 
 ```bash
-bash "$S" acquire --prod "$PROD" --prds "<prd ids>"
+bash "$LOCK" acquire --prod "$PROD" --prds "<prd ids>"
 ```
 
 | Exit | `LOCK_STATUS` | Do |
@@ -275,7 +288,7 @@ bash "$S" acquire --prod "$PROD" --prds "<prd ids>"
 
 **Where acquisition sits — after the human gates, before the first mutating
 step.** Late enough that no pre-flight refusal ever touches the lock (Step 1,
-Step 2, a Step-3 Cancel and a declined inline human-test all exit before it, so
+Step 2 and a Step-3 Cancel (either flow) all exit before it, so
 there is nothing to release). Early enough to cover the whole mutating window:
 Step 4 onward runs inside it — two runs can both clear Step 3 concurrently, and
 the acquire is what serializes them.
@@ -288,7 +301,7 @@ Step 1 checked coverage **before the lock existed**. Between then and here a
 against a fresh fetch:
 
 ```bash
-S=.claude/scripts/script-signoff-coverage.sh; bash "$S" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> …
+COV=.claude/scripts/script-signoff-coverage.sh; bash "$COV" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> …
 ```
 
 Anything but `VERDICT=covered` → **release the lock**, then refuse
@@ -303,14 +316,14 @@ re-verify. This is the production-side half of the race `refs/staging.md`
 window closes — no exception path.**
 
 ```bash
-bash "$S" release --prod "$PROD"
+bash "$LOCK" release --prod "$PROD"
 ```
 
 `release` is idempotent (`LOCK_STATUS=absent` when there is nothing to delete)
 and a failed delete is a `low` note, never a hard stop — the TTL reclaims it.
 
 - **Every refusal, skip, or error after acquisition** — release **before**
-  emitting the refusal/skip. That covers Step 4 (`no_prd`, `gh` errors), Step 5
+  emitting the refusal/skip. That covers Step 4 (`push_rejected`, `gh` errors), Step 5
   (`red_ci`/`pending_ci`/`no_review`/`merge_failed`), post-acquire coverage drift,
   and Step 6's `nonmonotonic_build`.
 - **A failed ship** (deploy / smoke / provenance `fail`) — release **at
@@ -333,10 +346,18 @@ script's keys — into the run report's `release_lock` block.
 ## Step 4 — Open the release PR (`<head>` → prod)
 
 The PR head is **flow-dependent**, never hardcoded to `staging`: `$STG` in
-`staged` flow; in `direct` flow the resolved **feature branch**.
+`staged` flow; in `direct` flow the current **feature branch**.
 
-If no `--prd` is given **and** none is resolvable for the release body, refuse
-`no_prd` — release the lock first.
+- **`direct` flow** — run `refs/open-pr.md` §§ 2–4 with `BASE=$PROD` (the pass check
+  already ran in Step 1): the push (normal, never force), the feature → prod PR
+  (opened, or the open one reused) with the release body below, and the CI wait. Every
+  stop there (`push_rejected`, `red_ci`, `pending_ci`, a `gh` error) releases the lock
+  first. Only merge opens PRs, so one feature never gets two.
+- **`staged` flow** — open the `staging` → prod PR below (staging was already pushed
+  by the `--staging` merge; there is no pre-merge pass to check on `staging`).
+
+The shipping PRDs were found before the lock (`../SKILL.md` § *Find the PRD*), so the
+release body always has them — there is no PRD refusal here.
 
 ```bash
 gh pr create --base "$PROD" --head "$HEAD" --title "Release: <prds / date>" --body "<release body>"
@@ -365,11 +386,13 @@ Release-style body (what the GUI production report and the PR render from):
 
 Branch protection enforces both; merge checks them, then merges:
 
-1. Verify the release PR's CI is green — the same scripted verdict, in PR mode:
+1. Wait for the release PR's CI to be green — the same scripted verdict and the same
+   wait as `refs/open-pr.md` § *Wait for CI* (up to `MERGE_CI_WAIT_MINUTES`, ticking
+   the heartbeat between calls):
    ```bash
-   S=.claude/scripts/script-ci-status.py; python3 "$S" --pr <number>
+   CI=.claude/scripts/script-ci-status.py; python3 "$CI" --pr <number> --wait-seconds 270 --deadline "$DEADLINE"
    ```
-   `red`/`pending` (3/4) → refuse (`red_ci`/`pending_ci`), releasing the lock first. `empty-inactive`/`empty-vacuous` (5/6) → proceed, recording `NOTE`. The empty-check-set branch is the script's, identical to `--staging`'s — one implementation, three call sites.
+   `red` (3) → refuse `red_ci`; still pending at the limit (9) → refuse `pending_ci` — each releasing the lock first. `empty-inactive`/`empty-vacuous` (5/6) → proceed, recording `NOTE`. The empty-check-set branch is the script's, identical to `--staging`'s — one implementation, three call sites.
 2. Verify the required human review: `gh pr view <n> --json reviewDecision` → must be `APPROVED`. Not approved → refuse (`no_review`).
 3. Merge:
    ```bash
@@ -433,7 +456,7 @@ legitimate checkpoint — tick there too, carrying the real attempt
 deployed artifact's source commit and pass it to the identity script:
 
 ```bash
-S=.claude/scripts/script-release-identity.sh; bash "$S" --prod "$PROD" --probe-sha "$PROBE_SHA"
+ID=.claude/scripts/script-release-identity.sh; bash "$ID" --prod "$PROD" --probe-sha "$PROBE_SHA"
 ```
 
 `PROVENANCE=verified` → the artifact was built inside **this release's window**.
@@ -465,9 +488,9 @@ Close the loop for each shipped PRD. Both halves go through the ledger's one
 parser — the lookup as much as the write, so no second table parser exists:
 
 ```bash
-S=.claude/scripts/script-intake-stamp.sh
-bash "$S" INTAKE.md - --find-row --prd prd-<n>-<slug>   # read: ROW=<#> STATUS=…
-bash "$S" INTAKE.md <ROW> --status completed            # write: that cell only
+INTAKE=.claude/scripts/script-intake-stamp.sh
+bash "$INTAKE" INTAKE.md - --find-row --prd prd-<n>-<slug>   # read: ROW=<#> STATUS=…
+bash "$INTAKE" INTAKE.md <ROW> --status completed            # write: that cell only
 ```
 
 `--find-row` is read-only and matches on the `prd-<n>-<slug>` token, so a bare
@@ -515,7 +538,7 @@ shipped PRD**:
 1. **Stamp `status: complete`** via the shared scalar writer — the `wip →
    complete` transition owned here (plan-em set it to `wip` at the branch cut):
    ```bash
-   S=.claude/scripts/script-prd-stamp.sh; bash "$S" <prd-path> status complete
+   P=.claude/scripts/script-prd-stamp.sh; bash "$P" <prd-path> status complete
    ```
    On a PRD written before v5.4 the enum's terminal value is `done`, not
    `complete` — read the current value first and stamp the terminal value of the
@@ -568,7 +591,7 @@ touches `src/` or writes source code, and both are named in
 Write `report-prd-<N>-<K>.md` (`skill: merge`, production flavor) — release-style:
 
 - `verdict: pass` on a clean release; `fail` if a production deploy errored, its smoke check failed, or provenance mismatched.
-- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success; skipped-with-note or absent on a failed release), the bump level, per-platform provenance (`verified` / `asserted (unverified)` / `fail`). On a failed ship, also the **rollback offer outcome** (offered/executed/declined + cmd exit). A clean uncontended acquire/release adds nothing here; a **stale lock** never appears at all — it terminates *that* run as a `release_in_flight` refusal.
+- `## Release` — the resolved identity: `v<NEXT_VERSION>+<BUILD>` (tagged on success; skipped-with-note or absent on a failed release), the bump (`minor` or `explicit`), per-platform provenance (`verified` / `asserted (unverified)` / `fail`). On a failed ship, also the **rollback offer outcome** (offered/executed/declined + cmd exit). A clean uncontended acquire/release adds nothing here; a **stale lock** never appears at all — it terminates *that* run as a `release_in_flight` refusal.
 - `## Work done` — PRDs shipped, commit count, platforms deployed; on success, note that each shipped PRD was stamped `status: done` and filed into `features/done/`. **Under `release_flow=direct`, open with one `Stages` line** so the reduced set is visible rather than invisible:
   `Stages: staging deploy · staging smoke · staging human-test · staging sign-off — **inactive (no staging)**. All applicable stages ran at full rigor.`
   Never render these as *skipped* (tooling missing) or *relaxed* (threshold lowered). In `staged` flow the line is omitted entirely.

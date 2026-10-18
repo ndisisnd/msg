@@ -46,10 +46,11 @@ sign-off stamps (`staging-signoff:`) belong to `merge` and are specified in
 
 ## INTAKE.md row lifecycle (D14)
 
-intake writes every new row as `backlog`. It never advances a row itself — **in
-either mode.** intake's `--update` *reads* `status` as a gate
-(`intake/refs/protocol-update.md` § Three edit surfaces) and still never writes
-it.
+intake writes every new row as `backlog`. Its edits *read* `status` as a gate
+(`intake/refs/protocol-edit.md` § Three edit surfaces). It writes `status` in two
+correction cases only: `/intake --health` fixes a status the PRD set contradicts
+(behind one confirm), and a capture that matches a row whose PRD has shipped stamps
+that row `completed`.
 
 | Status | Set by | When |
 |--------|--------|------|
@@ -62,6 +63,12 @@ Every row write goes through the shared ledger writer
 rewrite that leaves every other row byte-identical. plan-pm stamps the source
 row when it creates the PRD: `status` cell → `in-progress`, `prd` cell →
 `prd-[n]-[feature_slug]` (F4/D14).
+
+Before a PRD exists, the row is the source of truth for the idea. After, the PRD
+is the source and the row mirrors it: `plan-pm --update` rewrites the row's
+`idea` / `goal` / `type` / `grade` cells (`--set-cell`, logged to
+`INTAKE-UPDATE.md`) when it changes the PRD's content, and stamps the PRD
+`reviewed: no` so plan-review re-certifies it.
 
 The `/msg --gui` Intake tab may hand-edit statuses (same trust level as its
 PRD-board edits).

@@ -5,8 +5,8 @@ description: >
   `staging` branch. Takes a direct-flow repo (ships straight to prod), cuts
   `staging` off the recorded prod branch, publishes it, offers branch
   protection, then flips devkit/policy.json's release flow to `staged` via
-  script-policy-set. Offered by /merge --init when it detects a
-  direct-flow repo, and directly invocable. Never merges, deploys, or opens
+  script-policy-set. Offered by merge setup and /merge --update when they
+  detect a staging branch on a direct-flow repo, and directly invocable. Never merges, deploys, or opens
   PRs.
 type: reference
 ---
@@ -18,12 +18,14 @@ type: reference
 **Invoke**: `/msg --init-staging`
 
 - Natural language: "add a staging branch", "set up staging", "switch to a staged release flow"
-- Hand-off from `/merge --init` when it detects a direct-flow repo
+- Hand-off from merge setup or `/merge --update` when they report a flow mismatch
 
 **Preconditions.**
-- A git repo with `devkit/policy.json` present. If it is **absent**, the repo was never
-  bootstrapped — stop and direct the user to run `/msg --init` first (that seeds the policy this
-  mode flips). Do not create the file here.
+- A git repo with `devkit/`. No `devkit/` ⇒ run `/msg --init` first, then continue
+  (`../../shared/refs/setup-first.md`).
+- `devkit/policy.json` present. `devkit/` exists but `policy.json` is **absent** ⇒ stop and
+  direct the user to run `/msg --update` (it adds the missing file this mode flips). Do not
+  create the file here.
 - Read `policies.release_flow.prod_branch` from `devkit/policy.json` (default `main`). This is the
   branch `staging` is cut from.
 
@@ -90,7 +92,7 @@ re-parses the result, and rolls back on a bad write:
 ```
 
 `--stamp-by` refreshes `generated`/`generated_by` because this mode **is** a policy-file writer.
-`init` is left untouched — this mode does not complete setup (that's `--init`'s job), and no
+`init` is left untouched — this mode does not complete setup (that is pre-merge's and merge's first-run setup), and no
 `--create` is passed, so an absent `policy.json` is a named failure rather than a silent seed
 (the precondition above already refused it). After this, `policy.json` reads
 `release_flow.mode:"staged"`, `staging_branch:"staging"` (AC-RF5). Schema authority:
@@ -101,9 +103,9 @@ re-parses the result, and rolls back on a bad write:
 protection applied (or skipped), and the new `staged` flow. **Creating the branch does not make
 staging ready** — each shipping platform still needs its staging environment declared (a
 non-placeholder `staging_deploy_cmd` + target, any staging config file, and a named internal/
-TestFlight track for store-submission platforms). Hand off: run **`/merge --init`**, which
+TestFlight track for store-submission platforms). Hand off: run **`/merge --update`**, which
 verifies that per-platform readiness and flags every gap with its exact fix (fill the gap in
-`devkit/PLATFORMS.md`, then re-run `--init`). Then `/pre-merge` opens PRs against `staging`. This
+`devkit/PLATFORMS.md`, then re-run `/merge --update`). Then `/pre-merge` gates against `staging` (and `/merge` opens PRs against it). This
 mode never merges, deploys, or opens PRs.
 
 Close with the closing message per [`shared/refs/closing-message.md`](../../shared/refs/closing-message.md).

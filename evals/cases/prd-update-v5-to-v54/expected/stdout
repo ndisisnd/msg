@@ -8,5 +8,8 @@ CHANGE code=key-dropped ref=frontmatter detail=`eng-tuned: no` removed — folde
 CHANGE code=intake-resolved ref=frontmatter detail=`intake: #7` recovered by matching `prd-9-grace-window` against INTAKE.md
 CHANGE code=findings-extracted ref=prd-9-grace-window/reports/review-prd-9-grace-window.md detail=4 lines moved out of '## 7. Plan review findings' — findings live in the report, never in the PRD
 CHANGE code=todos-renumbered ref='## 8. Todos' detail=renumbered to '## 7. Todos' — seven sections after the findings move
-SUMMARY shape=v5 changes=10 warnings=0 result=migrated mode=write
+CHANGE code=success-signal-dropped ref=§1 detail=the `**Success signal**` bullet removed — §1 is Who + What changes
+CHANGE code=ac-labelled ref=F1 detail=acceptance criteria labelled AC1…ACn
+CHANGE code=errors-heading-renamed ref='## 4. Error cases' detail=renamed to '## 4. Error and edge cases'
+SUMMARY shape=v5 changes=13 warnings=0 result=migrated mode=write
 SUMMARY shape=v5.4 checks=1,2,3,4,5,6 failures=0

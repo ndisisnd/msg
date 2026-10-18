@@ -51,8 +51,8 @@ attempts or drops its ceiling. `script-smoke-run.sh` runs them; the model relays
 the outcome and writes the finding.
 
 ```bash
-S=.claude/scripts/script-smoke-run.sh
-bash "$S" --platform <p> --cmd "<smoke_cmd>" \
+SMOKE=.claude/scripts/script-smoke-run.sh
+bash "$SMOKE" --platform <p> --cmd "<smoke_cmd>" \
           [--poll "<smoke_poll>"] [--watch-window "<smoke_watch_window>"] \
           --model <deploy|submission> --mode <staging|production> \
           [--notarize-cmd …] [--signing-cmd …] [--appcast-url …] [--version <NEXT_VERSION>]

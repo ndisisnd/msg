@@ -3,12 +3,14 @@
 # and its sidecar update log, INTAKE-UPDATE.md.
 #
 # The ledger is the markdown table at the repo root with the canonical header
-#   | # | date | type | idea | goal | grade | status | prd |
-# (see .claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md). Every verb
+#   | # | date | type | idea | goal | grade | status | prd | parent |
+# (see .claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md). Older
+# ledgers have no `parent` column and parse unchanged. Row ids are whole
+# numbers (`7`) or, for a sub-PRD's row, dotted (`7.1`, parent PRD-7). Every verb
 # below touches ONLY what it names — the header, every other row, and every
 # other byte of the file are left identical. Replaces the improvised row edits
 # in plan-pm (in-progress + prd), merge (completed) and the freehand
-# markdown writes in intake's capture / --update / --delete protocols.
+# markdown writes in intake's capture, edit and health protocols.
 #
 # Verbs (exactly one per call; --status with no other verb = stamp, the
 # original behaviour, unchanged for its existing callers):
@@ -19,8 +21,13 @@
 #   append-row   script-intake-stamp.sh <intake.md> <row-#> --append-row
 #                  --type <t> --idea <s> --goal <s> --grade <s>
 #                  [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>]
-#                Append one full 8-cell row after the last ledger row.
-#                Defaults: --date today, --status backlog, --prd empty.
+#                  [--parent <PRD-n>]
+#                Append one full row after the last ledger row.
+#                Defaults: --date today, --status backlog, --prd and parent empty.
+#                --parent marks a sub-PRD's row (row-# `<n>.<m>`, parent PRD-<n>);
+#                a ledger with no `parent` column gets one first (prints
+#                PARENT_COLUMN_ADDED=1; header,
+#                separator, and an empty cell on every row — nothing else moves).
 #                Refuses a `#` that already exists (never renumbers).
 #
 #   set-cell     script-intake-stamp.sh <intake.md> <row-#> --set-cell <cell> <value>
@@ -37,17 +44,43 @@
 #                READ-ONLY row lookup by PRD id — the fixed-result half of
 #                merge's Step 8 "find the row whose prd cell matches this
 #                PRD's id, take that row's #". Writes nothing. Emits KEY=value
-#                (FOUND / ROW / STATUS / PRD / TYPE / IDEA / GOAL / GRADE) so
+#                (FOUND / ROW / STATUS / PRD / TYPE / IDEA / GOAL / GRADE, and
+#                PARENT when the ledger has that column) so
 #                the caller feeds ROW straight back into the stamp verb. The
 #                positional row-# is unused — pass `-`. Reuses this file's one
 #                parser rather than growing a second one elsewhere.
+#
+#   list-rows    script-intake-stamp.sh <intake.md> - --list-rows
+#                  [--status <s>[,<s>...]] [--match "<words>"] [--blocked-by <n>]
+#                  [--row <n>[,<n>...]] [--limit <n>]
+#                READ-ONLY filtered read — intake never reads the whole ledger.
+#                Emits MAX_ROW=<n> (highest whole-number `#` in the ledger, 0
+#                when empty — a dotted sub-PRD row never moves it),
+#                COUNT=<n> (rows printed), then the header, the separator and
+#                each matching row verbatim. Filters AND together:
+#                  --status      keep rows whose status is in the list
+#                  --match       keyword search over idea + goal (case-
+#                                insensitive word-prefix match, a trailing
+#                                plural `s` dropped; words under 3 chars ignored);
+#                                rows with no hit are dropped, the rest print
+#                                best match first (most distinct words hit)
+#                  --blocked-by  rows whose grade cites S:blocked-by-#<n>
+#                  --row         exactly these row numbers
+#                  --limit       print at most n rows (COUNT reflects the cut)
+#                No filter prints every row. Positional row-# unused — pass `-`.
 #
 #   log-append   script-intake-stamp.sh <intake.md> <row-#> --log-append
 #                  --change <modify|add|remove> --detail <text> [--when <YYYY-MM-DD>]
 #                Append one entry (when | row | change | detail) to
 #                INTAKE-UPDATE.md beside the ledger, creating that file with the
-#                canonical header (intake/refs/protocol-update.md § The update
-#                log) when it is absent. Append-only; never rewrites an entry.
+#                canonical header (ensure_log below — the one source of that
+#                header) when it is absent. Append-only; never rewrites an entry.
+#
+#   migrate-log  script-intake-stamp.sh <intake.md> - --migrate-log
+#                Move a legacy in-file `## Update log` section's entry rows
+#                verbatim into INTAKE-UPDATE.md, then remove the section from
+#                the ledger. Emits MIGRATED=<n>. No section → MIGRATED=0 and
+#                nothing is written (idempotent).
 #
 # Column positions are derived from the header row (cell names matched
 # case-insensitively) — never hardcoded. Pipe characters escaped as \| inside a
@@ -70,10 +103,13 @@ usage() {
 usage: script-intake-stamp.sh <intake.md-path> <row-#> <verb>
   --status <value> [--prd <id>]                                   (stamp)
   --append-row --type <t> --idea <s> --goal <s> --grade <s>
-               [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>]
+               [--date <YYYY-MM-DD>] [--status <v>] [--prd <id>] [--parent <PRD-n>]
   --set-cell <type|idea|goal|grade> <value>
   --remove-row
   --find-row --prd <prd-id>                        (read-only; pass `-` as row-#)
+  --list-rows [--status <s,..>] [--match <words>] [--blocked-by <n>] [--row <n,..>] [--limit <n>]
+                                                   (read-only; pass `-` as row-#)
+  --migrate-log                                    (pass `-` as row-#)
   --log-append --change <modify|add|remove> --detail <text> [--when <YYYY-MM-DD>]
 USAGE
 }
@@ -97,6 +133,12 @@ rdate=""
 change=""
 detail=""
 when=""
+match=""
+blocked=""
+rows_want=""
+limit=""
+parent=""
+have_parent=0
 
 set_verb() {
   if [[ -n "$verb" ]]; then
@@ -111,9 +153,16 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --status)     status="${2:-}"; have_status=1; shift 2 || { usage; exit 2; } ;;
     --prd)        prd="${2:-}"; have_prd=1; shift 2 || { usage; exit 2; } ;;
+    --parent)     parent="${2:-}"; have_parent=1; shift 2 || { usage; exit 2; } ;;
     --append-row) set_verb append-row; shift ;;
     --remove-row) set_verb remove-row; shift ;;
     --find-row)   set_verb find-row; shift ;;
+    --list-rows)  set_verb list-rows; shift ;;
+    --migrate-log) set_verb migrate-log; shift ;;
+    --match)      match="${2:-}"; shift 2 || { usage; exit 2; } ;;
+    --blocked-by) blocked="${2:-}"; blocked="${blocked#\#}"; shift 2 || { usage; exit 2; } ;;
+    --row)        rows_want="${2:-}"; shift 2 || { usage; exit 2; } ;;
+    --limit)      limit="${2:-}"; shift 2 || { usage; exit 2; } ;;
     --log-append) set_verb log-append; shift ;;
     --set-cell)   set_verb set-cell; cell="${2:-}"; value="${3:-}"
                   [[ $# -ge 3 ]] || { usage; exit 2; }; shift 3 ;;
@@ -177,7 +226,8 @@ function issep(arr, n,   j,b) {
   for (j=1;j<=n;j++) { b=trim(arr[j]); if (b=="") continue; if (b !~ /^:?-+:?$/) return 0 }
   return 1
 }
-function rownum(x) { x=trim(x); sub(/^#/, "", x); return (x ~ /^[0-9]+$/) ? x : "" }
+# A row id is a whole number, or `<n>.<m>` for a sub-PRD row.
+function rownum(x) { x=trim(x); sub(/^#/, "", x); return (x ~ /^[0-9]+(\.[0-9]+)?$/) ? x : "" }
 '
 
 # ── header column resolver (A12) ─────────────────────────────────────────────
@@ -237,7 +287,108 @@ commit_tmp() {
   mv "$tmp" "$file" || { echo "script-intake-stamp: cannot write $file" >&2; exit 5; }
 }
 
+# Add the `parent` column to a ledger written before it existed: header and
+# separator gain one cell, every ledger row gains an empty one. Every other byte
+# stays. Called only by append-row when a sub-PRD row needs the column.
+add_parent_col() {
+  local tmp
+  tmp=$(mktmp) || return 5
+  awk "$awk_lib"'
+  BEGIN { header_found=0; done_sep=0; intable=0 }
+  {
+    line=$0
+    if (!header_found) {
+      if (line ~ /\|/) {
+        n=splitcells(line, hc); ci_num=0; ci_status=0
+        for (j=1;j<=n;j++) { name=tolower(trim(hc[j])); if (name=="#") ci_num=j; else if (name=="status") ci_status=j }
+        if (ci_num>0 && ci_status>0) {
+          header_found=1; intable=1; col_num=ci_num
+          sub(/[[:space:]]*$/, "", line); print line " parent |"; next
+        }
+      }
+      print; next
+    }
+    if (intable && line ~ /\|/) {
+      n=splitcells(line, dc)
+      sub(/[[:space:]]*$/, "", line)
+      if (issep(dc, n) && !done_sep) { done_sep=1; print line "--------|"; next }
+      if (rownum(dc[col_num]) != "") { print line "  |"; next }
+      print $0; next
+    }
+    if (intable && line !~ /\|/ && line !~ /^[[:space:]]*$/) intable=0
+    print
+  }
+  END { if (!header_found) exit 2 }' "$file" > "$tmp" || { rm -f "$tmp"; echo "script-intake-stamp: internal error (add parent column)" >&2; return 2; }
+  commit_tmp "$tmp"
+  echo "PARENT_COLUMN_ADDED=1"
+}
+
+logfile="$(dirname "$file")/INTAKE-UPDATE.md"
+
+# Lazy-create INTAKE-UPDATE.md with its canonical header (this heredoc is the
+# one source of the file's shape), then make sure it ends in a newline so the
+# next entry lands on its own row. Never duplicates the header.
+ensure_log() {
+  if [[ ! -f "$logfile" ]]; then
+    cat > "$logfile" <<'HEADER' || { echo "script-intake-stamp: cannot create $logfile" >&2; exit 5; }
+# INTAKE-UPDATE — Update log
+
+Edit history for INTAKE.md: content edits, removals and status fixes made by
+`/intake` — append-only. INTAKE.md holds the current state; this file is how it
+got there, including rows that no longer exist. Rows created by plain capture
+are not logged (their `date` cell already records them).
+
+`change` is always one of `modify` (a cell value changed — one entry per cell) ·
+`add` (a row created by a split) · `remove` (a row deleted; the `#` is never
+reused, so the ledger keeps a visible gap).
+
+| when | row | change | detail |
+|------|-----|--------|--------|
+HEADER
+  fi
+  if [[ -s "$logfile" && -n "$(tail -c1 "$logfile")" ]]; then
+    printf '\n' >> "$logfile" || { echo "script-intake-stamp: cannot write $logfile" >&2; exit 5; }
+  fi
+}
+
 case "$verb" in
+
+# ── migrate-log (legacy in-file `## Update log` → INTAKE-UPDATE.md) ──────────
+# A pre-split ledger may still carry a `## Update log` section at its foot. Move
+# its entry rows verbatim into INTAKE-UPDATE.md (lazy-created) and drop the
+# section from INTAKE.md. Idempotent: no section → MIGRATED=0, nothing written.
+migrate-log)
+  if ! grep -qiE '^##[[:space:]]+update log[[:space:]]*$' "$file"; then
+    echo "MIGRATED=0"; exit 0
+  fi
+  tmp=$(mktmp) || exit 5
+  rows_tmp=$(mktmp) || exit 5
+  trap 'rm -f "$tmp" "$rows_tmp"' EXIT
+  awk -v rows_out="$rows_tmp" "$awk_lib"'
+  BEGIN { insec=0; seenhdr=0 }
+  {
+    if (!insec && tolower($0) ~ /^##[[:space:]]+update log[[:space:]]*$/) { insec=1; next }
+    if (insec && $0 ~ /^#{1,2}[[:space:]]/) insec=0
+    if (!insec) { keep[++nk]=$0; next }
+    if ($0 !~ /\|/) next
+    n=splitcells($0, c)
+    if (issep(c, n)) next
+    if (!seenhdr) { seenhdr=1; next }
+    print $0 > rows_out
+  }
+  END {
+    # Drop trailing blank lines the removed section leaves behind.
+    while (nk>0 && keep[nk] ~ /^[[:space:]]*$/) nk--
+    for (i=1;i<=nk;i++) print keep[i]
+  }' "$file" > "$tmp" || { echo "script-intake-stamp: internal error (migrate-log)" >&2; exit 2; }
+  moved=$(grep -c '' "$rows_tmp" 2>/dev/null || echo 0)
+  ensure_log
+  cat "$rows_tmp" >> "$logfile" || { echo "script-intake-stamp: cannot write $logfile" >&2; exit 5; }
+  commit_tmp "$tmp"
+  rm -f "$rows_tmp"; trap - EXIT
+  echo "MIGRATED=$moved"
+  exit 0
+  ;;
 
 # ── stamp (original behaviour) ───────────────────────────────────────────────
 stamp)
@@ -303,15 +454,24 @@ append-row)
 
   # Every cell below is written unconditionally (date and status via their
   # defaults), so any of these columns missing means a silently partial row.
+  if [[ $have_parent -eq 1 ]]; then
+    [[ "$row" =~ ^[0-9]+\.[0-9]+$ ]] || { echo "script-intake-stamp: --parent marks a sub-PRD row; row-# must be <n>.<m>, got '$row'" >&2; exit 2; }
+    cols_dump=$(header_cols)
+    if [[ -n "$cols_dump" && "$(col_index parent)" == "0" ]]; then
+      add_parent_col || exit $?
+    fi
+  fi
+
   cols_dump=$(header_cols)
   require_col '#' date type idea goal grade status
   [[ $have_prd -eq 1 ]] && require_col prd
+  [[ $have_parent -eq 1 ]] && require_col parent
 
   tmp=$(mktmp) || exit 5
   trap 'rm -f "$tmp"' EXIT
 
   SI_NUM="$row" SI_DATE="$rdate" SI_TYPE="$rtype" SI_IDEA="$idea" SI_GOAL="$goal" \
-  SI_GRADE="$grade" SI_STATUS="$status" SI_PRD="$prd" \
+  SI_GRADE="$grade" SI_STATUS="$status" SI_PRD="$prd" SI_PARENT="$parent" \
   awk -v target="$row" "$awk_lib"'
   function put(name, val,   i) { i=cols[name]; if (i>0) out[i]=" " esc(val) " " }
   BEGIN { header_found=0; col_num=0; hn=0; hdridx=0; sepidx=0; last=0; dup=0; nl=0 }
@@ -350,6 +510,7 @@ append-row)
     put("type", ENVIRON["SI_TYPE"]); put("idea", ENVIRON["SI_IDEA"])
     put("goal", ENVIRON["SI_GOAL"]); put("grade", ENVIRON["SI_GRADE"])
     put("status", ENVIRON["SI_STATUS"]); put("prd", ENVIRON["SI_PRD"])
+    put("parent", ENVIRON["SI_PARENT"])
     for (i=1;i<=nl;i++) { print lines[i]; if (i==ins) print join(out, hn) }
     exit 0
   }' "$file" > "$tmp"
@@ -494,7 +655,7 @@ find-row)
   SI_WANT="$prd" awk "$awk_lib"'
   function token(v,   t) {
     t = tolower(unesc(trim(v)))
-    if (match(t, /prd-[0-9]+(-[a-z0-9._-]+)?/)) return substr(t, RSTART, RLENGTH)
+    if (match(t, /prd-[0-9]+(\.[0-9]+)?(-[a-z0-9._-]+)?/)) return substr(t, RSTART, RLENGTH)
     return t
   }
   BEGIN {
@@ -529,6 +690,7 @@ find-row)
     if (cols["idea"]>0)  print "IDEA="  unesc(trim(dc[cols["idea"]]))
     if (cols["goal"]>0)  print "GOAL="  unesc(trim(dc[cols["goal"]]))
     if (cols["grade"]>0) print "GRADE=" unesc(trim(dc[cols["grade"]]))
+    if (cols["parent"]>0) print "PARENT=" unesc(trim(dc[cols["parent"]]))
     exit 0
   }
   END {
@@ -540,6 +702,92 @@ find-row)
     0) exit 0 ;;
     1) echo "script-intake-stamp: no ledger row maps to PRD '$prd' in $file" >&2; exit 1 ;;
     2) echo "script-intake-stamp: no ledger table found in $file" >&2; exit 2 ;;
+    *) echo "script-intake-stamp: internal error (awk rc=$rc)" >&2; exit 2 ;;
+  esac
+  ;;
+
+# ── list-rows (READ-ONLY filtered read) ──────────────────────────────────────
+# intake reads the ledger through this verb so a growing ledger never reaches
+# the model whole: open rows only, keyword hits only, or named rows only.
+list-rows)
+  if [[ -n "$limit" && ! "$limit" =~ ^[0-9]+$ ]]; then
+    echo "script-intake-stamp: --limit must be a whole number" >&2; exit 2
+  fi
+  if [[ -n "$blocked" && ! "$blocked" =~ ^[0-9]+$ ]]; then
+    echo "script-intake-stamp: --blocked-by must be a row number" >&2; exit 2
+  fi
+  SI_STATUSES="$( [[ $have_status -eq 1 ]] && printf '%s' "$status" )" SI_MATCH="$match" \
+  SI_ROWS="$rows_want" awk -v blocked="$blocked" -v limit="$limit" "$awk_lib"'
+  BEGIN {
+    header_found=0; hdr=""; sep=""; maxrow=0; kept=0
+    ns=split(tolower(ENVIRON["SI_STATUSES"]), st, /[[:space:]]*,[[:space:]]*/)
+    for (i=1;i<=ns;i++) if (trim(st[i])!="") want_st[trim(st[i])]=1
+    nw=0; raw=tolower(ENVIRON["SI_MATCH"]); gsub(/[^a-z0-9]+/, " ", raw)
+    m=split(raw, ws, " ")
+    # Word-prefix match with a crude plural strip: "writers" hits "writer".
+    for (i=1;i<=m;i++) {
+      w=ws[i]; if (length(w)>3) sub(/s$/, "", w)
+      if (length(w)>=3 && !(w in seen)) { seen[w]=1; words[++nw]=w }
+    }
+    nr=split(ENVIRON["SI_ROWS"], rw, /[[:space:]]*,[[:space:]]*/)
+    for (i=1;i<=nr;i++) { r=trim(rw[i]); sub(/^#/, "", r); if (r!="") want_row[r]=1 }
+    have_rows = (nr>0 && ENVIRON["SI_ROWS"]!="")
+  }
+  {
+    line=$0
+    if (line !~ /\|/) next
+    if (!header_found) {
+      n=splitcells(line, hc)
+      ci_num=0; ci_status=0; delete cols
+      for (j=1;j<=n;j++) {
+        name=tolower(trim(hc[j]))
+        if (name!="") cols[name]=j
+        if (name=="#") ci_num=j
+        else if (name=="status") ci_status=j
+      }
+      if (ci_num>0 && ci_status>0) { header_found=1; hdr=line }
+      next
+    }
+    n=splitcells(line, dc)
+    if (issep(dc, n)) { if (sep=="") sep=line; next }
+    v=rownum(dc[cols["#"]])
+    if (v=="") next
+    if (v ~ /^[0-9]+$/ && v+0 > maxrow) maxrow=v+0
+    if (ns>0 && ENVIRON["SI_STATUSES"]!="" && !(tolower(trim(dc[cols["status"]])) in want_st)) next
+    if (have_rows && !(v in want_row)) next
+    if (blocked!="") {
+      g=(cols["grade"]>0) ? dc[cols["grade"]] : ""
+      if (g !~ ("S:[[:space:]]*blocked-by-#?" blocked "([^0-9]|$)")) next
+    }
+    score=0
+    if (nw>0) {
+      txt=tolower(unesc(((cols["idea"]>0) ? dc[cols["idea"]] : "") " " ((cols["goal"]>0) ? dc[cols["goal"]] : "")))
+      gsub(/[^a-z0-9]+/, " ", txt); txt=" " txt
+      for (i=1;i<=nw;i++) if (index(txt, " " words[i])>0) score++
+      if (score==0) next
+    }
+    kept++; keep_line[kept]=line; keep_score[kept]=score
+  }
+  END {
+    if (!header_found) { print "MAX_ROW=0"; print "COUNT=0"; exit 2 }
+    # Stable insertion sort, best keyword score first (ties keep ledger order).
+    for (i=2;i<=kept;i++) {
+      l=keep_line[i]; s=keep_score[i]; j=i-1
+      while (j>=1 && keep_score[j] < s) { keep_line[j+1]=keep_line[j]; keep_score[j+1]=keep_score[j]; j-- }
+      keep_line[j+1]=l; keep_score[j+1]=s
+    }
+    out=kept; if (limit!="" && limit+0 < out) out=limit+0
+    print "MAX_ROW=" maxrow
+    print "COUNT=" out
+    print hdr
+    if (sep!="") print sep
+    for (i=1;i<=out;i++) print keep_line[i]
+    exit 0
+  }' "$file"
+  rc=$?
+  case $rc in
+    0) exit 0 ;;
+    2) echo "script-intake-stamp: no ledger table found in $file" >&2; exit 1 ;;
     *) echo "script-intake-stamp: internal error (awk rc=$rc)" >&2; exit 2 ;;
   esac
   ;;
@@ -557,32 +805,7 @@ log-append)
   fi
   [[ -n "$when" ]] || when=$(date +%F)
 
-  logfile="$(dirname "$file")/INTAKE-UPDATE.md"
-  # Lazy-create with the canonical header (protocol-update.md § The update log).
-  if [[ ! -f "$logfile" ]]; then
-    cat > "$logfile" <<'HEADER' || { echo "script-intake-stamp: cannot create $logfile" >&2; exit 5; }
-# INTAKE-UPDATE — Update log
-
-Edit history for INTAKE.md: entries made by `/intake --update` and removals by
-`/intake --delete` — append-only. INTAKE.md holds the current state; this file
-is how it got there, including rows that no longer exist. Rows created by plain
-`/intake` capture are not logged (their `date` cell already records them).
-
-`change` is always one of `modify` (a cell value changed — one entry per cell) ·
-`add` (a row created by a split) · `remove` (a row deleted; the `#` is never
-reused, so the ledger keeps a visible gap).
-
-| when | row | change | detail |
-|------|-----|--------|--------|
-HEADER
-  fi
-
-  # Never duplicate the header on a subsequent append; just ensure the file ends
-  # in a newline so the entry lands on its own row.
-  if [[ -s "$logfile" && -n "$(tail -c1 "$logfile")" ]]; then
-    printf '\n' >> "$logfile" || { echo "script-intake-stamp: cannot write $logfile" >&2; exit 5; }
-  fi
-
+  ensure_log
   detail_esc=$(printf '%s' "$detail" | tr '\n\r' '  ' | sed -e 's/\\|/|/g' -e 's/|/\\|/g')
   printf '| %s | #%s | %s | %s |\n' "$when" "$row" "$change" "$detail_esc" >> "$logfile" \
     || { echo "script-intake-stamp: cannot write $logfile" >&2; exit 5; }

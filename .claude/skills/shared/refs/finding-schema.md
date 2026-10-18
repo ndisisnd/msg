@@ -11,7 +11,7 @@ migration, PRD-consistency, smoke), eng's whole-change review, and the
 `report-prd-<N>-<K>.json` issues file (in the PRD's `reports/` folder, written on
 a failed run) that `eng --build report=` consumes. Every producer conforms to
 this object so downstream consumers (the `/msg --gui` board, `eng --build`'s
-issues-file read, plan-em --team's orchestrator) can merge, dedup, and
+issues-file read, plan-em's orchestrator) can merge, dedup, and
 regression-match findings mechanically — without per-producer translation.
 
 Replaces the divergent shapes that previously drifted apart (disjoint severity
@@ -51,7 +51,7 @@ in some and absent in others).
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | string | yes | `<prefix>-<zero-padded 3-digit index>`, e.g. `sec-001`, `quality-003`, `unit-002`. Prefix names the producing bucket/mode. |
-| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:smoke`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). `eng --review` emits `eng:review`. `merge` emits `merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. **Retired values are mapped on read, never rejected** — see "Legacy wire values" below. |
+| `source` | string | yes | The producing gate stage. Pre-merge stages: `pre-merge:mechanical`, `pre-merge:unit-int`, `pre-merge:regression`, `pre-merge:bucket:<name>` (`<name>` ∈ e2e/qa/mobile/perf/a11y/coverage/api/load), `pre-merge:security`, `pre-merge:migration`, `pre-merge:prd-consistency`, `pre-merge:smoke`. Mechanical sub-runners keep their tool prefix (`lint:`/`format:`/`typecheck:`/`secrets:<scanner>`/`comment-scan`/`commit-cap`). `eng --review` emits `eng:review`. `eng --bug` emits `eng:bug` (a bug the user found by hand, `evidence.tool: user-report`). `merge` emits `merge` (deploy failures + refusals). After dedup may be a comma-separated list of merged sources. **Retired values are mapped on read, never rejected** — see "Legacy wire values" below. |
 | `severity` | enum | yes | `blocker` / `high` / `medium` / `low`. See "Severity enum" below. |
 | `category` | enum | yes | See "Category enum" below. Never omit — dedup and regression keys depend on it. |
 | `rule` | string | yes | **The dedup/regression key.** Tool rule-id (`stripe-access-token`, semgrep check id), failing test name, or the verbatim assertion text. Never null — synthesize a stable slug from the finding if the tool gives no id. |
@@ -188,7 +188,7 @@ when a human cancels a ship gate (`merge/refs/output-schema.md`).
     "snippet": "gitleaks rule `stripe-access-token` matched — value redacted"
   },
   "suggestion": "Move the key to an env var and rotate the leaked credential.",
-  "repro": "rtk gitleaks detect --source . --no-banner --redact",
+  "repro": "gitleaks detect --source . --no-banner --redact",
   "regression_of": null
 }
 ```
@@ -212,7 +212,7 @@ when a human cancels a ship gate (`merge/refs/output-schema.md`).
     "snippet": "expected 400, received 500"
   },
   "suggestion": "Validate email presence before the DB write.",
-  "repro": "rtk npx vitest run test/users.test.ts",
+  "repro": "npx vitest run test/users.test.ts",
   "regression_of": null
 }
 ```

@@ -69,7 +69,7 @@ and a roadmap route survived unnoticed in this table. Check reachability wheneve
 | Reviewing | A PRD or spec | A project spec (PRD) | plan-review |
 | Reviewing | Code or a diff | Working code or test results | emulate |
 | Reviewing | Code or a diff | An engineering plan | eng |
-| Wrapping up | Code or a diff | Working code or test results | merge --staging |
+| Wrapping up | Code or a diff | Working code or test results | merge |
 | Wrapping up | Code or a diff | A commit or task list | kermit |
 
 **Step 3 — Emit**

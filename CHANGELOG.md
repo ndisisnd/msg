@@ -1,5 +1,368 @@
 # Changelog
 
+## 2026-10-18
+
+### [205] v6.0.0 release — README and llms.txt for v6.0.0
+
+- `README.md`: Changed — header release blurb now announces v6.0.0 (setup by itself, fewer questions, bare `/msg` next step, breaking gate hand-off); "Current release" line reads v6.0.0, not the stale v5.0.1; script count reads ~70.
+- `llms.txt`, `ARCHITECTURE.md`: Changed — script count reads ~70 (72 files in `.claude/scripts/`), not ~58.
+
+### [204] v6.0.0 release — version 6.0.0 and release notes
+
+- `RELEASES.md`: Added — v6.0.0 notes covering [166]–[203]: new (bare `/msg` next steps, setup runs by itself, one-pass `/msg --update`, `/eng --bug`, `/intake --health` and brainstorm switch, `/plan-pm --update`, `--review on|off`), improved (fewer questions, honest pre-merge checks, automatic fix loops, bare `/merge` picks the step) and breaking changes (pre-merge stays local and `/merge` pushes and opens the PR; `--init` on both gates, `--bump`, `--prd`, `--update-criticality`, `--quiet`, `--status` and the `--cto`/`--eng` setup modes removed).
+- `package.json`: Changed — version `5.6.6` → `6.0.0`; `/msg --version` reads it at install time.
+
+### [203] v6.0.0 final — staging and production heartbeat calls reach the status script
+
+- `.claude/skills/merge/refs/staging.md`: Fixed — the release-lock, test-selection-miss and PRD-stamp calls use their own variables (`L`, `M`, `P`), so every `"$S" --tick`/`--end` reaches the status-tick script.
+- `.claude/skills/merge/refs/production.md`: Fixed — each script gets its own variable (`COV`, `LOCK`, `ID`, `CI`, `INTAKE`, `P`, …); `S` stays the status-tick script, so ticks, the lock and the coverage re-check each reach the right script.
+- `.claude/skills/merge/refs/open-pr.md`: Fixed — merge-checks, policy-set and CI-status calls use `CHK`, `SET`, `CI`, so the CI wait no longer overwrites the heartbeat's `S`.
+- `.claude/skills/merge/refs/deploy.md`, `verify-deploy.md`, `protection.md`, `release-identity.md`: Fixed — their script calls use `PLAT`, `SMOKE`, `BP`, `ID` instead of `S`.
+
+### [202] v6.0.0 final — pre-merge and merge setup wording drops the old --init
+
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — the seed's unfilled blocks are filled by pre-merge's and merge's first-run setup, not a gate `--init`.
+- `.claude/skills/msg/refs/protocol-init-staging.md`: Changed — completing setup is pre-merge's and merge's first-run setup.
+- `.claude/skills/shared/refs/component-catalog.md`: Changed — gate `--init`/`--update` wording reads setup/`--update`.
+- `.claude/skills/shared/refs/check-report-schema.md`: Changed — `detect` is written at setup/`--update`.
+- `.claude/skills/shared/refs/tooling-detection.md`: Changed — setup/`--update` run the preflight family.
+- `.claude/skills/shared/refs/verify-prelude.md`: Changed — tooling resolves at setup/`--update`.
+- `.claude/skills/shared/refs/env-contract.md`: Changed — setup offers the companion stubs.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — detection runs at setup/`--update`; the round-trip rule names a setup-written file.
+- `.claude/skills/pre-merge/refs/_common.md`: Changed — components are detected at setup/`--update`.
+- `.claude/skills/pre-merge/refs/universal/protocol-security.md`: Changed — setup/`--update` records the secret scanner.
+- `.claude/skills/pre-merge/refs/platform/protocol-mobile.md`: Changed — setup establishes the declared matrix.
+- `.claude/scripts/script-tier-resolve.sh`: Changed — comments name setup/`--update`.
+- `.claude/skills/pre-merge/refs/platform-profiles.md`: Changed — a missing `devkit/PLATFORMS.md` points to `/msg --update`.
+- `.claude/skills/merge/refs/deploy.md`: Changed — a missing `devkit/PLATFORMS.md` points to `/msg --update`.
+- `.claude/scripts/script-platforms-parse.py`: Changed — the missing-file warning points to `/msg --update`.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — merge --staging next step is to answer **Staging works**.
+- `ARCHITECTURE.md`: Changed — script table lists `script-prd-update.py`, `script-eng-bug-report.py` and `script-premerge-last-check.sh`.
+- `llms.txt`: Changed — pre-merge is the quality gate.
+- `.claude/skills/pre-merge/SKILL.md`: Changed — argument-hint lists `--changed-only`, `--prior-issues <path>` and `--full-secret-scan`.
+
+### [201] v6.0.0 final — merge and pre-merge wording matches the new flows
+
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — tagging pass restamps `criticality_review` first, then commits the tags and `policy.json` in one commit.
+- `.claude/skills/shared/refs/policy-schema-merge.md`: Changed — lock release timing drops the inline human-test refusal (now asked before the lock) and lists `pending_ci`.
+- `.claude/skills/merge/refs/staging.md`: Changed — the already-merged skip path closes the heartbeat before Step 6.
+
+### [200] v6.0.0 final — msg wording matches the new update and setup flows
+
+- `.claude/skills/msg/refs/protocol-update.md`: Changed — approval input names the real options; no change lines ⇒ ask only the settings questions.
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — `--update` reference names the pre-merge and merge updates behind one approval.
+- `.claude/skills/msg/refs/protocol-init-staging.md`, `QUICKSTART.md`: Changed — no `devkit/` runs `/msg --init` first; a missing `policy.json` points to `/msg --update`.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — "default picker" is now bare `/msg`.
+- `.claude/skills/msg/refs/init/init-setup.sh`: Changed — comment names the setup interview, not eng mode.
+- `README.md`: Changed — `/msg --update` row says it is msg's own part.
+
+## 2026-10-17
+
+### [199] v6.0.0 msg — /msg --update runs all three updates with one approval
+
+- `.claude/skills/msg/refs/protocol-update.md`: Changed — one pass over msg's update, `/pre-merge --update` and `/merge --update`; one shared change-list format; one prompt holds the approval and the settings questions; no `devkit/` runs setup instead of refusing.
+- `.claude/skills/pre-merge/refs/protocol-init.md`, `.claude/skills/merge/refs/protocol-init.md`: Changed — `--update` uses the shared change-list format; inside `/msg --update` it returns its lines and does not ask again.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — writer table names the one-pass update.
+- `.claude/scripts/script-policy-set.py`: Changed — docstring names the new step.
+- `README.md`, `ARCHITECTURE.md`, `llms.txt`: Changed — bare `/msg` next steps, setup by itself, one-pass `/msg --update`, new `script-msg-next.py`.
+
+### [198] v6.0.0 msg — setup runs by itself when devkit/ is missing; one interview, no modes
+
+- `.claude/skills/shared/refs/setup-first.md`: Added — the one rule: no `devkit/` ⇒ run `/msg --init`, then continue the user's command.
+- `.claude/skills/msg/refs/protocol-cto.md`: Removed — one interview only; the mode gate and `--cto` / `--eng` are gone.
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — no mode gate or `Interview mode` input; runs as an automatic pre-step; names `/msg --init` as the one `release_flow` writer.
+- `.claude/skills/msg/refs/protocol-eng.md`: Changed — the one interview; new auth question A4 in Call 3 fills `ARCH_AUTH` (still ≤4 calls).
+- `.claude/skills/msg/SKILL.md`: Changed — description, dispatch (bare `/msg`, `--update`, no `--init` sub-flags), setup-runs-by-itself rule.
+- `.claude/skills/intake/SKILL.md`, `plan-pm/SKILL.md`, `plan-em/SKILL.md`, `plan-em/refs/protocol-em.md`, `plan-review/SKILL.md`, `eng/refs/protocol-core.md`, `pre-merge/refs/executor.md`, `merge/SKILL.md`: Changed — no `devkit/` runs setup first; a missing single file points to `/msg --update`.
+- `.claude/scripts/script-branch-topology.sh`, `.claude/skills/msg/refs/init/init.sh`: Changed — comments no longer name cto mode.
+- `QUICKSTART.md`: Changed — one interview, no mode table; setup runs by itself.
+
+### [197] v6.0.0 msg — bare /msg says the next step for each PRD in progress
+
+- `.claude/scripts/script-msg-next.py`: Added — reads devkit, PRDs, tickets, eng reports, pre-merge's last check, git and INTAKE.md; prints up to 4 `NEXT=<command>|<why>|<prd>` lines.
+- `.claude/skills/msg/refs/protocol-default.md`: Changed — prints the next steps, then one question: run one, or "Show menu" (the old two-question menu).
+- `evals/cases/msg-next-states/`: Added — covers no devkit, sign-off, pass, failed check, built, drafted, intake rows and the 4-line cap.
+
+### [196] v6.0.0 merge — a re-run after "Not yet" asks for the sign-off again; seed takes many scopes
+
+- `.claude/skills/merge/refs/open-pr.md`: Changed — new §0: an already-merged staging PR that holds the tip skips push, PR and CI wait and resumes at the test script and sign-off.
+- `.claude/skills/merge/refs/staging.md`: Changed — Step 2 names the already-merged skip; the "Not yet" option says re-run `/merge` to be asked again.
+- `.claude/skills/shared/refs/policy-schema-merge.md`: Changed — cites the real direct-flow section name.
+- `.claude/scripts/script-merge-checks.py`: Changed — `seed --scope` takes several values (`--scope web python`).
+- `.claude/skills/merge/refs/protocol-init.md`: Changed — the seed call shows several scopes.
+- `.claude/skills/merge/refs/human-test-script.md`: Changed — description and opening name the direct-flow call site, which does not stop.
+- `evals/cases/merge-checks-libs-seed/`: Changed — covers a two-scope seed call.
+
+### [195] v6.0.0 pre-merge — an unreadable policy.json stops instead of starting setup; a missing re-grade file fails
+
+- `.claude/scripts/script-pipeline-resolve.py`: Changed — unparseable or `version` ≠ 1 now exits 8 (`bad_manifest`); only absent / no `components[]` exits 2 and leads to setup.
+- `.claude/scripts/script-aggregate-verdict.sh`: Changed — a `--regrades` path that is given but missing exits 1.
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — §0 and §1 name exit 8; §0 names the setup commit; regression tail is the last gate before `/merge`.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — `/pre-merge --update` writer name, per-gate setup note, no stale `--init` trigger, pre-merge stops on a malformed file.
+- `evals/cases/pipeline-bad-manifest-stops/`, `evals/cases/agg-verdict-regrades-missing/`: Added — cover both exits.
+
+### [194] v6.0.0 pre-merge — setup and tag passes commit their files; write scope and docs match
+
+- `.claude/skills/pre-merge/refs/protocol-init.md`: Changed — setup step 7 commits its approved outputs as one `chore(pre-merge): setup` commit before the gate continues.
+- `.claude/skills/pre-merge/refs/protocol-criticality.md`: Changed — restamp `criticality_review` first, then commit tags and `devkit/policy.json` in one `test(criticality)` commit.
+- `.claude/skills/pre-merge/SKILL.md`, `pre-merge/refs/{sync,executor}.md`, `shared/refs/safety-floor.md`: Changed — write scope names the setup commit and the tag commit beside the sync merge.
+- `.claude/skills/shared/refs/check-report-schema.md`: Fixed — dangling links to removed `protocol-unit`/`-integration` refs.
+- `.claude/skills/pre-merge/refs/{refusal-patterns,output-schema,platform-profiles}.md`: Changed — no `--base` advice, no `user_declined`, blocking-finding wording, `head` field, green CI enforced at `/merge`.
+- `.claude/skills/msg/refs/protocol-update.md`, `llms.txt`: Changed — `/pre-merge --update` names the scaffold step; pre-merge stays local.
+
+### [193] v6.0.0 merge — docs and menu match the new merge
+
+- `.claude/skills/msg/SKILL.md`, `msg/refs/{protocol-help,protocol-init}.md`: Changed — menu row and flow line: bare `/merge`, `--update`, first-run setup.
+- `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `llms.txt`: Changed — no `/merge --init`; merge pushes and opens the PR; bare `/merge`; `--update`; one direct-flow question; automatic fix after a failed ship.
+- `.claude/skills/shared/refs/policy-schema.md`, `.claude/scripts/script-ci-status.py`: Changed — leftover `--init` and old step names.
+
+### [192] v6.0.0 merge — direct flow gets a test script and one confirmation; the fix loop after a failed ship runs by itself
+
+- `.claude/skills/merge/refs/production.md`: Changed — Step 3 split by flow: staged keeps Ask A + Ask B; direct gives the human test script, then one "Tested and ready to ship?" question before the merge and the lock.
+- `.claude/skills/merge/refs/human-test-script.md`: Changed — second call site (direct flow, local run or preview link).
+- `.claude/skills/merge/SKILL.md`, `shared/refs/safety-floor.md`: Changed — "ship gates never collapse" has one exception: the direct-flow confirmation.
+- `.claude/skills/merge/refs/{failed-ship,refusal-patterns,submission}.md`: Changed — after the rollback question, the bug report, fix plan and fix build run with no question (one round, pre-merge's stop rules); `human_test_declined` names the one confirmation.
+- `.claude/skills/shared/refs/fix-loop.md`: Changed — § merge is automatic after the rollback question; offers removed.
+- `.claude/skills/shared/refs/{policy-schema-merge,policy-schema,gate-dispatch}.md`: Changed — new § `policies.merge` (`risky_paths`, `ci_wait_minutes`); §1b names the bare-`/merge` pick and the one direct-flow confirmation; merge's main-thread steps and failed-ship hand-back.
+- `.claude/skills/eng/refs/plan/fix-plan.md`, `eng/refs/build/fix-build-orchestrated.md`: Changed — name the fix loop's Plan and Build steps, not offers.
+
+### [191] v6.0.0 merge — no `--prd` or `--bump`; bare `/merge` picks the next step
+
+- `.claude/skills/merge/SKILL.md`: Changed — § Mode pick (bare `/merge`: staging step without a sign-off, production step with one or with no staging); § Find the PRD (branch name, else one question); `--prd` and `--bump` removed from usage.
+- `.claude/skills/merge/refs/production.md`: Changed — shipping PRDs found by merge; a signed-off PRD whose stamp lags is added by itself and listed in the confirmation; Step 4 has no `no_prd` refusal.
+- `.claude/skills/merge/refs/{refusal-patterns,release-identity,output-schema}.md`: Changed — `no_prd` removed; `no_staging_stage` only on an explicit `--staging`; `--version` is the only version override.
+- `.claude/scripts/script-release-identity.sh`: Changed — `--bump` removed; default minor, `--version` for any other number.
+- `evals/cases/release-identity-no-bump/`: Added; `a04-release-identity-no-reachable-tag/cmd`: Changed — no `--bump`.
+
+### [190] v6.0.0 merge — merge sets itself up, opens the PR, waits for CI; `--update` replaces `--init`
+
+- `.claude/skills/merge/refs/open-pr.md`: Added — the PR step: pre-merge's pass on the branch tip (small-change allowance + quick check), normal push, open or reuse the PR, wait for CI up to the limit.
+- `.claude/skills/merge/refs/protocol-init.md`: Changed — first-run setup runs inline then continues; `/merge --update` with one approval; release flow read and reported only; new risky-paths and CI-limit items.
+- `.claude/skills/merge/SKILL.md`, `refs/{staging,production,refusal-patterns,sanctioned-writes,protection}.md`: Changed — `--init` removed; Step 2 / direct Step 4 use the PR step; new refusals `no_premerge_pass`, `push_rejected`, `not_feature_branch`; `pending_ci` only at the wait limit.
+- `.claude/scripts/script-merge-checks.py`: Added — pass check, risky-path and line count, auth/payment library search, catalog seed, CI-limit measure.
+- `.claude/scripts/script-ci-status.py`: Changed — wait mode (`--wait-seconds`, `--deadline`, `wait_limit` exit 9).
+- `.claude/scripts/script-policy-read.py`: Changed — resolves `policies.merge.risky_paths` and `ci_wait_minutes`.
+- `.claude/skills/shared/refs/{component-catalog,policy-schema}.md`: Changed — risky-library table; writer table and §0 name merge setup and `--update`.
+- `.claude/skills/msg/refs/{protocol-init-staging,init/templates/template-PLATFORMS}.md`, `.claude/scripts/script-doctor-detect.sh`: Changed — hand off to `/merge --update`.
+- `evals/cases/{merge-checks-pass-states,merge-checks-libs-seed,merge-checks-ci-limit,ci-status-wait,policy-read-merge-keys}/`: Added — script cases.
+
+### [189] v6.0.0 eng — reviewer fixes are re-tested, packets check only their own files
+
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — a wave or repair review with fixes re-runs the unit + integration suite and commits `fix(review): … [W<w>]` before the next wave; the wave db-touch guard does not re-ask a path a leaf already got signed off.
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md`: Changed — Step 3a re-review with fixes re-runs the suite and commits the fixes before loop-close.
+- `.claude/skills/eng/refs/review/protocol.md`: Changed — "your caller re-runs" the tests after a reviewer fix.
+- `.claude/skills/eng/refs/build/protocol-packet.md`: Changed — an orchestrated packet pipes only its own ticket `files` to `script-eng-db-touch.sh -`; a manual build keeps the run-base form; a manual build runs Steps 0–7.
+- `.claude/skills/eng/refs/plan/protocol.md`, `eng/refs/build/bug-report.md`: Changed — summary heading names Step 3; "Commit?" is asked only with `orchestrate=off`.
+
+### [188] v6.0.0 pre-merge — stays local, sets itself up, finds its PRD, tags critical tests by itself
+
+- `.claude/skills/pre-merge/SKILL.md`: Changed — no `--init`, `--update-criticality`, `--prd`, `--quiet`, `--status`; first run sets up then gates; never pushes or opens a PR; ends "Next: /merge"; questions and the fix loop stay in the main conversation.
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — §7 pass terminal is the verdict plus "Next: /merge" (no PR); fail hands to the automatic fix loop; exit 2 means "run setup".
+- `.claude/skills/pre-merge/refs/refusal-patterns.md`, `output-schema.md`: Changed — `no_manifest` refusal removed; the out-of-scope text is true ("does not push or create PRs"); `pr_url` always null; `sync_conflict` skipped shape.
+- `.claude/skills/pre-merge/refs/prd/protocol-manual-test-plan.md`, `shared/refs/{component-catalog,report-schema}.md`: Changed — the PRD comes from the branch name or one question, never a flag.
+- `.claude/skills/shared/refs/{policy-schema,policy-schema-pre-merge,policy-schema-merge,env-contract,safety-floor,closing-message}.md`: Changed — writer tables name pre-merge setup and the automatic tagging step; `status_cadence` retired and ignored; pre-merge's closing line is "Next: /merge".
+- `.claude/skills/merge/refs/{protocol-init,staging,output-schema}.md`, `.claude/scripts/{script-ts-miss.py,script-ci-status.py,script-doctor-detect.sh,script-pipeline-resolve.py}`: Changed — no command names `/pre-merge --init` or `--update-criticality`.
+- `.claude/skills/msg/SKILL.md`, `msg/refs/{protocol-init,protocol-update,protocol-init-staging}.md`, `msg/refs/init/templates/template-ENV.md`: Changed — menu and setup text match.
+- `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`: Changed — pre-merge sets itself up, fixes failures, stays local; progress messages always on.
+
+### [187] v6.0.0 pre-merge — progress messages are always on
+
+- `.claude/scripts/script-status-tick.sh`: Changed — fixed 5-minute cadence; `MSG_STATUS_INTERVAL` and an old `policies.status_cadence` are ignored without error.
+- `.claude/skills/shared/refs/status-heartbeat.md`: Changed — § Cadence replaces the resolution table; no off switch.
+- `.claude/skills/eng/SKILL.md`, `plan-em/SKILL.md`, `merge/SKILL.md`: Changed — removed `--quiet` and `--status <n>m`.
+- `evals/cases/status-tick-clamp/`: Removed — no interval to clamp; `status-tick-disabled/` renamed `status-tick-no-off-switch/` and checks old switches are ignored.
+
+### [186] v6.0.0 pre-merge — one base, conflicts asked outside the gate, honest sandbox checks, batched setup
+
+- `.claude/skills/pre-merge/refs/sync.md`, `shared/refs/gate-dispatch.md`: Changed — a same-lines conflict aborts the merge and stops with `sync_conflict`; the main conversation asks "Resolve now / Abort".
+- `.claude/skills/pre-merge/refs/executor.md` §0a, `universal/protocol-mechanical.md`, `scripts/script-resolve-diff.sh`: Changed — the base is resolved once and passed to every step; the diff script has no default.
+- `.claude/skills/pre-merge/refs/platform/protocol-api.md`, `platform/protocol-migration.md`, `shared/refs/env-contract.md`, `shared/refs/component-catalog.md`: Changed — defined the live API check and the migration up/down/up round-trip; with no sandbox both report "not run: no sandbox".
+- `.claude/skills/pre-merge/refs/platform-profiles.md`, `_common.md`, `output-schema.md`, `msg/refs/init/templates/template-PLATFORMS.md`, `msg/refs/protocol-init.md`, `plan-review/refs/certification.md`, `.claude/scripts/script-cert-mech.py`: Changed — the catalog plus detection decide which checks run; the profile only sets strictness; `required_buckets` retired; check 6 checks platform rows.
+- `.claude/skills/pre-merge/refs/protocol-init.md`: Changed — setup asks up to 4 questions per prompt, gaps only, tuning questions in the same batches; final write sets `init: true`; `--update` writes approved `active_when` overrides; CI stub follows the detected language.
+- `.claude/scripts/script-pipeline-resolve.py`, `shared/refs/policy-schema-pre-merge.md`: Changed — a manifest `active_when` override wins over the catalog.
+- `.claude/scripts/script-premerge-last-check.sh`: Added — stores the last-checked commit and the verdict together per branch.
+- `.claude/scripts/script-policy-set.py`: Changed — documents that only `--set init=true` flips `init`.
+- `.claude/skills/pre-merge/refs/stubs/pre-merge.yml`, `stubs/*`: Changed — one setup block per language; no Node steps in a non-Node repo.
+- `.claude/skills/shared/refs/fix-loop.md`: Changed — pre-merge's fix loop runs automatically in the main conversation, up to 2 rounds, with stop rules; merge keeps its offers.
+- `.claude/skills/pre-merge/refs/protocol-criticality.md`: Changed — renamed from `protocol-update-criticality.md`; tagging becomes an automatic gate step.
+- `evals/cases/{premerge-last-check,pipeline-active-when-override,policy-set-init-true}/`: Added; `a06-cert-mech-no-prds-matched`: Changed — facet renamed; `agg-verdict-prd-regrades`: Changed — fixture folder tracked.
+
+### [185] v6.0.0 pre-merge — honest checks: no rtk, one tests file, smoke never skips, script-owned verdict
+
+- `.claude/skills/pre-merge/refs/{sync,universal/protocol-mechanical,universal/protocol-security,platform/protocol-e2e}.md`, `shared/refs/{verify-prelude,finding-schema}.md`, `eng/refs/plan/fix-plan.md`, `.claude/scripts/changelog-gate.py`: Changed — plain commands, no hard-coded `rtk` prefix; a missing `rtk` no longer turns every check into a silent warning.
+- `.claude/skills/pre-merge/refs/universal/protocol-tests.md`: Added — one tests stage for unit and integration; shared rules once, no guessed fallback commands ("not run: no test command").
+- `.claude/skills/pre-merge/refs/universal/protocol-unit.md`, `protocol-integration.md`: Removed — merged into `protocol-tests.md`.
+- `.claude/skills/pre-merge/refs/_common.md`, `platform/protocol-smoke.md`, `.claude/scripts/script-preflight-17-smoke.sh`: Changed — smoke is the runner guard's one exception; with no smoke suite it runs the default liveness check and reads `ready`, never `no_tooling`.
+- `.claude/skills/pre-merge/refs/severity-rubric.md`: Changed — each adjustment rule applies once and downgrades stack; PRD findings block only as `acceptance-unmet`.
+- `.claude/scripts/script-aggregate-verdict.sh`: Changed — new `--regrades` input applies the model's re-grades and regression marks; the blocking filter reads component and rule, so out-of-scope and untested PRD findings never fail the gate.
+- `.claude/skills/pre-merge/refs/executor.md` §5b, `prd/protocol-prd-consistency.md`, `shared/refs/component-catalog.md`, `pre-merge/SKILL.md`: Changed — the model writes `regrades.json` and never computes a verdict by hand; PRD check is "blocking for unmet criteria only".
+- `evals/cases/agg-verdict-prd-regrades/`: Added — covers the PRD blocking filter and the re-grade input.
+
+### [184] v6.0.0 plan-em — verifier fixes: one lane name, no pre-approved build, history out of refs
+
+- `.claude/skills/shared/refs/fix-loop.md`, `status-heartbeat.md`, `finding-schema.md`, `ARCHITECTURE.md`: Changed — the dead "plan-em --team" lane name now reads "plan-em's orchestrator".
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — removed the "autonomy contract pre-approves the build" sentence; plan-em never builds automatically.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the Output contract pointer uses the full eng path.
+- `.claude/skills/plan-em/refs/template-exec-table.md`, `ARCHITECTURE.md`: Changed — the v5.4 removed-columns history moved to ARCHITECTURE.md.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the plan-wave row no longer suggests `/plan-review` when the auto-review already ran.
+
+### [183] v6.0.0 eng — a bug found by hand gets its own report
+
+- `.claude/skills/eng/refs/build/bug-report.md`: Added — `/eng --bug "<what is wrong>"` files the bug as a new numbered report, then runs `eng --build report=` on it with the 3-attempt limit.
+- `.claude/scripts/script-eng-bug-report.py`: Added — writes `report-prd-<N>-<K>.json` + `.md` in the pre-merge format with the next `K`; the PRD comes from the branch, a named PRD, or the no-PRD fallback; never overwrites a report; exit 1 when the PRD cannot be chosen, so the skill asks once.
+- `.claude/skills/eng/SKILL.md`, `.claude/skills/eng/refs/protocol-core.md`: Changed — `--bug` is a fourth mode with its own routing row and trigger phrases.
+- `.claude/skills/shared/refs/finding-schema.md`, `.claude/skills/shared/refs/report-schema.md`: Changed — `eng:bug` source and the `eng --bug` report fields.
+- `README.md`, `llms.txt`: Changed — list `/eng --bug`; the build row says it asks one question, "Commit?".
+- `evals/cases/bug-report-next-k`, `evals/cases/bug-report-prd-unresolved`: Added — next `K` without editing older reports, the fix-flow validator accepts the file, and an unresolved or ambiguous PRD writes nothing.
+
+### [182] v6.0.0 eng — 3 fix attempts per bug, one-layer fix loop, one learning per bug
+
+- `.claude/skills/eng/refs/build/protocol-build-debug.md`: Changed — a bug gets at most 3 fix attempts per run, counting the first fix, debug rounds and coordinator re-entries together; then it is escalated, not retried, and the user is told it needs a separate investigation; one AHA entry per bug after it is fixed or escalated; the `severity: escalated` tag (which `script-aha.sh` cannot write) is removed.
+- `.claude/skills/eng/refs/build/fix-build.md`: Changed — a fixer spawned by the coordinator always runs `orchestrate=off` and never closes the loop; new `attempts_left` field; one JSON return format the coordinator parses; escalation blocks saved to `report-prd-<N>-<K>-escalation.md`; deltas re-pointed at the build loop.
+- `.claude/skills/eng/refs/build/fix-build-orchestrated.md`: Changed — passes `orchestrate=off` and `attempts_left` to every fixer; re-enters only while attempts remain; a re-spawn counts as an attempt; closing message names `/eng --plan report=<path>` in a new session for each escalated bug.
+- `.claude/skills/eng/refs/plan/fix-plan.md`: Changed — reads the escalation file and grades those tickets `complex`, starting from what was already ruled out.
+- `.claude/skills/msg/refs/gui/server.py`: Changed — the Reports tab skips `-escalation.md` files, as it skips `-fix-plan.md`.
+
+### [181] v6.0.0 eng — one build loop, one question, tickets are the only spec
+
+- `.claude/skills/eng/refs/build/protocol-packet.md`: Changed — now the one build loop for a packet and a manual build: run base recorded at start, tickets are the only spec, a missing ticket stops with "F3 has no tickets. Run /plan-em again.", unclear requirement asks (user present) or assumes and logs (automatic run), tests re-run after the reviewer changes code, db-touch checks only this run's changes, one commit per ticket, result-first summary with empty lines hidden, one AHA entry per bug.
+- `.claude/skills/eng/refs/build/protocol.md`: Changed — rewritten as the manual build's solo-only steps around the loop (4,831 → about 1,240 words): ticket check before any question, no opening approval question, one "Commit?" question at the end, the five progress-message calls in one box, standards from the new flag script.
+- `.claude/skills/eng/refs/protocol-core.md`: Changed — routing table removed (it lives in `SKILL.md` only); the summary gate applies to `--plan` only; the unclear-requirement rule points to the loop.
+- `.claude/skills/eng/SKILL.md`: Changed — the one routing table; spine and references describe the new split.
+- `.claude/skills/eng/refs/review/protocol.md`: Changed — the reviewer never runs tests; the build re-runs them after any reviewer fix.
+- `.claude/skills/eng/refs/plan/template-todo.md`, `.claude/skills/eng/refs/plan/template-eng-plan.md`, `.claude/skills/eng/refs/plan/protocol.md`: Changed — a ticket is one commit; version-history notes removed. The rule "one index to the tickets" stays because a second index (the old pointer column) can disagree with the first.
+- `.claude/scripts/script-eng-db-touch.sh`: Changed — requires the run base and checks only changes since it (plus untracked files); the `models/` rule is removed (false alarms on plain app code); `entities/` and `*.entity.*` stay.
+- `.claude/scripts/script-eng-cook-flags.py`: Added — builds the `/cook` flag set from the stack tokens and the provable exclusions.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — the after-wave db guard checks only that wave's changes.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 3a builds `/cook` flags with the same script.
+- `ARCHITECTURE.md`: Changed — script table lists the flag script and the run-base db check.
+- `evals/cases/db-touch-run-base`, `evals/cases/db-touch-models-not-guarded`, `evals/cases/db-touch-no-base`, `evals/cases/cook-flags-scoped`: Added — cover the run base, the removed `models/` rule, the missing-base usage error and the flag selection.
+
+### [180] v6.0.0 plan-em — never builds automatically, short digest, internals moved out
+
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — every run (medium and large) stops after the plan half, prints a 3-line summary and asks "Start the build now?"; Yes runs the check before the build (plan-shape check on medium, eng certification on large) and the build half in the same run, No keeps the run state open with the build not started; plan-em always cuts the branch; Step 5 prints a Built · Branch · Review · Findings digest with Critical findings listed below it; history and rationale text removed (10,006 → 5,256 words).
+- `.claude/skills/plan-em/refs/internals.md`: Added — stage timing, the run-state file, the team-lane heartbeat relay and prompt-cache field order, read only at the call sites that name them.
+- `.claude/skills/plan-em/refs/protocol-team.md`: Changed — one orchestrator spawn per half; the fused wave and its branch-cut exception are removed; the orchestrator never touches branches or PRD status (5,976 → 3,179 words).
+- `.claude/skills/plan-em/SKILL.md`: Changed — description and § Run shape describe the stop after the plan half; the output is a digest.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the `plan-em — fused wave` row is removed; plan wave = the run ended on No, build wave = it built.
+- `.claude/scripts/script-em-state.py`: Changed — `--mode` accepts `plan` or `build`.
+- `ARCHITECTURE.md`: Changed — describes the plan → ask → build run shape and keeps the rationale for the certification precondition and the derived Files column.
+
+### [179] v6.0.0 plan-em — roster asks only when unusual, team lane is hidden
+
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 3b shows the roster as one line and asks only for a new stack, a stack missing from `devkit/ARCHITECTURE.md`, or a stack `/cook` does not support; Step 0 always runs the team lane, `--solo` is a hidden one-run flag that is never saved.
+- `.claude/skills/plan-em/SKILL.md`, `.claude/skills/plan-em/refs/protocol-team.md`: Changed — description, argument hint and § Execution mode no longer offer team vs solo or a single roster gate.
+- `.claude/skills/shared/refs/exec-mode-pref.md`: Removed — the lane is no longer a saved preference.
+- `.claude/skills/msg/refs/init/init.sh`, `.claude/skills/msg/refs/init/init-setup.sh`, `.claude/skills/msg/refs/protocol-init.md`: Changed — `/msg --init` no longer seeds `.claude/msg/pref.json`.
+- `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`, `llms.txt`, `.claude/skills/msg/SKILL.md`: Changed — the roster is approved only when unusual; no team/solo choice.
+
+### [178] v6.0.0 plan-em — Step 5 script path, one agent-name format
+
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — Step 5 digest call uses the two-path lookup, so it works where scripts live only in `~/.claude/scripts/`; agent examples use `eng-<platform>`.
+- `.claude/skills/plan-em/refs/template-exec-table.md`, `.claude/scripts/script-em-exec-skeleton.py`: Changed — agent examples use `eng-backend` / `eng-ios`, the form Step 3a and eng use.
+
+### [177] v6.0.0 plan-pm — GUI reads sub-PRD numbers
+
+- `.claude/skills/msg/refs/gui/server.py`: Changed — PRD dir and report filename patterns accept `7.1`; `num` is the display string, new `prd_num_key` sorts `7 < 7.1 < 7.10 < 10`, board list sorted by it, new `numSort` field.
+- `.claude/skills/msg/refs/gui/index.html`: Changed — list view sorts the PRD column by `numSort`, not the string.
+
+### [176] v6.0.0 plan-review — a step the user chooses, with an auto-review switch on plan-pm and plan-em
+
+- `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — `--review` runs plan-review at the end of this run; `--review on|off` saves `policies.plan_pm.review`; off (the default) only suggests it.
+- `.claude/skills/plan-em/SKILL.md`: Changed — the same `--review [on|off]` flag for `policies.plan_em.review`; the certification gate is unchanged.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — documents both switches (default off when absent).
+- `.claude/skills/msg/SKILL.md`, `README.md`, `QUICKSTART.md`: Changed — plan-review shows as an optional, suggested step.
+
+### [175] v6.0.0 plan-review — one result block, no Minor question, plain check names, smaller instructions
+
+- `.claude/skills/plan-review/refs/protocol-review.md`: Changed — the ledger is written once, after the fixes and a second `script-cert-mech.py` run, with a status per finding and `--checks`; Minors are logged, never asked; the stamp (`script-prd-stamp.sh --certify`) is written only when no Critical stays open, and the run says "Not certified — N Critical open" otherwise; one result block replaces the tune line, the fix table and the "certified" line; the recurrence warning is removed.
+- `.claude/skills/plan-review/refs/certification.md`, `.claude/skills/plan-review/SKILL.md`: Changed — "product check" / "eng check" replace "tune", the flags are hidden, old-PRD handling is one line, the cut list, success metric, recurrence step and history text are removed (5,397 → 2,737 words).
+- `.claude/skills/plan-review/refs/template-review-report.md`: Removed — `script-ledger.py` writes the report scaffold.
+- `.claude/skills/plan-em/refs/protocol-em.md`: Changed — inline plan-review calls keep the internal flag but say "product check" / "eng check"; the end of the plan half runs plan-review when the auto-review switch is on.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — the plan-review row points to `/plan-em`; plan-pm and plan-em rows suggest `/plan-review`.
+- `.claude/scripts/script-prd-digest.py`, `.claude/scripts/script-cert-mech.py`, `ARCHITECTURE.md`: Changed — comments and docs use the plain check names and describe the optional step.
+
+### [174] v6.0.0 plan-review — fixed findings clear, the stamp script picks the field, --migrate converts v6 shapes
+
+- `.claude/scripts/script-ledger.py`: Changed — honours a per-finding `status` (Open/Fixed) on repeat rows; matches repeats on check + code + ref (script findings) or check + section (judgment findings), then on text; `--checks` clears a prior open row whose check ran clean this run to `Fixed`; prints `LEDGER_CLEARED` and `LEDGER_OPEN_CRITICAL/MAJOR/MINOR`; writes the report scaffold itself.
+- `.claude/scripts/script-cert-status.sh`: Changed — any Critical row that is not `Fixed` blocks, so an unknown status never reads as clean.
+- `.claude/scripts/script-prd-stamp.sh`: Changed — new `--certify <product|eng>` picks `reviewed` or the older `<type>-tuned` key by itself and prints `STAMP_FIELD`.
+- `.claude/scripts/script-prd-update.py`: Changed — `--migrate` also renames §4 to "Error and edge cases", drops the §1 Success signal bullet and labels an unlabelled §3 criterion `AC1` (warns `ac-partial` on a partly labelled cell).
+- `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-migrate.md`: Changed — describe the new mechanical migrate edits.
+- `evals/cases/ledger-fix-clears/`, `evals/cases/prd-stamp-certify/`: Added — cover clearing and the stamp choice; ledger and prd-update goldens updated.
+
+### [173] v6.0.0 intake — verifier fixes: Bash tool, shipped wording, find-the-row scope
+
+- `.claude/skills/intake/SKILL.md`: Changed — `allowed_tools` adds `Bash`; every intake mode runs scripts.
+- `.claude/skills/intake/refs/protocol-health.md`: Changed — states that `complete: true` in the scan means the PRD document is complete, not shipped.
+- `.claude/skills/intake/refs/protocol-edit.md`: Changed — the find-the-row routine is shared by update and delete only; `--health` never calls it.
+
+### [172] v6.0.0 plan-pm — PRD number equals intake row number, and sub-PRD rows are marked
+
+- `.claude/scripts/script-prd-number`: Changed — `prd <row-#>` returns the row number itself and exits 3 with `NUMBER_CLASH=<n>` when a PRD with that number exists; `sub <parent-n>` also counts `#<n>.<m>` ledger rows. The bare `prd` form stays for old callers.
+- `.claude/scripts/script-intake-stamp.sh`: Changed — row ids may be dotted (`7.1`); `--append-row --parent PRD-<n>` writes the new `parent` column, adding it to an older ledger first; `--find-row` matches dotted PRD ids and prints `PARENT`; `MAX_ROW` counts whole-number rows only. Ledgers without the column parse unchanged.
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`, `ARCHITECTURE.md`: Changed — the ledger gains a `parent` column and documents PRD number = row number.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/plan-pm/refs/protocol-sub.md`, `.claude/skills/plan-pm/SKILL.md`: Changed — Step 3 numbers the PRD from its row and stops on a clash; `--sub` resolves the minor first and captures its row at `#<n>.<m>` with `parent`.
+- `.claude/skills/intake/refs/protocol-intake.md`, `.claude/skills/intake/SKILL.md`: Changed — capture accepts `--sub-row <n>.<m>` from plan-pm and writes that one row at the dotted id.
+- `.claude/skills/plan-em/refs/protocol-em.md`, `.claude/skills/eng/refs/plan/protocol.md`, `.claude/skills/eng/refs/plan/template-eng-plan.md`: Changed — the intake row lookup accepts dotted ids and reads one row through `--list-rows --row`.
+- `.claude/skills/msg/refs/gui/server.py`, `.claude/skills/msg/refs/gui/index.html`, `.claude/skills/msg/refs/protocol-gui.md`: Changed — the Intake tab reads the optional `parent` column, tolerates `#`-prefixed and dotted ids, and shows a "sub of PRD-n" pill.
+- `evals/cases/prd-number-row-match`, `evals/cases/prd-number-row-clash`, `evals/cases/prd-number-sub-ledger`, `evals/cases/intake-append-sub-row`: Added — cover row-number PRDs, the clash stop, ledger-aware sub minors and the parent column.
+
+### [171] v6.0.0 plan-pm — own question rules, a PRD digest, `--update` edits content, `--migrate` converts format
+
+- `.claude/skills/plan-pm/refs/principles.md`: Added — plan-pm's own rules for asking: the intake row is settled, never widen it, ask only what changes the PRD, send scope changes to `/intake --update`.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`: Changed — Step 1 reads the one row through the ledger writer and treats it as settled; Step 4 picks its own few questions by the principles; Step 5 prints the four-line digest above the closing message.
+- `.claude/skills/intake/refs/protocol-intake.md`: Changed — the row write folds what intake inferred and asked into the `idea` and `goal` text, so plan-pm never asks it again.
+- `.claude/scripts/script-prd-digest.py`: Changed — `--terminal` prints the Title / Change / Builds / Open digest (Open omitted at 0); `--mark` flags the parts an update changed.
+- `.claude/skills/plan-pm/refs/protocol-migrate.md`: Renamed from `protocol-update.md` — the format-only mode is now `--migrate`, and it prints a one-line count instead of a digest.
+- `.claude/skills/plan-pm/refs/protocol-update.md`: Added — the new `--update` edits an existing PRD's content on the template, re-runs the shape gate, stamps `reviewed: no`, re-grades a material change, syncs the PRD-linked intake row through `--set-cell` with one log entry per cell, and prints the marked digest.
+- `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/shared/refs/closing-message.md`, `.claude/skills/shared/refs/prd-lifecycle.md`, `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`, `.claude/skills/intake/refs/protocol-edit.md`, `.claude/scripts/script-prd-update.py`, `README.md`: Changed — name both modes, add the `--migrate` registry row, list plan-pm as the second writer of PRD-linked row content, and point the intake edit lock at `/plan-pm --update`.
+- `evals/cases/prd-digest-terminal`: Added — covers the digest lines and the change marks.
+
+### [170] v6.0.0 plan-pm — PRD template: no invented numbers, two-bullet objective, several criteria per feature, checked error list
+
+- `.claude/skills/plan-pm/refs/template-prd.md`: Changed — a number may appear only with its source, and the worked examples no longer carry invented values; §1 drops the success signal (two bullets); a feature may list several acceptance criteria as `AC1`, `AC2`, … on `<br>` lines in its one cell; §4 is renamed "Error and edge cases", covers this PRD's features only, and labels every row with its checklist type (`E1 · Network`).
+- `.claude/skills/plan-pm/refs/error-checklist.md`: Added — the standard failure list (8 Tier 1 types always, 12 Tier 2 types when the trigger fits) and the two drafting rules that keep §4 short.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/plan-pm/SKILL.md`, `.claude/skills/plan-pm/refs/protocol-update.md`: Changed — draft §1 as two bullets, §3 with one or more criteria, §4 against the checklist; the style pass keeps an old success-signal bullet in place.
+- `.claude/scripts/script-prd-shape.py`: Changed — accepts "Error and edge cases" (old "Error cases" still passes), checks two §1 bullets (an old third success-signal bullet still passes), checks `AC1..ACn` labels and runs the vague-word check per criterion, and accepts a dotted `intake: #7.1`.
+- `.claude/scripts/script-prd-digest.py`: Changed — each feature carries `criteria[]` (an unlabelled cell is `AC1`), each error case carries its checklist `type`, and the renamed §4 heading is read.
+- `.claude/skills/pre-merge/refs/prd/protocol-prd-consistency.md`, `.claude/skills/pre-merge/refs/prd/protocol-manual-test-plan.md`, `.claude/skills/pre-merge/refs/universal/protocol-regression.md`, `.claude/skills/plan-review/refs/certification.md`, `.claude/skills/merge/refs/human-test-script.md`, `.claude/skills/eng/refs/plan/template-todo.md`: Changed — grade, test and cite each acceptance criterion on its own; plan-review checks the §4 type labels and flags invented numbers.
+- `.claude/skills/msg/refs/gui/index.html`, `.claude/skills/msg/refs/protocol-gui.md`: Changed — the PRD view renders `<br>` criterion lines; the error heading is renamed.
+- `evals/cases/prd-shape-v6-multi-ac`, `evals/cases/prd-shape-v6-bad-ac-label`, `evals/cases/prd-digest-v6-criteria`: Added — cover the new shape, the label check and the criteria split. `evals/cases/prd-update-style-gate`: Changed — expects the two-bullet message.
+
+### [169] v6.0.0 intake — one prompt, inference from context, plain-language edits, `--health`, smaller skill
+
+- `.claude/skills/intake/refs/protocol-intake.md`: Changed — capture opens with one prompt ("What are you trying to build?"), runs a fixed light context scan (memory, CLAUDE.md, README, glossary, architecture, PRD titles, open rows via `--list-rows`, AHA), and infers the idea, goal, type and splits. No fixed questions: the ledger is created without asking, splits need no confirm, and questions come only from `principles.md`. Duplicates are found by keyword search and offered as an update; a shipped match is stamped `completed` and the new idea becomes a follow-up row. Related ideas appear only when brainstorm is on. Every grade shown carries a plain-English label.
+- `.claude/skills/intake/refs/principles.md`: Added — eight rules of thumb for when to ask, how to split a list, what counts as a duplicate, and staying inside the product.
+- `.claude/skills/intake/refs/protocol-edit.md`: Added — replaces `protocol-update.md` and `protocol-delete.md` with one edit protocol and one shared "find the row" routine (best match first, bullets for ties). Keeps the lock gates, the re-grade, the delete warning pass and confirm, and the update-log contract.
+- `.claude/skills/intake/refs/protocol-update.md`, `.claude/skills/intake/refs/protocol-delete.md`: Removed — merged into `protocol-edit.md`.
+- `.claude/skills/intake/refs/protocol-health.md`: Added — `--health` lists stale (backlog, no PRD, over 14 days), errant (in-progress, no PRD), shipped-but-open, planned-but-backlog and duplicate rows, and fixes wrong statuses behind one confirm.
+- `.claude/skills/intake/SKILL.md`: Changed — adds `--health` and `--brainstorm [on|off]`, plain-language edit dispatch, and the context-read rule; drops the interview and the "never reads the codebase" refusal. Intake shrinks from 7,901 to about 4,480 words.
+- `.claude/skills/msg/refs/init/templates/TEMPLATE-INTAKE.md`, `.claude/skills/shared/refs/prd-lifecycle.md`: Changed — point at `protocol-edit.md`, list the two intake status corrections, and drop the historical note.
+- `.claude/skills/plan-pm/refs/protocol-pm.md`, `.claude/skills/msg/SKILL.md`, `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`, `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`: Changed — describe the new intake behaviour, `--health` and the brainstorm switch.
+
+### [168] v6.0.0 intake — per-project brainstorm switch, on by default at setup
+
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — documents `policies.intake.brainstorm` (bool). `/msg --init` seeds `true`; an absent key reads as `false`, so projects set up before v6 see no change.
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — the Step 3 policy seed now writes `policies.intake.brainstorm=true`, with no question.
+
+### [167] v6.0.0 intake — grade is complexity + sequencing, with plain-English labels
+
+- `.claude/skills/intake/refs/rubric.md`: Changed — drops the token-cost (`T:`) dimension; the grade is `C:` + `S:`. Adds a plain-English label per band for terminal output. A legacy `T:` token still parses and is ignored. The split threshold at `C:8` is now a judgment, not a fixed question.
+- `.claude/skills/msg/refs/gui/server.py`, `index.html`, `styles.css`, `.claude/skills/msg/refs/protocol-gui.md`: Changed — the Intake board shows two grade chips (`C:`, `S:`); a `T:` token in old rows is ignored.
+- `.claude/skills/plan-em/refs/protocol-em.md`, `.claude/skills/eng/refs/plan/protocol.md`, `.claude/skills/eng/refs/plan/template-eng-plan.md`, `.claude/skills/plan-pm/refs/protocol-sub.md`: Changed — grade-format mentions drop `T:`. They still read only the `C:` band.
+
+### [166] v6.0.0 intake — filtered ledger reads and log migration in the script
+
+- `.claude/scripts/script-intake-stamp.sh`: Changed — adds `--list-rows`, a read-only filtered read (`--status`, keyword `--match` best match first, `--blocked-by`, `--row`, `--limit`, plus `MAX_ROW`), so intake never reads the whole ledger as it grows. Adds `--migrate-log`, which moves a legacy in-file `## Update log` into `INTAKE-UPDATE.md`. The log header now lives in one shared function.
+- `evals/cases/intake-list-rows-filter/`, `evals/cases/intake-list-rows-match/`, `evals/cases/intake-migrate-log/`: Added — cover the status and blocked-by filters, the keyword ranking and limit, and the one-time log migration.
+
+## 2026-10-15
+
+### [165] — Ignore the local archive folder
+
+- `.gitignore`: Changed — adds `archive/`, the new local home for finished plans, deprecated material and scratch docs that used to live under `update/`. The folder holds 234 local-only files, and this rule keeps them out of git status and out of commits.
+
 ## 2026-08-17
 
 ### [164] — Release v5.6.6

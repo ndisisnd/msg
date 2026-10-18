@@ -1,0 +1,3 @@
+FLAGS=--global --macos --macos:architecture-and-state --macos:hig-conventions --macos:windows-and-scenes --typescript
+GAP=cobol
+GAP=swift

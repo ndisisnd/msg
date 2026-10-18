@@ -29,7 +29,7 @@ Emoji are the circle set only — 🟢/🟡/🔴. Never ✅/⚠️/❌ or other 
 
 | Protocol | Fires when | Next-steps ruleset |
 |---|---|---|
-| 🟢 Success! | Run completed; nothing needs the user's judgment | Exactly 1 step: the registry's next command, or `Nothing to do — you're done.` Never more than 2 steps on green. |
+| 🟢 Success! | Run completed; nothing needs the user's judgment | Exactly 1 step: the registry's next command, or `Nothing to do — you're done.` Never more than 2 steps on green. A plan-review suggestion is part of that one step. |
 | 🟡 Warning! | Run completed but something needs a human decision: warnings, skipped checks, open questions asked, flagged non-blocking issues | Steps ordered by priority; each step is one decision or one action. Every warning row in the table maps to a numbered step — no orphan warnings. |
 | 🔴 Fail! | Verdict fail/block, mid-run stop on a blocker, refusal, deploy error | Step 1 is the exact recovery command with real paths filled in. If the blocker needs the user first (missing credential, dirty tree), step 1 says exactly what to provide or do and the recovery command becomes step 2. |
 
@@ -46,27 +46,27 @@ Emoji are the circle set only — 🟢/🟡/🔴. Never ✅/⚠️/❌ or other 
 
 Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from THIS run's actual artifacts. Fail-path commands must match `fix-loop.md` byte-for-byte.
 
-`plan-em` has three rows, one per `$MODE` at Step 4 — pick the row for the wave that just finished. A **large** PRD runs one wave per invocation (`plan`, then `build` on a second call); a **medium** PRD runs the `fused` wave, which plans *and* builds in one invocation and therefore lands on the same next step a build wave does.
+`plan-em` has two rows — pick the one for how the run ended. Every run plans, then asks "Start the build now?": a **No** ends on the plan wave row; a **Yes**, or a later run that resumed at the build half, ends on the build wave row.
 
 | Skill / mode | 🟢 | 🟡 | 🔴 |
 |---|---|---|---|
 | intake (all modes) | Run `/plan-pm` when ready to turn the backlog into a PRD | Answer the open question(s), then re-run `/intake` | Fix the stated blocker, then re-run `/intake` |
-| plan-pm (default / --sub) | Run `/plan-em` now | Resolve each flagged decision in `<prd>`, then run `/plan-em` | Provide the missing input named above, then re-run `/plan-pm` |
-| plan-pm --update | Nothing to do — you're done. | Resolve each skipped or placeholder target named above, then re-run `/plan-pm --update <prd>` | Fix the gate failure in `<prd>`, then re-run `/plan-pm --update <prd>` |
-| plan-em — plan wave | Run `/plan-em <prd>` again to start the build wave | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again for the build wave | Provide the missing input named above, then re-run `/plan-em <prd>` |
-| plan-em — fused wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` (it resumes at the build half) |
-| plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` |
-| plan-review (Product / Eng) | Nothing to do — you're done. | Review the flagged tune items, then re-run `/plan-review` if you change them | Fix the stated blocker, then re-run `/plan-review` |
+| plan-pm (default / --sub) | Run `/plan-review <prd>` if you want the PRD checked now, then `/plan-em <prd>` (when plan-review already ran this run: Run `/plan-em <prd>` now) | Resolve each flagged decision in `<prd>`, then run `/plan-review <prd>` or `/plan-em <prd>` | Provide the missing input named above, then re-run `/plan-pm` |
+| plan-pm --update | Run `/plan-review <prd>` to re-certify the changed PRD | Resolve each flagged item in `<prd>`, then run `/plan-review <prd>` | Fix the stated blocker, then re-run `/plan-pm --update <prd>` |
+| plan-pm --migrate | Nothing to do — you're done. | Resolve each skipped or placeholder target named above, then re-run `/plan-pm --migrate <prd>` | Fix the gate failure in `<prd>`, then re-run `/plan-pm --migrate <prd>` |
+| plan-em — plan wave | Run `/plan-review <prd>` if you want the plan checked now, then `/plan-em <prd>` again to start the build (when plan-review already ran this run: Run `/plan-em <prd>` again to start the build) | Approve or edit the flagged rows in `<prd>`, then run `/plan-em <prd>` again to start the build | Provide the missing input named above, then re-run `/plan-em <prd>` |
+| plan-em — build wave | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Provide the missing input named above, then re-run `/plan-em <prd>` (it resumes at the build half) |
+| plan-review (product / eng check) | Run `/plan-em <prd>` now | Decide on each open item in the result block, then run `/plan-em <prd>` | Resolve the open Critical named above, then re-run `/plan-review <prd>` |
 | eng --plan | Run `/eng --build` now | Review the plan's open questions in `<fix-plan path>`, then run `/eng --build` | Fix the stated blocker, then re-run `/eng --plan report=<path>` |
 | eng --build | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Run `/eng --plan report=<report .json path>` (or `/eng --build report=<path>` to fix directly, per fix-loop.md) |
-| pre-merge | Run `/merge --staging` now | Review the warnings in the report, then run `/merge --staging` | Run `/eng --build report=<report .json path>` (or `/eng --plan report=<path>` first, per fix-loop.md) |
-| merge --staging | Work through the test checklist above on staging, then reply **approved** | Resolve each flagged item, then re-run `/merge --staging` | Fix the stated blocker, then re-run `/merge --staging` |
+| pre-merge | Next: /merge | Review the warnings in the report. Next: /merge | The automatic fix loop stopped (fix-loop.md): name why, then the next command — `/eng --build report=<report .json path>` to fix by hand, or `/pre-merge` after resolving the pause or conflict |
+| merge --staging | Work through the test checklist above on staging, then answer **Staging works** | Resolve each flagged item, then re-run `/merge --staging` | Fix the stated blocker, then re-run `/merge --staging` |
 | merge --production | Nothing to do — you're done. The release is live. | Watch the flagged platform(s) per the rollback notes above | Follow the failed-ship loop step named above, then re-run `/merge --production` |
 | msg (--init / --update / --init-staging) | Run the stage command the pipeline table above points at | Answer the open question(s), then re-run the same `/msg` command | Fix the stated blocker, then re-run the same `/msg` command |
 | emulate | Test the build in the window that just opened — stop it with `kill <pid>` when you're done | Test the build anyway, then resolve the flagged item named above before the next run | Fix the stated blocker (the fix line names it), then re-run `/emulate` |
 | msg --doctor | Nothing to do — the harness is healthy. | Start a new session to fix the graduated issue(s) in `devkit/DOCTOR.md` — this mode never fixes | Fix the stated blocker, then re-run `/msg --doctor` |
 
-Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pure-emission modes — default picker, `--gui`, `--help` — whose strict output contracts ("Stop. Do not emit anything else." / board render) stay untouched.
+Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pure-emission modes — bare `/msg`, `--gui`, `--help` — whose strict output contracts ("Stop. Do not emit anything else." / board render) stay untouched.
 
 ## Worked examples
 
@@ -100,13 +100,13 @@ Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pur
 > **Next steps**
 > 1. Reply **keep** or **drop** for the `date-fns` dependency
 > 2. Reply **accept** to proceed without the F3 test, or **add test** to have it written first
-> 3. Then run `/merge --staging`
+> 3. Next: /merge
 
 **🔴 — pre-merge, fail:**
 
 > 🔴 Fail!
 >
-> 2 checks failed — the login flow breaks when the password field is empty; nothing was merged.
+> 2 checks still fail after 2 automatic fix rounds — the login flow breaks when the password field is empty; nothing was pushed.
 >
 > | What happened | Detail |
 > |---|---|

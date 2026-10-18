@@ -8,7 +8,7 @@
 #   PROJECT_DESCRIPTION  Q1 one-line description
 #   PLATFORM             Q2 answer ("Web (frontend)", "Backend API", "CLI", "Mobile (iOS/Android)")
 #   LANGUAGE             Q2b answer (e.g. "TypeScript", "Swift (iOS)", "Kotlin (Android)")
-#   CONVENTIONS          house conventions (cto derives them; eng falls back to the default below)
+#   CONVENTIONS          house conventions (not asked; falls back to the default below)
 #   ARCH_OVERVIEW        A1 — system components and how they interact
 #   ARCH_EXTERNAL        A2 — external services and APIs
 #   ARCH_DATA_STORES     A3 — databases, caches, queues
@@ -298,21 +298,6 @@ elif mkdir -p "$TARGET/roadmap"; then
   write_file "TEMPLATE-roadmap.md" "$content" "roadmap"
 else
   FAILED+=("roadmap/TEMPLATE-roadmap.md")
-fi
-
-# ── .claude/msg/ execution-mode preference ────────────────────────────────────
-# The persisted team/solo planning execution mode consumed by plan-em (Step 0).
-# Seeded here so /msg --init owns first-run creation and /msg --update tops it up
-# on repos bootstrapped before it existed. Deterministic — no interview input;
-# default is "team" (the pipeline default), flipped anytime via plan-em --solo/--team.
-# Schema + consumers: .claude/skills/shared/refs/exec-mode-pref.md.
-
-if [[ -e "$TARGET/.claude/msg/pref.json" ]]; then
-  SKIPPED+=(".claude/msg/pref.json")
-elif mkdir -p "$TARGET/.claude/msg" && printf '%s\n' '{"exec_mode": "team"}' > "$TARGET/.claude/msg/pref.json"; then
-  CREATED+=(".claude/msg/pref.json|1")
-else
-  FAILED+=(".claude/msg/pref.json")
 fi
 
 # ── features/ flat-PRD migration (change 6) ───────────────────────────────────

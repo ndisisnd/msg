@@ -146,8 +146,8 @@ Same read model as before — now implemented in `server.py`, re-run per request
 6. **Intake ledger** from root `INTAKE.md` (H2) via `build_intake`: the ledger table is
    located by its header row (must carry `#` / `idea` / `status` columns), then each data
    row is parsed into `{num, date, type, idea, goal, grade, gradeRaw, status, prd, prdKnown,
-   prdPath, prdFeature}`. The `grade` cell (`C:5 T:8 S:next`) is split into
-   `{complexity, token, sequence}` for the three chips. A row's `prd` cell is cross-referenced
+   prdPath, prdFeature}`. The `grade` cell (`C:5 S:next`) is split into
+   `{complexity, sequence}` for the two chips (a legacy `T:` token is ignored). A row's `prd` cell is cross-referenced
    against the live PRD set so a card links to its mapped PRD. Absent `INTAKE.md` →
    `intake: {exists: false, rows: []}`; a present-but-empty table → `rows: []`.
 7. **Completion inference (H1 ladder)**, most-authoritative first:
@@ -277,7 +277,7 @@ protocol (criterion 25). The design system in `styles.css` is hardcoded and iden
 across every project (light + dark, responsive); it is **not** sourced from
 `devkit/DESIGN-SYSTEM.md` (criterion 26).
 
-### Error cases
+### Error and edge cases
 - `python3` missing / ports busy → surface it, don't fail silently (error case 1).
 - Malformed PRD frontmatter or an unparseable issues `.json` → `skipped[]`, flagged in the
   board header; the rest still render (error case 2).
@@ -312,11 +312,13 @@ across every project (light + dark, responsive); it is **not** sourced from
   per ledger row.
 - **Three lanes = the D14 lifecycle.** Columns `Backlog · In progress · Completed`, reusing
   the Kanban column/card components. A card sits in the lane matching its `status` cell.
-- **Grade chips.** Each card shows the rubric cell as three small pills — `C:<band>`,
-  `T:<band>`, `S:<band>` — rendered from the parsed `grade` object (never numeric; the bands
+- **Grade chips.** Each card shows the rubric cell as two small pills — `C:<band>` and
+  `S:<band>` — rendered from the parsed `grade` object (never numeric; the bands
   are the whole point). A `type` pill (`feature`/`bug`) and the capture `date` sit alongside.
 - **PRD cross-link.** When a row's `prd` cell is set, the card links to that PRD's detail page
   (`#/prd/<id>`); an unresolved mapping is tagged `unmapped`.
+- **Sub-PRD rows.** A row id may be dotted (`7.1`). When the optional `parent` column is set
+  (`PRD-7`), the card shows a `sub of PRD-7` pill. A ledger without the column renders as before.
 - **Status is the only editable cell (H5).** In live mode a card is draggable between lanes,
   and carries per-lane status buttons (an accessible alternative to drag); both `POST
   /api/intake/status {num, status}`. Nothing else on the card is editable — `idea`, `goal`,

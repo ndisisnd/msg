@@ -13,21 +13,21 @@
 #
 # Usage:
 #   script-release-identity.sh [--prod <branch>] [--remote <name>]
-#                              [--bump major|minor|patch] [--version <x.y.z>]
+#                              [--version <x.y.z>]
 #                              [--probe-sha <sha>] [--repo <dir>]
 #
 #   --prod       production branch (default: main)
 #   --remote     remote whose tracking ref is read (default: origin; falls back
 #                to the local branch when no remote-tracking ref exists)
-#   --bump       semver level (default: minor — merge ships features)
-#   --version    exact next version; must be STRICTLY GREATER than the current
+#   --version    exact next version (default: a minor bump — merge ships
+#                features; a patch or major release names its number); must be STRICTLY GREATER than the current
 #                tag's version, else VERSION_REGRESSION=true
 #   --probe-sha  a platform `version_probe`'s reported commit, for provenance
 #   --repo       repo dir (default: $PWD)
 #
 # Checks, all deterministic:
 #   1. Tag parse       — v<major>.<minor>.<patch>[+<build>], newest first
-#   2. Version bump    — default minor; major/patch/explicit honoured
+#   2. Version bump    — default minor; an explicit --version honoured
 #   3. Build recompute — commit count on prod (monotonic by construction)
 #   4. Monotonicity    — BUILD > the current tag's build (legacy tags with no
 #                        `+<build>` fall back to `rev-list --count <tag>`)
@@ -44,7 +44,7 @@
 #   CURRENT_VERSION=<x.y.z>        0.0.0 when there is no tag
 #   CURRENT_BUILD=<n>
 #   NEXT_VERSION=<x.y.z>
-#   BUMP=major|minor|patch|explicit
+#   BUMP=minor|explicit
 #   BUILD=<n>                      commit count on prod, right now
 #   NEXT_TAG=v<x.y.z>+<build>      what Step 9 would cut
 #   VERSION_REGRESSION=true|false
@@ -74,7 +74,7 @@ set -uo pipefail
 SELF="$(basename "$0")"
 
 usage() {
-  echo "usage: $SELF [--prod <branch>] [--remote <name>] [--bump major|minor|patch] [--version <x.y.z>] [--probe-sha <sha>] [--repo <dir>]" >&2
+  echo "usage: $SELF [--prod <branch>] [--remote <name>] [--version <x.y.z>] [--probe-sha <sha>] [--repo <dir>]" >&2
   exit 2
 }
 die() { echo "$SELF: $1" >&2; exit 2; }
@@ -87,8 +87,6 @@ while [[ $# -gt 0 ]]; do
     --prod=*)      PROD="${1#--prod=}"; shift ;;
     --remote)      [[ $# -ge 2 ]] || usage; REMOTE="$2"; shift 2 ;;
     --remote=*)    REMOTE="${1#--remote=}"; shift ;;
-    --bump)        [[ $# -ge 2 ]] || usage; BUMP="$2"; shift 2 ;;
-    --bump=*)      BUMP="${1#--bump=}"; shift ;;
     --version)     [[ $# -ge 2 ]] || usage; EXPLICIT="$2"; shift 2 ;;
     --version=*)   EXPLICIT="${1#--version=}"; shift ;;
     --probe-sha)   [[ $# -ge 2 ]] || usage; PROBE_SHA="$2"; shift 2 ;;
@@ -100,7 +98,6 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "$BUMP" in major|minor|patch) ;; *) die "bad --bump: $BUMP" ;; esac
 [[ -d "$REPO" ]] || die "not a directory: $REPO"
 git -C "$REPO" rev-parse --is-inside-work-tree >/dev/null 2>&1 || die "not a git repository: $REPO"
 g() { git -C "$REPO" "$@"; }
@@ -167,11 +164,7 @@ if [[ -n "$EXPLICIT" ]]; then
     VERSION_REGRESSION=true
   fi
 else
-  case "$BUMP" in
-    major) NEXT_VERSION="$((CMAJ + 1)).0.0" ;;
-    minor) NEXT_VERSION="${CMAJ}.$((CMIN + 1)).0" ;;
-    patch) NEXT_VERSION="${CMAJ}.${CMIN}.$((CPAT + 1))" ;;
-  esac
+  NEXT_VERSION="${CMAJ}.$((CMIN + 1)).0"
 fi
 
 # 3 · Build — commit count on prod as it stands right now.

@@ -17,7 +17,8 @@ cases — with **no per-section gates**. Do not re-interview the user and do not
 gate section by section: the instinct to check in mid-draft is the one this contract
 overrides. It pauses for **exactly two** things: batched open questions the draft
 couldn't resolve (Step 4), and breaking/critical touches (Step 4 safety pause).
-Nothing else.
+Nothing else. Which questions are worth asking is decided by
+[`principles.md`](principles.md) — plan-pm's own rules, separate from intake's.
 
 ## Step 1/5 — Resolve the intake row
 
@@ -35,8 +36,8 @@ check 3 compare every PRD against its source intent. Two ways in:
    it against `INTAKE.md` and plan it directly, no picker.
 3. **Direct prose with NO matching intake row** → **capture it, do not bounce it back.**
    Invoke `Skill("intake", "<the user's prose verbatim>")` — intake's capture mode
-   interviews within its ≤2-question budget, grades the idea against its own rubric
-   (`C:`/`T:`/`S:` bands) and appends the row. Then re-read `INTAKE.md`, take the newly
+   infers the idea from context (asking only what its `principles.md` flags as unclear),
+   grades it against its own rubric (`C:`/`S:` bands) and appends the row. Then re-read `INTAKE.md`, take the newly
    appended row, and continue as path 2. `intake` stays the sole writer of new rows
    (D14); plan-pm never appends one itself. If capture returns no row (the user
    abandoned it), stop — there is nothing to plan.
@@ -44,9 +45,21 @@ check 3 compare every PRD against its source intent. Two ways in:
 The capture happens **here, before Step 2** — the prior-PRD scan reconciles against the
 row's `S:blocked-by-#n` grade, which does not exist until the row does.
 
+Read a single row with the ledger writer, never the whole ledger:
+`bash "$S" INTAKE.md - --list-rows --row <n>` (the picker in path 1 uses
+`--list-rows --status backlog,in-progress`), with `S` resolved as in Step 5.
+
 Hold the resolved row in context: `idea`, `goal`, `type`, `grade`, and its `#`
-(for the Step 5 stamp). A `--sub` invocation seeds from the parent and captures its own
-marked row instead (§ Sub-PRD mode, D2). Produce no file in this step.
+(for the Step 3 PRD number and the Step 5 stamp). A `--sub` invocation seeds from the
+parent and captures its own marked row instead (§ Sub-PRD mode, D2). Produce no file in
+this step.
+
+**The row is settled ([`principles.md`](principles.md) rules 1–2).** Intake folds what it
+inferred and what it asked into the row's `idea` and `goal` text. Treat both as answered:
+never re-ask them, never contradict them, never widen them. When the draft can only work
+by changing the row's scope — at any step — stop, write no PRD, and tell the user to run
+`/intake --update #<n>` first — the row stays the single source of truth until the PRD
+exists.
 
 ## Step 2/5 — Scan prior PRDs for overlap + breaking surface
 
@@ -76,13 +89,18 @@ The intake `grade` cell's `S:blocked-by-#n`/`prd-<n>` is a second dependency sig
 
 ## Step 3/5 — Autonomous draft (pre-flight + populate)
 
-**Part 1 — Pre-flight.** Resolve the next PRD number (ships in the global scripts dir; resolve there when the project has no vendored copy):
+**Part 1 — Pre-flight.** The PRD number is the intake row number: row `#7` becomes
+`prd-7-<slug>`, so the PRD id and its source row always match. Numbers have gaps (rows
+never planned, deleted rows); old PRDs keep the numbers they have. Resolve and check it
+(ships in the global scripts dir; resolve there when the project has no vendored copy):
 
 ```bash
-S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" prd
+S=.claude/scripts/script-prd-number; [ -f "$S" ] || S="$HOME/.claude/scripts/script-prd-number"; bash "$S" prd <row-#>
 ```
 
-Store as `n`. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
+Store the output as `n`. **Exit 3 (`NUMBER_CLASH=<n>`)** — a PRD with that number already
+exists (an old PRD numbered before this rule, or a row that is already planned): stop, name
+the existing folder the script printed, and tell the user. Never pick another number. Detect the platform from `devkit/ARCHITECTURE.md` (do not ask):
 
 ```bash
 bash -c '[[ -f devkit/ARCHITECTURE.md ]] || exit 0; for e in "Expo:\bExpo\b" "Flutter:\bFlutter\b" "React Native:\bReact Native\b" "iOS:\biOS\b" "Android:\bAndroid\b" "Desktop:\b(Electron|Tauri)\b" "Web:\b(web app|web application|web frontend|web client|browser|SPA|PWA)\b" "Backend:\b(REST API|GraphQL|microservice|server-side|backend|API server)\b"; do grep -qiE "${e#*:}" devkit/ARCHITECTURE.md && echo "${e%%:*}"; done'
@@ -124,10 +142,10 @@ Canonical order per `refs/template-prd.md`:
 
 | Section | Autonomous source |
 |---------|-------------------|
-| 1. Product objective | **Three terse bullets** from the intake `goal` — who / what changes / success signal, one line each. A product spec, not an essay and not engineering: no feature list, no implementation, no paragraph |
+| 1. Product objective | **Two terse bullets** from the intake `goal` — who / what changes, one line each. A product spec, not an essay and not engineering: no feature list, no implementation, no paragraph, no success metric |
 | 2. Out-of-scope | Boundaries the draft draws around the idea; non-targeted platforms auto-added |
-| 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one observable user-goal acceptance criterion per feature; Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
-| 4. Error cases | Draft the concrete, triggerable error/edge cases **per §3 feature** (invalid input, network/permission failures, empty states, auth expiry, external-service failure, rate limits, race conditions, timezone/date boundaries). Format + rules in `refs/template-prd.md` §4. **No row quota** — write the failure modes the §3 features actually have; padding a short table to hit a count is worse than the short table. Genuinely unresolvable ones → Step 4 open questions |
+| 3. Features & acceptance criteria | Derive the feature set from the idea; assign sequential F-IDs; one or more observable user-goal acceptance criteria per feature (labelled `AC1`, `AC2`, … when there is more than one); Dependencies column from Step 2. Free of engineering detail (no APIs, schemas, components, files) |
+| 4. Error and edge cases | Check **every §3 feature** against `refs/error-checklist.md` — Tier 1 always, Tier 2 when the trigger fits — and write a row only for the types that can happen in that feature. Label each row with its type (`E1 · Network`); merge rows that share one user-visible behaviour. Format + rules in `refs/template-prd.md` §4. **No row quota** and no generic padding. Genuinely unresolvable ones → Step 4 open questions |
 | 5. Open questions | Overlap from Step 2 + relevant `devkit/AHA.md` entries + anything the draft couldn't resolve, as `\| # \| Question \| Answer \| Status \|` rows (`Status = Open`) |
 | 6. Feature execution table | Leave the `_To be populated by plan-em …_` placeholder — plan-em owns it |
 | 7. Todos | Leave the `_Populated by eng --plan …_` placeholder — `eng --plan` owns it |
@@ -175,10 +193,13 @@ on a failing shape, and never edit the checker to match the draft.
 
 ## Step 4/5 — Pauses (open questions + safety) — the ONLY pauses
 
-**Open questions.** Batch everything the draft couldn't resolve into **one**
-`AskUserQuestion` (≤4 questions per call, `multiSelect` where apt; each entry offers plausible
-answers + "Skip"). Apply every answer **autonomously** — write it into the relevant section and
-mark its §5 row `Addressed`. Skipped questions stay `Open`. No open questions → skip this pause
+**Open questions.** Choose the questions yourself, by [`principles.md`](principles.md):
+only the ones whose answer changes a feature, a criterion, or the scope, and never one the
+intake row already answers. Batch them into **one** `AskUserQuestion` (≤4 questions per call,
+`multiSelect` where apt; each entry offers your best reading first, marked recommended, plus
+plausible alternatives + "Skip"). Apply every answer **autonomously** — write it into the
+relevant section and mark its §5 row `Addressed`. Skipped questions stay `Open`. A question
+that is not worth asking stays a §5 `Open` row. No questions worth asking → skip this pause
 entirely.
 
 **Breaking-change / critical-cut safety pause (never relaxed).** If Step 2 flagged a
@@ -221,10 +242,32 @@ on this PRD?":
 - **No, done** — terminate.
 - **Yes** — capture the follow-up (batched, ≤4), apply it autonomously, then terminate.
 
+**PRD digest.** Directly above the closing message, print the four-line digest (default
+and `--sub` modes alike):
+
+```bash
+G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/script-prd-digest.py"; python3 "$G" "$PRD" --terminal
+```
+
+```
+Title   PRD-7 · Streak grace day
+Change  active streak-holders — they can mark yesterday's missed day complete
+Builds  Grace complete, Grace limit
+Open    2 question(s) still open in §5
+```
+
+`Title` is the PRD id + name, `Change` is §1's who + outcome on one line, `Builds` is the
+§3 feature names, and `Open` counts the §5 rows still `Open` — the script omits that line
+when the count is 0. Print the script's lines verbatim; never compose them.
+
 There is no separate completion line: the PRD path and the open-questions count are
 mandatory rows of the closing message (SKILL.md § Step-by-step protocol), which is the
-run's last output. Take the next step from the `closing-message.md` registry's plan-pm
-row — `/plan-em` on green — and **recommend** it, never invoke it.
+run's last output.
+
+**Review.** Auto-review switch on (SKILL.md § Usage) → run `Skill("plan-review", "$PRD")` now,
+after the digest; plan-review prints its result block and the closing message follows it.
+Switch off → run nothing. Take the next step from the `closing-message.md` registry's plan-pm
+row — it suggests `/plan-review` first, then `/plan-em` — and **recommend** it, never invoke it.
 
 **Multi-PRD note.** There is no multi-PRD loop in v2 — compound asks are split into discrete
 rows at `/intake` (hybrid-ask detection + the ≥8-split gate), so plan-pm always plans exactly one

@@ -1,14 +1,20 @@
 #!/usr/bin/env bash
 # Resolve diff vs base and emit a structured summary.
-# Usage: script-resolve-diff.sh [base-ref]
-# Default base: origin/main
+# Usage: script-resolve-diff.sh <base-ref>
+# <base-ref> is required: pre-merge resolves the base ONCE per run (executor.md
+# §0a — staging if it exists, else main) and passes it to every step. This script
+# keeps no default of its own, so the diff and every other step see one file set.
 # Output: JSON to stdout with files_changed, lines_added, lines_removed, commit_count
 
 set -euo pipefail
 
-BASE="${1:-origin/main}"
+if [[ $# -lt 1 || -z "${1:-}" ]]; then
+  echo "usage: script-resolve-diff.sh <base-ref> (the run's resolved base, e.g. origin/staging)" >&2
+  exit 2
+fi
+BASE="$1"
 
-# Fetch remote to ensure origin/main is up to date
+# Fetch remote to ensure the base ref is up to date
 # Warn to stderr if fetch fails; set flag so caller knows base may be stale
 if ! git fetch --quiet origin 2>/dev/null; then
   echo "⚠️  Warning: git fetch failed — base ref may be stale" >&2

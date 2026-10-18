@@ -1,9 +1,9 @@
 ---
 name: msg-protocol-init
 description: >
-  Protocol for /msg --init — one-time project bootstrap. Scans the working
-  directory, resolves the interview mode (cto = advisory / eng = direct) and
-  delegates Step 2 to refs/protocol-cto.md or refs/protocol-eng.md, then
+  Protocol for /msg --init — project setup. Runs by itself when any msg skill
+  finds no devkit/ (then that command continues), or by hand. Scans the
+  working directory, runs the one Step 2 interview (refs/protocol-eng.md), then
   creates a `devkit/` directory containing AHA.md, DOCTOR.md, ENV.md,
   GLOSSARY.md, ARCHITECTURE.md, DESIGN-SYSTEM.md, OPEN-QUESTIONS.md, and the
   seed `policy.json` (release-flow policy, `init:false`), plus root-level
@@ -21,10 +21,12 @@ type: reference
 
 **Invoke**: `/msg --init` — optionally pass a one-line project brief as input.
 
-- Slash command `/msg --init` (mode asked at Step 2), `/msg --init --cto`, `/msg --init --eng`
+- Slash command `/msg --init` (no sub-flags; an unknown one is ignored with a one-line note)
 - Natural language: "initialise project", "bootstrap repo", "set up the framework", "start a new project", "init the msg framework"
 - Context: empty or near-empty repository where the user asks Claude to set up project structure
-- Hand-off from another msg skill (e.g. `plan-pm`) when `AHA.md` or `GLOSSARY.md` is missing
+- **Automatic pre-step:** any msg skill that finds no `devkit/` runs this protocol first, then
+  continues the command the user asked for (`../../shared/refs/setup-first.md`). As a pre-step
+  it ends after the Step 5 manifest and questions: no "Next:" line and no closing message.
 
 **Hard refusals:**
 - Working directory is not a git repository: emit a warning and ask the user to confirm via `AskUserQuestion` before proceeding. Do not block — proceed if confirmed.
@@ -37,27 +39,26 @@ type: reference
 |------|---------|
 | `AHA.md` | Institutional knowledge log — past learnings that future agents must not repeat |
 | `DOCTOR.md` | Harness-incident ledger — where the harness itself misbehaved (script failures, tool errors, retries, missed writes). Write-mostly: no skill reads it during a run; `/msg --doctor` reads it on demand. **Gitignored** (see `.gitignore` row). Contract: [`shared/refs/doctor-logging.md`](../../shared/refs/doctor-logging.md) |
-| `ENV.md` | Env-setup contract — how to stand up an isolated test environment. Human prose (prereqs, ports, seed fixture, gotchas) around one fenced `env` block with the provision/seed/reset/teardown verbs both gates read. **Committed** (documentation, not telemetry). `/pre-merge --init` fills in what it detects; gate runs only read. Contract: [`shared/refs/env-contract.md`](../../shared/refs/env-contract.md) |
+| `ENV.md` | Env-setup contract — how to stand up an isolated test environment. Human prose (prereqs, ports, seed fixture, gotchas) around one fenced `env` block with the provision/seed/reset/teardown verbs both gates read. **Committed** (documentation, not telemetry). pre-merge setup (the first `/pre-merge` run) fills in what it detects; gate runs only read. Contract: [`shared/refs/env-contract.md`](../../shared/refs/env-contract.md) |
 | `GLOSSARY.md` | Canonical domain terms — ensures consistent naming across all agents |
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
 | `OPEN-QUESTIONS.md` | Unresolved decisions — build subagents write here when they hit ambiguity |
-| `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile + bucket set) and by `/merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
-| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`, and `policies.github_actions` — whether you want GitHub Actions CI at all, revisable via `/msg --update`); `--init` (the gate skills' own `--init`, distinct from this `/msg --init`) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
+| `PLATFORMS.md` | Per-platform tolerance profiles + deploy pipeline — read by `/pre-merge` Step 0 (strictness profile) and by `/merge` (`staging_deploy_cmd` / `production_deploy_cmd`) |
+| `policy.json` | Committed release-flow + tooling policy read by both gates. `/msg --init` seeds it (`version`, `init:false`, `policies.release_flow`, and `policies.github_actions` — whether you want GitHub Actions CI at all, revisable via `/msg --update`); each gate's own first-run setup (pre-merge setup, merge setup — distinct from this `/msg --init`) completes it (tooling, branch-protection, `init:true`); `/msg --init-staging` flips the flow to `staged`. Schema: [`shared/refs/policy-schema.md`](../../shared/refs/policy-schema.md) |
 
-**Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it must halt and direct the user back to `/msg --init`.
+**Convention**: `devkit/` files are written once by `/msg --init` and updated incrementally by agents (e.g. `plan-em` appends to `AHA.md`). They are never deleted or recreated by other skills. If `devkit/` is absent, any skill that reads it runs `/msg --init` first, then continues (`../../shared/refs/setup-first.md`).
 
 ## Inputs
 
 | Name | Format | Source |
 |------|--------|--------|
 | Working directory state | `key=value` lines from `init-setup.sh` | `init-setup.sh` at Step 1 |
-| Interview mode | `cto` \| `eng` | `--cto`/`--eng` sub-flag, else the Step 2 mode gate |
-| Project metadata | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
-| Architecture details | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
-| Release flow | Mode answer + branch topology detection | Step 2, delegated |
+| Project metadata | Interview answers | Step 2, delegated |
+| Architecture details | Interview answers | Step 2, delegated |
+| Release flow | Interview answer + branch topology detection | Step 2, delegated |
 | GitHub Actions decision | Yes / No (+ reason) | Step 5 `AskUserQuestion` — asked only when a GitHub remote + `gh` exist |
-| Design system details | Interview answers (eng) or recommendations (cto) | Step 2, delegated |
+| Design system details | Interview answers | Step 2, delegated |
 | Optional brief | Free text | User message at invocation |
 
 ## Outputs
@@ -67,14 +68,13 @@ type: reference
 | devkit/ | Directory — agent context files | `<cwd>/devkit/` |
 | devkit/AHA.md | Markdown from `refs/init/templates/template-AHA.md` | `<cwd>/devkit/AHA.md` |
 | devkit/DOCTOR.md | Markdown from `refs/init/templates/template-DOCTOR.md` — the harness-incident ledger, appended to by `.claude/scripts/script-doctor-log.sh` and read only by `/msg --doctor`. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/devkit/DOCTOR.md` |
-| devkit/ENV.md | Markdown from `refs/init/templates/template-ENV.md` — the env-setup contract, scaffolded with `provisioner: "none"` and `[USER: …]` placeholders; `/pre-merge --init` detects and fills the verbs. **Committed**, never gitignored | `<cwd>/devkit/ENV.md` |
+| devkit/ENV.md | Markdown from `refs/init/templates/template-ENV.md` — the env-setup contract, scaffolded with `provisioner: "none"` and `[USER: …]` placeholders; pre-merge setup (the first `/pre-merge` run) detects and fills the verbs. **Committed**, never gitignored | `<cwd>/devkit/ENV.md` |
 | devkit/GLOSSARY.md | Markdown from `refs/init/templates/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
-| devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with the platform and architecture answers (eng) or recommendations (cto) | `<cwd>/devkit/ARCHITECTURE.md` |
-| devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
+| devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with the platform and architecture answers | `<cwd>/devkit/ARCHITECTURE.md` |
+| devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers | `<cwd>/devkit/DESIGN-SYSTEM.md` |
 | devkit/OPEN-QUESTIONS.md | Markdown from `refs/init/templates/template-OPEN-QUESTIONS.md`, written by build subagents for unresolved ambiguity | `<cwd>/devkit/OPEN-QUESTIONS.md` |
 | devkit/PLATFORMS.md | Markdown from `refs/init/templates/template-PLATFORMS.md`, one default row per shipping platform resolved at Step 2 (`PLATFORMS`) | `<cwd>/devkit/PLATFORMS.md` |
-| devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
-| .claude/msg/pref.json | JSON, `{"exec_mode": "team"}` — the persisted team/solo planning execution mode consumed by `plan-em` (Step 0). Deterministic (no interview input); written by `init.sh`. Default `team` (the pipeline default), flipped anytime via `plan-em --solo`/`--team`. Never overwritten. Schema + consumers: `shared/refs/exec-mode-pref.md` | `<cwd>/.claude/msg/pref.json` |
+| devkit/policy.json | JSON seed skeleton written by `.claude/scripts/script-policy-set.py` (not `init.sh`); `version:1`, `init:false`, `generated_by:"msg --init"`, `policies.release_flow` from Step 2, `policies.intake.brainstorm:true`. Only these keys (AC-LC1). Never overwritten — `--skip-if-exists` (AC-LC7). **Plus `policies.github_actions`, merged in by the same script at Step 5** when the CI question was asked — the sole key this protocol writes into a file it did not create. Schema: `shared/refs/policy-schema.md` | `<cwd>/devkit/policy.json` |
 | README.md | Markdown from `refs/init/templates/template-README.md`, customised with project name | `<cwd>/README.md` |
 | .gitignore | Plain text from `refs/init/templates/template-gitignore.md`, stack-specific. The Universal `# msg skill artifacts` section ignores `.pre-merge/`, `INTAKE.md`, `INTAKE-UPDATE.md`, `features/`, **and `devkit/DOCTOR.md`** — the ledger files, the PRD lanes and the harness telemetry are all local working state for a solo-dev workflow (still created/creatable; ignored ≠ absent) | `<cwd>/.gitignore` |
 | CLAUDE.md | Markdown from `refs/init/templates/template-CLAUDE.md`, customised with platform | `<cwd>/CLAUDE.md` |
@@ -105,8 +105,8 @@ Parse the nine `key=value` lines it prints and hold `PRESENT`, `MISSING`, `STACK
 | `INITIALISED=true` (a `devkit/` is already there) | **Top-up** — this repo was bootstrapped by an earlier version and is missing files or rows added since. See *Top-up mode* below. |
 | otherwise | **Bootstrap** — the full path. Steps 2–5 exactly as written. |
 
-**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/ENV.md`, `devkit/PLATFORMS.md`,
-`devkit/policy.json` or `.claude/msg/pref.json` existed can never receive them by
+**Top-up mode.** A repo bootstrapped before `INTAKE.md`, `devkit/DOCTOR.md`, `devkit/ENV.md`, `devkit/PLATFORMS.md`
+or `devkit/policy.json` existed can never receive them by
 waiting: `init.sh` writes any absent file, but the protocol used to stop at "nothing to
 initialise" before reaching it. Top-up is that repair — and it is **strictly additive**:
 
@@ -119,45 +119,15 @@ initialise" before reaching it. Top-up is that repair — and it is **strictly a
   behind a preview and an explicit confirmation.
 - **Ask only what the gap needs** (Step 2). A repo missing only `INTAKE.md` needs
   no interview at all.
-- **No mode gate.** Top-up always uses [`protocol-eng.md`](protocol-eng.md). cto
-  mode recommends an architecture for a project that doesn't exist yet; a top-up
-  repo already has one, so there is nothing to advise on — asking is correct.
-
 Step 2 and Step 3b are the only steps that behave differently.
 
-**Step 2/5 — Interview (mode-gated, delegated)**
+**Step 2/5 — Interview (delegated)**
 
-Step 2 resolves an **interview mode** and hands off. This protocol owns no interview
-text — the two modes own it:
+There is one interview: [`protocol-eng.md`](protocol-eng.md) — direct questions, the
+user makes the technical calls, ≤4 `AskUserQuestion` calls. This protocol owns no
+interview text. Follow it end to end; it returns with every Step 3 variable resolved.
 
-| Mode | Posture | Protocol |
-|------|---------|----------|
-| **eng** | **Direct execution** — ask and build, staff-engineer posture. The user makes the technical calls. | [`protocol-eng.md`](protocol-eng.md) |
-| **cto** | **Advisory** — take the user's project description and *recommend* the technical decisions. For a user who wants a sound baseline architecture without knowing the questions to ask. | [`protocol-cto.md`](protocol-cto.md) |
-
-**Mode resolution.** Read the invocation:
-
-1. `--init --eng` → **eng**. No gate.
-2. `--init --cto` → **cto**. No gate.
-3. Bare `--init`, any natural-language bootstrap phrasing, or an **unrecognised
-   sub-flag** (`--init --foo`) → **the mode gate** below. An unrecognised sub-flag is
-   never silently ignored — it falls to the gate like a bare invocation.
-
-**The mode gate — exactly one `AskUserQuestion`:**
-
-> header **Setup**, question "How should we make the technical decisions for this project?"
-> - **Recommend a setup for me** — describe what you're building; I'll choose the architecture, language, release flow and design system, explain each call, and you can override anything. → **cto**
-> - **I'll decide, you ask** — I'll ask about platform, language, architecture, release flow and design system, and build exactly what you answer. → **eng**
-
-Both option labels must stay legible to a non-technical reader: the gate never says
-"cto" or "eng" — those are this protocol's words, not the user's.
-
-**Then dispatch** to the selected protocol and follow it end to end. It returns with
-every Step 3 variable resolved. Mode is invisible from here on: both protocols
-converge on the **identical** env-var set below, so Steps 3/4/5 never branch on it.
-
-**Top-up mode — ask only what the gap needs.** In top-up mode there is no gate:
-compute the **required-variable subset** from `MISSING` + any `ROW_GAPS` the user
+**Top-up mode — ask only what the gap needs.** In top-up mode, compute the **required-variable subset** from `MISSING` + any `ROW_GAPS` the user
 approves at Step 3b, using the table below, and pass that subset to
 [`protocol-eng.md`](protocol-eng.md), which asks only the questions that resolve it.
 A variable no missing file consumes is **not asked** — its file already exists and
@@ -208,8 +178,8 @@ DS_CONVENTIONS="<component naming / folder conventions>" \
 <msg_skill_dir>/refs/init/init.sh "<cwd>"
 ```
 
-**This env block is the contract both modes converge on.** Before invoking, confirm
-every variable above is set — neither protocol may leave one unresolved, and no
+**This env block is the contract the interview fills.** Before invoking, confirm
+every variable above is set — the interview may not leave one unresolved, and no
 variable outside this block reaches `init.sh`.
 
 `init.sh` handles all template extraction, placeholder substitution, gitignore stack selection, the three `features/` lifecycle lanes (`planned/`, `wip/`, `done/`, each with a `.gitkeep`), a one-time migration of any pre-lane flat `features/prd-*/` dirs into a lane by the completion ladder (plain `mv`, or `git mv` for a legacy tracked dir; reported as `migrated`), and idempotency. Capture its stdout — it includes the manifest for Step 5.
@@ -223,12 +193,13 @@ whole seed, including the `generated` date stamp:
   --create --skip-if-exists --stamp-by "msg --init" \
   --set policies.release_flow.mode='"<staged|direct>"' \
   --set policies.release_flow.prod_branch='"<PROD_BRANCH>"' \
-  --set policies.release_flow.staging_branch='<"staging"|null>'
+  --set policies.release_flow.staging_branch='<"staging"|null>' \
+  --set policies.intake.brainstorm=true
 ```
 
 - `--create` writes the seed skeleton — `version:1`, `init:false`, `generated`, `generated_by`,
-  `policies` — and nothing else (no `repo`, no `branch_protection`, no `steps`; those are the gate
-  skills' `--init`'s to fill, which is why `init` is `false`) (AC-LC1). `policies.github_actions`
+  `policies` — and nothing else (no `repo`, no `branch_protection`, no `steps`; those are filled by
+  pre-merge's and merge's first-run setup, which is why `init` is `false`) (AC-LC1). `policies.github_actions`
   is the one later addition, merged at **Step 5** once the GitHub-remote-gated CI question has an
   answer; on a no-remote repo it is never written at all.
 - `--skip-if-exists` is AC-LC7: an existing `policy.json` is left byte-for-byte alone and the
@@ -237,6 +208,12 @@ whole seed, including the `generated` date stamp:
 - The script stamps `generated` itself. (The protocol used to hand-`Write` this file on the
   grounds that "scripts can't stamp the date" — they can, `date +%F`; the whole hand-write path
   rested on a premise that never held.)
+
+`policies.intake.brainstorm` is fixed at `true` — a new project gets `/intake` related-idea
+suggestions until the user runs `/intake --brainstorm off`. No question. A project with no key
+(seeded before the key existed) reads as `false`.
+
+**`policies.release_flow` has one writer: `/msg --init`** (`/msg --init-staging` only flips it to `staged`). pre-merge and merge setup and their `--update` read it and report a mismatch; they never write it.
 
 Map the Step 2 release-flow variables: `RELEASE_FLOW` Staged → `"staged"`, Direct → `"direct"`;
 `prod_branch` = `PROD_BRANCH` (from `script-branch-topology.sh`, never asked — this is what makes a
@@ -307,7 +284,7 @@ If `HAS_GH_REMOTE=true`, ask **both** questions in a single `AskUserQuestion`
 call:
 
 > header **GitHub Actions**, question "Run your CI on GitHub Actions? Actions minutes are metered on private repos on the Free plan."
-> - **Yes, use GitHub Actions** — `/pre-merge --init` will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
+> - **Yes, use GitHub Actions** — pre-merge setup (the first `/pre-merge` run) will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
 > - **No — CI elsewhere or none** — no workflow is scaffolded and `/merge` accepts a PR with **zero** checks instead of flagging it. Every other gate is unchanged: red or pending checks (from any CI) still block the merge, and every human gate stands.
 
 > header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (recommended for `/merge`)"
@@ -344,17 +321,18 @@ Then emit a one-line next-step suggestion:
 > Next: run `/plan-pm` to draft the first PRD.
 
 Do not invoke another skill (the bootstrap script is not a skill). The next slash command is the user's choice.
+**As an automatic pre-step** (another skill found no `devkit/`), skip this line and the
+closing message, and hand back: the user's own command runs next.
 
 ## References
 
-- `refs/protocol-update.md` — `/msg --update`: re-scans an already-bootstrapped repo for the same gaps this protocol's Top-up mode closes, plus interactive (batched) classification of `FLAT_PRDS` — delegates back into this protocol's Steps 2–5 rather than duplicating them
-- `refs/protocol-cto.md` — Step 2, cto mode (advisory): recommends the technical decisions against five objectives, derives every remaining `init.sh` variable
-- `refs/protocol-eng.md` — Step 2, eng mode (direct execution): the batched question interview
+- `refs/protocol-update.md` — `/msg --update`: re-scans an already-bootstrapped repo for the same gaps this protocol's Top-up mode closes, plus interactive (batched) classification of `FLAT_PRDS`, and runs pre-merge's and merge's `--update` behind one approval — delegates back into this protocol's Steps 2–5 rather than duplicating them
+- `refs/protocol-eng.md` — Step 2, the one interview (direct questions, ≤4 calls)
 - `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`, `FLAT_PRDS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
 - `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars. Accepts an optional `INTERACTIVE_LANES` env var (set by `/msg --update` only) that turns silent rung-3 PRD-lane defaulting into an `UNRESOLVED` report instead
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/init/templates/template-DOCTOR.md` — template for devkit/DOCTOR.md (the harness-incident ledger; gitignored, written by `script-doctor-log.sh`, read by `/msg --doctor`)
-- `refs/init/templates/template-ENV.md` — template for devkit/ENV.md (the env-setup contract: prose + one fenced `env` block of provision/seed/reset/teardown verbs; committed, read by both gates, filled in by `/pre-merge --init`)
+- `refs/init/templates/template-ENV.md` — template for devkit/ENV.md (the env-setup contract: prose + one fenced `env` block of provision/seed/reset/teardown verbs; committed, read by both gates, filled in by pre-merge setup)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)
 - `refs/init/templates/template-gitignore.md` — .gitignore content keyed by platform/stack
@@ -367,6 +345,6 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/templates/TEMPLATE-roadmap.md` — template for `roadmap/TEMPLATE-roadmap.md` (the format guide for the hand-authored `roadmap/roadmap.md`; scaffolded from its `## Template body` block, idempotently)
 - `refs/init/templates/TEMPLATE-INTAKE.md` — template for root `INTAKE.md` (the backlog ledger written by `/intake`; scaffolded here from its `## Template body` block, idempotently; repo root per D13, never devkit/)
 - `.claude/scripts/script-policy-set.py` — **the only writer of `devkit/policy.json`**: the Step 3 seed (`--create --skip-if-exists --stamp-by`) and the Step 5 `policies.github_actions` merge. Sets a dotted key path, creates missing parents, preserves every sibling, re-parses the result, rolls back a bad write
-- `.claude/scripts/script-branch-topology.sh` — the one branch-detection block: `CURRENT_BRANCH`, `HAS_MAIN`/`HAS_MASTER`/`HAS_STAGING`, the resolved `PROD_BRANCH`, and the `HAS_GH_REMOTE` gate Step 5 reads. Called from Step 2 (via `protocol-cto.md`/`protocol-eng.md`) and Step 5
+- `.claude/scripts/script-branch-topology.sh` — the one branch-detection block: `CURRENT_BRANCH`, `HAS_MAIN`/`HAS_MASTER`/`HAS_STAGING`, the resolved `PROD_BRANCH`, and the `HAS_GH_REMOTE` gate Step 5 reads. Called from Step 2 (via `protocol-eng.md`) and Step 5
 - `.claude/scripts/script-branch-protection.sh` — branch-protection `--bootstrap` (offered at Step 5 when a GitHub remote exists) / `--verify` (used by `/merge`)
 - `../../shared/refs/policy-schema.md` — canonical `devkit/policy.json` schema; the Step 3 seed writes the "Seed skeleton" (`version`, `init:false`, `generated`, `generated_by`, `policies.release_flow`), and Step 5 adds `policies.github_actions` (§2b) when a GitHub remote made the CI question askable

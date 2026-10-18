@@ -1,0 +1,7 @@
+# review-6 — the script, not the caller, picks the certification field: a current
+# PRD gets `reviewed: yes`; an older PRD still carrying the tune pair gets the pair
+# key for the check that ran. A bad check type is refused.
+S="$REPO/.claude/scripts/script-prd-stamp.sh"
+bash "$S" prd-3-new.md --certify product
+bash "$S" prd-2-old.md --certify eng
+bash "$S" prd-3-new.md --certify both 2>/dev/null; echo "bad type exit: $?"

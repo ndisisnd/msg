@@ -1,7 +1,7 @@
 /**
  * Committed seed fixture for the C23 test-sandbox — skeleton.
  *
- * Copied by `/pre-merge --init` under per-item approval, then referenced from
+ * Copied by pre-merge setup under per-item approval, then referenced from
  * `devkit/ENV.md`'s fenced `env` block:
  *
  *   seed:  <migrate-from-zero> && tsx scripts/seed-test.ts

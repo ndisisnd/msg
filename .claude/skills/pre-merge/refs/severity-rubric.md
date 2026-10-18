@@ -26,9 +26,10 @@ description: How to grade pre-merge findings using diff context, reachability, d
 | Lint: warning-class finding | low |
 | Bundle: route size < 5% regression vs baseline | low |
 
-## Adjustment rules (applied in order; stop at first match)
+## Adjustment rules (applied in order)
 
-Apply each rule once per finding. Rules may only downgrade, never upgrade.
+Check every rule in order. Each rule applies at most once per finding and may only
+downgrade, never upgrade. Downgrades can stack.
 
 ### 1 — In-diff file weighting (upgrade eligible)
 
@@ -87,9 +88,10 @@ Even after downgrade, each stage has a severity floor for hard-fail signals:
 | migration | `DROP TABLE`/`DROP COLUMN` | `blocker` |
 | migration | Same-PR destructive rename + app-code ref (C17 expand/contract) | `high` |
 | executor | `platform-coverage-gap` — targeted platform, applicable component, no runner (C12) | `high` |
-| prd-consistency | Acceptance criterion unmet (C11) | `high` — **advisory**: recorded, never blocking |
-| prd-consistency | Acceptance/error-case met-but-untested (C11) | `medium` — **advisory** |
-| prd-consistency | Untraceable product surface (`out-of-scope`, C11) | `high` — **advisory** |
+| prd-consistency | Acceptance criterion unmet (`acceptance-unmet`, C11) | `high` — **blocking**: the one PRD finding that fails the gate |
+| prd-consistency | Acceptance/error-case met-but-untested (C11) | `medium` — reported, never blocking |
+| prd-consistency | Error case unhandled (`error-case-unhandled`, C11) | `high` — reported, never blocking |
+| prd-consistency | Untraceable product surface (`out-of-scope`, C11) | `high` — reported, never blocking |
 | any component | Errored (crash / unreachable / auth) **and** its surface is in the diff | `medium` (`rule: component-errored`) |
 
 ## Fail-fast by component `criticality` (the executor's short-circuit)
@@ -114,10 +116,17 @@ by the rules above independently.
 After all adjustments:
 
 ```
-if any finding.severity in ["blocker", "high"] → verdict: "fail"
-elif any finding.severity in ["medium", "low"] → verdict: "pass_with_warnings"
-else → verdict: "pass"
+blocking(f) = f.severity in ["blocker", "high"]
+              and (f.source is not prd-consistency or f.rule == "acceptance-unmet")
+if any finding is blocking → verdict: "fail"
+elif any finding           → verdict: "pass_with_warnings"
+else                       → verdict: "pass"
 ```
+
+**PRD-consistency findings block for unmet criteria only.** A `high` prd-consistency
+finding other than `acceptance-unmet` counts toward the summary but never fails the
+gate; it appears in the report and as a staging human-test task. The verdict is
+computed by `script-aggregate-verdict.sh`, never by hand (`executor.md` §5b).
 
 ## What "evidence" means in this rubric
 

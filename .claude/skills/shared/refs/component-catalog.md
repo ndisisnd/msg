@@ -1,6 +1,6 @@
 ---
 name: component-catalog
-description: The single source of component metadata for both gates — the catalog defaults --init/--update seed into devkit/policy.json's components[]. Executor sequencing, folder placement, check-script naming, and reporting all key off this file.
+description: The single source of component metadata for both gates — the catalog defaults setup/--update seed into devkit/policy.json's components[]. Executor sequencing, folder placement, check-script naming, and reporting all key off this file.
 type: reference
 ---
 
@@ -8,7 +8,7 @@ type: reference
 
 `shared/refs/component-catalog.md` ships the **defaults** every gate starts from.
 The per-project `devkit/policy.json` `components[]` array is the *resolved
-instance*: catalog defaults + live detection + user overrides (`--init`/`--update`
+instance*: catalog defaults + live detection + user overrides (setup/`--update`
 seed it; see `pre-merge/refs/protocol-init.md`). The executor, the `refs/`
 folder split, the `script-preflight-*` scripts, wave sequencing, and result
 reporting all key off this file — nothing downstream re-derives component
@@ -41,7 +41,7 @@ no migration.
 | `platforms[]` | **applicability**, not runner coverage (legend below) |
 | `needs_env` | **C23** — `true` iff the component requires a running app/DB and therefore runs **inside** the ephemeral test-sandbox (legend `env` column; see "The env-needing tier", below). `false` = static/in-process, runs outside, never triggers provisioning |
 | `mandatory` | `true` only for `security` and `migration` (AC-CAT4) — never opts out, only degrades per their own safety-floor rules |
-| `run` | resolved by detection at `--init`/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
+| `run` | resolved by detection at setup/`--update` time from the Step 1 tooling fingerprint (`shared/refs/tooling-detection.md`) — the catalog names the **detection field**, not a fixed command |
 | `run_minified` | **additive** — the **selection-capable** invocation of the same runner (affected ∪ critical), resolved by the same detection pass alongside `run`. Only the **selection-capable** components (`ˢᵉˡ` below — `unit`, `integration`, `regression`) can carry one; every other row is `null`. `null` ⇒ that component **always runs full**, silently (not a gap). Consumed only under `policies.test_selection` (`policy-schema-pre-merge.md`; `pre-merge/refs/executor.md` § *Test selection*) |
 | `ref` | `<group>/protocol-<slug>.md` — the protocol file (prose + grading logic) |
 | `check` | `script-preflight-<nn>-<slug>.sh` — the normalized detect script (Phase 2, C4) |
@@ -83,14 +83,14 @@ tooling-fingerprint field (or subagent protocol) the component reads at gate tim
 | nn | id | run (detection field / mechanism) | ref | check |
 |----|----|------------------------------------|-----|-------|
 | 01 | mechanical | `mechanical_runners[]` | `universal/protocol-mechanical.md` | `script-preflight-01-mechanical.sh` |
-| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-unit.md` | `script-preflight-02-unit.sh` |
-| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-integration.md` | `script-preflight-03-integration.sh` |
+| 02 | unit | `test_runner`ˢᵉˡ | `universal/protocol-tests.md` | `script-preflight-02-unit.sh` |
+| 03 | integration | `test_runner` (same field as `unit`)ˢᵉˡ | `universal/protocol-tests.md` | `script-preflight-03-integration.sh` |
 | 04 | regression | `test_runner` (accumulated suite) + spawned eng-subagent authoring ˢᵉˡ ⁽ᵃᶜᶜᵘᵐᵘˡᵃᵗᵉᵈ ʰᵃˡᶠ ᵒⁿˡʸ⁾ | `universal/protocol-regression.md` | `script-preflight-04-regression.sh` |
 | 05 | security | `security_scanners[]` / `secret_scanner` + `/cook` semantic pass | `universal/protocol-security.md` | `script-preflight-05-security.sh` |
 | 06 | coverage | `coverage_runner` | `universal/protocol-coverage.md` | `script-preflight-06-coverage.sh` |
 | 07 | prd-consistency | subagent (PRD digest + diff judgment, `/cook`-adjacent) | `prd/protocol-prd-consistency.md` | `script-preflight-07-prd-consistency.sh` |
 | 08 | e2e | `e2e_runner` | `platform/protocol-e2e.md` | `script-preflight-08-e2e.sh` |
-| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (`--init`, AC-A11Y4) | `platform/protocol-a11y.md` | `script-preflight-09-a11y.sh` |
+| 09 | a11y | `a11y_runner` (web axe/pa11y **+ native** iOS/macOS `performAccessibilityAudit` + Android accessibility-test-framework, C13) + project-enablement/criticality flag (setup, AC-A11Y4) | `platform/protocol-a11y.md` | `script-preflight-09-a11y.sh` |
 | 10 | perf | `perf_runner` (`{runtime, bundle}`) — ratchet-vs-base + e2e-flow interaction (C14) | `platform/protocol-perf.md` | `script-preflight-10-perf.sh` |
 | 11 | api | `api_runner` (array, incl. spec-diff `oasdiff`/`openapi-diff`) + optional `consumers[]` hint (C15) | `platform/protocol-api.md` | `script-preflight-11-api.sh` |
 | 12 | load | `load_runner` — diff-scoped to touched endpoints + declared `traffic_mix` (C16) | `platform/protocol-load.md` | `script-preflight-12-load.sh` |
@@ -121,17 +121,18 @@ web-only *runner* against a broader applicability is an **enforced
   an expensive component affordable to gate — but does **not** change whether configured
   thresholds block (criticality stays `†` config-driven); diff-scoping governs *when* it
   runs, not *whether* thresholds block.
-- **ᴸ** — **advisory by epistemic limit** (C11): `prd-consistency` grades a diff with an
-  LLM. It can judge *"is there evidence someone attempted this criterion, and does a
-  test exist?"*; it cannot certify correctness. So its findings are **recorded, never
-  blocking** — they are routed to the human who can judge, via `manual-test-plan`'s
-  significance-rated checklist, walked at merge `--staging`. This includes the `out-of-scope` scope-creep finding:
-  the same limit applies, so it is evidence for the human walk-through, not a hard
-  block.
-- **ᵃ** — **`active_when: prd` resolves from PRD auto-discovery**: a `features/prd-<N>-*/`
-  directory matched to the branch enables the `prd` group by default; `--prd <path>` is
-  an explicit override for an unmatched or ambiguous case. **No PRD found ⇒ the whole
-  `prd` group is pruned**, exactly as a no-PRD hotfix always did.
+- **ᴸ** — **blocking for unmet criteria only** (C11): `prd-consistency` grades a diff
+  with an LLM. It can judge *"is there evidence someone attempted this criterion, and
+  does a test exist?"*; it cannot certify correctness. So an **unmet acceptance
+  criterion** (`acceptance-unmet`, `high`) fails the gate, and every other finding —
+  `out-of-scope`, met-but-untested, error-case grades — is **recorded, never
+  blocking**, and routed to the human via `manual-test-plan`'s checklist, walked at
+  merge `--staging`. The component's criticality stays `advisory`: it never aborts the
+  run. `script-aggregate-verdict.sh` applies the per-rule blocking filter.
+- **ᵃ** — **`active_when: prd` resolves from the PRD the run found**: the branch name
+  `feat/prd-<N>-<slug>` → `features/prd-<N>-*/`, or the user's one answer when none or
+  several match (`pre-merge/refs/executor.md` §0b). **No PRD ⇒ the whole `prd` group is
+  pruned** (the quick-fix case).
 - **ᵐ** — **emit-only** (C22): `manual-test-plan` is `advisory` and **never blocks
   the PR** — it generates a significance-rated human-test checklist (reusing
   `prd-consistency`'s per-item evidence grades) and emits it; it never contributes a
@@ -142,10 +143,10 @@ web-only *runner* against a broader applicability is an **enforced
   `needs_env: false` — static/in-process, runs outside, never triggers provisioning.
 - **ᶜ** — **conditional `needs_env`** (C23, AC-SBX8): `regression.needs_env` follows its
   **suite composition** — `true` only if the accumulated regression suite contains
-  integration-level tests; resolved at `--init`/`--update` and recorded in the manifest.
+  integration-level tests; resolved at setup/`--update` and recorded in the manifest.
 - **ˡ** — **live-half only** (C23): the `api` **component** is `needs_env: false` — its
   base-vs-PR **spec-diff** is static and runs outside. Only its **#3 live-conformance
-  pass** (spec-vs-implementation against a running server) runs inside the sandbox,
+  pass** (spec-vs-implementation against a running server; `pre-merge/refs/platform/protocol-api.md` § Live conformance) runs inside the sandbox,
   with the env wave.
 - **ˢᵉˡ** — **selection-capable** (`policies.test_selection`): the component can resolve a
   `run_minified` invocation and therefore participate in minified runs. **Exactly three
@@ -186,7 +187,7 @@ before; a static component never triggers provisioning and never enters the sand
   the DB is reset (drop → remigrate → re-seed) between iterations.
 - **`devkit/ENV.md`** — *how* the env comes up is project-specific (docker-compose /
   testcontainers / ephemeral DB branch / preview-deploy / simulator), detected at
-  `--init` and recorded in the committed **`devkit/ENV.md`** contract file
+  setup and recorded in the committed **`devkit/ENV.md`** contract file
   (`env-contract.md`) — human prose around one fenced block with a neutral
   provision / seed / reset / teardown interface, read by both gates (schema shared,
   machinery not). A repo needing two provisioners at once (full-stack mobile:
@@ -195,8 +196,9 @@ before; a static component never triggers provisioning and never enters the sand
 - **No provisioner ⇒ loud degrade** (AC-SBX6, the D28 safety-floor pattern):
   non-destructive env-needing checks run against the ambient environment with a `high`
   `sandbox-unprovisioned` finding ("cannot run hermetically — no sandbox provisioner");
-  **destructive** checks (migration up→down→up) are skipped-with-note — never run
-  against shared state, never a silent pass.
+  **destructive or server-bound** checks (migration up→down→up, the live API check)
+  report *"not run: no sandbox"* — never run against shared state, never a silent
+  pass, never listed as run.
 
 ## The selection-capable tier (`policies.test_selection`)
 
@@ -212,7 +214,7 @@ project's globs or tag vocabulary, and none of it is read on a disabled run
 ### `force_full_paths` defaults (per detected platform)
 
 A diff touching **any** of these runs the full suite (rule step 1 ⇒ tier **L**) —
-these are the surfaces whose blast radius selection cannot bound. `--init` seeds
+these are the surfaces whose blast radius selection cannot bound. Setup seeds
 the universal rows plus the rows for each detected platform.
 
 | Scope | Default globs | Why |
@@ -224,10 +226,31 @@ the universal rows plus the rows for each detected platform.
 | **apple** | `*.xcodeproj/**` · `*.xcworkspace/**` · `Package.swift` · `Podfile.lock` · `*.xctestplan` | target/scheme membership decides *which* tests exist |
 | **android** | `*.gradle*` · `gradle/libs.versions.toml` · `gradle.properties` · `settings.gradle*` | module graph + dependency catalog |
 
+### Risky libraries (merge's `policies.merge.risky_paths`)
+
+merge treats a change as **risky** when it touches a path in
+`policies.merge.risky_paths` (`policy-schema-merge.md` § `policies.merge`). Setup
+seeds that list from the `force_full_paths` rows above (universal + each detected
+scope) plus the three fixed globs below. It then finds the real auth and payment
+folders **by library use, not by folder name**: a file whose import line names an
+import token, or whose code names a call token, marks its folder risky.
+`script-merge-checks.py` parses this section; keep the table shape.
+
+| Kind | Import tokens | Call tokens |
+|---|---|---|
+| fixed | `**/auth/**` · `**/payments/**` · `.github/workflows/**` | — |
+| auth | `next-auth` · `@auth/` · `@clerk/` · `passport` · `jsonwebtoken` · `jose` · `bcrypt` · `argon2` · `firebase/auth` · `@supabase/auth-helpers` · `django.contrib.auth` · `flask_login` · `devise` · `AuthenticationServices` · `FirebaseAuth` | `supabase.auth.` · `getServerSession(` |
+| payments | `stripe` · `@stripe/` · `@paddle/` · `braintree` · `@lemonsqueezy/` · `StoreKit` · `RevenueCat` · `com.android.billingclient` | `Stripe(` · `BillingClient` |
+
+The `fixed` row holds globs, not tokens. A token matches only on an import-like
+line (`import`, `from`, `require(`, `use`, `#import`, `implementation`); a call
+token matches on any line. Lock files, `node_modules/`, `vendor/`, `dist/`,
+`build/` and Markdown are never searched.
+
 ### `critical_markers` defaults (the critical floor's vocabulary)
 
 Tags live **in test code** — ground truth, reviewed in PRs. Policy records only
-the vocabulary; the catalog supplies the platform default `--init` resolves.
+the vocabulary; the catalog supplies the platform default setup resolves.
 
 | Platform | Default marker | Mechanism |
 |---|---|---|
@@ -293,7 +316,7 @@ still degrade gracefully per their own safety-floor rules (`security`: C9;
 `/cook` layers are best-effort (absence = note), but when **no secret scanner** is
 detected the component emits a `blocker` (`no-secret-scanner`, `safety-floor-unmet`) —
 there is no green-gate path without secret-scan coverage. The scanner install stays
-per-item approved at `--init` (`AC-DR2`). See
+per-item approved at setup (`AC-DR2`). See
 `pre-merge/refs/universal/protocol-security.md` (C9) and `safety-floor.md`.
 
 ## Firming notes (platform rows, 2026-07-18)
@@ -312,7 +335,7 @@ per-item approved at `--init` (`AC-DR2`). See
   that platform is satisfied (AC-MOB3). The **declared `{platform, os}` matrix is
   enforced**: a declared target with no available device/simulator (incl. no macOS host
   for iOS XCUITest) is a `high` `platform-coverage-gap` (C12), **not** a silent
-  `pass_with_warnings` (AC-MOB2); `--init` establishes the matrix when absent.
+  `pass_with_warnings` (AC-MOB2); setup establishes the matrix when absent.
 - **`perf`** (C14) measures **cold-load runtime metrics + bundle size** against the
   project's configured budgets (the hard bar, `†`), with a **no-regression ratchet vs
   base** applied only when comparable base numbers exist (`ratchet-vs-base.md`; no base
@@ -339,7 +362,7 @@ per-item approved at `--init` (`AC-DR2`). See
   `performAccessibilityAudit` + Android accessibility-test-framework — real coverage when
   a native runner is present, no longer a C12 flag). Findings **lead with user impact +
   flow** (`name-the-user-impact.md`), WCAG id secondary. Its **default enablement/
-  criticality is a project-level `--init` decision** (AC-A11Y4): public-facing product →
+  criticality is a project-level setup decision** (AC-A11Y4): public-facing product →
   default-on/blocking; internal tool / backend → default-off/advisory — the row's default
   `blocking` is the public-facing default, not unconditional. Tagged **low-priority** in
   the build sequence (AC-A11Y5).
@@ -362,6 +385,6 @@ per-item approved at `--init` (`AC-DR2`). See
   `active_when` + detection.
 - **Q4** — all component metadata lives here; `protocol-<slug>.md` holds only
   run/grade prose + a light header pointer back to this file.
-- **Q5** — this file is the single home of the defaults; `--init`/`--update`
+- **Q5** — this file is the single home of the defaults; setup/`--update`
   seed `devkit/policy.json`'s `components[]` from it, then overlay detection
   (`present`/`run`) + user overrides.

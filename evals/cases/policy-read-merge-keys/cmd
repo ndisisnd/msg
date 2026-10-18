@@ -1,0 +1,7 @@
+# merge-2 build decisions (1) + (5) — the policy reader resolves
+# policies.merge.risky_paths and ci_wait_minutes (absent ⇒ 30). A bad value
+# falls to the default with one WARN, never an abort.
+S="$REPO/.claude/scripts/script-policy-read.py"
+python3 "$S" --file devkit/policy.json | grep -E '^(MERGE_|WARN=)'
+python3 "$S" --file devkit/bad.json | grep -E '^(MERGE_|WARN=)'
+python3 "$S" --file devkit/absent.json | grep -E '^MERGE_'

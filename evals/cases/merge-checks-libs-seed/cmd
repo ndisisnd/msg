@@ -1,0 +1,20 @@
+# merge-2 build decision (1) — setup seeds risky_paths from the catalog
+# (universal + detected scopes + the fixed auth/payments/workflow globs), then
+# finds real auth/payment folders by library use, not folder name. A path the
+# policy already covers is not "new"; a user-added path is never removed.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+S="$REPO/.claude/scripts/script-merge-checks.py"
+C="--catalog $REPO/.claude/skills/shared/refs/component-catalog.md"
+python3 "$S" seed --scope web $C
+python3 "$S" seed --scope web python $C
+python3 "$S" seed --scope cobol $C >/dev/null 2>&1; echo "unknown scope exit=$?"
+$G init -q -b main .
+mkdir -p app/session app/checkout lib/ui devkit docs
+echo "import NextAuth from 'next-auth'" > app/session/route.ts
+echo "const s = Stripe(key)" > app/checkout/pay.js
+echo "// stripe-like stripes, no import" > lib/ui/theme.ts
+echo "import Stripe from 'stripe'" > docs/notes.md
+echo '{"version":1,"policies":{"merge":{"risky_paths":["app/session/**","my/own/**"]}}}' > devkit/policy.json
+$G add -A; $G commit -qm c1
+python3 "$S" libs --all $C

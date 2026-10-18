@@ -31,7 +31,7 @@ Todos are appended to the **PRD file** (the same file the `## Engineering — <A
 - _No discrete work for this feature._
 ```
 
-- `## Todos` — the umbrella section, appended **once**, after the execution-table skeleton. Since v5.4 it is the **only** index to the tickets: a build agent takes its assigned rows' F-IDs and reads `### F<n>` under its own `## Todos — <Agent>` block, with no exec-table pointer in between. `plan-em` creates this heading before dispatching the plan wave; agents do not create it.
+- `## Todos` — the umbrella section, appended **once**, after the execution-table skeleton. It is the **only** index to the tickets: a build agent takes its assigned rows' F-IDs and reads `### F<n>` under its own `## Todos — <Agent>` block, with no exec-table pointer in between. `plan-em` creates this heading before dispatching the plan wave; agents do not create it.
 - `## Todos — <Agent Name>` — one per agent, mirroring the `## Engineering — <Agent>` convention exactly (the literal `— <Agent Name>` suffix is required). Detection scans for this literal heading (`## Todos —`).
 - `### F<n>` — one subsection per feature the agent owns, holding that feature's tickets. The F-ID matches the PRD's Features & acceptance criteria table and the execution-table rows.
 
@@ -45,7 +45,7 @@ Each ticket is a bullet whose title line carries the ticket id and summary, foll
 |-------|--------|---------|
 | `id` | `F<n>-T<k>` | Stable ticket id, feature-scoped and 1-based per feature (`F1-T1`, `F1-T2`, `F2-T1`). The handle `depends-on` references and the build summary checks off. On the title line: `**F1-T1 — <title>**`. |
 | `title` | short phrase | One-line summary of the unit of work — what a reviewer reads in a ticket list. On the title line after the id. |
-| `objective` | one sentence | The **product / user goal** this ticket serves — traces to the PRD feature's user story or acceptance criterion (the "why"). Keeps the build agent anchored to intent, not just mechanics. |
+| `objective` | one sentence | The **product / user goal** this ticket serves — traces to the PRD feature's user story or acceptance criterion (the "why"; cite it as `F2 AC3` when the feature lists several criteria). Keeps the build agent anchored to intent, not just mechanics. |
 | `type` | `code \| test \| config \| migration \| doc` | The kind of work. |
 | `files` | `` `path` (add\|edit\|remove) ``, comma-separated | The file(s) touched, each tagged with its own action. Exact repo-relative paths where known (same precision bar as `--plan` §7 identifiers). |
 | `depends-on` | ticket id(s), or `none` | Other tickets that must complete **before** this one (e.g. an endpoint depends on its migration). `none` when independent. Only reference ids that exist in the same PRD's `## Todos`. |
@@ -69,7 +69,7 @@ Each ticket is a bullet whose title line carries the ticket id and summary, foll
 ## Rules
 
 1. **A ticket is a unit of work, not a single file edit.** Group the files that must change together to deliver one coherent objective into one ticket; split when objectives, dependencies, or acceptance checks genuinely differ. Prefer a ticket a build agent can complete and verify in one pass.
-2. **Ticket sizing — a coherent reviewable unit, not a line count.** Scope every `F<n>-T<k>` ticket to one reviewable objective — split it when the objective, dependencies, or acceptance checks would otherwise span unrelated concerns. Never scope or split a ticket against a predicted LOC number: a line count guessed before the code exists is exactly the fake-precise estimate `intake/refs/rubric.md` forbids. LOC becomes a real, measured fact only once a diff exists — that's the build agent's judgment call at the commit gate (`script-eng-commit-cap.sh`), not a plan-time criterion.
+2. **Ticket sizing — a coherent reviewable unit, not a line count.** Every ticket becomes exactly one commit (`../build/protocol-packet.md` Step 7), so size it as one reviewable commit. Scope every `F<n>-T<k>` ticket to one reviewable objective — split it when the objective, dependencies, or acceptance checks would otherwise span unrelated concerns. Never scope or split a ticket against a predicted LOC number: a line count guessed before the code exists is exactly the fake-precise estimate `intake/refs/rubric.md` forbids. LOC becomes a real, measured fact only once a diff exists — that's the build agent's judgment call at the commit gate (`script-eng-commit-cap.sh`), not a plan-time criterion.
 3. **Every ticket names its objective.** The `objective` traces to a specific PRD feature user story or acceptance criterion. A ticket whose objective can't be tied back to the feature's intent is a decomposition error — reconcile it against the `## Engineering — <Agent>` section, don't invent scope.
 4. **Ids are stable and unique per PRD.** `F<n>-T<k>` — numbered 1-based within each feature. Ids are the dependency graph's nodes; never reuse or renumber an id once other tickets or the build summary reference it.
 5. **`depends-on` references real ids only.** Every id in a `depends-on` must exist elsewhere in the same `## Todos`. A dangling dependency is a coverage gap, not silently written. Dependencies must be **acyclic** — a build agent walks them in order.

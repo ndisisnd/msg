@@ -4,7 +4,7 @@ script-cert-mech.py — the mechanical half of the PRD certification.
 
 Owns every certification check whose verdict is decidable from the PRD text
 alone: check 4 (exec-table coverage / hygiene / collisions), check 5 (ticket
-graph validity) and check 6 (frontmatter graph + platform bucket coverage).
+graph validity) and check 6 (frontmatter graph + platform rows).
 Checks 1, 2, 3 and 7 are judgment calls and are not implemented here.
 
 Usage:
@@ -13,9 +13,9 @@ Usage:
                                [--features-root <dir>]
 
   --checks         comma-separated subset of 4,5,6. Default: 4,5,6.
-                   Product tune passes `--checks 6`; eng tune passes `--checks 4,5,6`.
+                   The product check passes `--checks 6`; the eng check passes `--checks 4,5,6`.
   --platforms      path to devkit/PLATFORMS.md. Default: devkit/PLATFORMS.md.
-                   Absent → the bucket-coverage facet is skipped, never an error.
+                   Absent → the platform-row facet is skipped, never an error.
   --features-root  root the frontmatter graph is resolved against. Default: features.
 
 Output (stdout, one record per line, machine-readable):
@@ -39,7 +39,7 @@ Finding codes:
            files-column-unresolved (major — the exec table has no Files column at
            all, so the collision facet is skipped, not passed)
   check 5  unknown-ticket-id (critical) · ticket-cycle (critical) · missing-done-when (major)
-  check 6  frontmatter-cycle (critical) · missing-edge-target (major) · missing-bucket-coverage (major)
+  check 6  frontmatter-cycle (critical) · missing-edge-target (major) · missing-platform-row (major)
 
 Exit codes:
   0  ran clean — no findings
@@ -331,7 +331,7 @@ def check5(lines, body_start):
              "depends-on cycle: " + " -> ".join(cyc))
 
 
-# ── check 6 — frontmatter graph + bucket coverage ─────────────────────────────
+# ── check 6 — frontmatter graph + platform rows ─────────────────────────────
 
 def prd_id(path):
     p = Path(path)
@@ -393,43 +393,33 @@ def check6(fm, lines, prd_path, features_root, platforms_path):
         # when the root is missing, so say so rather than pass silently.
         print("SKIP check=6 facet=edge-targets reason=no-prds-matched-glob")
 
-    # Bucket coverage — the buckets pre-merge will require for each shipping platform.
+    # Platform rows — each shipping platform the PRD declares has a row in
+    # PLATFORMS.md, so pre-merge can resolve its strictness profile. Which checks
+    # run is owned by the component catalog + detection, never by this file.
     pf = Path(platforms_path)
     if not pf.is_file():
-        print("SKIP check=6 facet=buckets reason=no-platforms-file")
+        print("SKIP check=6 facet=platforms reason=no-platforms-file")
         return
 
     headers, rows = md_table(pf.read_text(encoding="utf-8").split("\n"))
     plats = col(headers, rows, "platform")
-    buckets = col(headers, rows, "required_buckets")
-    if not plats or not buckets:
-        print("SKIP check=6 facet=buckets reason=no-required-buckets-column")
+    if not plats:
+        print("SKIP check=6 facet=platforms reason=no-platform-column")
         return
-    table = {p.strip().strip("`").lower(): b for p, b in zip(plats, buckets)}
+    table = {p.strip().strip("`").lower() for p in plats}
 
     declared = fm.get("platform") or []
     if isinstance(declared, str):
         declared = [t.strip() for t in re.split(r"[,/]", declared) if t.strip()]
     if not declared:
-        print("SKIP check=6 facet=buckets reason=no-platform-in-frontmatter")
+        print("SKIP check=6 facet=platforms reason=no-platform-in-frontmatter")
         return
 
-    body = "\n".join(lines).lower()
     for plat in declared:
-        row = table.get(plat.strip().strip("`").lower())
-        if row is None:
-            emit(6, "major", "missing-bucket-coverage", plat,
+        if plat.strip().strip("`").lower() not in table:
+            emit(6, "major", "missing-platform-row", plat,
                  f"platform {plat} has no row in {platforms_path} — pre-merge cannot "
-                 f"resolve its bucket set")
-            continue
-        want = [b.strip().strip("`") for b in re.split(r"[,\s]+", row) if b.strip()
-                and b.strip() not in ("—", "-")]
-        missing = [b for b in want
-                   if not re.search(r"\b" + re.escape(b.lower()) + r"\b", body)]
-        if missing:
-            emit(6, "major", "missing-bucket-coverage", plat,
-                 f"PRD never names the buckets {platforms_path} requires for {plat}: "
-                 + ", ".join(missing))
+                 f"resolve its strictness profile")
 
 
 # ── main ──────────────────────────────────────────────────────────────────────

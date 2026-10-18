@@ -21,14 +21,7 @@ Three columns:
 - **Files** — **Derived by script, never by an agent.** The union of the `files` paths of the tickets under this row's F-ID in this row's agent's `## Todos — <Agent>` block, written by `script-em-exec-skeleton.py --fill-files`. This is what makes collision detection mechanical: two rows are unsafe to run in parallel iff their Files sets overlap.
 - **Agent** — Pre-populated by `plan-em` from the approved agent roster. Names the agent responsible for this concern, and is how a build invocation confirms row ownership.
 
-**What v5.4 removed, and why.** Two columns are gone:
-
-| Removed | Why |
-|---------|-----|
-| **Execution steps** (`→ F2-T1, F2-T2`) | A pointer that duplicated information already in the ticket ids themselves. A build agent locates its tickets from `## Todos — <Agent>` / `### F<n>` for its assigned F-IDs — the pointer added a second index that could drift out of agreement with the first, and a whole class of `unresolved-pointer` / `unpointed-ticket` failures with it. |
-| **Todos** (`[F1](#todos-f1)`) | A markdown anchor for human navigation only. Nothing mechanical read it, and it cost a cell on every row. |
-
-Rows written before v5.4 keep both columns and keep working — every reader resolves columns by name, so a 5-column table and a 3-column table schedule identically (`script-em-exec-collision.py`, `script-eng-plan-shape.py` check 6, `script-prd-digest.py`).
+Readers resolve columns by name, so an older table with extra columns still schedules the same.
 
 ## Execution concerns to cover
 
@@ -60,12 +53,12 @@ After the agent roster is approved, plan-em **decides** the rows but **renders**
 
 | Feature — concern | Files | Agent |
 |-------------------|-------|-------|
-| F1: Set daily goal — API contract | | backend-eng |
-| F1: Set daily goal — Schema migration | | backend-eng |
-| F1: Set daily goal — iOS UI | | mobile-eng-ios |
-| F1: Set daily goal — Tests | | backend-eng |
-| F2: Track streak — Schema migration | | backend-eng |
-| F3: Daily reminder — iOS push | | mobile-eng-ios |
+| F1: Set daily goal — API contract | | eng-backend |
+| F1: Set daily goal — Schema migration | | eng-backend |
+| F1: Set daily goal — iOS UI | | eng-ios |
+| F1: Set daily goal — Tests | | eng-backend |
+| F2: Track streak — Schema migration | | eng-backend |
+| F3: Daily reminder — iOS push | | eng-ios |
 ```
 
 ## How the Files column gets filled

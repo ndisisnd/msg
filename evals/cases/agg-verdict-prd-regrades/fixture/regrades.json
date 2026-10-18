@@ -1,0 +1,3 @@
+[{"category":"unit","file":"src/b.ts","line":9,"rule":"unit-test-failure","severity":"low","reason":"unreachable: dead branch"},
+ {"category":"functional","file":"src/a.ts","line":2,"rule":"acceptance-untested","regression":true,"reason":"same as prior run"},
+ {"category":"x","file":"nope.ts","line":1,"rule":"r","severity":"low","reason":"no match"}]

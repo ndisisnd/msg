@@ -1,0 +1,6 @@
+MAX_ROW=5
+COUNT=2
+| # | date | type | idea | goal | grade | status | prd |
+|---|------|------|------|------|-------|--------|-----|
+| 2 | 2026-01-12 | bug | tally miscounts | stop silent empty tallies | C:2 S:blocked-by-#1 | backlog | |
+| 5 | 2026-01-14 | feature | search notes | find a note fast | C:3 S:blocked-by-#1 | in-progress | prd-4-search |

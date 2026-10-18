@@ -16,9 +16,11 @@ Usage:
 The five default checks:
   1 sections   every canonical `## N. Title` present, correctly numbered, in
                canonical order, none missing, none extra-numbered.
-  2 ftable     §3 carries the four canonical columns; every row has a non-empty
-               acceptance criterion; no `supports` / `handles` / `TBD` weasel
-               tokens in the criterion cell.
+  2 ftable     §3 carries the four canonical columns; every row has at least
+               one non-empty acceptance criterion; several criteria in one
+               cell are labelled AC1..ACn in order, one per `<br>`-separated
+               line; no `supports` / `handles` / `TBD` weasel tokens in any
+               criterion.
   3 fids       F-IDs are F1..Fn — sequential, no gaps, no duplicates.
   4 reserved   the reserved sections carry their byte-exact placeholders, OR are
                genuinely populated by their owning skill. Never paraphrased.
@@ -28,10 +30,11 @@ The opt-in check:
   6 style      the two places where the template's *shape* is prose-shaped and
                so drifts silently: §5 carries the four-column `# / Question /
                Answer / Status` table (not a bullet list), and §1 carries
-               exactly the three `**Who**` / `**What changes**` /
-               `**Success signal**` bullets and nothing else. Requested by
-               `plan-pm --update` as its convergence gate; never part of the
-               default set, so a fresh-draft gate is unchanged.
+               exactly the two `**Who**` / `**What changes**` bullets and
+               nothing else (an older PRD's trailing `**Success signal**`
+               bullet is tolerated). Requested by `plan-pm --migrate` as its
+               convergence gate; never part of the default set, so a
+               fresh-draft gate is unchanged.
 
 Two shapes, auto-detected from the frontmatter (never from the body):
   v5.4  seven sections (findings moved to reports/review-prd-<n>-<slug>.md),
@@ -48,7 +51,8 @@ Output (stdout, one record per line, machine-readable):
 
 Failure codes:
   check 1  missing-section · section-out-of-order · unknown-section · bad-number
-  check 2  missing-features-table · bad-columns · empty-acceptance · weasel-token
+  check 2  missing-features-table · bad-columns · empty-acceptance · weasel-token ·
+           bad-ac-label
   check 3  bad-fid · fid-gap · fid-duplicate
   check 4  placeholder-drift
   check 5  missing-key · bad-value
@@ -81,7 +85,7 @@ CANONICAL_V54 = [
     (1, "Product objective"),
     (2, "Out-of-scope"),
     (3, "Features & acceptance criteria"),
-    (4, "Error cases"),
+    (4, "Error and edge cases"),
     (5, "Open questions"),
     (6, "Feature execution table"),
     (7, "Todos"),
@@ -91,7 +95,7 @@ CANONICAL_V5 = [
     (1, "Product objective"),
     (2, "Out-of-scope"),
     (3, "Features & acceptance criteria"),
-    (4, "Error cases"),
+    (4, "Error and edge cases"),
     (5, "Open questions"),
     (6, "Feature execution table"),
     (7, "Plan review findings"),
@@ -99,9 +103,11 @@ CANONICAL_V5 = [
 ]
 
 # Section titles that older PRDs still carry, mapped to their canonical title.
-# §7 carried the certifier's former name until v5; the read tolerates that old
-# heading so pre-v5 PRDs keep validating (nothing on disk is ever rewritten).
-LEGACY_TITLES = {"plan tune findings": "plan review findings"}
+# §7 carried the certifier's former name until v5, and §4 was titled "Error
+# cases" before it became "Error and edge cases"; the read tolerates both old
+# headings so older PRDs keep validating (nothing on disk is ever rewritten).
+LEGACY_TITLES = {"plan tune findings": "plan review findings",
+                 "error cases": "error and edge cases"}
 
 EXEC_PLACEHOLDER = "_To be populated by plan-em — engineering breakdown of the §3 features._"
 FINDINGS_PLACEHOLDER = "_Populated by plan-review (/plan-review) — audit findings table._"
@@ -117,6 +123,27 @@ FEATURE_COLUMNS = ["id", "feature", "acceptance criterion", "dependencies"]
 
 WEASEL = ("supports", "handles", "tbd", "gracefully", "as needed", "etc.")
 
+# A feature may carry several acceptance criteria in its one cell: each on its
+# own `<br>`-separated line, labelled AC1, AC2, … in order. A single unlabelled
+# criterion (every older PRD) is still one criterion.
+AC_SPLIT = re.compile(r"<br\s*/?>", re.I)
+AC_LABEL = re.compile(r"^AC(\d+)\b[\s:.·—-]*", re.I)
+
+
+def split_criteria(cell):
+    """[(label_or_None, text)] for every criterion line in an acceptance cell."""
+    out = []
+    for part in AC_SPLIT.split(cell):
+        part = part.strip()
+        if not part:
+            continue
+        m = AC_LABEL.match(part)
+        if m:
+            out.append(("AC" + m.group(1), part[m.end():].strip()))
+        else:
+            out.append((None, part))
+    return out
+
 REQUIRED_V54 = {
     "name":     re.compile(r"^prd-\d+(\.\d+)?-[a-z0-9-]+$"),
     "feature":  re.compile(r"^\S.*$"),
@@ -124,7 +151,7 @@ REQUIRED_V54 = {
     "status":   re.compile(r"^(backlog|specced|wip|complete)$"),
     "reviewed": re.compile(r"^(yes|no)$"),
     "created":  re.compile(r"^\d{4}-\d{2}-\d{2}$"),
-    "intake":   re.compile(r"^#?\d+$"),
+    "intake":   re.compile(r"^#?\d+(\.\d+)?$"),
 }
 LIST_V54 = ("deps",)
 
@@ -311,13 +338,27 @@ def check2(secs):
             fail(2, "empty-acceptance", fid or "?",
                  "row has an empty acceptance-criterion cell")
             continue
-        low = crit.lower()
-        for w in WEASEL:
-            if re.search(r"\b" + re.escape(w) + r"", low):
-                fail(2, "weasel-token", fid or "?",
-                     f"acceptance criterion uses the vague token '{w}' — name the "
-                     f"observable user-goal outcome instead")
-                break
+        parts = split_criteria(crit)
+        labels = [lab for lab, _ in parts]
+        if len(parts) > 1 or any(labels):
+            want = [f"AC{i}" for i in range(1, len(parts) + 1)]
+            if [(lab or "").upper() for lab in labels] != want:
+                fail(2, "bad-ac-label", fid or "?",
+                     f"several criteria in one cell must be labelled {', '.join(want)} "
+                     f"in order, one per <br> line; found "
+                     f"{', '.join(lab or '(unlabelled)' for lab in labels)}")
+        for lab, text in parts:
+            ref = f"{fid or '?'}{(' ' + lab) if lab else ''}"
+            if not text:
+                fail(2, "empty-acceptance", ref, "criterion label carries no text")
+                continue
+            low = text.lower()
+            for w in WEASEL:
+                if re.search(r"\b" + re.escape(w) + r"", low):
+                    fail(2, "weasel-token", ref,
+                         f"acceptance criterion uses the vague token '{w}' — name the "
+                         f"observable user-goal outcome instead")
+                    break
 
 
 # ── check 3 — F-ID sequence ───────────────────────────────────────────────────
@@ -411,14 +452,17 @@ def check5(fm, shape):
 
 # ── check 6 — style (opt-in) ──────────────────────────────────────────────────
 # Checks 1–5 catch structural drift. These two rules are the places where the
-# template asks for a *shape* inside a section — a table in §5, three bullets in
+# template asks for a *shape* inside a section — a table in §5, two bullets in
 # §1 — and a hand-edited or pre-v5.4 PRD drifts out of them without ever failing
 # a structural check. Opt-in because it is the convergence gate for
-# `plan-pm --update`, not a bar a fresh draft has ever been held to.
+# `plan-pm --migrate`, not a bar a fresh draft has ever been held to.
 
 QUESTION_COLUMNS = ["#", "question", "answer", "status"]
 
-OBJECTIVE_BULLETS = ["**Who**", "**What changes**", "**Success signal**"]
+OBJECTIVE_BULLETS = ["**Who**", "**What changes**"]
+# Older PRDs carry a third `**Success signal**` bullet. No later step reads it,
+# so it is no longer drafted — but a PRD that still has it stays conformant.
+LEGACY_OBJECTIVE_TAIL = "**Success signal**"
 
 
 def check6(secs):
@@ -452,6 +496,9 @@ def check6(secs):
         fail(6, "objective-bullet-count", "§1", "no '## 1. Product objective' section")
         return
     bullets = [l.strip() for l in strip_examples(block) if re.match(r"^\s*[-*]\s+\S", l)]
+    if (len(bullets) == len(OBJECTIVE_BULLETS) + 1
+            and re.sub(r"^[-*]\s+", "", bullets[-1]).startswith(LEGACY_OBJECTIVE_TAIL)):
+        bullets = bullets[:-1]            # tolerated legacy third bullet
     if len(bullets) != len(OBJECTIVE_BULLETS):
         fail(6, "objective-bullet-count", "§1",
              f"§1 is exactly {len(OBJECTIVE_BULLETS)} bullets "
@@ -461,7 +508,7 @@ def check6(secs):
         lead = re.sub(r"^[-*]\s+", "", got)
         if not lead.startswith(want):
             fail(6, "objective-bullet-label", "§1",
-                 f"bullet '{lead[:60]}' must open with '{want}' — the three labels are "
+                 f"bullet '{lead[:60]}' must open with '{want}' — the two labels are "
                  f"fixed and ordered")
 
 

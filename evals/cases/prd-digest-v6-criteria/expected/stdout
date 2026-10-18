@@ -1,0 +1,4 @@
+F1 AC1 The missed day shows a filled ring on the Home screen after the user confirms the grace action.
+F2 AC1 The grace action is offered only for yesterday.
+F2 AC2 After the user uses it, the action is hidden until next week.
+E1 Empty and limits

@@ -1,0 +1,4 @@
+PRD_UNRESOLVED branch=main
+exit=1
+PRD_AMBIGUOUS features/prd-3-a features/wip/prd-3-b
+exit=1

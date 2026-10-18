@@ -31,8 +31,8 @@ run `--verify` at all — record "protection check skipped by policy" and procee
 When `mode_b` is `enforced` or `optional` (resolution form: `sanctioned-writes.md`):
 
 ```bash
-S=.claude/scripts/script-branch-protection.sh
-bash "$S" --verify <branch>       # <branch> = staging (--staging) or main (--production)
+BP=.claude/scripts/script-branch-protection.sh
+bash "$BP" --verify <branch>       # <branch> = staging (--staging) or main (--production)
 ```
 
 Interpret the machine output against the resolved `mode_b`:
@@ -65,4 +65,4 @@ force-pushes on both; ≥1 required review on `main`) and is idempotent. Surface
 this exact command in the refusal so the human can self-serve.
 
 Merge never sets protection itself — it only verifies. Bootstrapping is an
-explicit, remote-mutating action owned by `--init` / the human.
+explicit, remote-mutating action owned by merge setup / `--update` (on the human's yes) or the human.

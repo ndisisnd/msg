@@ -162,8 +162,8 @@ feature→`prod` ship** — submit → accepted → monitor-handoff, exactly as 
 
 The staging-scoped stages are **inactive** in this flow (enumerated once in
 `../../shared/refs/policy-schema-merge.md` §1b — not restated here). That does **not** drop human
-judgment: the **double-confirmation** and the **inline human-test approval** (defined
-once in `refs/production.md` § *Inline human-test approval*) are both active on the
-direct-flow production ship. The sign-off stage being inactive removes a *stage*, not
-the *gate* — a human still approves (via that inline human-test approval, asked
-before the merge) before the submission goes out.
+judgment: the human test script and the **one direct-flow confirmation** (defined
+once in `refs/production.md` § *`direct` flow — test script, then one confirmation*)
+are active on the direct-flow production ship. The sign-off stage being inactive
+removes a *stage*, not the *gate* — a human still approves (via that confirmation,
+asked before the merge) before the submission goes out.

@@ -192,6 +192,9 @@ function mdInline(s) {
     return '<a href="' + href + '" target="_blank" rel="noopener">' + txt + "</a>";
   });
   s = s.replace(/\u0001(\d+)\u0001/g, function (_, i) { return "<code>" + codes[+i] + "</code>"; });
+  // A PRD table cell may hold several acceptance criteria on <br> lines (AC1, AC2, …).
+  // The source is already escaped, so only the escaped tag itself is restored.
+  s = s.replace(/&lt;br\s*\/?&gt;/gi, "<br>");
   return s;
 }
 function mdToHtml(src) {
@@ -619,7 +622,7 @@ function listKanban(list) {
 
 function listTable(list) {
   var cols = [
-    { key: "num",        label: "PRD",        get: function (p) { return p.num; } },
+    { key: "num",        label: "PRD",        get: function (p) { return p.numSort != null ? p.numSort : Number(p.num) || 0; } },
     { key: "feature",    label: "Feature",    get: function (p) { return p.feature || p.id; } },
     { key: "module",     label: "Module",     get: function (p) { return p.module || ""; } },
     { key: "platform",   label: "Platform",   get: function (p) { return p.platform || ""; } },
@@ -735,8 +738,8 @@ function renderRoadmap() {
 /* ========================================================================= */
 /*  INTAKE TAB (H2)                                                            */
 /* ========================================================================= */
-// Backlog board over root INTAKE.md — one card per row, three grade chips from
-// the rubric cell (C:/T:/S:), lanes backlog / in-progress / completed, each card
+// Backlog board over root INTAKE.md — one card per row, two grade chips from
+// the rubric cell (C:/S:), lanes backlog / in-progress / completed, each card
 // cross-linking to its mapped PRD. Status cell edits are the GUI's one new write
 // path (H5): drag a card between lanes (LIVE) or use its per-card status buttons.
 var INTAKE_LANES = [
@@ -756,7 +759,6 @@ function gradeChips(g) {
   g = g || {};
   var out = "";
   if (g.complexity) out += '<span class="chip grade-c" title="Complexity">C:' + esc(g.complexity) + "</span>";
-  if (g.token)      out += '<span class="chip grade-t" title="Token cost">T:' + esc(g.token) + "</span>";
   if (g.sequence)   out += '<span class="chip grade-s" title="Sequencing">S:' + esc(g.sequence) + "</span>";
   return out;
 }
@@ -768,6 +770,7 @@ function intakeCard(row) {
       '<div class="title">' +
         '<span class="num">#' + esc(row.num) + "</span> " +
         '<span class="pill intake-type ' + typeCls + '">' + esc(row.type) + "</span> " +
+        (row.parent ? '<span class="pill muted" title="Sub-PRD row of ' + esc(row.parent) + '">sub of ' + esc(row.parent) + "</span> " : "") +
         esc(row.idea || "(untitled)") + "</div>" +
       (row.goal ? '<div class="intake-goal">' + esc(row.goal) + "</div>" : "") +
       '<div class="meta">' + gradeChips(row.grade) +

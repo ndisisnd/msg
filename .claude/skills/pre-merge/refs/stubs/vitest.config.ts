@@ -1,4 +1,4 @@
-// Minimal Vitest config — scaffolded by `/pre-merge --init`.
+// Minimal Vitest config — scaffolded by pre-merge setup.
 // Emits a json-summary so the coverage component can read totals.
 import { defineConfig } from "vitest/config";
 

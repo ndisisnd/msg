@@ -8,7 +8,7 @@ description: Shared tooling fingerprint protocol. Produces package manager, test
 > **Reference documentation for maintainers.** Runtime detection is done by the
 > **`.claude/scripts/script-preflight-*.sh` family** (sharing the probe primitives in
 > `.claude/scripts/script-check-common.sh`), which each emit a normalized check-report
-> `detect` section as JSON — `--init`/`--update` consume those, not this file. The tables
+> `detect` section as JSON — setup/`--update` consume those, not this file. The tables
 > below document the heuristics those probes implement (and the output shapes they emit)
 > so a maintainer can audit or extend detection; they are no longer walked by hand at
 > runtime. (This family superseded the retired monolithic `pre-merge` tooling detector at
@@ -16,7 +16,7 @@ description: Shared tooling fingerprint protocol. Produces package manager, test
 
 Shared fingerprint protocol. Run all checks in parallel. Populate outputs once per skill invocation; never re-derive mid-run.
 
-> **Deterministic detector:** the `script-preflight-*.sh` family (one script per component, sharing `script-check-common.sh`) covers **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the platform-component runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. `--init`/`--update` run the family and resolve each component's `run` command into `devkit/policy.json` `components[]`; the gate executor reads those resolved commands — no skill re-derives these outputs from the tables below at gate time.
+> **Deterministic detector:** the `script-preflight-*.sh` family (one script per component, sharing `script-check-common.sh`) covers **every** output in this ref — `package_manager`, `test_runner`, `e2e_runner`, the platform-component runners (`qa`, `load`, `a11y`, `perf`, `api`, `mobile`, `coverage`), **plus** `build_tool`, `mechanical_runners`, `security_scanners` (with a `secret_scanner` alias = the first `type: "secret"` entry, or `null`), and `bundle_analyzer`. Setup/`--update` run the family and resolve each component's `run` command into `devkit/policy.json` `components[]`; the gate executor reads those resolved commands — no skill re-derives these outputs from the tables below at gate time.
 
 ---
 

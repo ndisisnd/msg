@@ -1,6 +1,6 @@
 ---
 name: Failed-ship loop
-description: What merge does after a failed ship — the rollback / rollout-halt offer, the issues file, the run report, and the fix-loop handoff
+description: What merge does after a failed ship — the rollback / rollout-halt question (always asked), the issues file, the run report, and the automatic fix loop
 type: reference
 ---
 
@@ -50,11 +50,15 @@ dead-end. In order:
 3. **Write the run report**, carrying the `## Issue summary` block and the
    rollback-offer outcome.
 4. **Print the terminal `Issue summary` block.**
-5. **Hand off to `../../shared/refs/fix-loop.md`** — it owns Offer #1 (`eng --plan`)
-   → Offer #2 (`eng --build`) off this issues file; do not re-spell that wording
-   here. The rollback offer **precedes** this and never replaces it — a
-   rolled-back release still has a broken commit to fix forward. **For
-   `--production` the release lock releases at ship-terminal — after step 1,
-   before this handoff — so the fix loop never holds the lock.**
+5. **Run the fix loop — automatically** (`../../shared/refs/fix-loop.md` § *merge —
+   automatic, after the rollback question*): plan the fixes (`eng --plan report=<that
+   path>`) and build them (`eng --build report=<that path>`) with **no question**, in the
+   main conversation. It stops early and hands to the user on no progress, a safety
+   pause, or a bug at eng's 3-attempt limit. The rollback question **precedes** this and
+   never replaces it — a rolled-back release still has a broken commit to fix forward.
+   **For `--production` the release lock releases at ship-terminal — after step 1,
+   before this loop — so the fix loop never holds the lock.**
 
-The fixed branch comes back through `/pre-merge` and this gate.
+The fixed branch comes back through `/pre-merge` and this gate — nothing ships again by
+itself. The hand-off message names the report and the next command (`/pre-merge`, then
+`/merge`).

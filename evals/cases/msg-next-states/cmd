@@ -1,0 +1,33 @@
+# msg-1 — bare /msg prints the next step per PRD in progress, closest to shipping
+# first, then the oldest intake row with no PRD; at most 4 lines (MORE counts the
+# rest). Lane done is skipped. No devkit/ ⇒ the one line is /msg --init.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+S="$REPO/.claude/scripts/script-msg-next.py"
+mkdir -p bare && python3 "$S" --repo bare
+mkdir -p devkit .pre-merge features/planned/prd-4-delta features/done/prd-5-eps
+for n in 1-alpha 2-beta 3-gamma 6-zeta; do mkdir -p features/wip/prd-$n; done
+echo '{"version":1,"init":true,"policies":{"release_flow":{"mode":"staged","prod_branch":"main","staging_branch":"staging"}}}' > devkit/policy.json
+prd() { printf -- '---\nname: %s\nfeature: %s\nstatus: %s\nreviewed: %s\n%b---\n# %s\n\n%s\n' "$2" "$2" "$3" "$4" "$5" "$2" "$6" > "features/$1/$2/$2.md"; }
+T='## Todos — Web'
+prd wip prd-1-alpha wip yes 'staging-signoff: 2026-01-15@abc\n' "$T"
+prd wip prd-2-beta wip yes '' "$T"
+prd wip prd-3-gamma wip yes '' "$T"
+prd wip prd-6-zeta wip yes '' "$T"
+prd planned prd-4-delta backlog no '' 'draft'
+prd done prd-5-eps complete yes '' "$T"
+mkdir -p features/wip/prd-6-zeta/reports
+printf -- '---\nskill: eng\nverdict: pass\n---\n' > features/wip/prd-6-zeta/reports/report-prd-6-1.md
+printf '| # | date | type | idea | goal | grade | status | prd | parent |\n|---|---|---|---|---|---|---|---|---|\n| 7 | 2026-01-01 | feature | a | b | C:3 | backlog |  |  |\n| 8 | 2026-01-02 | feature | c | d | C:3 | in-progress | prd-4-delta |  |\n| 9 | 2026-01-03 | bug | e | f | C:2 | backlog |  |  |\n' > INTAKE.md
+$G init -q -b main .; echo x > a; $G add a; $G commit -qm init
+$G branch staging
+$G checkout -q -b feat/prd-1-alpha; echo 1 > b; $G add b; $G commit -qm alpha
+$G checkout -q staging; $G merge -q --no-ff -m m feat/prd-1-alpha
+$G checkout -q main
+for b in 2-beta 3-gamma; do $G checkout -q -b feat/prd-$b main; echo $b > $b; $G add $b; $G commit -qm $b; done
+$G checkout -q main
+B=$($G rev-parse feat/prd-2-beta)
+printf '{"branches":{"feat/prd-2-beta":{"head":"%s","verdict":"pass"},"feat/prd-3-gamma":{"head":"%s","verdict":"fail"}}}' "$B" "$($G rev-parse feat/prd-3-gamma)" > .pre-merge/last-check.json
+python3 "$S"
+echo ---
+python3 "$S" --max 10 | grep '^NEXT=' | cut -d'|' -f1,2

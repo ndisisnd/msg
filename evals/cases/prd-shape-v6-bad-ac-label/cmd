@@ -1,0 +1,3 @@
+# v6 — several criteria in one cell must be labelled AC1..ACn in order. F2 skips
+# AC2; F1 joins two unlabelled lines, one with a weasel verb.
+python3 "$REPO/.claude/scripts/script-prd-shape.py" prd.md

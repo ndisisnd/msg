@@ -1,0 +1,6 @@
+# pre-merge-14(b) — an approved `active_when` override in components[] (written by
+# `/pre-merge --update`) wins over the catalog: e2e is set to `always`, so a diff with
+# no UI surface keeps e2e, while a11y (catalog trigger ui-surface) is still pruned.
+python3 "$REPO/.claude/scripts/script-pipeline-resolve.py" --policy policy.json \
+  --catalog "$REPO/.claude/skills/shared/refs/component-catalog.md" --diff diff.json \
+  | jq -c '{run, pruned: [.pruned[] | select(.id == "e2e" or .id == "a11y")]}'

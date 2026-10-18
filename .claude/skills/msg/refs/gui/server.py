@@ -360,6 +360,22 @@ def prd_lane_of(rel):
     return None
 
 
+def prd_num_key(num):
+    """Sort key for a PRD number string: `7` → (7, 0), `7.1` → (7, 1), so
+    `7 < 7.1 < 7.2 < 7.10 < 8 < 10` (a float or string sort gets 7.10 and 10 wrong)."""
+    parts = str(num).split(".", 1)
+    try:
+        return (int(parts[0]), int(parts[1]) if len(parts) > 1 else 0)
+    except ValueError:
+        return (0, 0)
+
+
+def prd_num_sort(num):
+    """prd_num_key flattened to one number for the board's client-side sort."""
+    major, minor = prd_num_key(num)
+    return major * 10000 + minor
+
+
 def parse_prd_dir(d):
     rel = os.path.relpath(d, root_path())
     lane = prd_lane_of(rel)
@@ -371,8 +387,8 @@ def parse_prd_dir(d):
     if fm is None:
         return None, {"path": os.path.relpath(mds[0], root_path()), "reason": "missing/unparseable frontmatter"}
     base = os.path.basename(d)
-    nm = re.match(r"^prd-(\d+)-?(.*)$", base)
-    num = int(nm.group(1)) if nm else 0
+    nm = re.match(r"^prd-(\d+(?:\.\d+)?)-?(.*)$", base)
+    num = nm.group(1) if nm else "0"   # display string: whole (`7`) or sub-PRD (`7.1`)
     slug = nm.group(2) if nm else base
     feats, order = parse_features(body)
     has_todos = parse_todos(body, feats, order)
@@ -409,6 +425,7 @@ def parse_prd_dir(d):
     return {
         "shape": shape,
         "num": num,
+        "numSort": prd_num_sort(num),
         "id": base,
         "path": rel + "/",
         "lane": lane,
@@ -523,7 +540,7 @@ def collect_gate_issues(skipped):
         except Exception as e:
             skipped.append({"path": rel, "reason": "unparseable JSON: %s" % e})
             continue
-        pm = re.search(r"report-prd-(\d+)-(\d+)\.json$", path)
+        pm = re.search(r"report-prd-(\d+(?:\.\d+)?)-(\d+)\.json$", path)
         nm = re.search(r"report-(\d+)\.json$", path)
         out.append({
             "file": rel,
@@ -560,7 +577,7 @@ def parse_report_file(path, skipped):
         except (TypeError, ValueError):
             return None
 
-    pm = re.search(r"report-prd-(\d+)-(\d+)\.md$", path)
+    pm = re.search(r"report-prd-(\d+(?:\.\d+)?)-(\d+)\.md$", path)
     nm = re.search(r"report-(\d+)\.md$", path)
     dm = re.search(r"([^/]+)/reports/[^/]+$", rel.replace(os.sep, "/"))
     prd_id = dm.group(1) if dm and dm.group(1).startswith("prd-") else None
@@ -599,7 +616,7 @@ def collect_reports(skipped):
             if path in seen:
                 continue
             seen.add(path)
-            if path.endswith("-fix-plan.md"):
+            if path.endswith(("-fix-plan.md", "-escalation.md")):
                 continue
             r = parse_report_file(path, skipped)
             if r:
@@ -666,10 +683,11 @@ def build_roadmap(prds):
 
 # --------------------------------------------------------------------------- intake ledger
 
-INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd")
+# `parent` (sub-PRD rows only, e.g. `PRD-7` on row `7.1`) is optional: ledgers
+# written before it existed simply lack the column and parse unchanged.
+INTAKE_COLS = ("#", "date", "type", "idea", "goal", "grade", "status", "prd", "parent")
 GRADE_RE = {
     "complexity": re.compile(r"\bC:\s*(\S+)"),
-    "token": re.compile(r"\bT:\s*(\S+)"),
     "sequence": re.compile(r"\bS:\s*(\S+)"),
 }
 
@@ -679,7 +697,9 @@ def _split_md_row(row):
 
 
 def parse_grade(cell):
-    """Split a `C:5 T:8 S:next` grade cell into its three chips (missing → null)."""
+    """Split a `C:5 S:next` grade cell into its two chips (missing → null).
+
+    A legacy `T:` token is ignored."""
     out = {}
     for k, rx in GRADE_RE.items():
         m = rx.search(cell or "")
@@ -717,7 +737,7 @@ def build_intake(prds):
                 return j
         return -1
 
-    ci = {k: col(k) for k in ("#", "date", "type", "idea", "goal", "grade", "status", "prd")}
+    ci = {k: col(k) for k in INTAKE_COLS}
     rows = []
     for ln in lines[hdr_idx + 1:]:
         if "|" not in ln:
@@ -731,7 +751,7 @@ def build_intake(prds):
         def get(key):
             j = ci[key]
             return cells[j] if 0 <= j < len(cells) else ""
-        num = get("#")
+        num = get("#").lstrip("#").strip()   # whole (`7`) or dotted sub-PRD row (`7.1`)
         idea = get("idea")
         if not num and not idea:
             continue
@@ -758,6 +778,7 @@ def build_intake(prds):
             "gradeRaw": get("grade"),
             "status": status,
             "prd": prd_cell,
+            "parent": get("parent"),
             "prdKnown": live is not None,
             "prdPath": (live or {}).get("path"),
             "prdFeature": (live or {}).get("feature"),
@@ -797,7 +818,7 @@ def set_intake_status(num, status):
         if re.match(r"^\s*\|?[\s:|-]+\|?\s*$", raw):
             continue
         cells = _split_md_row(raw)
-        if num_idx < len(cells) and cells[num_idx] == str(num) and st_idx < len(cells):
+        if num_idx < len(cells) and cells[num_idx].lstrip("#").strip() == str(num) and st_idx < len(cells):
             cells[st_idx] = status
             lines[i] = "| " + " | ".join(cells) + " |\n"
             open(full, "w", encoding="utf-8").write("".join(lines))
@@ -869,6 +890,7 @@ def build_data():
                 prds.append(prd)
             elif skip and c == d:
                 skipped.append(skip)
+    prds.sort(key=lambda p: prd_num_key(p["num"]))
     gate_issues = collect_gate_issues(skipped)
     reports = collect_reports(skipped)
     return {

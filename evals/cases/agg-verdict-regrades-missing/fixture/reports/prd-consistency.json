@@ -1,0 +1,35 @@
+{
+  "check": "prd-consistency",
+  "group": "prd",
+  "verdict": "fail",
+  "runner": null,
+  "ran_at": "2026-10-17T00:00:00Z",
+  "totals": {
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "findings": [
+    {
+      "severity": "high",
+      "category": "scope-creep",
+      "rule": "out-of-scope",
+      "source": "pre-merge:prd-consistency",
+      "file": "src/extra.ts",
+      "line": 1,
+      "message": "surface not in PRD"
+    },
+    {
+      "severity": "medium",
+      "category": "functional",
+      "rule": "acceptance-untested",
+      "source": "pre-merge:prd-consistency",
+      "file": "src/a.ts",
+      "line": 2,
+      "message": "F1 AC1 untested"
+    }
+  ],
+  "log_path": ".pre-merge/x/prd-consistency.log",
+  "skip_reason": null
+}

@@ -1,12 +1,15 @@
-# Minimal PR gate workflow — scaffolded by `/pre-merge --init` for the `ci` step.
+# Minimal PR gate workflow — scaffolded by pre-merge setup for the `ci` step.
 #
-# Purpose: give the PR a real status check so "green CI" (merge Step 2 and
-# branch protection) means something instead of passing vacuously on zero checks.
+# Purpose: give the PR a real status check so "green CI" (merge and branch
+# protection) means something instead of passing vacuously on zero checks.
 #
-# This is a STARTING POINT. `--init` substitutes the commands it actually
-# detected (the resolved `run` commands from the script-preflight-*.sh family)
-# into the run steps below, replacing the `[init: …]` placeholders. Steps whose
-# component the repo doesn't have are dropped. Tune the runner/setup afterward.
+# This is a STARTING POINT. Setup keeps exactly ONE `setup:` block below — the
+# one matching the detected language — deletes the others, and substitutes the
+# commands it detected (the resolved `run` commands from the script-preflight-*.sh
+# family) into the `[setup: …]` placeholders. Steps whose component the repo
+# doesn't have are dropped. A language with no block here (for example Swift or
+# Kotlin) keeps the `setup: other` block with its placeholders, named in the
+# setup summary. Tune the runner/setup afterward.
 name: pre-merge
 
 on:
@@ -19,20 +22,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Setup — --init swaps this for the detected toolchain (node/python/…).
+      # setup: node — package.json (npm / pnpm / yarn: use the detected manager)
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
       - run: npm ci
 
-      # Mechanical (Step 2) — lint / format / typecheck
+      # setup: python — pyproject.toml / requirements.txt
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+
+      # setup: go — go.mod
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      # setup: rust — Cargo.toml
+      - uses: dtolnay/rust-toolchain@stable
+
+      # setup: flutter — pubspec.yaml
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+      - run: flutter pub get
+
+      # setup: other — no block above matches the detected language
+      - name: setup
+        run: '[setup: install the toolchain and dependencies]'
+
+      # Mechanical — lint / format / typecheck
       - name: mechanical
-        run: '[init: mechanical command, e.g. npm run lint && npx tsc --noEmit]'
+        run: '[setup: mechanical command, e.g. npm run lint && npx tsc --noEmit]'
 
-      # Unit / integration (Step 3)
-      - name: unit_int
-        run: '[init: unit/int command, e.g. npm test]'
+      # Unit / integration
+      - name: tests
+        run: '[setup: test command, e.g. npm test]'
 
-      # Security floor (Step 6) — secret + dependency scan
+      # Security floor — secret + dependency scan
       - name: security
-        run: '[init: security command, e.g. npx osv-scanner -r .]'
+        run: '[setup: security command, e.g. gitleaks detect --no-banner]'

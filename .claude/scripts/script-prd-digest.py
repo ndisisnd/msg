@@ -5,11 +5,13 @@ script-prd-digest.py — deterministic PRD -> compact digest (no LLM).
 Splits a msg PRD on its standardized headings and emits a JSON digest that
 downstream stages consume instead of re-parsing the full prose. Contractual
 fields (F-IDs, acceptance criteria, integration contracts, glossary, exec rows)
-are copied VERBATIM; narrative prose is dropped but every section keeps a
+are copied VERBATIM (each feature also carries `criteria`, its acceptance cell
+split into AC1..ACn; each error case carries its checklist `type`); narrative prose is dropped but every section keeps a
 `prose_lines` pointer for on-demand access. See shared/refs/session-cache.md.
 
 Usage:
   script-prd-digest.py <prd.md> [--out <path>] [--stdout] [--force]
+  script-prd-digest.py <prd.md> --terminal [--mark <part,...>]
 
 Behaviour:
   - Default out: .claude/msg/cache/prd-<slug>.digest.json (repo root inferred).
@@ -18,6 +20,14 @@ Behaviour:
   - Non-standard headings are recorded under `unparsed_sections` so a consumer
     can fall back to prose for them (never a hard failure).
 Prints the digest path on success (or the JSON with --stdout).
+
+--terminal prints plan-pm's four-line PRD digest instead (no cache write):
+  Title   PRD id + feature name
+  Change  who + what changes, from the §1 bullets, on one line
+  Builds  the §3 feature names
+  Open    the number of §5 rows still Open (line omitted when 0)
+--mark title,change,builds,open appends "  (changed)" to those lines
+(plan-pm --update marks what the edit changed).
 
 Exit codes:
   0  digest written / printed
@@ -68,6 +78,25 @@ def bullets(block_lines):
 
 def raw(block_lines):
     return "\n".join(block_lines).strip()
+
+# A feature's acceptance cell may hold several criteria, one per `<br>` line,
+# labelled AC1, AC2, … . A single unlabelled criterion (every older PRD) is AC1.
+AC_SPLIT = re.compile(r"<br\s*/?>", re.I)
+AC_LABEL = re.compile(r"^AC(\d+)\b[\s:.·—-]*", re.I)
+
+def criteria(cell):
+    out = []
+    for n, part in enumerate([p.strip() for p in AC_SPLIT.split(cell or "") if p.strip()], 1):
+        m = AC_LABEL.match(part)
+        out.append({"id": ("AC" + m.group(1)) if m else f"AC{n}",
+                    "text": part[m.end():].strip() if m else part})
+    return out
+
+# A §4 ID cell reads `E1 · Network` (id + checklist type); older PRDs carry a
+# bare `E1`. Split it so consumers keep keying on the bare id.
+def error_id(cell):
+    m = re.match(r"^\s*(E\d+)\s*[·:—-]\s*(.+?)\s*$", cell or "")
+    return (m.group(1), m.group(2)) if m else ((cell or "").strip(), None)
 
 def pick(row, *needles):
     """Fuzzy column access: first cell whose header word-matches any needle (case-insensitive)."""
@@ -172,10 +201,12 @@ def build(prd_path):
                 if not fid:
                     label = pick(r, "feature", "name") or f"row-{n}"
                     ID_GAPS.append((title, label, headers or []))
+                acc = pick(r, "acceptance", "acceptance criterion", "acceptance criteria", "criterion")
                 d["features"].append({
                     "id": fid,
                     "title": pick(r, "feature", "name"),
-                    "acceptance": pick(r, "acceptance", "acceptance criterion", "acceptance criteria", "criterion"),
+                    "acceptance": acc,
+                    "criteria": criteria(acc),
                     "dependencies": pick(r, "dependencies", "dependency", "depends"),
                     "prose_lines": f"{s}-{e}",
                 }); KNOWN.add(title)
@@ -183,11 +214,14 @@ def build(prd_path):
             d["user_flows"] = lp; KNOWN.add(title)   # pointer only (narrative)
         elif low.startswith(("key user interaction", "key interaction")):
             d["key_interactions"] = bullets(block); KNOWN.add(title)
-        elif low.startswith("error case"):
+        elif low.startswith(("error case", "error and edge case")):
             _, rows = md_table(block)
-            d["error_cases"] = [{"id": pick(r, "id"),
-                                 "trigger": pick(r, "trigger"),
-                                 "behavior": pick(r, "user-visible behavior", "behavior", "behaviour")} for r in rows]
+            d["error_cases"] = []
+            for r in rows:
+                eid, etype = error_id(pick(r, "id"))
+                d["error_cases"].append({"id": eid, "type": etype,
+                                         "trigger": pick(r, "trigger"),
+                                         "behavior": pick(r, "user-visible behavior", "behavior", "behaviour")})
             KNOWN.add(title)
         elif low.startswith("edge case"):
             _, rows = md_table(block)
@@ -235,13 +269,13 @@ def build(prd_path):
 # Named slice bundles — each pipeline stage reads ONLY its slice, never the whole
 # digest. Keeps per-stage token load to the minimum that stage actually needs.
 SLICES = {
-    # plan-review --product: does the PRD hold together as a product spec?
+    # plan-review product check: does the PRD hold together as a product spec?
     "product": ["frontmatter","summary","out_of_scope","features","error_cases",
                 "glossary","key_interactions"],
     # plan-em: what to build and for which platform (engineering_agents drives
     # Step 4 wave-mode detection — build once all roster agents have a section).
     "plan":    ["frontmatter","summary","features","exec_table","engineering_agents"],
-    # plan-review --eng: eng-plan integrity (exec_table + todos feed checks 4/5).
+    # plan-review eng check: eng-plan integrity (exec_table + todos feed checks 4/5).
     "eng-audit":["frontmatter","features","exec_table","engineering","todos","open_questions"],
     # eng --build: implement (optionally filtered to one feature via --feature).
     # `todos` carries each agent's ticket ids + the prose_lines range to read them
@@ -301,6 +335,51 @@ def verify_rows(d, rows, agent):
                 fails.append(f"Hard failure: row '{r}' is owned by '{owner}', not '{agent}'")
     return fails
 
+TERMINAL_PARTS = ("title", "change", "builds", "open")
+
+def terminal_digest(prd_path, d, mark):
+    """plan-pm's four-line digest, read from the PRD text and the built digest."""
+    with open(prd_path, encoding="utf-8") as f:
+        lines = f.read().split("\n")
+    _, body_start = parse_frontmatter(lines)
+    who = what = ""
+    open_n = 0
+    for title, _, _, block in sections(lines, body_start, 2):
+        low = re.sub(r"^\d+\.\s*", "", title.lower()).strip()
+        if low.startswith("product objective"):
+            for b in bullets(block):
+                m = re.match(r"^\*\*(.+?)\*\*\s*[—–:-]?\s*(.*)$", b)
+                if not m:
+                    continue
+                label = m.group(1).strip().lower()
+                if label == "who" and not who:
+                    who = m.group(2).strip().rstrip(".")
+                elif label == "what changes" and not what:
+                    what = m.group(2).strip().rstrip(".")
+        elif low.startswith("open question"):
+            _, rows = md_table(block)
+            if rows:
+                for r in rows:
+                    st = pick(r, "status").lower()
+                    ans = pick(r, "answer")
+                    if st == "open" or (not st and not ans):
+                        open_n += 1
+            else:
+                open_n = len(bullets(block))
+    fm = d["frontmatter"]
+    name = fm.get("name") or os.path.splitext(os.path.basename(prd_path))[0]
+    num = re.match(r"^prd-(\d+(?:\.\d+)?)", name or "")
+    pid = f"PRD-{num.group(1)}" if num else name
+    feats = [f.get("title") or f.get("id") for f in d["features"] if f.get("title") or f.get("id")]
+    change = "; ".join(x for x in (who, what) if x) or "(no §1 bullets)"
+    out = [("title", f"Title   {pid} · {fm.get('feature') or name}"),
+           ("change", f"Change  {who} — {what}" if who and what else f"Change  {change}"),
+           ("builds", f"Builds  {', '.join(feats) or '(no features)'}")]
+    if open_n:
+        out.append(("open", f"Open    {open_n} question(s) still open in §5"))
+    for key, text in out:
+        print(text + ("  (changed)" if key in mark else ""))
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("prd")
@@ -312,6 +391,10 @@ def main():
     ap.add_argument("--verify-rows", dest="verify_rows",
                     help="semicolon-separated exec-table Feature identifiers to verify exist and are owned by --agent")
     ap.add_argument("--agent", help="with --verify-rows: the agent that must own every named row")
+    ap.add_argument("--terminal", action="store_true",
+                    help="print plan-pm's four-line PRD digest (Title / Change / Builds / Open)")
+    ap.add_argument("--mark", default="",
+                    help="with --terminal: comma list of title,change,builds,open to mark (changed)")
     a = ap.parse_args()
     prd = a.prd
     if not os.path.isfile(prd):
@@ -331,6 +414,14 @@ def main():
               f"{', '.join(headers) or '(none)'}; refusing to emit a digest whose "
               "features cannot be addressed by F-ID", file=sys.stderr)
         sys.exit(2)
+
+    if a.terminal:
+        mark = {m.strip().lower() for m in a.mark.split(",") if m.strip()}
+        bad = mark - set(TERMINAL_PARTS)
+        if bad:
+            print(f"error: --mark accepts {','.join(TERMINAL_PARTS)}; got {','.join(sorted(bad))}",
+                  file=sys.stderr); sys.exit(2)
+        terminal_digest(prd, d, mark); return
 
     if a.verify_rows is not None:
         fails = verify_rows(d, a.verify_rows, a.agent)

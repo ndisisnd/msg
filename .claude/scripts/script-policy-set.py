@@ -3,8 +3,8 @@
 script-policy-set.py — the one writer for `devkit/policy.json`.
 
 Every msg write to the policy file goes through here: the `/msg --init` Step 3
-seed, its Step 5 `policies.github_actions` merge, `/msg --update`'s Step 3-CI
-and Step 3-TS merges, and `/msg --init-staging`'s release-flow flip. Four call
+seed, its Step 5 `policies.github_actions` merge, `/msg --update`'s Step 4
+settings merges, and `/msg --init-staging`'s release-flow flip. Four call
 sites used to hand-author or hand-edit the JSON, each carrying its own
 "surgical, byte-identical, only this key" prose and none of them verified.
 
@@ -25,7 +25,9 @@ Semantics
   * `--skip-if-exists` is AC-LC7 in one flag: with `--create`, an existing file
     is left byte-for-byte alone and the run reports `STATUS=skipped-exists`.
   * `--stamp-by <writer>` stamps `generated` (today, `YYYY-MM-DD`, from the
-    system clock) and `generated_by`. Scripts *can* stamp the date — the
+    system clock) and `generated_by`. It never touches `init`: a setup that
+    completes flips it with an explicit `--set init=true` in its final call
+    (pre-merge setup, `pre-merge/refs/protocol-init.md`). Scripts *can* stamp the date — the
     protocol's old claim that they can't was the whole reason the seed was
     hand-written.
   * The result is re-read and re-parsed before the run reports success. A

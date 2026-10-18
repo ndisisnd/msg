@@ -34,7 +34,7 @@ coverage gap on that platform (below), not a silent pass.
 
 ## Enforced device/OS matrix (C18/M2)
 
-Read the **declared** `{platform, os}` matrix from the generalized declared-matrix config (`.flutter-test-matrix.json` or the manifest's mobile matrix; established by `--init` when
+Read the **declared** `{platform, os}` matrix from the generalized declared-matrix config (`.flutter-test-matrix.json` or the manifest's mobile matrix; established by setup when
 absent — see `../protocol-init.md`). The matrix is **enforced**, not a soft fallback:
 
 - For each declared `{platform, os}`, a runner must actually **execute** on an available
@@ -50,7 +50,7 @@ absent — see `../protocol-init.md`). The matrix is **enforced**, not a soft fa
   `flutter emulators` / `emulator -list-avds` / `adb devices`. Discovery failing to place a
   **declared** target is the gap finding above — discovery is not the source of truth, the
   declared matrix is.
-- **No declared matrix** → `--init` establishes one (target platforms + OS versions,
+- **No declared matrix** → setup establishes one (target platforms + OS versions,
   `../protocol-init.md`); until then, degrade to running detected runners on whatever
   devices are available with a note (no fabricated matrix).
 

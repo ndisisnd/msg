@@ -4,7 +4,7 @@
 # Answers a single mechanical question for plan-em's Step 2 / Step 4
 # preconditions: is this PRD certified for the requested wave? A PRD is
 # certified when its frontmatter stamp is `yes` AND its findings ledger carries
-# no Critical finding still Open (or "Still open").
+# no Critical finding that is not Fixed (Open, Still open, or anything else).
 #
 # Usage:
 #   script-cert-status.sh <prd.md> --product   # gate the product/plan wave
@@ -21,7 +21,7 @@
 # Output (single line on stdout):
 #   CERTIFIED                                   stamp yes + no open Criticals
 #   UNCERTIFIED no-stamp                        stamp missing / not `yes`
-#   UNCERTIFIED open-critical <finding-id>      a Critical row is Open/Still open
+#   UNCERTIFIED open-critical <finding-id>      a Critical row is not Fixed
 #   LEDGER_HEADER_UNRESOLVED=severity|status    ledger header drift (exit 2, never CLEAN)
 #
 # A stamped PRD whose ledger section is absent is CERTIFIED (ledger absent =
@@ -119,7 +119,7 @@ fi
 # table shapes differ (the report dropped the Auditor column), so Severity and
 # Status are resolved from the header row BY NAME rather than by position — which
 # is what lets one scan read either ledger. Flags any Critical row whose Status
-# is still Open / Still open.
+# is anything but Fixed — an unknown status reads as open, never as clean.
 result="$(awk -v secre="$sec_re" '
   function trim(s){ gsub(/^[[:space:]]+|[[:space:]]+$/,"",s); return s }
   BEGIN { insec=0; found=0; header_done=0; sev_col=0; stat_col=0; id_col=2; emitted=0 }
@@ -155,7 +155,7 @@ result="$(awk -v secre="$sec_re" '
     sev=tolower(trim(cells[sev_col]))
     stat=tolower(trim(cells[stat_col]))
     id=trim(cells[id_col])
-    if (sev=="critical" && (stat=="open" || stat=="still open")) {
+    if (sev=="critical" && stat!="fixed") {
       print "OPENCRIT " (id==""?"row-" NR:id)
       emitted=1; exit
     }

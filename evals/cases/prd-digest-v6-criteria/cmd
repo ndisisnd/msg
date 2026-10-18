@@ -1,0 +1,3 @@
+# v6 — the digest splits a labelled acceptance cell into criteria[] (an
+# unlabelled cell is AC1) and splits a typed §4 id into id + type.
+python3 "$REPO/.claude/scripts/script-prd-digest.py" prd.md --slice eval | python3 -c 'import json,sys; d=json.load(sys.stdin); [print(f["id"], c["id"], c["text"]) for f in d["features"] for c in f["criteria"]]; [print(e["id"], e["type"]) for e in d["error_cases"]]'

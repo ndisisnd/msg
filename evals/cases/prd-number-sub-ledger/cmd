@@ -1,0 +1,3 @@
+# pm-7 — the next sub-PRD minor counts sub-PRD folders AND ledger rows: prd-7.1
+# exists and row #7.2 was captured but never drafted, so the next is 3.
+"$REPO/.claude/scripts/script-prd-number" sub 7

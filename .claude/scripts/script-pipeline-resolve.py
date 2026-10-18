@@ -58,7 +58,7 @@ Output (--check-complete, stdout):
 Exit codes:
   0  resolved (or --check-complete found everything)
   1  usage error
-  2  policy.json absent / unparseable / no components[]  (the no_manifest case)
+  2  policy.json absent / no components[]  (the no_manifest case — setup runs)
   3  catalog unparseable, or the manifest names an id with no catalog row
   4  dependency cycle — refuse rather than loop (AC-PF3)
   5  --check-complete found a missing report
@@ -66,10 +66,13 @@ Exit codes:
      `MANDATORY_ABSENT=<id>` line per component on stdout, then refuse. A
      mandatory component that was never written into `components[]` used to
      resolve as a `pruned[]` row and the run proceeded without it; the safety
-     floor is not a prunable step, so this is a refusal — run /pre-merge --init.
+     floor is not a prunable step, so this is a refusal — run /pre-merge --update.
   7  --platforms-file exists but could not be read (A19). An ABSENT file keeps
      its old behaviour (no targets, no coverage-gap findings); an unreadable
      one is a tooling failure, not "this repo ships nothing".
+  8  policy.json present but unparseable, or `version` != 1 (bad_manifest).
+     Stop and name the parse error: setup never overwrites a file it cannot
+     read, so this is never the exit-2 setup path.
 
 Deterministic: same policy + catalog + flags + diff ⇒ byte-identical plan.
 """
@@ -112,7 +115,7 @@ SURFACE_PATTERNS = {
 # stale manifest copied; it is ignored with a warn rather than honored.
 MANIFEST_FIELDS = {
     "id", "present", "run", "run_minified", "tooling", "status",
-    "criticality", "needs_env", "reason",
+    "criticality", "needs_env", "reason", "active_when",
     "hot_tables", "consumers", "traffic_mix", "matrix",
 }
 
@@ -324,18 +327,18 @@ COST_RANK = {"cheap": 0, "moderate": 1, "expensive": 2}
 def resolve(args):
     # ── manifest ──────────────────────────────────────────────────────────
     if not os.path.exists(args.policy):
-        fail(2, "no_manifest", "%s absent — run /pre-merge --init" % args.policy)
+        fail(2, "no_manifest", "%s absent — run /pre-merge (its first run sets it up)" % args.policy)
     try:
         with open(args.policy, "r", encoding="utf-8") as fh:
             policy = json.load(fh)
     except ValueError as exc:
-        fail(2, "no_manifest", "%s unparseable: %s" % (args.policy, exc))
+        fail(8, "bad_manifest", "%s unparseable: %s" % (args.policy, exc))
     if not isinstance(policy, dict) or policy.get("version") != 1:
-        fail(2, "no_manifest", "%s: version != 1" % args.policy)
+        fail(8, "bad_manifest", "%s: version != 1" % args.policy)
     entries = policy.get("components")
     if not isinstance(entries, list) or not entries:
         fail(2, "no_manifest",
-             "%s has no components[] — run /pre-merge --init" % args.policy)
+             "%s has no components[] — run /pre-merge (its first run sets it up)" % args.policy)
 
     catalog = parse_catalog(args.catalog)
 
@@ -393,8 +396,12 @@ def resolve(args):
         if status in ("opted_out", "n/a") and not meta["mandatory"]:
             drop(cid, "status: %s" % status)
             continue
-        # 2 · active_when
-        aw = meta["active_when"]
+        # 2 · active_when — an approved manifest override (written by
+        # `/pre-merge --update`) wins over the catalog default, so an approved
+        # trigger change takes effect on the next run.
+        aw = (normalise_active_when(entry["active_when"])
+              if isinstance(entry.get("active_when"), str) and entry["active_when"].strip()
+              else meta["active_when"])
         if aw == "prd" and not args.prd:
             drop(cid, "active_when: prd (no --prd)")
             continue
@@ -420,8 +427,8 @@ def resolve(args):
             print("MANDATORY_ABSENT=%s" % cid)
         fail(6, "mandatory-absent",
              "%s mandatory in the catalog but absent from %s's components[] — "
-             "the safety floor is not a prunable step; run /pre-merge --init "
-             "(or --update) to write the missing row(s)" %
+             "the safety floor is not a prunable step; run /pre-merge --update "
+             "to write the missing row(s)" %
              (",".join(sorted(mandatory_absent)), args.policy))
 
     # ── C12 coverage-gap correlation ──────────────────────────────────────

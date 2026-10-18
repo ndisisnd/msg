@@ -21,18 +21,10 @@
 #   --now overrides the wall clock on every verb. It exists so the eval harness
 #         can drive a scripted fake clock and get stable goldens; test-only.
 #
-# Cadence — resolved ONCE at --start and carried in the state file for the run's
-# whole life (a policy edit mid-run must not move an already-open report window):
-#   1. MSG_STATUS_INTERVAL env var, in minutes. "0" disables the heartbeat for
-#      this run: --start writes no state and prints nothing, and every
-#      --tick/--end against that run-id then prints nothing (or QUIET) but
-#      still exits 0.
-#   2. devkit/policy.json -> policies.status_cadence {enabled, interval_minutes},
-#      read with python3. Absence, parse failure or a missing key falls through
-#      silently — the policy file is a nicety, never a dependency.
-#   3. Default: enabled, 5 minutes.
-#   A resolved interval under 2 minutes is clamped to 2 (plan Q3) and one
-#   `STATUS_CLAMPED=<requested>m->2m` note is printed to stderr.
+# Cadence — always on, every 5 minutes. There is no off switch and no per-run
+# or per-project interval: the old MSG_STATUS_INTERVAL env var and an old
+# policies.status_cadence key in devkit/policy.json are ignored without error.
+# The interval is stored in the state file at --start for the run's whole life.
 #
 # State file: .claude/msg/cache/status/<run-id>.state under the repo root
 # (`git rev-parse --show-toplevel`, falling back to $PWD) — already inside the
@@ -50,12 +42,12 @@
 # --done/--total/--now, or a missing --run-id/--phase.
 #
 # Output:
-#   --start  the phase-open line, then `STATUS_STATE=<path>` (silent if disabled)
+#   --start  the phase-open line, then `STATUS_STATE=<path>`
 #   --tick   `REPORT` + the rendered status block, or exactly `QUIET`
 #   --end    `END` + a one-line close summary
 #
 # Exit codes:
-#   0  handled (includes every disabled/missing/corrupt heartbeat no-op)
+#   0  handled (includes every missing/corrupt heartbeat no-op)
 #   2  caller usage error
 
 set -uo pipefail
@@ -134,51 +126,13 @@ fmt_elapsed() {
   else printf '%dh %dm' $(( s / 3600 )) $(( (s % 3600) / 60 )); fi
 }
 
-# Cadence is resolved here only on --start (see header); --tick/--end use the
-# cheap env_disabled() shortcut below plus whatever was stored at --start.
+# Cadence is fixed: always enabled, 5 minutes. MSG_STATUS_INTERVAL and
+# policies.status_cadence are no longer read (old values are ignored, never an
+# error).
 resolve_cadence() {
   CADENCE_ENABLED=1
   CADENCE_INTERVAL_SEC=$((5 * 60))
-  if [[ -n "${MSG_STATUS_INTERVAL:-}" ]]; then
-    if [[ "$MSG_STATUS_INTERVAL" == "0" ]]; then
-      CADENCE_ENABLED=0; CADENCE_INTERVAL_SEC=0; return
-    fi
-    if [[ "$MSG_STATUS_INTERVAL" =~ ^[0-9]+$ ]]; then
-      local mins="$MSG_STATUS_INTERVAL"
-      if (( mins < 2 )); then echo "STATUS_CLAMPED=${mins}m->2m" >&2; mins=2; fi
-      CADENCE_INTERVAL_SEC=$(( mins * 60 )); return
-    fi
-    # malformed env value: never a usage error (constraint 2) — fall through
-    # to policy/default as if it had not been set.
-  fi
-  if command -v python3 >/dev/null 2>&1; then
-    local root pj out
-    root="$(repo_root)"; pj="$root/devkit/policy.json"
-    if [[ -f "$pj" ]]; then
-      out="$(python3 -c '
-import json, sys
-try:
-    d = json.load(open(sys.argv[1]))
-    sc = d["policies"]["status_cadence"]
-    print(("1" if sc.get("enabled", True) else "0"), int(sc.get("interval_minutes", 5)))
-except Exception:
-    print("DEFAULT")
-' "$pj" 2>/dev/null)"
-      if [[ "$out" != "DEFAULT" && -n "$out" ]]; then
-        local en mins; read -r en mins <<< "$out"
-        CADENCE_ENABLED="$en"
-        if [[ "$en" == "1" && "$mins" -lt 2 ]]; then
-          echo "STATUS_CLAMPED=${mins}m->2m" >&2; mins=2
-        fi
-        CADENCE_INTERVAL_SEC=$(( mins * 60 ))
-      fi
-    fi
-  fi
 }
-
-# Only the explicit "0" override can silence a run --start already opened —
-# nothing else needs a live re-check outside of --start.
-env_disabled() { [[ "${MSG_STATUS_INTERVAL:-}" == "0" ]]; }
 
 read_state() {
   st_phase=""; st_run_id=""; st_started_at=""; st_last_report_at=""
@@ -261,7 +215,7 @@ statefile="$statedir/$run_id.state"
 case "$verb" in
 start)
   resolve_cadence
-  [[ "$CADENCE_ENABLED" == "0" ]] && exit 0   # disabled: no state, no output (constraint 2)
+  : # cadence is always enabled
   mkdir -p "$statedir"
   ts="$(now_ts)"
   st_phase="$(fold "$phase")"; st_run_id="$run_id"
@@ -277,7 +231,6 @@ start)
   ;;
 
 tick)
-  if env_disabled; then echo "QUIET"; exit 0; fi
   if [[ ! -f "$statefile" ]]; then
     echo "$SELF: no status state for run $run_id — skipping heartbeat" >&2
     echo "QUIET"; exit 0
@@ -316,7 +269,6 @@ tick)
   ;;
 
 end)
-  if env_disabled; then exit 0; fi
   ts="$(now_ts)"
   if [[ ! -f "$statefile" ]]; then
     echo "$SELF: no status state for run $run_id — closing with nothing known" >&2

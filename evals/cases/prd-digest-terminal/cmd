@@ -1,0 +1,4 @@
+# pm-1 — plan-pm's four-line terminal digest: Title, Change (§1 Who + What
+# changes), Builds (§3 names), Open (§5 rows still Open). --mark flags the parts
+# a plan-pm --update changed.
+python3 "$REPO/.claude/scripts/script-prd-digest.py" prd.md --terminal --mark change,open

@@ -6,7 +6,7 @@ resume an interrupted run instead of restarting it. Resumability only:
 observability stays with heartbeat.log and agent-watch.
 
 Verbs (exactly one):
-  --init  --file <path> --mode <plan|build|fused> [--size <tier>]
+  --init  --file <path> --mode <plan|build> [--size <tier>]
   --set   --file <path> --key <dotted.key> --value <str>
   --get   --file <path> [--key <dotted.key>]
   --close --file <path> --outcome <ok|failed|abandoned>
@@ -92,7 +92,7 @@ def main() -> int:
     verb.add_argument("--close", action="store_true")
     verb.add_argument("--archive", action="store_true")
     ap.add_argument("--file", required=True)
-    ap.add_argument("--mode", choices=["plan", "build", "fused"])
+    ap.add_argument("--mode", choices=["plan", "build"])
     ap.add_argument("--size")
     ap.add_argument("--key")
     ap.add_argument("--value")

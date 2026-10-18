@@ -1,0 +1,7 @@
+# pre-merge-14(a) — pre-merge setup's final write flips `init` to true; `--stamp-by`
+# alone leaves it false. The date stamp is today's, so only init + generated_by print.
+S="$REPO/.claude/scripts/script-policy-set.py"
+python3 "$S" --file devkit/policy.json --set 'components=[]' --stamp-by "pre-merge setup" >/dev/null
+jq -c '{init, generated_by}' devkit/policy.json
+python3 "$S" --file devkit/policy.json --set init=true --stamp-by "pre-merge setup" >/dev/null
+jq -c '{init, generated_by}' devkit/policy.json

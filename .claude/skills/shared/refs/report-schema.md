@@ -6,7 +6,7 @@ type: reference
 
 # Run report — `report-prd-<N>-<K>.md`
 
-The canonical post-run report artifact. Written by `eng --build`, `pre-merge`, and `merge` as the last action of a completed run. It records what the run did (features worked on, code changed, tests passed/failed) and, most importantly, **what the user can expect and how they can verify the work** — in plain language, for a human. The `/msg --gui` Reports tab parses it mechanically, so the frontmatter keys and `##` headings below are a contract: keep them verbatim.
+The canonical post-run report artifact. Written by `eng --build`, `pre-merge`, and `merge` as the last action of a completed run, and by `eng --bug` when the user reports a bug found by hand (`.claude/scripts/script-eng-bug-report.py` writes the `.md` and the issues file together, with the next `K`). It records what the run did (features worked on, code changed, tests passed/failed) and, most importantly, **what the user can expect and how they can verify the work** — in plain language, for a human. The `/msg --gui` Reports tab parses it mechanically, so the frontmatter keys and `##` headings below are a contract: keep them verbatim.
 
 The report **supplements** each skill's existing output contract (build summary, findings JSON, final emission) — it never replaces or reorders it.
 
@@ -72,9 +72,11 @@ Per-skill field sources:
 | `prd` | the required `prd-path` input | first `--prd` path (or `none`) |
 | `branch` | branch commits landed on | current feature branch |
 | `verdict` | full-suite gate → `pass`/`fail`; `n/a` if no test command | final gate verdict |
-| `features` | assigned exec-table row ids | feature ids from `--prd` context, or `[]` |
+| `features` | assigned exec-table row ids | feature ids from the run's PRD, or `[]` |
 | diff stats | `git diff --numstat` over this agent's commits | resolved diff (`script-resolve-diff.sh` / prelude) |
 | test counts | per-group + full-suite results | unit-int / bucket outcomes when parsed; else `0` |
+
+**eng --bug fields.** `skill: eng`; `prd` = the PRD chosen from the branch (or named, or `none`); `branch` = the current branch; `verdict: fail` (an open bug); `features: []`; diff and test stats `0` (nothing was built or run). The paired issues file always exists, with one finding (`source: eng:bug`).
 
 **merge fields (H4).** `prd` = the shipped PRD; `branch` = the merged feature branch (`--staging`) or `staging` (`--production`); `verdict` = `pass` on a clean merge/deploy, `fail` if a production deploy errored, `n/a` on an early refusal; diff/test stats are `0`/`none` (merge changes no source and runs no test buckets — it merges and deploys). Two flavors:
 
@@ -116,7 +118,7 @@ User-visible behaviour now available (eng), or the current state of the diff/gat
 ## How to verify
 Numbered steps in simple, everyday language — written so someone non-technical can follow them and see for themselves that the work is done. Each step says exactly what to do and what they should see, derived from the PRD acceptance criteria and the tests that exist. Prefer actions over jargon ("open the app, add a task, refresh the page — the task is still there", not "exercise the CRUD flow"). When a command is unavoidable, give it verbatim to copy-paste and describe the expected outcome in plain words ("run `npx vitest run tests/auth.test.ts` — all 6 checks come back green"). Never generic ("run the tests"); always specific.
 
-**Structured + rated when `manual-test-plan` (C22) runs.** On a `--prd` run, the `manual-test-plan` component (catalog 18, emit-only) generates this section as a **significance-rated** list rather than free prose: rows grouped by rating (🔴 HIGH → 🟡 MEDIUM → 🟢 LOW), each showing the item id + the plain-language step, ordered so the human tests what automation could not verify first. The same list is emitted as the machine artifact `.pre-merge/<ts>/manual-test-plan.json` (`prd/protocol-manual-test-plan.md`), which the human gate (merge `--staging` sign-off) renders — the checklist is generated once at pre-merge and rendered at that one gate. This is emit-only: it never changes the run verdict.
+**Structured + rated when `manual-test-plan` (C22) runs.** On a run with a PRD found, the `manual-test-plan` component (catalog 18, emit-only) generates this section as a **significance-rated** list rather than free prose: rows grouped by rating (🔴 HIGH → 🟡 MEDIUM → 🟢 LOW), each showing the item id + the plain-language step, ordered so the human tests what automation could not verify first. The same list is emitted as the machine artifact `.pre-merge/<ts>/manual-test-plan.json` (`prd/protocol-manual-test-plan.md`), which the human gate (merge `--staging` sign-off) renders — the checklist is generated once at pre-merge and rendered at that one gate. This is emit-only: it never changes the run verdict.
 
 ## Links
 Related artifacts: the paired issues file (`report-prd-<N>-<K>.json`), eval_set.json, PR / branch, `.pre-merge/<timestamp>/` logs, prior `report-prd-<N>-*.md` files, the PRD.

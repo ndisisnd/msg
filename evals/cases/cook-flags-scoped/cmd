@@ -1,0 +1,6 @@
+# script-eng-cook-flags.py: --global always; a domain with no exclusion is the
+# bare flag alone; a domain with a provable exclusion is the bare flag plus one
+# sub-ref flag per kept ref (enumerated from the cook shelf, never hard-coded);
+# a stack with no cook shelf, or an unknown token, is a GAP.
+python3 "$REPO/.claude/scripts/script-eng-cook-flags.py" --stack macos,typescript,swift,cobol \
+  --exclude macos:distribution --cook-root cook

@@ -1,0 +1,12 @@
+# pre-merge-14(c) — the last-checked commit and the verdict are stored together, per
+# branch. A missing record reads as "no record" (exit 3), never as a pass; a second
+# write for the same branch replaces the first; another branch is untouched.
+S="$REPO/.claude/scripts/script-premerge-last-check.sh"
+bash "$S" --read --branch feat/prd-1-a; echo "exit=$?"
+bash "$S" --write --branch feat/prd-1-a --head aaa111 --verdict fail --now 2026-10-17T00:00:00Z
+bash "$S" --write --branch feat/prd-2-b --head bbb222 --verdict pass --now 2026-10-17T00:00:00Z
+bash "$S" --write --branch feat/prd-1-a --head ccc333 --verdict pass_with_warnings --report r.md --now 2026-10-17T01:00:00Z
+bash "$S" --read --branch feat/prd-1-a; echo "exit=$?"
+bash "$S" --read --branch feat/prd-2-b; echo "exit=$?"
+echo '{corrupt' > .pre-merge/last-check.json
+bash "$S" --read --branch feat/prd-1-a; echo "exit=$?"

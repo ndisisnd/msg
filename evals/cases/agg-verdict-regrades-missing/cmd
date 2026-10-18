@@ -1,0 +1,4 @@
+# A --regrades path that is given but missing must exit 1. A lost re-grade file
+# must never pass silently as "the model made no judgments".
+S="$REPO/.claude/scripts/script-aggregate-verdict.sh"
+bash "$S" --run-dir reports --regrades missing-regrades.json

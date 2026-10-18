@@ -8,9 +8,9 @@ description: Gate component 18 (prd group, advisory, EMIT-ONLY) — generate a s
 Gives pre-merge the same **walk-the-list** affordance `/merge` uses: a human-testable checklist
 mapping the PRD's product intent to plain-language `do X → see Y` steps, each carrying
 a **significance rating**, generated **once** at pre-merge and rendered by both human
-gates. It is `advisory` and **EMIT-ONLY — it never blocks the PR and never changes the
-verdict**. It runs whenever a PRD resolves — auto-discovered from `features/prd-<N>-*/` or
-supplied with `--prd` (the whole `prd` group is skipped on a no-PRD hotfix). `depends_on: [prd-consistency]` — it **reuses** that component's per-item
+gates. It is `advisory` and **EMIT-ONLY — it never blocks the gate and never changes the
+verdict**. It runs whenever the run found a PRD — from the branch name, or the user's one answer
+(`../executor.md` §0b); with no PRD the whole `prd` group is skipped. `depends_on: [prd-consistency]` — it **reuses** that component's per-item
 evidence grades rather than re-walking the diff.
 
 ## Read the PRD via digest slice
@@ -22,9 +22,11 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 python3 "$G" "<prd-path>" --slice eval
 ```
 
-Consume `features[]` (each F-ID + acceptance criterion), `error_cases[]` (id + trigger
-+ specified behavior), and `edge_cases[]` (id + scenario + expected behavior). Every
-in-scope item across all three sources becomes one checklist row.
+Consume `features[]` (each F-ID + its `criteria[]`, one `{id: AC<k>, text}` per
+acceptance criterion), `error_cases[]` (id + trigger + specified behavior), and
+`edge_cases[]` (id + scenario + expected behavior). Every in-scope item across all
+three sources becomes one checklist row — and every **criterion** is an item, so a
+feature with three criteria gives three rows.
 
 ## Read prd-consistency's per-item evidence grades (the automation-gap input)
 
@@ -32,10 +34,11 @@ in-scope item across all three sources becomes one checklist row.
 re-derive it:
 
 ```
-.pre-merge/<ts>/prd-consistency-grades.json   # { grades: [ {id, kind, evidence}, … ] }
+.pre-merge/<ts>/prd-consistency-grades.json   # { grades: [ {id, ac, kind, evidence}, … ] }
 ```
 
-Each `grades[]` entry tags an acceptance criterion or error_case with its evidence:
+Each `grades[]` entry tags an acceptance criterion (F-ID `id` + criterion `ac`) or an
+error_case with its evidence:
 `tested` | `untested` | `unmet` (acceptance) · `handled_tested` | `handled_untested` |
 `unhandled` (error_case). This is the **automation-gap** signal — what automation could
 or could not verify — reused verbatim.
@@ -105,15 +108,15 @@ Write the checklist to **both** sinks; neither touches the verdict:
   "generated_at": "<ISO-8601>",
   "degraded": false,
   "items": [
-    { "id": "F3", "kind": "acceptance", "significance": "high",
+    { "id": "F3", "ac": "AC2", "kind": "acceptance", "significance": "high",
       "user_impact": "high", "automation_gap": "high",
-      "step": "Delete a task, then click Undo within 5s — the task returns to its original position.",
+      "step": "Delete a task, then click Undo on the toast — the task returns to its original position.",
       "note": null },
     { "id": "E5", "kind": "error_case", "significance": "high",
       "user_impact": "high", "automation_gap": "high",
       "step": "Edit the same task in two tabs, save the stale one — you see 'This task changed in another tab.'",
       "note": null },
-    { "id": "F1", "kind": "acceptance", "significance": "medium",
+    { "id": "F1", "ac": "AC1", "kind": "acceptance", "significance": "medium",
       "user_impact": "high", "automation_gap": "low",
       "step": "Add a task — it appears at the top of the list immediately.", "note": null }
   ]
@@ -122,7 +125,8 @@ Write the checklist to **both** sinks; neither touches the verdict:
 
 Each item carries its `significance` + both axes (`user_impact`, `automation_gap`) so
 the render sites can re-sort/filter without recomputing. `kind` ∈
-`acceptance` | `error_case` | `edge_case`.
+`acceptance` | `error_case` | `edge_case`; an `acceptance` item also carries `ac`, the
+criterion it checks.
 
 ## Degrade path — C11 absent or errored
 
@@ -136,5 +140,5 @@ list still emits; it is never blocked or omitted.
 ## Never blocks (emit-only invariant)
 
 `manual-test-plan` contributes **no** blocker/high/medium finding to the gate verdict —
-its result report is always `pass` (or `skipped` when no `--prd`), and the checklist is
+its result report is always `pass` (or `skipped` when no PRD was found), and the checklist is
 context, not a gate signal. Nothing in this component can flip a `pass` to a `fail`. The executor's fail-fast never considers it (its `criticality: advisory`).

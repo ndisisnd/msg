@@ -1,33 +1,35 @@
 ---
 name: prd-consistency
-description: The prd-consistency component — a three-check, evidence-graded product-alignment pass (coverage · error-cases · scope). Advisory, never blocking: an LLM reading a diff can grade whether a criterion was attempted and tested, not whether it is correct. Emits a machine-readable per-item evidence grade that manual-test-plan (C22) turns into the human-test checklist.
+description: The prd-consistency component — a three-check, evidence-graded product-alignment pass (coverage · error-cases · scope). Blocking for unmet criteria only: an unmet acceptance criterion fails the gate; every other finding is reported, never blocking. Emits a machine-readable per-item evidence grade that manual-test-plan (C22) turns into the human-test checklist.
 ---
 
-# `prd-consistency` — the product-alignment pass (advisory)
+# `prd-consistency` — the product-alignment pass (blocking for unmet criteria only)
 
 A **three-check, evidence-graded** product-alignment pass against the PRD —
 **coverage · error-cases · scope**. It grades every criterion by *evidence strength*
 rather than a binary present/absent.
 
-## When it runs — PRD auto-discovery, not a flag
+## When it runs — the PRD found from the branch
 
-The `prd` group's `active_when: prd` gate resolves from **PRD auto-discovery**: a
-`features/prd-<N>-*/` directory matched to the current branch enables `prd-consistency`
-and `manual-test-plan` by default. `--prd <path>` remains an **explicit override** —
-for an unmatched branch name, an ambiguous match, or a deliberate second PRD. **No PRD
-discovered and none supplied ⇒ the whole `prd` group is pruned**, exactly as a no-PRD
-hotfix always behaved.
+The `prd` group's `active_when: prd` gate resolves from the **one PRD the run found**
+(`../executor.md` §0b): the branch name `feat/prd-<N>-<slug>` → `features/prd-<N>-*/`,
+or the user's one answer when the branch matches none or several. **No PRD ⇒ the whole
+`prd` group is pruned** (the quick-fix case).
 
-## It is advisory — and why that is the honest grade
+## Blocking for unmet criteria only — and why that is the honest grade
 
 An LLM reading a diff can answer *"is there evidence someone attempted this criterion,
 and does a test exist for it?"* It **cannot certify that the behaviour is correct**.
-Grading a hard block on that judgment blocks real work on a machine's misreading, which
-is the failure mode this component is de-gated to avoid. So:
+Grading a hard block on every judgment blocks real work on a machine's misreading. So:
 
-- Every finding here is **recorded, never blocking** (`criticality: advisory` in
-  `../../../shared/refs/component-catalog.md`). It contributes context to the verdict,
-  never a `fail`.
+- An **unmet acceptance criterion** (`acceptance-unmet`, `high`) **fails the gate**:
+  no code path for a promised criterion is a missing feature, not a judgment of
+  correctness. The message names the exact criterion (`F2 AC1`).
+- **Every other finding** — met-but-untested, error-case grades, `out-of-scope` — is
+  **reported, never blocking**. It appears in the report and as a staging human-test
+  task. `script-aggregate-verdict.sh` applies this filter by component and rule
+  (`../severity-rubric.md` § *Verdict derivation*). The component's `criticality`
+  stays `advisory`: it never aborts the run.
 - The findings' real destination is the **human**: the per-item grades below feed
   `manual-test-plan`, which rates every untested/unmet item 🔴 HIGH, and that checklist
   is walked at merge's **staging human-test script**. The person who *can* judge
@@ -51,8 +53,9 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 python3 "$G" "<prd-path>" --slice eval
 ```
 
-Consume `features[]` (each with its F-ID + verbatim acceptance criterion) and
-`error_cases[]` (id + trigger + specified behavior). *(The slice also carries
+Consume `features[]` (each with its F-ID + verbatim acceptance cell, split into
+`criteria[]` — one `{id: AC<k>, text}` per criterion; a single-criterion feature has
+one, `AC1`) and `error_cases[]` (id + checklist `type` + trigger + specified behavior). *(The slice also carries
 `edge_cases[]` — those are `manual-test-plan`'s (C22), not consumed here.)* Escape
 hatch: assertions in a non-standard section the slice omits (digest
 `unparsed_sections`) → read only that section's `prose_lines` range.
@@ -67,7 +70,8 @@ no acceptance criteria, record the component as `skipped` with `reason: "no_crit
 
 ### 1 · Coverage — evidence-strength grading
 
-For each in-scope F-ID's acceptance criterion, judge it against the diff by
+For **each criterion** of each in-scope F-ID (every `criteria[]` entry — a feature
+with three criteria is graded three times), judge it against the diff by
 **evidence strength** — is there a code path that satisfies it, and is there a test
 that covers it?
 
@@ -79,7 +83,8 @@ that covers it?
 
 Grading is **static**: "has a covering test" means a test *exists* that exercises the
 criterion — never that it passed. `source: pre-merge:prd-consistency`; message names
-the F-ID + the criterion + the evidence gap.
+the F-ID + the criterion id (`F2 AC3`; the bare F-ID when the feature has one criterion) + the
+criterion text + the evidence gap.
 
 ### 2 · Error-cases — symmetric grading
 
@@ -101,8 +106,8 @@ names the error-case id + trigger.
 
 Does the diff ship any product surface — a feature, endpoint, or user-facing surface —
 **not** traceable to an in-scope F-ID? Untraceable product surface → `high`
-(`rule: out-of-scope`, `category: scope-creep`), naming the file/surface — **advisory
-like every other finding here**: whether a surface is genuinely out of scope or simply
+(`rule: out-of-scope`, `category: scope-creep`), naming the file/surface — **reported,
+never blocking**: whether a surface is genuinely out of scope or simply
 under-specified in the PRD is a product judgment, so it routes to the same human
 walk-through rather than blocking the PR. Surface-scoped — it does **not** fire on
 incidental non-product changes (refactors, config, test scaffolding, dependency bumps
@@ -120,9 +125,10 @@ gitignored runtime artifact) alongside the check's result report:
   "check": "prd-consistency",
   "prd": "<prd-path>",
   "grades": [
-    { "id": "F1", "kind": "acceptance", "evidence": "tested" },
-    { "id": "F2", "kind": "acceptance", "evidence": "untested" },
-    { "id": "F3", "kind": "acceptance", "evidence": "unmet" },
+    { "id": "F1", "ac": "AC1", "kind": "acceptance", "evidence": "tested" },
+    { "id": "F2", "ac": "AC1", "kind": "acceptance", "evidence": "tested" },
+    { "id": "F2", "ac": "AC2", "kind": "acceptance", "evidence": "untested" },
+    { "id": "F3", "ac": "AC1", "kind": "acceptance", "evidence": "unmet" },
     { "id": "E1", "kind": "error_case", "evidence": "handled_tested" },
     { "id": "E2", "kind": "error_case", "evidence": "handled_untested" },
     { "id": "E5", "kind": "error_case", "evidence": "unhandled" }
@@ -130,7 +136,8 @@ gitignored runtime artifact) alongside the check's result report:
 }
 ```
 
-- One entry per in-scope F-ID acceptance criterion (`kind: acceptance`) and per
+- One entry per acceptance criterion of each in-scope F-ID (`kind: acceptance`; `id`
+  stays the F-ID, `ac` names the criterion, `AC1` for a single-criterion feature) and per
   `error_cases[]` entry (`kind: error_case`) — every graded item appears, pass or
   finding, so the consumer sees the full picture, not just the failures.
 - `evidence` is the exact tag driving the grade above:
@@ -146,6 +153,6 @@ gitignored runtime artifact) alongside the check's result report:
 
 One semantic pass; findings carry evidence (the diff hunk or the covering test) per
 `../finding-schema.md`. Component verdict = worst finding severity across the three
-checks — but the component is `advisory`, so that verdict **never aborts the pipeline
-and never flips the gate to `fail`** on its own. The grades artifact is written
-regardless.
+checks. The component is `advisory`, so it **never aborts the pipeline**. Only an
+`acceptance-unmet` finding flips the gate to `fail`, through the verdict script. The
+grades artifact is written regardless.

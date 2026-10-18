@@ -5,12 +5,12 @@ description: Shared contract for pre-merge's platform components (e2e, qa, mobil
 
 # Platform components — common contract
 
-Which components run is decided by the resolved pipeline (`executor.md` §1) layered
-with the platform profile's required-components set (`refs/platform-profiles.md`, sourced from the `required_buckets`
-column of `devkit/PLATFORMS.md` — the column's on-disk name predates this rename and
-is unchanged by it) — **never hardcoded**. Each selected component runs as its own
+Which components run is decided by the resolved pipeline (`executor.md` §1) alone —
+the catalog trigger (`active_when`) plus detection, **never hardcoded**. The platform
+profile (`refs/platform-profiles.md`) changes only how strict a component is
+(blocking vs advisory), never whether it runs. Each selected component runs as its own
 parallel `Agent` subagent and uses the `run` command resolved for it in
-`devkit/policy.json` `components[]` (detected at `--init`/`--update` by the
+`devkit/policy.json` `components[]` (detected at setup/`--update` by the
 `script-preflight-*.sh` family); it does not re-detect.
 
 Components: `e2e`, `mobile`, `perf`, `a11y`, `coverage`, `api`, `load`, `smoke`. `load` and `perf` run **isolated** (not overlapping other components or each other) so CPU/network contention can't skew
@@ -22,6 +22,10 @@ If the component's `<name>_runner` is `null`: emit `pass_with_warnings` with the
 component's note (`"No <kind> runner detected — <name> component skipped."`) and
 return. A missing runner skips the component — never `fail`. Record it as
 `skipped: {reason: "no_tooling"}`.
+
+**One exception: `smoke` never skips.** With no `smoke_runner`, smoke runs its default
+liveness check (an HTTP 200, or a clean launch) and never takes the "component
+skipped" path (`platform/protocol-smoke.md` §1).
 
 ## Component-level error rule
 

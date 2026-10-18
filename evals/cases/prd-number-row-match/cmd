@@ -1,0 +1,3 @@
+# pm-3 — PRD number = intake row number: row #9 has no PRD yet, so it becomes prd-9
+# (not the next free number after the highest PRD).
+"$REPO/.claude/scripts/script-prd-number" prd 9

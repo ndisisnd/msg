@@ -84,7 +84,7 @@ Exit codes:
      ERROR line names the row and nothing else is emitted. A silently
      mis-parsed deploy command is worse than a stopped run.
   4  file absent — PLATFORM_COUNT=0 + one WARN. NOT an error: the caller warns
-     ("No devkit/PLATFORMS.md — run /msg --init") and treats every command as
+     ("No devkit/PLATFORMS.md — run /msg --update") and treats every command as
      empty; the merge/sign-off flow still has value (refs/deploy.md step 2).
   2  usage error / unknown --platform
 
@@ -199,7 +199,7 @@ def main():
         print("PLATFORMS_FILE=%s" % path)
         print("PLATFORM_COUNT=0")
         print("PLATFORMS=")
-        print("WARN=No %s — run `/msg --init`; every deploy/smoke command is "
+        print("WARN=No %s — run `/msg --update`; every deploy/smoke command is "
               "treated as not configured" % path)
         return 4
 

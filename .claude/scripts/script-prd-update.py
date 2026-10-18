@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-script-prd-update.py — deterministic PRD migrator, v5 shape → v5.4 (no LLM).
+script-prd-update.py — deterministic PRD migrator, older shapes → current (no LLM).
 
 The read path never rewrites a PRD: every reader normalises the old shape in
-memory and no writer emits it. `plan-pm --update` is the one deliberate,
+memory and no writer emits it. `plan-pm --migrate` is the one deliberate,
 user-invoked exception, and this script is its mechanical half (L1). It does
 only the edits a machine can make without judgement — frontmatter keys, the
 findings-section move, section renumbering. Everything that needs reading
 comprehension (§5 bullets → the 4-column table, §1 bullet pruning) is L2 and
-lives in `plan-pm/refs/protocol-update.md`.
+lives in `plan-pm/refs/protocol-migrate.md`.
 
 Usage:
   script-prd-update.py <prd.md> [--dry-run] [--intake <INTAKE.md>] [--date YYYY-MM-DD]
@@ -28,10 +28,15 @@ What it migrates:
                `[USER: intake row #]` placeholder — never invented.
   body         inline `## N. Plan review findings` → `<prd-dir>/reports/
                review-prd-<n>-<slug>.md` · `## 8. Todos` → `## 7. Todos` ·
-               a legacy `## Execution Table` heading folds into §6.
+               a legacy `## Execution Table` heading folds into §6 ·
+               §4 `Error cases` → `Error and edge cases` · the §1
+               `**Success signal**` bullet is dropped · an unlabelled §3
+               acceptance cell gets `AC1` (one per `<br>` line: AC1, AC2, …).
 
-What it never touches: §1–§5 prose, the §3/§4 tables, F-IDs, §6/§7 content and
-the `## Engineering — <Agent>` / `## Todos — <Agent>` blocks beside them.
+What it never touches: §2/§5 prose, the words of any §3/§4 criterion or error
+row, F-IDs, §6/§7 content and the `## Engineering — <Agent>` / `## Todos —
+<Agent>` blocks beside them. A §3 cell that is already partly labelled is left
+as it is (warn `ac-partial`).
 
 Skips (exit 2, nothing written):
   · `status: retired` — the v5.4 enum has no equivalent and a retired PRD is
@@ -47,9 +52,10 @@ Output (stdout, one record per line, machine-readable):
 Change codes:
   deps-renamed · key-dropped · reviewed-fused · status-mapped · intake-resolved
   intake-placeholder · findings-extracted · findings-dropped · todos-renumbered
-  exec-heading-folded · exec-heading-renumbered
+  exec-heading-folded · exec-heading-renumbered · errors-heading-renamed
+  success-signal-dropped · ac-labelled
 Warn codes:
-  retired-skipped · report-exists · intake-unresolved
+  retired-skipped · report-exists · intake-unresolved · ac-partial
 
 Exit codes:
   0  already converged — no edit needed (rerunning is a byte-level no-op)
@@ -365,7 +371,102 @@ def migrate_body(blocks, prd_path, prd_name, date, dry_run):
                    f"{len(moved)} lines folded into §6 and the legacy heading removed")
             del blocks[legacy]
 
+    migrate_v6_shapes(blocks)
     return True, report_path, report_text
+
+
+# ── v6 shapes: §4 heading, §1 success signal, §3 criterion labels ─────────────
+
+AC_SPLIT = re.compile(r"(<br\s*/?>)", re.I)
+AC_LABEL = re.compile(r"^AC\d+\b", re.I)
+SUCCESS_BULLET = re.compile(r"^\s*[-*]\s+\*\*Success signal\*\*")
+
+
+def split_raw(line):
+    """Split a table row on unescaped pipes, keeping every raw segment."""
+    out, buf, i = [], "", 0
+    while i < len(line):
+        if line[i] == "\\" and i + 1 < len(line) and line[i + 1] == "|":
+            buf += "\\|"
+            i += 2
+            continue
+        if line[i] == "|":
+            out.append(buf)
+            buf = ""
+            i += 1
+            continue
+        buf += line[i]
+        i += 1
+    out.append(buf)
+    return out
+
+
+def label_criteria(text):
+    """'a<br>b' → 'AC1 a<br>AC2 b'; None when the cell needs no change or is partial."""
+    pieces = AC_SPLIT.split(text)
+    parts = [(i, p) for i, p in enumerate(pieces) if i % 2 == 0 and p.strip()]
+    if not parts:
+        return None
+    labelled = [bool(AC_LABEL.match(p.strip())) for _, p in parts]
+    if all(labelled):
+        return None
+    if any(labelled):
+        return "partial"
+    for k, (i, p) in enumerate(parts, start=1):
+        lead = p[:len(p) - len(p.lstrip())]
+        pieces[i] = f"{lead}AC{k} {p.strip()}" + p[len(p.rstrip()):]
+    return "".join(pieces)
+
+
+def migrate_v6_shapes(blocks):
+    for i, (heading, body) in enumerate(blocks):
+        if heading is None:
+            continue
+        title = H2.match(heading).group(1)
+        m = NUMBERED.match(title)
+        want = norm(title)
+
+        if want == "error cases":
+            num = f"{m.group(1)}. " if m else ""
+            blocks[i][0] = f"## {num}Error and edge cases"
+            change("errors-heading-renamed", f"'## {title}'",
+                   f"renamed to '## {num}Error and edge cases'")
+
+        elif want == "product objective":
+            kept = [l for l in body if not SUCCESS_BULLET.match(l)]
+            if len(kept) != len(body):
+                blocks[i][1] = kept
+                change("success-signal-dropped", "§1",
+                       "the `**Success signal**` bullet removed — §1 is Who + What changes")
+
+        elif want.startswith("features"):
+            col, out = None, []
+            for line in body:
+                s = line.strip()
+                if not s.startswith("|") or re.match(r"^\|[\s:|-]+\|?\s*$", s):
+                    out.append(line)
+                    continue
+                segs = split_raw(line)
+                if col is None:
+                    names = [x.strip().lower() for x in segs]
+                    col = next((k for k, n in enumerate(names)
+                                if n.startswith("acceptance criteri")), -1)
+                    out.append(line)
+                    continue
+                if col < 0 or col >= len(segs):
+                    out.append(line)
+                    continue
+                fid = segs[1].strip() if len(segs) > 1 else "?"
+                new = label_criteria(segs[col])
+                if new == "partial":
+                    warn("ac-partial", fid,
+                         "acceptance cell is partly labelled — left as it is")
+                elif new is not None:
+                    segs[col] = new
+                    line = "|".join(segs)
+                    change("ac-labelled", fid, "acceptance criteria labelled AC1…ACn")
+                out.append(line)
+            blocks[i][1] = out
 
 
 # ── main ──────────────────────────────────────────────────────────────────────

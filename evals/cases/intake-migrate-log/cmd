@@ -1,0 +1,4 @@
+# --migrate-log moves a legacy in-file `## Update log` section's entries verbatim
+# into INTAKE-UPDATE.md (created with the canonical header) and removes the
+# section from the ledger. A second run finds nothing and writes nothing.
+"$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md - --migrate-log && "$REPO/.claude/scripts/script-intake-stamp.sh" INTAKE.md - --migrate-log

@@ -15,7 +15,6 @@ intake: #15
 
 - **Who** — users clearing out a long backlog of finished tasks.
 - **What changes** — they can select many tasks and delete them in one action instead of one at a time.
-- **Success signal** — the number of single-task deletes in a session falls.
 
 ## 2. Out-of-scope
 
@@ -25,9 +24,9 @@ intake: #15
 
 | ID | Feature | Acceptance criterion | Dependencies |
 |----|---------|----------------------|--------------|
-| F1 | Delete selected | When the user confirms Delete on a multi-task selection, every selected task disappears from the list within 200ms and a single undo toast covers the whole batch. | — |
+| F1 | Delete selected | AC1 When the user confirms Delete on a multi-task selection, every selected task disappears from the list within 200ms and a single undo toast covers the whole batch. | — |
 
-## 4. Error cases
+## 4. Error and edge cases
 
 | ID | Trigger | User-visible behavior |
 |----|---------|----------------------|
