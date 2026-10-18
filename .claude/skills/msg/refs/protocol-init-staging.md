@@ -92,7 +92,7 @@ re-parses the result, and rolls back on a bad write:
 ```
 
 `--stamp-by` refreshes `generated`/`generated_by` because this mode **is** a policy-file writer.
-`init` is left untouched — this mode does not complete setup (that's `--init`'s job), and no
+`init` is left untouched — this mode does not complete setup (that is pre-merge's and merge's first-run setup), and no
 `--create` is passed, so an absent `policy.json` is a named failure rather than a silent seed
 (the precondition above already refused it). After this, `policy.json` reads
 `release_flow.mode:"staged"`, `staging_branch:"staging"` (AC-RF5). Schema authority:

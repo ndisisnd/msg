@@ -6,7 +6,7 @@ type: reference
 
 # `devkit/policy.json` — the committed policy file (shared core)
 
-The single authoritative definition of `devkit/policy.json`: the **committed, shared** policy artifact both gate skills (`pre-merge`, `merge`) read at run time. It holds **decisions only** — release-flow shape, branch-protection stance, whether GitHub Actions CI is wanted at all, per-step opt-in/out — never per-machine binary presence (that is detected by the ephemeral `script-preflight-*.sh` family at `--init`/`--update` time and resolved into each component's `run` command, never persisted as a standalone fingerprint). Because it's committed, its decisions travel to CI and teammates. It sits next to its sibling configs `devkit/PLATFORMS.md` and `devkit/ENV.md`.
+The single authoritative definition of `devkit/policy.json`: the **committed, shared** policy artifact both gate skills (`pre-merge`, `merge`) read at run time. It holds **decisions only** — release-flow shape, branch-protection stance, whether GitHub Actions CI is wanted at all, per-step opt-in/out — never per-machine binary presence (that is detected by the ephemeral `script-preflight-*.sh` family at setup/`--update` time and resolved into each component's `run` command, never persisted as a standalone fingerprint). Because it's committed, its decisions travel to CI and teammates. It sits next to its sibling configs `devkit/PLATFORMS.md` and `devkit/ENV.md`.
 
 ## This file is the core — the halves are separate
 
@@ -215,7 +215,7 @@ Fail-safe throughout — a malformed policy never aborts a merge run (pre-merge 
 5. **Contradictory flow** — `release_flow.mode:"staged"` with null/absent `staging_branch` → contradictory; **discard `release_flow`** and use the built-in "staging if the branch exists, else prod" fallback + one warn. (AC-S5)
 6. **Self-healing `init`** — `init` missing on an existing file → treated as `false`; the next gate run runs its setup (§0), which sets it `true`.
 
-An `--init`-written file re-loaded by a gate produces **zero** validation warnings (round-trip clean, AC-S6).
+A setup-written file re-loaded by a gate produces **zero** validation warnings (round-trip clean, AC-S6).
 
 ---
 

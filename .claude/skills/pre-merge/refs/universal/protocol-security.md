@@ -43,7 +43,7 @@ that: **secret-scan coverage is a hard requirement to *pass*.**
   is pre-merge setup or `/pre-merge --update` (it strongly offers gitleaks), not a forced install here —
   the install stays per-item approved.
 - **This blocker is not declinable at gate time** — a passing gate can never have had
-  zero secret-scan coverage. Only `--init` recording the scanner (or the user
+  zero secret-scan coverage. Only setup/`--update` recording the scanner (or the user
   installing one) clears it.
 
 **Everything else stays best-effort/degradable.** Absence of SAST (semgrep),

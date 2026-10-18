@@ -21,7 +21,7 @@ Each is the router for its own behaviour — start here to change what a skill d
 - [plan-review](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-review/SKILL.md): seven-check contract certifier, each check bound to a named downstream consumer
 - [plan-em](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-em/SKILL.md): engineering manager — picks the specialist roster (asks only when it is unusual), then fans out subagents per wave
 - [eng](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/eng/SKILL.md): `--plan` / `--build` / `--review` / `--bug` — the only skill that writes product code
-- [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the CI gate — manifest-driven pipeline executor, fixes what fails, stays local (never pushes or opens a PR), ends `Next: /merge`
+- [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the quality gate — manifest-driven pipeline executor, fixes what fails, stays local (never pushes or opens a PR), ends `Next: /merge`
 - [merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/merge/SKILL.md): the ship gate — the only pusher, PR opener and merger; bare `/merge` picks the next step, `--staging` sign-off, `--production` release, `--update` settings
 - [emulate](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/emulate/SKILL.md): the local run lane — boots a simulator/emulator on the current branch; a leaf, outside the pipeline
 

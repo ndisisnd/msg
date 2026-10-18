@@ -128,7 +128,7 @@ the run does not consume (e.g. `reset` on a run with no fix loop) is inert.
 
 ## Companion stubs
 
-`--init` may offer, under the usual per-item approval, the optional starter files in
+Setup may offer, under the usual per-item approval, the optional starter files in
 `pre-merge/refs/stubs/`: `docker-compose.test.yml` and `seed-test.ts` / `seed-test.py`.
 Accepting them fills the corresponding verbs in `ENV.md` so the pairing is runnable
 immediately; declining leaves `[USER: …]` placeholders.

@@ -36,7 +36,7 @@
 #   {"tier":"S|M|L","signals":{"modules":N,"ratio":N|null,"fan_in_pct":N|null},"trigger":"..."}
 #
 # Read-only: reads git history + (optionally) devkit/policy.json; never mutates
-# git state or policy.json (that stays --init's/--update's job, AC-OW1/AC-TS2).
+# git state or policy.json (that stays setup's/--update's job, AC-OW1/AC-TS2).
 # Requires jq. Pure POSIX-compatible bash (matches the script-preflight-*.sh family).
 
 set -uo pipefail
@@ -105,7 +105,7 @@ max_affected_ratio="0.5"
 # Built-in force_full_paths catalog defaults (component-catalog.md) — universal
 # rows plus every platform's rows, since this script doesn't know in isolation
 # which platform(s) are detected. The policy file's own list (when present)
-# overrides this wholesale, matching --init/--update's per-project resolution.
+# overrides this wholesale, matching setup/--update's per-project resolution.
 builtin_force_full='[
   "devkit/**", "**/migrations/**", "**/shared/**", "**/lockfiles/**",
   "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "tsconfig*.json",

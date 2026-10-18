@@ -29,7 +29,7 @@ retired). In v3 the executor reads each component's resolved `run` from the
 ```
 
 - `diff` — from `pre-merge/scripts/script-resolve-diff.sh <base>`.
-- `tooling` — **superseded in v3**: tooling is resolved at `--init`/`--update` into each
+- `tooling` — **superseded in v3**: tooling is resolved at setup/`--update` into each
   component's `run` command in `devkit/policy.json` `components[]` (via the
   `script-preflight-*.sh` family), which the executor reads directly. The prelude no
   longer caches a tooling fingerprint (the field stays `null` for back-compat); it caches

@@ -15,7 +15,7 @@ strict each check is (blocking vs advisory) and how severity thresholds are set.
 ## Read + fallback
 
 1. Read `devkit/PLATFORMS.md`. Parse the pipe table. Pre-merge consumes only the `platform` and `tolerance` columns; the deploy commands are `/merge`'s (ignore them here). A `required_buckets` column, when present, is ignored: the catalog and detection decide which checks run.
-2. **Missing file** → fall back to the `standard` profile and emit a warning: `"No devkit/PLATFORMS.md — using the standard profile. Run /msg --init to scaffold per-platform tolerance."` Continue; do not refuse.
+2. **Missing file** → fall back to the `standard` profile and emit a warning: `"No devkit/PLATFORMS.md — using the standard profile. Run /msg --update to scaffold per-platform tolerance."` Continue; do not refuse.
 3. **Multiple rows** (multi-platform repo): take the **strictest** `tolerance` present (`strict` > `standard` > `lenient`).
 
 ## Profiles

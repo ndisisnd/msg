@@ -2,6 +2,28 @@
 
 ## 2026-10-18
 
+### [202] v6.0.0 final — pre-merge and merge setup wording drops the old --init
+
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — the seed's unfilled blocks are filled by pre-merge's and merge's first-run setup, not a gate `--init`.
+- `.claude/skills/msg/refs/protocol-init-staging.md`: Changed — completing setup is pre-merge's and merge's first-run setup.
+- `.claude/skills/shared/refs/component-catalog.md`: Changed — gate `--init`/`--update` wording reads setup/`--update`.
+- `.claude/skills/shared/refs/check-report-schema.md`: Changed — `detect` is written at setup/`--update`.
+- `.claude/skills/shared/refs/tooling-detection.md`: Changed — setup/`--update` run the preflight family.
+- `.claude/skills/shared/refs/verify-prelude.md`: Changed — tooling resolves at setup/`--update`.
+- `.claude/skills/shared/refs/env-contract.md`: Changed — setup offers the companion stubs.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — detection runs at setup/`--update`; the round-trip rule names a setup-written file.
+- `.claude/skills/pre-merge/refs/_common.md`: Changed — components are detected at setup/`--update`.
+- `.claude/skills/pre-merge/refs/universal/protocol-security.md`: Changed — setup/`--update` records the secret scanner.
+- `.claude/skills/pre-merge/refs/platform/protocol-mobile.md`: Changed — setup establishes the declared matrix.
+- `.claude/scripts/script-tier-resolve.sh`: Changed — comments name setup/`--update`.
+- `.claude/skills/pre-merge/refs/platform-profiles.md`: Changed — a missing `devkit/PLATFORMS.md` points to `/msg --update`.
+- `.claude/skills/merge/refs/deploy.md`: Changed — a missing `devkit/PLATFORMS.md` points to `/msg --update`.
+- `.claude/scripts/script-platforms-parse.py`: Changed — the missing-file warning points to `/msg --update`.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — merge --staging next step is to answer **Staging works**.
+- `ARCHITECTURE.md`: Changed — script table lists `script-prd-update.py`, `script-eng-bug-report.py` and `script-premerge-last-check.sh`.
+- `llms.txt`: Changed — pre-merge is the quality gate.
+- `.claude/skills/pre-merge/SKILL.md`: Changed — argument-hint lists `--changed-only`, `--prior-issues <path>` and `--full-secret-scan`.
+
 ### [201] v6.0.0 final — merge and pre-merge wording matches the new flows
 
 - `.claude/skills/pre-merge/refs/executor.md`: Changed — tagging pass restamps `criticality_review` first, then commits the tags and `policy.json` in one commit.

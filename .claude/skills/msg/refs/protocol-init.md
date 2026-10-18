@@ -198,8 +198,8 @@ whole seed, including the `generated` date stamp:
 ```
 
 - `--create` writes the seed skeleton — `version:1`, `init:false`, `generated`, `generated_by`,
-  `policies` — and nothing else (no `repo`, no `branch_protection`, no `steps`; those are the gate
-  skills' `--init`'s to fill, which is why `init` is `false`) (AC-LC1). `policies.github_actions`
+  `policies` — and nothing else (no `repo`, no `branch_protection`, no `steps`; those are filled by
+  pre-merge's and merge's first-run setup, which is why `init` is `false`) (AC-LC1). `policies.github_actions`
   is the one later addition, merged at **Step 5** once the GitHub-remote-gated CI question has an
   answer; on a no-remote repo it is never written at all.
 - `--skip-if-exists` is AC-LC7: an existing `policy.json` is left byte-for-byte alone and the

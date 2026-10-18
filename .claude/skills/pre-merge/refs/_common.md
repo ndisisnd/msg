@@ -10,7 +10,7 @@ the catalog trigger (`active_when`) plus detection, **never hardcoded**. The pla
 profile (`refs/platform-profiles.md`) changes only how strict a component is
 (blocking vs advisory), never whether it runs. Each selected component runs as its own
 parallel `Agent` subagent and uses the `run` command resolved for it in
-`devkit/policy.json` `components[]` (detected at `--init`/`--update` by the
+`devkit/policy.json` `components[]` (detected at setup/`--update` by the
 `script-preflight-*.sh` family); it does not re-detect.
 
 Components: `e2e`, `mobile`, `perf`, `a11y`, `coverage`, `api`, `load`, `smoke`. `load` and `perf` run **isolated** (not overlapping other components or each other) so CPU/network contention can't skew

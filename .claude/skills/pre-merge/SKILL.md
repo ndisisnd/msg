@@ -10,7 +10,7 @@ description: >
   The first run sets the project up, then gates. Emits a severity-graded
   verdict JSON. Absorbs the old /review and /test. Activates on /pre-merge
   after eng --build.
-argument-hint: "[--update] [--flaky <n>] [--minified | --full]"
+argument-hint: "[--update] [--flaky <n>] [--changed-only] [--prior-issues <path>] [--full-secret-scan] [--minified | --full]"
 allowed_tools:
   - AskUserQuestion
   - Read

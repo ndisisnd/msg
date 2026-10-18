@@ -48,6 +48,7 @@ There are ~58 scripts. Grouped by what they own:
 | `script-prd-scan.sh` | Lane-aware PRD inventory (JSONL: frontmatter graph + `full`/`missing[]` completeness + optional `--git` completion ladder, `--exclude <id>`); consumed by plan-pm Step 2 and plan-em Step 1c |
 | `script-prd-stamp.sh` | Shared scalar frontmatter writer for PRD lifecycle stamps (status, reviewed, completion, staging-signoff, plus the retired v5 tune stamps); single-line edit, idempotent |
 | `script-prd-deps-mirror.sh` | §3 Dependencies → frontmatter `deps` union writeback (`ADDED <id>` lines, idempotent); rewrites `depends_on` instead on a v5-shape PRD |
+| `script-prd-update.py` | Deterministic PRD migrator, older shapes → current — the mechanical half of `plan-pm --migrate` (frontmatter keys, findings-section move, section renumbering); `--dry-run` writes nothing |
 | `script-intake-stamp.sh` | The `INTAKE.md` ledger reader and writer — `--list-rows` (filtered read), `--append-row`, `--set-cell`, `--remove-row`, `--find-row`, `--migrate-log`, `--log-append`, plus the `status`/`prd` stamps. Header-derived columns, escaped pipes, temp-file writes; never renumbers |
 
 **Certification (plan-review)**
@@ -76,6 +77,7 @@ There are ~58 scripts. Grouped by what they own:
 | `script-eng-cook-flags.py` | Builds the explicit `/cook` flag set from a build's stack tokens — enumerates cook's ref shelf, keeps every ref unless the caller names a provable exclusion |
 | `script-eng-fix-grade.py` | The one simple/complex fix-complexity grader — the rubric lives in code, not in each protocol's prose |
 | `script-eng-close-loop.py` | The single sanctioned write to an issues file when `eng --build report=` closes a fix loop |
+| `script-eng-bug-report.py` | Writes a bug the user found by hand (`eng --bug`) as a new `report-prd-<N>-<K>` pair in pre-merge's report format, so `eng --build report=` and the `--gui` Reports tab read it unchanged; never edits an existing report |
 
 **Gates (pre-merge, merge)**
 
@@ -88,6 +90,7 @@ There are ~58 scripts. Grouped by what they own:
 | `script-ts-miss.py` | Test-selection miss attribution — the CI-backstop half of the minified-selection bargain |
 | `script-aggregate-verdict.sh` | Merges the per-component result reports into a single severity-graded verdict |
 | `script-resolve-diff.sh` | Structured diff-vs-base summary (bundled with pre-merge, not in the shared library) |
+| `script-premerge-last-check.sh` | pre-merge's last check per branch in `.pre-merge/last-check.json` — the checked commit and its verdict, stored together; read by the next commit-cap audit and by merge's pass check (either missing ⇒ no pass) |
 | `script-ci-status.py` | Check-state set + policy → one CI verdict, so merge's three call sites cannot drift apart; wait mode polls a pending PR up to merge's CI limit |
 | `script-merge-checks.py` | merge's PR-step lookups — pre-merge's pass on the branch tip (small-change line count + risky paths), the auth/payment library search, the risky-path seed, the CI-limit measure |
 | `script-branch-protection.sh` | Branch-protection `--bootstrap` (required status checks + no-force-push on `staging`/`main`, plus ≥1 required review on `main`) and `--verify` (`PROTECTED`/`UNPROTECTED`; `NO_GH`/`NO_REMOTE` when degraded). Run by `/merge` Step 1; offered by `/msg --init-staging` and `--init` |

@@ -1,6 +1,6 @@
 ---
 name: check-report-schema
-description: The single normalized check-report schema shared by both gates' preflight layer. ONE schema, two sections — `detect` (written by the script-preflight-*.sh scripts at --init/--update) and `result` (written by the executor at gate time, Phase 3). Ingestion (--init/--update) reads `detect` to assemble components[]; aggregation reads `result`.
+description: The single normalized check-report schema shared by both gates' preflight layer. ONE schema, two sections — `detect` (written by the script-preflight-*.sh scripts at setup/--update) and `result` (written by the executor at gate time, Phase 3). Ingestion (setup/--update) reads `detect` to assemble components[]; aggregation reads `result`.
 type: reference
 ---
 
@@ -11,7 +11,7 @@ here once (AC-CK5, resolves **Q8**: one schema, not two). A report has two secti
 
 | Section | Written by | When | Consumed by |
 |---|---|---|---|
-| `detect` | `script-preflight-<nn>-<slug>.sh` (C4) | `--init` / `--update` | ingestion → `components[]` (this phase, P2) |
+| `detect` | `script-preflight-<nn>-<slug>.sh` (C4) | setup / `--update` | ingestion → `components[]` (this phase, P2) |
 | `result` | the pipeline executor (C6/C7) | every gate run | verdict/universal-report aggregation (**P3**) |
 
 The two sections share the normalized-format discipline so ingestion and aggregation
@@ -25,7 +25,7 @@ are uniform end-to-end (no bespoke per-check parsing — AC-CK7).
 
 | Section | Path | Lifetime |
 |---|---|---|
-| `detect` | `.pre-merge/preflight/<slug>.json` | overwritten each `--init`/`--update`; the ingestion input |
+| `detect` | `.pre-merge/preflight/<slug>.json` | overwritten each setup/`--update`; the ingestion input |
 | `result` | `.pre-merge/<ts>/<slug>.json` | one per gate run (`<ts>` = run timestamp); written **always** — pass, fail, or skip (P3) |
 
 `<slug>` is the component id (`mechanical`, `unit`, …) — matches the `protocol-<slug>.md`

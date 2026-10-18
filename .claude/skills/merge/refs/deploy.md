@@ -17,7 +17,7 @@ command (a multi-platform repo deploys each in turn).
 shifted column can never mean a different command in one place than another:
 
 ```bash
-S=.claude/scripts/script-platforms-parse.py; python3 "$S"     # devkit/PLATFORMS.md
+PLAT=.claude/scripts/script-platforms-parse.py; python3 "$PLAT"     # devkit/PLATFORMS.md
 ```
 
 It matches columns **by header name** (never by position) and emits one
@@ -26,7 +26,7 @@ oddity (the script's header is the key list). Then:
 
 1. `PLATFORMS` is the shipping set; take each platform's deploy column for this mode (`staging_deploy_cmd` / `production_deploy_cmd`).
 2. **Cell markers arrive normalised**: blank, `—`, and `[USER: …]` are all the empty string — the "empty" path below. Merge never invents a command.
-3. **Missing file** (exit 4) → `PLATFORM_COUNT=0` + a `WARN`; warn (`No devkit/PLATFORMS.md — run /msg --init`) and treat every command as empty — do not refuse the whole run, the merge/sign-off flow still has value. **Malformed table** (exit 3) → the script refuses loudly with an `ERROR` naming the row; surface it rather than deploying a mis-mapped command.
+3. **Missing file** (exit 4) → `PLATFORM_COUNT=0` + a `WARN`; warn (`No devkit/PLATFORMS.md — run /msg --update`) and treat every command as empty — do not refuse the whole run, the merge/sign-off flow still has value. **Malformed table** (exit 3) → the script refuses loudly with an `ERROR` naming the row; surface it rather than deploying a mis-mapped command.
 4. `release_model` arrives with its provenance — `release_model_source=declared` or `inferred` plus the matching `WARN`, never silently. The rule (including why **a macOS row declares its model**) is stated once in `../../shared/refs/policy-schema-merge.md` §4; surface every `WARN` in the run report.
 5. **Per-platform resolution is independent.** A `web`+`ios` ship treats web as `deploy` (live) and ios as `submission` (submitted) in one pass. One platform's model never coerces another's.
 
