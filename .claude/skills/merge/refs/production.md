@@ -106,7 +106,7 @@ exits, so it never dead-ends: (a) if the owning PRD is already signed off and it
 stamp merely lags the tip, **add `--prd <owning PRD>`** to fold it into this
 release; (b) if the commits are genuinely un-signed-off, run **`/merge
 --staging`** for only that work. Never order a bare `--staging` re-run for a PRD
-whose feature→staging PR already merged — it would refuse `no_pr`.
+whose feature→staging PR already merged — there is nothing left to open a PR for.
 
 **Why coverage and not per-PRD equality.** A multi-PRD release stamps each PRD at
 *its own* merge sha, so older stamps legitimately lag the tip. What must hold is
@@ -139,6 +139,11 @@ staging, so there is no sign-off to check and nothing to pin. Record it as
 `inactive (no staging)` in the run report, never as skipped or relaxed
 (`../../shared/refs/policy-schema-merge.md` §1b). The human judgment it represents moves to the
 **inline human-test approval** below, which fires before the merge.
+
+What `direct` flow checks here instead is **pre-merge's pass** on the feature branch tip
+— `refs/open-pr.md` § *Pass check* (with its small-change quick check). It runs now,
+before any question, so a missing pass refuses `no_premerge_pass` before the human is
+asked anything and before the lock exists.
 
 A `submission`-model platform under `direct` flow still runs the full submission
 lifecycle on the single feature→`prod` ship (`refs/submission.md`) —
@@ -310,7 +315,7 @@ bash "$S" release --prod "$PROD"
 and a failed delete is a `low` note, never a hard stop — the TTL reclaims it.
 
 - **Every refusal, skip, or error after acquisition** — release **before**
-  emitting the refusal/skip. That covers Step 4 (`no_prd`, `gh` errors), Step 5
+  emitting the refusal/skip. That covers Step 4 (`no_prd`, `push_rejected`, `gh` errors), Step 5
   (`red_ci`/`pending_ci`/`no_review`/`merge_failed`), post-acquire coverage drift,
   and Step 6's `nonmonotonic_build`.
 - **A failed ship** (deploy / smoke / provenance `fail`) — release **at
@@ -333,7 +338,15 @@ script's keys — into the run report's `release_lock` block.
 ## Step 4 — Open the release PR (`<head>` → prod)
 
 The PR head is **flow-dependent**, never hardcoded to `staging`: `$STG` in
-`staged` flow; in `direct` flow the resolved **feature branch**.
+`staged` flow; in `direct` flow the current **feature branch**.
+
+- **`direct` flow** — run `refs/open-pr.md` §§ 2–4 with `BASE=$PROD` (the pass check
+  already ran in Step 1): the push (normal, never force), the feature → prod PR
+  (opened, or the open one reused) with the release body below, and the CI wait. Every
+  stop there (`push_rejected`, `red_ci`, `pending_ci`, a `gh` error) releases the lock
+  first. Only merge opens PRs, so one feature never gets two.
+- **`staged` flow** — open the `staging` → prod PR below (staging was already pushed
+  by the `--staging` merge; there is no pre-merge pass to check on `staging`).
 
 If no `--prd` is given **and** none is resolvable for the release body, refuse
 `no_prd` — release the lock first.
@@ -365,11 +378,13 @@ Release-style body (what the GUI production report and the PR render from):
 
 Branch protection enforces both; merge checks them, then merges:
 
-1. Verify the release PR's CI is green — the same scripted verdict, in PR mode:
+1. Wait for the release PR's CI to be green — the same scripted verdict and the same
+   wait as `refs/open-pr.md` § *Wait for CI* (up to `MERGE_CI_WAIT_MINUTES`, ticking
+   the heartbeat between calls):
    ```bash
-   S=.claude/scripts/script-ci-status.py; python3 "$S" --pr <number>
+   S=.claude/scripts/script-ci-status.py; python3 "$S" --pr <number> --wait-seconds 270 --deadline "$DEADLINE"
    ```
-   `red`/`pending` (3/4) → refuse (`red_ci`/`pending_ci`), releasing the lock first. `empty-inactive`/`empty-vacuous` (5/6) → proceed, recording `NOTE`. The empty-check-set branch is the script's, identical to `--staging`'s — one implementation, three call sites.
+   `red` (3) → refuse `red_ci`; still pending at the limit (9) → refuse `pending_ci` — each releasing the lock first. `empty-inactive`/`empty-vacuous` (5/6) → proceed, recording `NOTE`. The empty-check-set branch is the script's, identical to `--staging`'s — one implementation, three call sites.
 2. Verify the required human review: `gh pr view <n> --json reviewDecision` → must be `APPROVED`. Not approved → refuse (`no_review`).
 3. Merge:
    ```bash

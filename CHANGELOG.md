@@ -2,6 +2,18 @@
 
 ## 2026-10-17
 
+### [190] v6.0.0 merge — merge sets itself up, opens the PR, waits for CI; `--update` replaces `--init`
+
+- `.claude/skills/merge/refs/open-pr.md`: Added — the PR step: pre-merge's pass on the branch tip (small-change allowance + quick check), normal push, open or reuse the PR, wait for CI up to the limit.
+- `.claude/skills/merge/refs/protocol-init.md`: Changed — first-run setup runs inline then continues; `/merge --update` with one approval; release flow read and reported only; new risky-paths and CI-limit items.
+- `.claude/skills/merge/SKILL.md`, `refs/{staging,production,refusal-patterns,sanctioned-writes,protection}.md`: Changed — `--init` removed; Step 2 / direct Step 4 use the PR step; new refusals `no_premerge_pass`, `push_rejected`, `not_feature_branch`; `pending_ci` only at the wait limit.
+- `.claude/scripts/script-merge-checks.py`: Added — pass check, risky-path and line count, auth/payment library search, catalog seed, CI-limit measure.
+- `.claude/scripts/script-ci-status.py`: Changed — wait mode (`--wait-seconds`, `--deadline`, `wait_limit` exit 9).
+- `.claude/scripts/script-policy-read.py`: Changed — resolves `policies.merge.risky_paths` and `ci_wait_minutes`.
+- `.claude/skills/shared/refs/{component-catalog,policy-schema}.md`: Changed — risky-library table; writer table and §0 name merge setup and `--update`.
+- `.claude/skills/msg/refs/{protocol-init-staging,init/templates/template-PLATFORMS}.md`, `.claude/scripts/script-doctor-detect.sh`: Changed — hand off to `/merge --update`.
+- `evals/cases/{merge-checks-pass-states,merge-checks-libs-seed,merge-checks-ci-limit,ci-status-wait,policy-read-merge-keys}/`: Added — script cases.
+
 ### [189] v6.0.0 eng — reviewer fixes are re-tested, packets check only their own files
 
 - `.claude/skills/plan-em/refs/protocol-team.md`: Changed — a wave or repair review with fixes re-runs the unit + integration suite and commits `fix(review): … [W<w>]` before the next wave; the wave db-touch guard does not re-ask a path a leaf already got signed off.

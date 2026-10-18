@@ -1,0 +1,6 @@
+# merge-2 build decision (5) — the CI wait limit is 30 minutes by default; setup
+# measures recent completed runs and sets the limit above the slowest
+# (x1.5, rounded up to 5). In-progress runs are not measured; no runs ⇒ 30.
+S="$REPO/.claude/scripts/script-merge-checks.py"
+python3 "$S" ci-limit --input runs.json
+echo '[]' > none.json; python3 "$S" ci-limit --input none.json | grep CI_LIMIT

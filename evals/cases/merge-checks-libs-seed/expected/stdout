@@ -1,0 +1,6 @@
+SCOPES=universal,web
+RISKY_PATHS_JSON=["devkit/**", "**/migrations/**", "**/shared/**", "**/lockfiles/**", "package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "tsconfig*.json", "**/auth/**", "**/payments/**", ".github/workflows/**"]
+unknown scope exit=2
+FOUND_PATHS=app/checkout/**,app/session/**
+NEW_RISKY_PATHS=app/checkout/**
+RISKY_PATHS_JSON=["app/session/**", "my/own/**", "app/checkout/**"]

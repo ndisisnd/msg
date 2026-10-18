@@ -58,7 +58,10 @@ Output (stdout, KEY=VALUE lines, always the full key set):
   TEST_SELECTION=true|false           §2c — absent ⇒ FALSE (disabled)
   TEST_SELECTION_BACKSTOP=ci|merge|both|<empty>
   TEST_SELECTION_FORCE_FULL=<glob,…>
-  WARN=<text>                         zero or more, one per validation finding
+  MERGE_RISKY_PATHS_STATE=present|absent   policies.merge.risky_paths
+  MERGE_RISKY_PATHS=<glob,…>          absent ⇒ empty (callers use the catalog seed)
+  MERGE_CI_WAIT_MINUTES=<n>           policies.merge.ci_wait_minutes — absent ⇒ 30
+  WARN=<text>                        zero or more, one per validation finding
 
 Validation (shared/refs/policy-schema.md § Validation rules), all non-fatal:
   1. parse failure / version != 1  → whole file treated as absent (POLICY_STATE)
@@ -261,6 +264,24 @@ def main():
             warn("unjustified-policy: test_selection.enabled=true with no "
                  "reason — honored")
 
+    # ── policies.merge (merge's PR step: risky paths + CI wait limit) ─────
+    mg = as_obj(pol, "merge")
+    risky = mg.get("risky_paths")
+    risky_state = "present"
+    if risky is None:
+        risky, risky_state = [], "absent"
+    elif not (isinstance(risky, list)
+              and all(isinstance(x, str) for x in risky)):
+        warn("bad-type: policies.merge.risky_paths is not a list of globs — "
+             "using the catalog seed")
+        risky, risky_state = [], "absent"
+    ci_wait = mg.get("ci_wait_minutes", 30)
+    if isinstance(ci_wait, bool) or not isinstance(ci_wait, int) \
+            or ci_wait < 1:
+        warn("bad-type: policies.merge.ci_wait_minutes=%r — using 30"
+             % (ci_wait,))
+        ci_wait = 30
+
     # ── emit ──────────────────────────────────────────────────────────────
     branches = []
     for b in [prod] + ([stg] if stg else []) + list(args.branches):
@@ -298,6 +319,9 @@ def main():
         "TEST_SELECTION=%s" % flat(ts_on),
         "TEST_SELECTION_BACKSTOP=%s" % ts_backstop,
         "TEST_SELECTION_FORCE_FULL=%s" % flat(ts.get("force_full_paths", [])),
+        "MERGE_RISKY_PATHS_STATE=%s" % risky_state,
+        "MERGE_RISKY_PATHS=%s" % ",".join(risky),
+        "MERGE_CI_WAIT_MINUTES=%d" % ci_wait,
     ]
     out += ["WARN=%s" % flat(w) for w in WARNS]
     print("\n".join(out))
@@ -313,6 +337,8 @@ def main():
             "staging_ready": {"record": ready_state, "unready": unready},
             "steps": {k: v[0] for k, v in resolved_steps.items()},
             "test_selection": {"enabled": ts_on, "backstop": ts_backstop},
+            "merge": {"risky_paths": risky, "risky_paths_state": risky_state,
+                      "ci_wait_minutes": ci_wait},
             "warnings": WARNS,
         }, indent=2))
     return 0

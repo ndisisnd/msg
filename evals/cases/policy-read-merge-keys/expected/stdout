@@ -1,0 +1,11 @@
+MERGE_RISKY_PATHS_STATE=present
+MERGE_RISKY_PATHS=**/auth/**,src/billing/**
+MERGE_CI_WAIT_MINUTES=45
+MERGE_RISKY_PATHS_STATE=absent
+MERGE_RISKY_PATHS=
+MERGE_CI_WAIT_MINUTES=30
+WARN=bad-type: policies.merge.risky_paths is not a list of globs — using the catalog seed
+WARN=bad-type: policies.merge.ci_wait_minutes=0 — using 30
+MERGE_RISKY_PATHS_STATE=absent
+MERGE_RISKY_PATHS=
+MERGE_CI_WAIT_MINUTES=30

@@ -37,6 +37,9 @@ Usage
   # Fixture / offline mode — no gh call at all
   script-ci-status.py --input <checks.json> [--policy <p>]
 
+  # Wait mode — poll while CI is pending (merge's CI wait, open-pr.md)
+  script-ci-status.py --pr 128 --wait-seconds 270 --deadline <epoch> [--interval 30]
+
   --policy   devkit/policy.json (default: devkit/policy.json). Resolved through
              script-policy-read.py when that script is present — one reader, no
              second parse path — falling back to a direct read of the two keys
@@ -49,11 +52,23 @@ Usage
              object `{"state": …, "statuses": [...]}`. This is the fixture
              mode: it is how all five verdicts are proven without a network.
   --repo     repo dir for the gh calls (default: $PWD)
+  --wait-seconds  poll budget for THIS call (default 0 = read once). While the
+             verdict is pending, re-read every --interval seconds until it
+             settles or the budget is spent. Keep it under the shell's
+             10-minute limit; the caller ticks its heartbeat and re-calls.
+  --deadline the overall wait limit, as a Unix epoch. Still pending at the
+             deadline ⇒ REASON=wait_limit, exit 9.
+  --interval seconds between polls (default 30).
+  --empty-grace  while waiting, an EMPTY check set with steps.ci=ready is read
+             as "workflows not registered yet" for this many seconds
+             (default 120) before it grades as empty-vacuous.
+  --input    repeatable in wait mode: poll n reads the n-th file (the last
+             one repeats) — the fixture form of a CI run settling.
 
 Output (stdout, KEY=VALUE lines, always the full key set):
   VERDICT=green|red|pending|empty-inactive|empty-vacuous
   REASON=ok|failing_checks|pending_checks|policy_disabled|step_opted_out|
-         step_na|no_ci_record|vacuous_ci|no_pr|gh_error
+         step_na|no_ci_record|vacuous_ci|no_pr|gh_error|wait_limit
   SOURCE=pr|branch|input
   CHECK_COUNT=<n>
   FAILING_CHECKS=<name,…>      non-empty ⇒ VERDICT=red
@@ -67,6 +82,7 @@ Output (stdout, KEY=VALUE lines, always the full key set):
   HEAD_BRANCH=<name>           resolved head (from --head, or derived from --prd)
   NOTE=<one line>              exactly what the caller puts in the run report
   ERROR=<short reason>         set on REASON=gh_error / no_pr
+  POLLS=<n>                    reads made by this call (1 without --wait-seconds)
 
 On stderr only, never stdout (the key set above is unchanged):
   RESOLVED_VIA=global <path>   the policy reader was taken from ~/.claude/scripts
@@ -92,11 +108,13 @@ Verdict rules (the whole branch, in one place)
 Exit codes
   0  green
   3  red            → the caller refuses `red_ci`
-  4  pending        → the caller refuses `pending_ci`
+  4  pending        → read-once: the caller refuses `pending_ci`; wait mode:
+                    this call's budget is spent, the caller ticks + re-calls
   5  empty-inactive → proceed (NOTE may be a single report line)
   6  empty-vacuous  → proceed + one `low` vacuous-ci note
   7  no open PR     → the caller refuses `no_pr`
   8  gh/infra error → the caller decides (never a silent green)
+  9  wait limit     → still pending at --deadline; the caller stops (re-run later)
   2  usage error
 
 Deterministic: identical check set + identical policy ⇒ identical output.
@@ -107,8 +125,10 @@ import os
 import re
 import subprocess
 import sys
+import time
 
 SELF = "script-ci-status"
+POLLS = 0
 
 RED = {"FAILURE", "ERROR", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED",
        "STARTUP_FAILURE", "STALE"}
@@ -224,7 +244,11 @@ def main():
     ap.add_argument("--head")
     ap.add_argument("--prd")
     ap.add_argument("--branch")
-    ap.add_argument("--input")
+    ap.add_argument("--input", action="append")
+    ap.add_argument("--wait-seconds", type=int, default=0)
+    ap.add_argument("--deadline", type=float)
+    ap.add_argument("--interval", type=float, default=30)
+    ap.add_argument("--empty-grace", type=float, default=120)
     ap.add_argument("--policy", default="devkit/policy.json")
     ap.add_argument("--ga", choices=["true", "false"])
     ap.add_argument("--steps-ci", dest="steps_ci")
@@ -242,78 +266,102 @@ def main():
     if args.steps_ci:
         steps_ci = args.steps_ci
 
-    source = "input"
-    pr_number = pr_url = head = ""
-    error = ""
-    checks = []
+    inputs = list(args.input or [])
+    started = time.time()
+    budget = max(0, args.wait_seconds or 0)
+    global POLLS
+    while True:
+        POLLS += 1
+        cur_input = inputs[min(POLLS - 1, len(inputs) - 1)] if inputs else None
+        source = "input"
+        pr_number = pr_url = head = ""
+        error = ""
+        checks = []
 
-    if args.input:
-        try:
-            with open(args.input, "r", encoding="utf-8") as fh:
-                checks = normalise(json.loads(fh.read()))
-        except (OSError, ValueError) as exc:
-            die("cannot read --input %s: %s" % (args.input, exc))
-
-    elif args.branch:
-        source = "branch"
-        rc, out, err = run(
-            ["gh", "api", "repos/{owner}/{repo}/commits/%s/status"
-             % args.branch], args.repo)
-        if rc != 0:
-            error = re.sub(r"\s+", " ", (err or out))[:160]
-        else:
+        if cur_input:
             try:
-                checks = normalise(json.loads(out))
-            except ValueError as exc:
-                error = "unparseable gh output: %s" % exc
+                with open(cur_input, "r", encoding="utf-8") as fh:
+                    checks = normalise(json.loads(fh.read()))
+            except (OSError, ValueError) as exc:
+                die("cannot read --input %s: %s" % (cur_input, exc))
 
-    else:
-        source = "pr"
-        if args.pr:
-            pr_number = str(args.pr)
+        elif args.branch:
+            source = "branch"
             rc, out, err = run(
-                ["gh", "pr", "view", pr_number, "--json",
-                 "number,url,headRefName,statusCheckRollup"], args.repo)
-        else:
-            head = args.head or branch_from_prd(args.prd)
-            if not head:
-                die("--head or a --prd path that names prd-<n>-<slug>")
-            cmd = ["gh", "pr", "list", "--head", head, "--state", "open",
-                   "--json", "number,url,headRefName,statusCheckRollup",
-                   "--limit", "1"]
-            if args.base:
-                cmd[2:2] = ["--base", args.base]
-            rc, out, err = run(cmd, args.repo)
-        if rc != 0:
-            error = re.sub(r"\s+", " ", (err or out))[:160]
-        else:
-            try:
-                data = json.loads(out or "[]")
-            except ValueError as exc:
-                data, error = None, "unparseable gh output: %s" % exc
-            if isinstance(data, list):
-                data = data[0] if data else None
-            if data is None and not error:
-                emit("", "no_pr", source, [], [], [], [], ga, ga_reason,
-                     steps_ci, "", "", head,
-                     "No open PR for head `%s`%s — pre-merge has not opened "
-                     "one, or it already merged."
-                     % (head, " into `%s`" % args.base if args.base else ""),
-                     "", 7)
-            if data:
-                pr_number = str(data.get("number", "") or "")
-                pr_url = data.get("url", "") or ""
-                head = data.get("headRefName", "") or head
-                checks = normalise(data.get("statusCheckRollup") or [])
+                ["gh", "api", "repos/{owner}/{repo}/commits/%s/status"
+                 % args.branch], args.repo)
+            if rc != 0:
+                error = re.sub(r"\s+", " ", (err or out))[:160]
+            else:
+                try:
+                    checks = normalise(json.loads(out))
+                except ValueError as exc:
+                    error = "unparseable gh output: %s" % exc
 
-    if error:
-        emit("", "gh_error", source, [], [], [], checks, ga, ga_reason,
-             steps_ci, pr_number, pr_url, head,
-             "CI state could not be read (`gh` error) — this is NOT a green "
-             "verdict; resolve the tooling error before merging.", error, 8)
+        else:
+            source = "pr"
+            if args.pr:
+                pr_number = str(args.pr)
+                rc, out, err = run(
+                    ["gh", "pr", "view", pr_number, "--json",
+                     "number,url,headRefName,statusCheckRollup"], args.repo)
+            else:
+                head = args.head or branch_from_prd(args.prd)
+                if not head:
+                    die("--head or a --prd path that names prd-<n>-<slug>")
+                cmd = ["gh", "pr", "list", "--head", head, "--state", "open",
+                       "--json", "number,url,headRefName,statusCheckRollup",
+                       "--limit", "1"]
+                if args.base:
+                    cmd[2:2] = ["--base", args.base]
+                rc, out, err = run(cmd, args.repo)
+            if rc != 0:
+                error = re.sub(r"\s+", " ", (err or out))[:160]
+            else:
+                try:
+                    data = json.loads(out or "[]")
+                except ValueError as exc:
+                    data, error = None, "unparseable gh output: %s" % exc
+                if isinstance(data, list):
+                    data = data[0] if data else None
+                if data is None and not error:
+                    emit("", "no_pr", source, [], [], [], [], ga, ga_reason,
+                         steps_ci, "", "", head,
+                         "No open PR for head `%s`%s — merge has not opened "
+                         "one yet, or it already merged."
+                         % (head, " into `%s`" % args.base if args.base else ""),
+                         "", 7)
+                if data:
+                    pr_number = str(data.get("number", "") or "")
+                    pr_url = data.get("url", "") or ""
+                    head = data.get("headRefName", "") or head
+                    checks = normalise(data.get("statusCheckRollup") or [])
 
-    fail, pend, pas = grade(checks)
-    count = len(checks)
+        if error:
+            emit("", "gh_error", source, [], [], [], checks, ga, ga_reason,
+                 steps_ci, pr_number, pr_url, head,
+                 "CI state could not be read (`gh` error) — this is NOT a green "
+                 "verdict; resolve the tooling error before merging.", error, 8)
+
+        fail, pend, pas = grade(checks)
+        count = len(checks)
+        waiting = bool(pend) and not fail
+        elapsed = time.time() - started
+        if (budget and count == 0 and ga is not False and steps_ci == "ready"
+                and elapsed < min(args.empty_grace, budget)):
+            waiting = True          # workflows not registered yet
+        if not waiting or not budget:
+            break
+        now = time.time()
+        if args.deadline is not None and now >= args.deadline:
+            emit("pending", "wait_limit", source, fail, pend, pas, checks, ga,
+                 ga_reason, steps_ci, pr_number, pr_url, head,
+                 "CI did not finish within the wait limit — still pending: %s. "
+                 "Re-run /merge when CI settles." % ", ".join(pend), "", 9)
+        if now - started + args.interval > budget:
+            break                   # this call's budget is spent; caller re-calls
+        time.sleep(args.interval)
+
 
     if count == 0:
         if ga is False:
@@ -363,6 +411,7 @@ def emit(verdict, reason, source, fail, pend, pas, checks, ga, ga_reason,
         "HEAD_BRANCH=%s" % head,
         "NOTE=%s" % re.sub(r"\s+", " ", note or "").strip(),
         "ERROR=%s" % re.sub(r"\s+", " ", error or "").strip(),
+        "POLLS=%d" % POLLS,
     ]))
     sys.exit(code)
 

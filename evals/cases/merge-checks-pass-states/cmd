@@ -1,0 +1,31 @@
+# merge-2(b) — merge needs pre-merge's pass on the branch tip. No record ⇒ none;
+# pass on the tip ⇒ current; a small, non-risky commit since ⇒ small (quick check,
+# name-matched tests listed); a lock file ⇒ not_small, its lines never counted;
+# a payment-library import ⇒ not_small, its folder reported as a new risky path;
+# a failed verdict ⇒ none.
+export GIT_AUTHOR_DATE="2026-01-15T00:00:00Z" GIT_COMMITTER_DATE="2026-01-15T00:00:00Z"
+G="git -c user.email=fixture@example.invalid -c user.name=fixture -c commit.gpgsign=false"
+S="$REPO/.claude/scripts/script-merge-checks.py"
+C="--catalog $REPO/.claude/skills/shared/refs/component-catalog.md"
+L="$REPO/.claude/scripts/script-premerge-last-check.sh"
+keys() { grep -E '^(PASS_STATE|NEW_COMMITS|CHANGED_LINES|RISKY_FILES|NEW_RISKY_PATHS|TEST_FILES|REASON)='; }
+pass_at_tip() { bash "$L" --write --branch feat/prd-1-a --head "$($G rev-parse HEAD)" --verdict "$1" --now 2026-01-15T00:00:00Z >/dev/null; }
+$G init -q -b feat/prd-1-a .
+printf '.pre-merge/\n' > .gitignore
+mkdir -p src/lib src/billing
+echo "export const a = 1" > src/lib/home.ts; echo "it('a')" > src/lib/home.test.ts
+$G add -A; $G commit -qm c1
+python3 "$S" pass --branch feat/prd-1-a $C | keys; echo "none exit=${PIPESTATUS[0]}"
+pass_at_tip pass
+python3 "$S" pass --branch feat/prd-1-a $C | keys; echo "current exit=${PIPESTATUS[0]}"
+echo "export const b = 2" >> src/lib/home.ts; $G commit -qam c2
+python3 "$S" pass --branch feat/prd-1-a $C | keys; echo "small exit=${PIPESTATUS[0]}"
+pass_at_tip pass_with_warnings
+echo "export const c = 3" >> src/lib/home.ts; seq 1 500 > yarn.lock; $G add -A; $G commit -qm c3
+python3 "$S" pass --branch feat/prd-1-a $C | keys; echo "lock exit=${PIPESTATUS[0]}"
+pass_at_tip pass
+echo "import Stripe from 'stripe'" > src/billing/pay.ts; $G add -A; $G commit -qm c4
+python3 "$S" pass --branch feat/prd-1-a $C | keys; echo "risky exit=${PIPESTATUS[0]}"
+pass_at_tip fail
+python3 "$S" pass --branch feat/prd-1-a $C | keys; echo "fail exit=${PIPESTATUS[0]}"
+exit 0

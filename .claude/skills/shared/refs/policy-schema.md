@@ -30,7 +30,8 @@ The **env-setup contract** is not in `policy.json` at all: it is [`devkit/ENV.md
 | `/msg --update` | **CI decision** — sets/changes `policies.github_actions`, and the **test-selection decision** `policies.test_selection` (the only keys it writes; it otherwise delegates to `/msg --init`'s top-up) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
 | pre-merge setup (the first `/pre-merge` run) | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling, then writes `init:true` with an explicit `--set init=true`. Also scaffolds `devkit/ENV.md` — a devkit doc, not a policy key |
-| merge `--init` | **completion** — fills `branch_protection`, records `staging_ready` (`staged` flow only), flips `init:true` |
+| merge setup (the first `/merge` run) and `/merge --update` | **completion / reconcile** — fills `branch_protection`, `steps.deploy_*`/`smoke`, `policies.merge` (`risky_paths`, `ci_wait_minutes`), records `staging_ready` (`staged` flow only), writes `init:true`. Reads `release_flow` and reports a mismatch — never writes it (`/msg --init` is its one writer) |
+| a `/merge` run | **risky-path growth** — appends a newly found auth/payment folder to `policies.merge.risky_paths` (never removes one) |
 | `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`run`/`tooling`/`status`/`active_when` changes and new components, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
 | pre-merge's critical-test tagging (gate step, test selection on) | **criticality stamp** — writes critical markers into the test files (committed on the branch) and restamps `criticality_review` (`{reviewed_at, suite_hash}`). Never re-grades or removes an existing tag (AC-TS7); writes **no other** policy key |
 
@@ -49,9 +50,9 @@ critical-test tagging step. Setup never writes `devkit/PLATFORMS.md` (that stays
 ```json
 {
   "version": 1,                          // must be 1; any other value → file treated as absent
-  "init": true,                          // lifecycle gate: false → gates auto-run --init first
+  "init": true,                          // lifecycle gate: false → the next gate run sets itself up first
   "generated": "2026-07-16",             // YYYY-MM-DD, stamped by script-policy-set.py
-  "generated_by": "merge --init",   // last writer; informational
+  "generated_by": "merge setup",   // last writer; informational
   "repo": {                              // evidence/audit only — gates never branch on it
     "host": "github",
     "visibility": "private",
@@ -108,16 +109,16 @@ did before the key existed.
 | Field | Type | Required | Default | Notes |
 |---|---|---|---|---|
 | `version` | int | ✔ | — | must be `1`; any other value → whole file treated as absent (AC-S1) |
-| `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--init` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--init` flips it `true` on completion |
+| `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → the next gate run sets itself up first (§0); `true` → gates run the protocol. `/msg --init` seeds `false`; each gate's setup writes `true` on completion |
 | `generated` | `YYYY-MM-DD` | ✔ | — | stamped by `script-policy-set.py` from the system clock (`--stamp-by`); informational |
-| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge setup` \| `pre-merge --update` \| `merge --init` \| `merge --update` | ✖ | — | last writer; informational. Repos initialised before v5 still carry `post-merge --init` / `post-merge --update`; nothing branches on this field, so the old string is read and displayed as written, never rejected or rewritten |
+| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge setup` \| `pre-merge --update` \| `merge setup` \| `merge --update` | ✖ | — | last writer; informational. Older repos may still carry `merge --init`, or (before v5) `post-merge --init` / `post-merge --update`; nothing branches on this field, so the old string is read and displayed as written, never rejected or rewritten |
 | `repo` | object | ✖ | — | evidence/audit only — gates never branch on it |
 | `policies` | object | ✖ | `{}` | the enforced half |
 | `components` | object[] | ✖ | — | the **preflight manifest** — the per-project deltas over the catalog. Purely **additive** to the same file (AC-PF5). Spec: [`policy-schema-pre-merge.md`](policy-schema-pre-merge.md) § `components[]` |
 | `source_signature` | string | ✖ | — | staleness hash of the detect-section tuple across all preflight reports (AC-UP4). Spec: [`policy-schema-pre-merge.md`](policy-schema-pre-merge.md) |
 | `criticality_review` | object | ✖ | — | the test-tree review stamp `{reviewed_at, suite_hash}`. Spec: [`policy-schema-pre-merge.md`](policy-schema-pre-merge.md) |
 | `steps` | object | ✖ | `{}` | per-step decisions — **merge's** `ci` / `deploy_staging` / `deploy_production` / `smoke` keys only. Spec: [`policy-schema-merge.md`](policy-schema-merge.md) |
-| `staging_ready` | object | ✖ | — | per-platform staging-readiness resolved by merge `--init`. Spec: [`policy-schema-merge.md`](policy-schema-merge.md) § 5 |
+| `staging_ready` | object | ✖ | — | per-platform staging-readiness resolved by merge setup / `--update`. Spec: [`policy-schema-merge.md`](policy-schema-merge.md) § 5 |
 
 ### `repo` (informational — gates never branch on it)
 
@@ -233,21 +234,19 @@ Neither loads the other's.
 init = policy.init ?? false          // file present but no `init` → false
 ```
 
-| State | Gate behavior |
-|---|---|
-| file **absent** (repo never ran `/msg --init`) | built-in defaults + a one-line nudge to run `/msg --init`. **No auto-init** — an ad-hoc gate run in an unmanaged repo is never hijacked (back-compat, AC-LC6). |
-| `init: false` | **auto-run `--init` inline before the protocol** (AC-LC2). `--init` completes setup and flips `init:true` (AC-LC3), then the gate continues. If the user **aborts** `--init`, the gate stops — nothing was set up, so it runs **no** protocol step on a half-configured repo (AC-LC4). |
-| `init: true` | run the protocol directly — no init run (AC-LC5). |
+Neither gate has a separate setup command: each gate's **first run** sets itself up
+inline, saves, and continues into the gate in the same run. Each gate tests its **own**
+setup marker, because `init:true` from one gate says nothing about the other:
 
-Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/merge` auto-runs `--init` → `--init` flips `init:true` → every later run is a normal gate. `--init` can still be invoked manually anytime to re-tune (it does not depend on `init`).
+| Gate | Set up when | Not set up ⇒ |
+|---|---|---|
+| pre-merge | `components[]` is present | run pre-merge setup inline (`pre-merge/refs/protocol-init.md`), save, continue. A malformed file stops with its parse error (`pre-merge/refs/executor.md` §0) |
+| merge | `policies.merge` is present **and** `init` is not `false` | run merge setup inline (`merge/refs/protocol-init.md`), save, continue. The user aborts setup ⇒ the gate stops and runs **no** protocol step on a half-configured repo |
+| either | file **absent** | run `/msg --init` first (it seeds the file and owns `release_flow`), then the gate's setup |
 
-> **Pre-merge override.** The pre-merge executor gates on the **`components[]`
-> manifest**, not on the `init` states above: a `/pre-merge` run with no `components[]`
-> (file absent, or a manifest-less policy) **runs pre-merge setup inline**, saves the
-> manifest, then continues into the gate in the same run. It never falls back to
-> built-in defaults. A malformed file stops with its parse error. See
-> `pre-merge/refs/executor.md` §0. Merge still follows the `init` table above until its
-> own executor lands.
+Lifecycle: `/msg --init` seeds `{init:false}` → the first `/pre-merge` and the first
+`/merge` each run their own setup → each setup writes `init:true` → every later run is a
+normal gate. To redo setup, run `/pre-merge --update` or `/merge --update`.
 
 ## 1 · `release_flow` (both gates)
 

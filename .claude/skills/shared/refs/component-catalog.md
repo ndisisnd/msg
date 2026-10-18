@@ -226,6 +226,27 @@ the universal rows plus the rows for each detected platform.
 | **apple** | `*.xcodeproj/**` · `*.xcworkspace/**` · `Package.swift` · `Podfile.lock` · `*.xctestplan` | target/scheme membership decides *which* tests exist |
 | **android** | `*.gradle*` · `gradle/libs.versions.toml` · `gradle.properties` · `settings.gradle*` | module graph + dependency catalog |
 
+### Risky libraries (merge's `policies.merge.risky_paths`)
+
+merge treats a change as **risky** when it touches a path in
+`policies.merge.risky_paths` (`policy-schema-merge.md` § `policies.merge`). Setup
+seeds that list from the `force_full_paths` rows above (universal + each detected
+scope) plus the three fixed globs below. It then finds the real auth and payment
+folders **by library use, not by folder name**: a file whose import line names an
+import token, or whose code names a call token, marks its folder risky.
+`script-merge-checks.py` parses this section; keep the table shape.
+
+| Kind | Import tokens | Call tokens |
+|---|---|---|
+| fixed | `**/auth/**` · `**/payments/**` · `.github/workflows/**` | — |
+| auth | `next-auth` · `@auth/` · `@clerk/` · `passport` · `jsonwebtoken` · `jose` · `bcrypt` · `argon2` · `firebase/auth` · `@supabase/auth-helpers` · `django.contrib.auth` · `flask_login` · `devise` · `AuthenticationServices` · `FirebaseAuth` | `supabase.auth.` · `getServerSession(` |
+| payments | `stripe` · `@stripe/` · `@paddle/` · `braintree` · `@lemonsqueezy/` · `StoreKit` · `RevenueCat` · `com.android.billingclient` | `Stripe(` · `BillingClient` |
+
+The `fixed` row holds globs, not tokens. A token matches only on an import-like
+line (`import`, `from`, `require(`, `use`, `#import`, `implementation`); a call
+token matches on any line. Lock files, `node_modules/`, `vendor/`, `dist/`,
+`build/` and Markdown are never searched.
+
 ### `critical_markers` defaults (the critical floor's vocabulary)
 
 Tags live **in test code** — ground truth, reviewed in PRs. Policy records only

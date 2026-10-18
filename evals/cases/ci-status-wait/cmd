@@ -1,0 +1,9 @@
+# merge-2(e) — merge waits for CI. While checks are pending the script re-reads
+# (poll n reads the n-th --input file) until the run settles; still pending at
+# --deadline ⇒ REASON=wait_limit, exit 9. Without --wait-seconds it reads once.
+S="$REPO/.claude/scripts/script-ci-status.py"
+K='^(VERDICT|REASON|POLLS)='
+python3 "$S" --input pending.json --input pending.json --input green.json --wait-seconds 60 --interval 0 --ga true --steps-ci ready 2>/dev/null | grep -E "$K"; echo "exit=${PIPESTATUS[0]}"
+python3 "$S" --input pending.json --input red.json --wait-seconds 60 --interval 0 --ga true --steps-ci ready 2>/dev/null | grep -E "$K"; echo "exit=${PIPESTATUS[0]}"
+python3 "$S" --input pending.json --wait-seconds 60 --interval 0 --deadline 0 --ga true --steps-ci ready 2>/dev/null | grep -E "$K"; echo "exit=${PIPESTATUS[0]}"
+python3 "$S" --input pending.json --ga true --steps-ci ready 2>/dev/null | grep -E "$K"; echo "exit=${PIPESTATUS[0]}"

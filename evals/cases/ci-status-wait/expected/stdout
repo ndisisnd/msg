@@ -1,0 +1,16 @@
+VERDICT=green
+REASON=ok
+POLLS=3
+exit=0
+VERDICT=red
+REASON=failing_checks
+POLLS=2
+exit=3
+VERDICT=pending
+REASON=wait_limit
+POLLS=1
+exit=9
+VERDICT=pending
+REASON=pending_checks
+POLLS=1
+exit=4

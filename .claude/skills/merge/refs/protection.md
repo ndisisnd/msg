@@ -65,4 +65,4 @@ force-pushes on both; ≥1 required review on `main`) and is idempotent. Surface
 this exact command in the refusal so the human can self-serve.
 
 Merge never sets protection itself — it only verifies. Bootstrapping is an
-explicit, remote-mutating action owned by `--init` / the human.
+explicit, remote-mutating action owned by merge setup / `--update` (on the human's yes) or the human.
