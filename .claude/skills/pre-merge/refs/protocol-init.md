@@ -52,8 +52,14 @@ Both gate skills run the same seven-step setup contract. Pre-merge's flavor:
    clock). `--stamp-by` alone never sets `init`; the explicit `--set init=true` is what
    flips it. The written file must re-load with **zero** validation warnings. Scaffold
    `devkit/ENV.md` in the same pass.
-7. **Summary** — a step→status table to the terminal, then **continue into the gate**
-   (first run) or end (`--update`). Setup opens no PR and merges nothing.
+7. **Commit, then summary** — commit the setup outputs on the feature branch as **one**
+   commit, `chore(pre-merge): setup`, staging explicit paths only: `devkit/policy.json`,
+   `devkit/ENV.md`, each approved stub config and workflow file, and any dependency
+   manifest or lockfile an approved install changed. Nothing else is staged; an output
+   the user did not approve is never committed. Then print a step→status table to the
+   terminal and **continue into the gate** (first run) or end (`--update`). The gate
+   needs a clean tree, so a first run never enters it with setup files uncommitted.
+   Setup opens no PR and merges nothing.
 
 ---
 

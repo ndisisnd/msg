@@ -119,7 +119,7 @@ diff honest: a script re-reporting `no_tooling` never overwrites a settled `opte
 | `findings` | canonical finding[] | `../shared/refs/finding-schema.md` shape, `source = <check>` |
 | `log_path` | string | raw stage log |
 | `skip_reason` | string \| `null` | required when `verdict: skipped` (AC-RR6) |
-| `selected` / `total` | int | **additive (v4)** — test counts, written **only** by a selection-capable check that actually ran minified (`pre-merge/refs/universal/protocol-unit.md` / `-integration.md` / `-regression.md`). A full or selection-off run carries neither |
+| `selected` / `total` | int | **additive (v4)** — test counts, written **only** by a selection-capable check that actually ran minified (`pre-merge/refs/universal/protocol-tests.md` / `pre-merge/refs/universal/protocol-regression.md`). A full or selection-off run carries neither |
 | `fallback_reason` | string | **additive (v4)** — written only when selection was on but this check ran full anyway; the rule step that fired, verbatim in `pre-merge/refs/output-schema.md`'s vocabulary. The executor reads these three fields to build the verdict JSON's `test_selection.per_check` |
 | `test_selection_note` | string | **additive (v4)**, `coverage` only — set when an upstream `unit`/`integration` ran minified and the total-coverage ratchet was therefore skipped (`pre-merge/refs/universal/protocol-coverage.md`) |
 

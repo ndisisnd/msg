@@ -92,11 +92,11 @@ Two rules the pass never breaks:
 1. Write the `critical` markers into the test files, using the platform's mechanism
    (title tag / `@pytest.mark.critical` / rename to `TestCritical*` / add the suite to
    `Critical.xctestplan` / add the `@Critical` annotation).
-2. Commit them on the branch as **one commit**:
-   `test(criticality): tag <n> critical tests` — one commit, so the diff is
-   reviewable as a unit.
-3. **Restamp `criticality_review`** — `{reviewed_at: <today>, suite_hash: <recomputed>}`
+2. **Restamp `criticality_review`** — `{reviewed_at: <today>, suite_hash: <recomputed>}`
    via `.claude/scripts/script-policy-set.py`. No other policy key changes.
+3. Commit the tagged test files **and** `devkit/policy.json` on the branch as **one
+   commit**: `test(criticality): tag <n> critical tests` — one commit, so the diff is
+   reviewable as a unit and the tree is clean after the pass.
 4. **List the tags in the report**: a `### Critical tests tagged` block under the run
    report's `## Work done` — one line per tagged test with its evidence line, plus the
    one-line summary *"N tagged critical, M left untagged — the critical floor is now K

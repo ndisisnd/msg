@@ -114,7 +114,7 @@ write nothing.
 
 > header **GitHub Actions**, question "GitHub Actions CI is currently **`<enabled|disabled>`**`<, reason: "<reason>"` when disabled`>`. Change it?"
 > - **Keep it as is** — write nothing; `policy.json` is untouched.
-> - **Turn it on** — CI runs on Actions; pre-merge setup (the first `/pre-merge` run) will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
+> - **Turn it on** — CI runs on Actions; `/pre-merge --update` (or the first run, when not yet set up) will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
 > - **Turn it off** — no workflow is scaffolded and `/merge` accepts a PR with **zero** checks instead of flagging it. For repos with no Actions minutes (private repo on GitHub Free), or CI hosted elsewhere. Red or pending checks from any CI still block the merge; every human gate stands.
 
 When the current state is *absent*, phrase it as "not set (defaults to enabled)"

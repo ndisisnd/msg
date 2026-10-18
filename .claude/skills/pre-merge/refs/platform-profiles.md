@@ -37,7 +37,7 @@ Independent of tolerance, these always run and always gate:
 
 - **`security`** — secret scan + SAST.
 - **`migration`** — static SQL-safety scan when the diff touches migrations.
-- **The branch-protection green-CI requirement** the PR opens against. Pre-merge holds no human gate of its own — the human look lives at merge (`../../shared/refs/safety-floor.md` § *Human gates*).
+- **The branch-protection green-CI requirement** — enforced at `/merge`, which opens the PR and merges only on green CI. Pre-merge holds no human gate of its own — the human look lives at merge (`../../shared/refs/safety-floor.md` § *Human gates*).
 - The `../../shared/refs/safety-floor.md` safety floor (DB/data pauses, breaking-change pauses, branch isolation, secret scan, no unsanctioned writes).
 
 Tolerance moves **strictness + severity thresholds only** — it never adds or removes

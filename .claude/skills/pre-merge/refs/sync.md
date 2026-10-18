@@ -1,13 +1,14 @@
 ---
 name: sync
-description: SYNC — the un-prunable DAG root: fetch + merge the run's resolved base into the feature branch. Trivial conflicts auto-resolve; a same-lines conflict aborts the merge and is asked in the main conversation, never inside the gate. This sync-merge commit is pre-merge's ONLY direct write.
+description: SYNC — the un-prunable DAG root: fetch + merge the run's resolved base into the feature branch. Trivial conflicts auto-resolve; a same-lines conflict aborts the merge and is asked in the main conversation, never inside the gate. This sync-merge commit is one of pre-merge's three bounded direct writes (beside the first-run setup commit and the critical-test tag commit).
 ---
 
 # SYNC (D7) — the un-prunable DAG root
 
 Bring the feature branch up to date with the base (`staging`, else `main`) before gating, so the gate
-grades what will actually merge. The resulting sync-merge commit is pre-merge's
-**only** direct write to the repo (B4) — mechanical, one correct answer or a pause.
+grades what will actually merge. The resulting sync-merge commit is a bounded direct
+write to the repo (B4), beside the first-run setup commit (`protocol-init.md` step 7)
+and the critical-test tag commit (`executor.md` §3c.4) — mechanical, one correct answer or a pause.
 
 ## Preconditions
 
@@ -48,7 +49,8 @@ non-negotiable regardless of profile.
 
 ## Write scope
 
-The sync-merge commit is the sole carve-out to pre-merge's no-write rule (beside the
-critical-test tags, `executor.md` §3c.4). Pre-merge still never edits source, never
+The sync-merge commit is one of three carve-outs to pre-merge's no-write rule, beside the
+first-run setup commit (`protocol-init.md` step 7) and the critical-test tags
+(`executor.md` §3c.4). Pre-merge still never edits source, never
 `git push`, never opens a PR, never `gh pr merge`/`git merge` into `main`. Regression-test writes happen via the `regression` component's spawned eng subagent, never
 by pre-merge's own hand.

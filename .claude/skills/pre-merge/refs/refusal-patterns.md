@@ -5,7 +5,7 @@ description: The canonical refusal shapes for pre-merge. Defines no_diff, schema
 
 # Refusal Patterns
 
-Pre-merge emits a structured refusal JSON and terminates on these conditions. Refusals always exit non-zero (except `user_declined` and `sync_conflict`, which exit zero — those are the `skipped` verdict, not a refusal). A missing manifest is not a refusal: the first run sets the project up, then gates (`executor.md` §0).
+Pre-merge emits a structured refusal JSON and terminates on these conditions. Refusals always exit non-zero (except `sync_conflict`, which exits zero — that is the `skipped` verdict, not a refusal). A missing manifest is not a refusal: the first run sets the project up, then gates (`executor.md` §0).
 
 Refusals are emitted as the sole JSON output. No other text follows.
 
@@ -23,7 +23,7 @@ Refusals are emitted as the sole JSON output. No other text follows.
 {
   "verdict": "refused",
   "reason": "no_diff",
-  "detail": "Working tree matches <base>. /pre-merge requires a diff to gate. To check committed work, supply --base <ref> pointing at the merge target; to check against a prior PR state, use --base <sha>.",
+  "detail": "The branch matches <base>. /pre-merge requires a diff to gate. Commit the work on the feature branch, then run /pre-merge again.",
   "base": "<base ref>",
   "prior_issues_loaded": false,
   "issues": []
@@ -109,8 +109,7 @@ Refusals are emitted as the sole JSON output. No other text follows.
 | Schema mismatch | Refusal JSON (`refused/schema_mismatch`) | 1 |
 | Modify instruction | Refusal JSON (`refused/out_of_scope_modify`) | 1 |
 | Push/merge instruction | Refusal JSON (`refused/out_of_scope_action`) | 1 |
-| Any blocker or high finding | Full output JSON (`fail`) | 1 |
+| Any blocking finding (blocker/high; a PRD-check finding only as acceptance-unmet) | Full output JSON (`fail`) | 1 |
 | Only medium/low findings | Full output JSON (`pass_with_warnings`) | 0 |
 | Zero findings | Full output JSON (`pass`) | 0 |
-| User declined gate | Skipped JSON (`skipped`) | 0 |
 | Same-lines sync conflict (asked in the main conversation) | Skipped JSON (`skipped/sync_conflict`) | 0 |

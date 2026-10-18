@@ -2,6 +2,15 @@
 
 ## 2026-10-17
 
+### [194] v6.0.0 pre-merge — setup and tag passes commit their files; write scope and docs match
+
+- `.claude/skills/pre-merge/refs/protocol-init.md`: Changed — setup step 7 commits its approved outputs as one `chore(pre-merge): setup` commit before the gate continues.
+- `.claude/skills/pre-merge/refs/protocol-criticality.md`: Changed — restamp `criticality_review` first, then commit tags and `devkit/policy.json` in one `test(criticality)` commit.
+- `.claude/skills/pre-merge/SKILL.md`, `pre-merge/refs/{sync,executor}.md`, `shared/refs/safety-floor.md`: Changed — write scope names the setup commit and the tag commit beside the sync merge.
+- `.claude/skills/shared/refs/check-report-schema.md`: Fixed — dangling links to removed `protocol-unit`/`-integration` refs.
+- `.claude/skills/pre-merge/refs/{refusal-patterns,output-schema,platform-profiles}.md`: Changed — no `--base` advice, no `user_declined`, blocking-finding wording, `head` field, green CI enforced at `/merge`.
+- `.claude/skills/shared/refs/policy-schema.md`, `msg/refs/protocol-update.md`, `llms.txt`: Changed — `/pre-merge --update` writer name, per-gate setup note, pre-merge stays local.
+
 ### [193] v6.0.0 merge — docs and menu match the new merge
 
 - `.claude/skills/msg/SKILL.md`, `msg/refs/{protocol-help,protocol-init}.md`: Changed — menu row and flow line: bare `/merge`, `--update`, first-run setup.

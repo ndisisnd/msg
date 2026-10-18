@@ -17,7 +17,7 @@ lanes:
 | Skill | May write | Must never |
 |---|---|---|
 | `eng` | commits to `feat/prd-<n>-*` **feature branches only** | push to / merge into / open a PR against `staging` or `main` |
-| `pre-merge` | the D7 sync-merge commit, and the critical-test tag commit when test selection is on — all local | push; open or merge any PR; touch `main`; modify source |
+| `pre-merge` | the first-run setup commit (`chore(pre-merge): setup`), the D7 sync-merge commit, and the critical-test tag commit when test selection is on — all local | push; open or merge any PR; touch `main`; modify source |
 | `merge` | the **only** skill that pushes a feature branch, opens its PR and merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `merge/refs/sanctioned-writes.md` | force-push; open a PR without pre-merge's pass on the tip; reach `main` any other way than the confirmed release; merge on red/pending CI; self-certify staging; modify source |
 | `emulate` | **nothing in the repo** — no commit, branch, PR, stamp or report; its only writes are its own launch logs under `.emulate/` | modify source; write any tracked file; touch `.gitignore` |
 | all others | their own artifacts (PRDs, reports, tickets, devkit appends) | push, merge, or open PRs |

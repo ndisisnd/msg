@@ -2,7 +2,7 @@
 
 > A Claude Code skill harness for structured software delivery: a gated pipeline from idea to production release, where a human approves at every gate.
 
-msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt Claude Code loads when the user types `/name` — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` opens a PR but never merges, and `merge` is the only skill that merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
+msg is prompts, not a program. Each skill is a `SKILL.md` — a structured prompt Claude Code loads when the user types `/name` — backed by bash and Python helpers in `.claude/scripts/` that do everything decidable without a model. The one constraint that isn't obvious from the file tree: write powers are scoped per skill and the human gates are non-negotiable. `eng` only commits to feature branches, `pre-merge` stays local and never pushes, opens a PR or merges, and `merge` is the only skill that pushes, opens the PR and merges anything. If you're changing behaviour, read `safety-floor.md` before you read anything else.
 
 ## Docs
 
@@ -21,7 +21,7 @@ Each is the router for its own behaviour — start here to change what a skill d
 - [plan-review](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-review/SKILL.md): seven-check contract certifier, each check bound to a named downstream consumer
 - [plan-em](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-em/SKILL.md): engineering manager — picks the specialist roster (asks only when it is unusual), then fans out subagents per wave
 - [eng](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/eng/SKILL.md): `--plan` / `--build` / `--review` / `--bug` — the only skill that writes product code
-- [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the CI gate — manifest-driven pipeline executor, fixes what fails, stays local (never pushes or opens a PR)
+- [pre-merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/pre-merge/SKILL.md): the CI gate — manifest-driven pipeline executor, fixes what fails, stays local (never pushes or opens a PR), ends `Next: /merge`
 - [merge](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/merge/SKILL.md): the ship gate — the only pusher, PR opener and merger; bare `/merge` picks the next step, `--staging` sign-off, `--production` release, `--update` settings
 - [emulate](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/emulate/SKILL.md): the local run lane — boots a simulator/emulator on the current branch; a leaf, outside the pipeline
 

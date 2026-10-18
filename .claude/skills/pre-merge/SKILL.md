@@ -48,7 +48,7 @@ Natural language: "run pre-merge", "gate this before merge", "check this branch"
 
 Shapes and JSON in `refs/refusal-patterns.md`. Pre-merge:
 - Does NOT run on built-in defaults. No `components[]` in `devkit/policy.json` ⇒ setup runs first, saves the manifest, then the gate runs (`refs/executor.md` §0).
-- Does NOT modify source code itself. Its only direct writes are the SYNC (D7)-bounded sync-merge commit and, when test selection is on, the critical-test tag commit (`refs/protocol-criticality.md`); regression tests and fixes are written by eng, never by pre-merge.
+- Does NOT modify source code itself. Its only direct writes are the first-run setup commit (`refs/protocol-init.md` step 7), the SYNC (D7)-bounded sync-merge commit and, when test selection is on, the critical-test tag commit (`refs/protocol-criticality.md`); regression tests and fixes are written by eng, never by pre-merge.
 - Does NOT `git push`, open a PR, `gh pr merge`, `git merge` into `main`, or deploy. The branch stays local; `/merge` pushes it and opens the PR.
 - Does NOT run without a non-empty diff against base (`no_diff`). A missing `staging` branch is NOT a blocker — the base falls back to `main`, no warning, no refusal.
 - Does NOT grade a finding as blocker without quoted tool evidence. Does NOT compute a verdict by hand — `script-aggregate-verdict.sh` does (`refs/executor.md` §5b). Does NOT mutate `components[]` in a gate run — only setup and `--update` do. The manifest staleness nudge (`refs/executor.md` §0) is read-only.

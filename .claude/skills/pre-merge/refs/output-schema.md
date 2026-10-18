@@ -12,6 +12,7 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "run_id": "<uuid-or-timestamp>",
   "base": "<git ref used as base>",
   "branch": "<current branch name>",
+  "head": "<sha of the checked commit>",
   "timestamp": "<ISO 8601>",
   "commit_count": 0,
   "files_changed": ["path/to/file.ts"],
@@ -42,12 +43,13 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 }
 ```
 
+- `head` — the commit the gate checked: `git rev-parse HEAD` after the sync and any regression or tag commits. The same value goes into `.pre-merge/last-check.json` (`executor.md` §6), which `/merge` reads to confirm the pass is on the branch tip.
 - `profile` — the platform-tolerance profile resolved for this run.
 - `issues_file` — path to the issues file (the **universal report**, C7) written on a non-clean verdict (`fail`), consumed by `eng --build report=`; `null` on a clean pass. NO-PRD runs fall back to `features/reports/report-<K>.json`.
 - `pr_url` — always `null`: pre-merge never pushes and never opens a PR (`/merge` does). The key stays for readers of older verdicts.
 - `pipeline` — **additive, optional** (v3): the resolved, ordered wave list the executor ran + which components each flag pruned. Observability only — its absence does not change any other field. Under test selection its per-component entries carry the selection suffix — `"unit: minified (42/731, tier S)"`.
 - `test_selection` — **additive, optional** (v4): what the run's minified test selection did. **Emitted only when selection actually ran** (`policies.test_selection` enabled, or `--minified`, and not `--full`); **absent** on a full or disabled run — absence is the pre-key shape, never a signal to interpret. Its presence never changes any other field, and `verdict`/`summary`/`issues[]` semantics are identical to a full run. See [`test_selection`](#test_selection--minified-run-honesty) below.
-- **All keys above are unchanged from pre-v3; `pipeline` and `test_selection` are additive new keys, never renames of anything existing.**
+- **All keys above are unchanged from pre-v3; `head`, `pipeline` and `test_selection` are additive new keys, never renames of anything existing.**
 
 ## `test_selection` — minified-run honesty
 
@@ -86,9 +88,9 @@ shape in `refs/executor.md` §5 and `../../shared/refs/check-report-schema.md`.
 |---|---|---|
 | `"pass"` | Zero findings | 0 |
 | `"pass_with_warnings"` | Only medium / low findings | 0 |
-| `"fail"` | Any blocker or high finding | 1 |
+| `"fail"` | Any blocking finding (blocker/high; a PRD-check finding only as acceptance-unmet) | 1 |
 | `"refused"` | Early termination — clean tree, schema mismatch, or out-of-scope instruction | 1 |
-| `"skipped"` | User declined at the SYNC conflict pause | 0 |
+| `"skipped"` | Same-lines sync conflict, asked in the main conversation (`sync_conflict`) | 0 |
 
 ## issues[] entry shape
 
