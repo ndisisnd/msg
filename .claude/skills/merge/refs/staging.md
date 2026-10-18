@@ -109,7 +109,8 @@ heartbeat). Green ⇒ Step 3. Every stop there (`no_premerge_pass`, `push_reject
 `red_ci`, `pending_ci`, a `gh` error) happens **before** the merge, so nothing has
 changed on `staging`. **Already merged** (`refs/open-pr.md` §0 — a re-run after **Not
 yet**, with no new commits) ⇒ skip Steps 3–5 with that PR's merge commit as
-`CERTIFIED_SHA`, and go to Step 6.
+`CERTIFIED_SHA`, close the heartbeat (`"$S" --end --run-id "$RUN_ID" --outcome "already merged — asking for the sign-off again"`),
+and go to Step 6.
 
 ## Test-selection-miss detection (`policies.test_selection` backstop attribution)
 

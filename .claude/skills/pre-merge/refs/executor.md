@@ -527,9 +527,9 @@ places, so "why did this take 40 minutes" is answerable from the artifacts.
 
 When `selection_on` is true, **before** the rule above picks any test, run the
 critical-test tagging pass (`protocol-criticality.md`): find untagged tests, tag the
-ones that must always run (with cited evidence), commit the tags on the branch as one
-`test(criticality): …` commit, restamp `criticality_review`, and list the tags in the
-run report. No question — a wrong "critical" tag only makes a test run more often.
+ones that must always run (with cited evidence), restamp `criticality_review`, then
+commit the tags and `policy.json` in one `test(criticality): …` commit, and list the
+tags in the run report. No question — a wrong "critical" tag only makes a test run more often.
 No critical-marker vocabulary from setup ⇒ skip the pass and say so in the report.
 This and the sync-merge commit are the gate's only file writes. Selection off ⇒ the
 pass is skipped.

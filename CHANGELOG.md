@@ -2,6 +2,12 @@
 
 ## 2026-10-18
 
+### [201] v6.0.0 final — merge and pre-merge wording matches the new flows
+
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — tagging pass restamps `criticality_review` first, then commits the tags and `policy.json` in one commit.
+- `.claude/skills/shared/refs/policy-schema-merge.md`: Changed — lock release timing drops the inline human-test refusal (now asked before the lock) and lists `pending_ci`.
+- `.claude/skills/merge/refs/staging.md`: Changed — the already-merged skip path closes the heartbeat before Step 6.
+
 ### [200] v6.0.0 final — msg wording matches the new update and setup flows
 
 - `.claude/skills/msg/refs/protocol-update.md`: Changed — approval input names the real options; no change lines ⇒ ask only the settings questions.
