@@ -85,7 +85,7 @@ S=.claude/scripts/script-policy-read.py; python3 "$S"     # devkit/policy.json
 
 | policy state | action |
 |---|---|
-| file **absent** | run `/msg --init` first (it seeds the file), then merge setup inline, then continue |
+| no `devkit/`, or file **absent** | setup runs by itself: `/msg --init` first (it seeds the file — `../shared/refs/setup-first.md`), then merge setup inline, then continue |
 | no `policies.merge` record (`MERGE_RISKY_PATHS_STATE=absent`), or `init: false` | **run merge setup inline first** (`refs/protocol-init.md`), save, then continue into the mode in the same run; user aborts setup → stop, run no protocol step |
 | set up | proceed to Step 1 directly |
 

@@ -43,7 +43,7 @@ allowed_tools:
 .claude/scripts/script-policy-set.py --file devkit/policy.json --set policies.plan_pm.review=<true|false>
 ```
 
-No `devkit/policy.json` → say the setting needs `/msg --init`, and use the value for this run only. The switch is on when the bare `--review` flag is set or `policies.plan_pm.review` is `true`; absent = off. On → after the digest, run `Skill("plan-review", "<prd>")` (default and `--sub` only), and its result replaces the plan-review suggestion. Off → the closing message suggests `/plan-review`.
+No `devkit/policy.json` (a project set up before the file existed) → say `/msg --update` adds it, and use the value for this run only. The switch is on when the bare `--review` flag is set or `policies.plan_pm.review` is `true`; absent = off. On → after the digest, run `Skill("plan-review", "<prd>")` (default and `--sub` only), and its result replaces the plan-review suggestion. Off → the closing message suggests `/plan-review`.
 
 **Modes:** default (autonomous top-level PRD from an intake row), `--sub` (a numbered follow-up nested under an existing parent PRD), `--update` (change what an existing PRD says), and `--migrate` (convert existing PRDs to the current template, no content change). When `--sub` is present — flag or sub-PRD natural-language trigger — read § Sub-PRD mode (`--sub`) first; all other steps run identically. `--update` and `--migrate` each replace the five-step protocol entirely. "Update" means a content change here, as it does in `/intake`.
 
@@ -64,7 +64,7 @@ Before Step 1, stat-check and read the following in parallel via `Bash`. Written
 
 `devkit/GLOSSARY.md` and `devkit/DESIGN-SYSTEM.md` are **not** read here: the PRD has no Glossary section (new terms are appended to `devkit/GLOSSARY.md` directly, where the whole pipeline sees them) and no User flow / Key user interactions sections, which were their only stated consumers.
 
-**Absent-file rule:** If `devkit/` does not exist, emit `devkit/ not found — run /msg --init to initialise the project first.` and proceed. If an individual file is missing, emit `<filename> not found — run /msg --init to initialise the project first.` Proceed without the file; do not create it. Do not ask the user about these files. Do not block. Proceed to Step 1 immediately.
+**Absent-file rule:** If `devkit/` does not exist, setup runs by itself first: run `/msg --init`, then continue this command (`../shared/refs/setup-first.md`). If an individual file is missing, emit `<filename> not found — /msg --update adds it.` Proceed without the file; do not create it. Do not ask the user about these files. Do not block. Proceed to Step 1 immediately.
 
 ## Sub-PRD mode (`--sub`)
 

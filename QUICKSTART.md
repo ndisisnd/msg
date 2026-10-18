@@ -51,13 +51,9 @@ Restart Claude Code, then run `/msg`.
 
 ### 3. `/msg --init`
 
-A batched interview — project basics, architecture, design system, release flow — then deterministic scaffolding.
+One batched interview — project basics, architecture, sign-in, release flow, design system (≤4 prompts) — then deterministic scaffolding. msg asks; you decide.
 
-| Mode | Behaviour |
-|------|-----------|
-| `/msg --init --cto` | Advisory — msg recommends architecture, language, conventions, release flow, design system |
-| `/msg --init --eng` | Direct — msg asks, you decide |
-| `/msg --init` | Asks which mode first |
+You can skip this step: any msg command (for example `/intake`) that finds no `devkit/` runs this setup by itself first, then carries on with what you asked for.
 
 Creates `devkit/AHA.md`, `ARCHITECTURE.md`, `DESIGN-SYSTEM.md`, `DOCTOR.md`, `ENV.md`, `GLOSSARY.md`, `OPEN-QUESTIONS.md`, `PLATFORMS.md`, seeds `devkit/policy.json` (`init:false` + release flow), writes the root `INTAKE.md` backlog ledger, and drops `roadmap/TEMPLATE-roadmap.md` for when you want to sequence PRDs by hand.
 

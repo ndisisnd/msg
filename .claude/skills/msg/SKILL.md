@@ -1,14 +1,18 @@
 ---
 name: msg
 description: >
-  Root menu for msg skills, plus harness modes. `--init` is the one-time
-  project bootstrap — use it when the user says "initialise project",
-  "bootstrap repo", "set up the framework", "start a new project", or asks
-  to set up project structure in an empty repo. Other modes: `--init-staging`
-  (add a staging branch), `--update` (re-scan a bootstrapped repo), `--gui`
-  (local PRD board), `--doctor` (tally and triage the harness-incident ledger),
-  `--aha` (sweep, triage, and compact the devkit/AHA.md learnings ledger),
-  `--version` (print the installed release in one line), `--help` (guided skill picker).
+  Root menu for msg skills, plus harness modes. Bare `/msg` says the next step
+  for each PRD in progress and offers to run it — use it when the user says
+  "what's next", "where am I", "what should I run now". `--init` is the
+  project setup — use it when the user says "initialise project", "bootstrap
+  repo", "set up the framework", "start a new project", or asks to set up
+  project structure in an empty repo; every msg skill also runs it by itself
+  when `devkit/` is missing. Other modes: `--init-staging` (add a staging
+  branch), `--update` (one pass that updates msg, pre-merge and merge
+  settings, with one approval), `--gui` (local PRD board), `--doctor` (tally
+  and triage the harness-incident ledger), `--aha` (sweep, triage, and compact
+  the devkit/AHA.md learnings ledger), `--version` (print the installed
+  release in one line), `--help` (guided skill picker).
 argument-hint: "[--init | --init-staging | --update | --gui | --doctor | --aha | --version | --help]"
 allowed_tools:
   - AskUserQuestion
@@ -30,27 +34,23 @@ Check the invocation before running any picker. First match wins.
 
 | Invocation | Also triggers on (natural language) | Route |
 |---|---|---|
-| `/msg --init` (+ `--cto` / `--eng`) | "initialise project", "bootstrap repo", "set up the framework", "start a new project" | [`refs/protocol-init.md`](refs/protocol-init.md) |
+| `/msg --init` | "initialise project", "bootstrap repo", "set up the framework", "start a new project" | [`refs/protocol-init.md`](refs/protocol-init.md) |
 | `/msg --init-staging` | "add a staging branch", "set up staging", "switch to a staged release flow" | [`refs/protocol-init-staging.md`](refs/protocol-init-staging.md) |
-| `/msg --update` | "check for msg updates", "reinitialise this project", "resync my init setup", "are there new init components" | [`refs/protocol-update.md`](refs/protocol-update.md) |
+| `/msg --update` | "check for msg updates", "reinitialise this project", "resync my init setup", "are there new init components", "update everything" | [`refs/protocol-update.md`](refs/protocol-update.md) — msg's update, then pre-merge's and merge's `--update`, one change list, one approval |
 | `/msg --gui`, or the bare word `gui` | "open gui for PRDs", "show me the PRD board", "visualize my PRDs", "open kanban" | [`refs/protocol-gui.md`](refs/protocol-gui.md) — render directly, never call `AskUserQuestion` first |
 | `/msg --doctor` | "check the harness", "what keeps failing", "run the doctor", "triage the incident log" | [`refs/protocol-doctor.md`](refs/protocol-doctor.md) — tallies and triages `devkit/DOCTOR.md`; **never fixes** |
 | `/msg --aha` | "prune the learnings", "sweep AHA", "trim the aha log", "triage the learnings ledger" | [`refs/protocol-aha.md`](refs/protocol-aha.md) — triages and compacts `devkit/AHA.md`; only write is the ledger itself, promotions stay recommendations |
 | `/msg --version`, or the bare word `version` | "which msg is this", "what version of msg do I have", "did the reinstall land", "is msg up to date" | [`refs/protocol-version.md`](refs/protocol-version.md) |
 | `/msg --help` | — | [`refs/protocol-help.md`](refs/protocol-help.md) |
-| `/msg` (no args) | — | [`refs/protocol-default.md`](refs/protocol-default.md) — the category/skill picker over the Skills table below |
+| `/msg` (no args) | "what's next", "where am I", "what should I run now" | [`refs/protocol-default.md`](refs/protocol-default.md) — the next step per PRD in progress (`script-msg-next.py`), then run one or show the category/skill picker over the Skills table below |
 
-**`--init` sub-flags.** `--init` takes the only sub-flags in msg's surface — every other mode is
-a bare flag off `/msg`. They select the Step 2 interview mode: `--init --cto` (advisory — msg
-recommends the technical decisions) and `--init --eng` (direct — msg asks, the user decides).
-Pass the mode through to the protocol. **Bare `--init` carries no mode, and neither does any
-natural-language phrasing — all of them land on the protocol's mode gate**, which is the right
-default: NL phrasing correlates with the less-technical user, who is exactly who cto mode is for.
-An **unrecognised sub-flag** (`--init --foo`) is never silently ignored — it also falls to the gate.
+**Setup runs by itself.** Every msg skill that finds no `devkit/` runs `/msg --init` first
+(its one interview), then continues the command the user asked for. `/msg --init` stays for
+a manual run. `--init` takes no sub-flags; an unknown one is ignored with a one-line note.
 
 **Closing message.** `--init`, `--update`, `--init-staging`, `--doctor`, and `--aha` runs end with the closing message
 per [`../shared/refs/closing-message.md`](../shared/refs/closing-message.md) — the last chat
-output, after the protocol's own output. The pure-emission modes (default picker, `--gui`,
+output, after the protocol's own output. The pure-emission modes (bare `/msg`, `--gui`,
 `--version`, `--help`) are exempt: their "Stop. Do not emit anything else." / render contracts stand unchanged.
 
 **Harness incidents.** The same five modes log unexpected script failures, tool errors, retries,
@@ -62,7 +62,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 
 | Category | Skill | Description |
 |----------|-------|-------------|
-| Planning | msg --init | One-time project bootstrap |
+| Planning | msg --init | Project setup — runs by itself on the first msg command when `devkit/` is missing |
 | Planning | intake | Capture + grade ideas/bugs into the INTAKE.md backlog (the front door); `--update` edits a captured row, `--delete` removes one, `--health` finds stale or wrong rows |
 | Planning | plan-pm | Autonomous PRD writer — drafts from a graded intake row |
 | Planning | plan-review | PRD contract certifier — seven consumer-bound checks; suggested after plan-pm and plan-em |

@@ -39,7 +39,7 @@ Never interview the user. The only question is one batched product-decision paus
 | Name | Format | Required | Source |
 |------|--------|----------|--------|
 | PRD file path | `.md` file matching `features/prd-*/prd-*.md` | Yes (asked if missing) | User message, or the skill that ran it |
-| `devkit/` files | `AHA.md`, `OPEN-QUESTIONS.md`, `PLATFORMS.md` | No | Each is used when present and skipped silently when absent |
+| `devkit/` files | `AHA.md`, `OPEN-QUESTIONS.md`, `PLATFORMS.md` | No | Each is used when present and skipped silently when absent. No `devkit/` at all ⇒ setup runs by itself first (`/msg --init`, then this command — `../shared/refs/setup-first.md`) |
 
 ## Outputs
 

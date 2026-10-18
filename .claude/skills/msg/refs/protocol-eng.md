@@ -1,25 +1,24 @@
 ---
 name: msg-protocol-eng
 description: >
-  The eng-mode Step 2 interview for /msg --init — direct execution, staff-engineer
+  The one Step 2 interview for /msg --init — direct execution, staff-engineer
   posture. Asks the user the technical questions (project basics, architecture,
-  shipping platforms, release flow, design system) as batched AskUserQuestion calls
-  and holds every init.sh variable in context. Selected by `--init --eng`, or by the
-  Step 2 mode gate. The advisory alternative is refs/protocol-cto.md.
+  authentication, shipping platforms, release flow, design system) as batched
+  AskUserQuestion calls and holds every init.sh variable in context. Used for
+  every setup — a manual /msg --init, the automatic pre-step, and top-up.
 type: reference
 ---
 
-# Protocol: --init, eng mode (Step 2 interview)
+# Protocol: --init, Step 2 interview
 
 **Posture: direct execution.** The user makes the technical calls; you ask and
 build. Do not recommend, do not editorialise, do not fill a silence with an
-opinion — that is `refs/protocol-cto.md`'s job, and the user chose this mode
-instead. Ask, record, move on.
+opinion. Ask, record, move on.
 
 This protocol owns **Step 2 only**. Steps 1, 3, 4 and 5 stay in
 [`protocol-init.md`](protocol-init.md); it invokes this file and resumes at Step 3
 with the variables below in context. Every variable named here is one `init.sh`
-consumes — the mode is invisible downstream of Step 3.
+consumes.
 
 ## Top-up mode — asking a subset
 
@@ -79,13 +78,9 @@ Call 1 can therefore carry 1–3 questions. Q1 always fires.
 | A3 | What data stores will you use? | 4 options + Other (multiSelect): PostgreSQL, MySQL / MariaDB, MongoDB / DynamoDB, Redis | `ARCH_DATA_STORES` |
 | A5 | Deployment pipeline? (e.g. GitHub Actions → AWS ECS, Vercel, manual) | 4 options + Other: GitHub Actions, Vercel / Netlify, AWS / GCP / Azure, Not decided yet | `ARCH_DEPLOYMENT` |
 
-**`ARCH_AUTH` is not asked in eng mode.** Not every project authenticates, so a
-mandatory question is wrong. The key still reaches `init.sh`, which falls back to
-its `[USER: authentication model]` placeholder — the same stub pattern every
-unasked `ARCH_*` detail uses, and the user fills it in `devkit/ARCHITECTURE.md`.
-cto mode derives it instead (`refs/protocol-cto.md`, architecture objective).
+Call 2 is full (4 questions), so authentication (A4) is asked in Call 3.
 
-## Call 3 — Shipping platforms + release flow (P1, RF1)
+## Call 3 — Authentication, shipping platforms + release flow (A4, P1, RF1)
 
 First resolve the current branch topology with the shared resolver (`init.sh` never
 dates or branches):
@@ -100,6 +95,7 @@ Hold `PROD_BRANCH` and `HAS_GH_REMOTE` too — Step 3 and Step 5 of
 
 | Q | Question | Format | Holds as |
 |---|----------|--------|----------|
+| A4 | How do users sign in? | 4 options + Other: No user accounts, Email + password, OAuth / social sign-in, Hosted provider (Auth0, Clerk, Supabase Auth) | `ARCH_AUTH` |
 | P1 | Which platforms does this project ship to? (drives `/pre-merge` tolerance profiles in `devkit/PLATFORMS.md`) | 4 options (multiSelect) + Other: Web, iOS, Android, macOS | `PLATFORMS_SHIPPED` |
 | RF1 | What's your release flow? | 2 options: `Staged` (feature → staging → prod), `Direct` (straight to prod) | `RELEASE_FLOW` |
 
@@ -120,6 +116,10 @@ user to prune.
   the policy seed distinguishes the two.
 
 These feed the `policy.json` seed at Step 3 (`policies.release_flow`).
+
+**A4 maps to `ARCH_AUTH` verbatim** ("No user accounts" → `None — no user accounts.`).
+Skipped or empty ⇒ `init.sh` keeps its `[USER: authentication model]` stub, which the
+user fills in `devkit/ARCHITECTURE.md`.
 
 ## Call 4 — Design system (D2, D3, D4) — only when the UI predicate is true
 
@@ -148,15 +148,14 @@ in 3 calls).
 
 **Known cost of the derivation.** A backend or CLI project that ships a UI anyway —
 an admin panel, a TUI — can no longer say so directly; rule 1 recovers it only if
-the user names that surface in P1. Accepted: cto mode recovers it via the
-design-system objective, eng mode does not.
+the user names that surface in P1. Accepted: the user can still add
+`devkit/DESIGN-SYSTEM.md` by hand.
 
-## Not asked in eng mode
+## Not asked
 
 | Variable | Why the question is gone |
 |---|---|
-| `CONVENTIONS` | Not asked — `init.sh` defaults it ("None recorded yet. Add house conventions as they emerge."), which is a sensible `CLAUDE.md`. cto derives it from its conventions objective. The **key survives**. |
-| `ARCH_AUTH` | Not every project authenticates. Key survives; `init.sh` stubs it. See Call 2. |
+| `CONVENTIONS` | Not asked — `init.sh` defaults it ("None recorded yet. Add house conventions as they emerge."), which is a sensible `CLAUDE.md`. The **key survives**. |
 
 Team type is not on this list because it no longer exists anywhere — msg is
 solo-only by design, so the question and its key were deleted end-to-end.

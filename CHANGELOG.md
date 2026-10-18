@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [198] v6.0.0 msg — setup runs by itself when devkit/ is missing; one interview, no modes
+
+- `.claude/skills/shared/refs/setup-first.md`: Added — the one rule: no `devkit/` ⇒ run `/msg --init`, then continue the user's command.
+- `.claude/skills/msg/refs/protocol-cto.md`: Removed — one interview only; the mode gate and `--cto` / `--eng` are gone.
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — no mode gate or `Interview mode` input; runs as an automatic pre-step; names `/msg --init` as the one `release_flow` writer.
+- `.claude/skills/msg/refs/protocol-eng.md`: Changed — the one interview; new auth question A4 in Call 3 fills `ARCH_AUTH` (still ≤4 calls).
+- `.claude/skills/msg/SKILL.md`: Changed — description, dispatch (bare `/msg`, `--update`, no `--init` sub-flags), setup-runs-by-itself rule.
+- `.claude/skills/intake/SKILL.md`, `plan-pm/SKILL.md`, `plan-em/SKILL.md`, `plan-em/refs/protocol-em.md`, `plan-review/SKILL.md`, `eng/refs/protocol-core.md`, `pre-merge/refs/executor.md`, `merge/SKILL.md`: Changed — no `devkit/` runs setup first; a missing single file points to `/msg --update`.
+- `.claude/scripts/script-branch-topology.sh`, `.claude/skills/msg/refs/init/init.sh`: Changed — comments no longer name cto mode.
+- `QUICKSTART.md`: Changed — one interview, no mode table; setup runs by itself.
+
 ### [197] v6.0.0 msg — bare /msg says the next step for each PRD in progress
 
 - `.claude/scripts/script-msg-next.py`: Added — reads devkit, PRDs, tickets, eng reports, pre-merge's last check, git and INTAKE.md; prints up to 4 `NEXT=<command>|<why>|<prd>` lines.

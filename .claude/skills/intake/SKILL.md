@@ -43,7 +43,7 @@ intake (capture + grade → INTAKE.md rows) → plan-pm (drafts the PRD, stamps 
 
 ## Mode dispatch
 
-Resolve the mode once, at entry, then read exactly one protocol:
+Resolve the mode once, at entry, then read exactly one protocol. No `devkit/` ⇒ setup runs by itself first (`/msg --init`, then this command — `../shared/refs/setup-first.md`).
 
 1. **Flag.** `--update` or `--delete` → edit; `--health` → health. `--sub-row <n>.<m>` (sent only by `plan-pm --sub`) → capture of one sub-PRD row at that id (`protocol-intake.md` § Sub-PRD rows). Strip the flag from the text. Two mode flags at once → ask which.
 2. **Plain language with no flag.** Text that asks to change or remove an existing row (a `#n`, or "change / drop / remove / rename … the <idea> idea") → edit, with the action it names. A remove always gets delete's warning pass and confirm. A "change or remove?" doubt is an edit (`principles.md` 8). Anything else → capture.
@@ -53,7 +53,7 @@ Resolve the mode once, at entry, then read exactly one protocol:
    .claude/scripts/script-policy-set.py --file devkit/policy.json --set policies.intake.brainstorm=<true|false>
    ```
 
-   No `devkit/policy.json` → say the setting needs `/msg --init`, and use the value for this run only. Bare `--brainstorm` → on for this run, nothing written.
+   No `devkit/policy.json` (a project set up before the file existed) → say `/msg --update` adds it, and use the value for this run only. Bare `--brainstorm` → on for this run, nothing written.
 
 | Mode | Protocol |
 |------|----------|

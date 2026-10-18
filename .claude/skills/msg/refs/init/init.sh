@@ -8,7 +8,7 @@
 #   PROJECT_DESCRIPTION  Q1 one-line description
 #   PLATFORM             Q2 answer ("Web (frontend)", "Backend API", "CLI", "Mobile (iOS/Android)")
 #   LANGUAGE             Q2b answer (e.g. "TypeScript", "Swift (iOS)", "Kotlin (Android)")
-#   CONVENTIONS          house conventions (cto derives them; eng falls back to the default below)
+#   CONVENTIONS          house conventions (not asked; falls back to the default below)
 #   ARCH_OVERVIEW        A1 — system components and how they interact
 #   ARCH_EXTERNAL        A2 — external services and APIs
 #   ARCH_DATA_STORES     A3 — databases, caches, queues

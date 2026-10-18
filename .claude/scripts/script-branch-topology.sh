@@ -3,10 +3,9 @@
 #
 # One place where msg answers "what branches does this repo have, and which one
 # is production?". The same four-line detection block used to be spelled out in
-# msg/refs/protocol-cto.md (Deriving the rest), msg/refs/protocol-eng.md
-# (Call 3), msg/refs/protocol-init-staging.md (Step 1) and the HAS_GH_REMOTE
-# probe at msg/refs/protocol-init.md (Step 5, reused by --update Step 3-CI).
-# Four copies could age apart; this script is the single copy.
+# msg/refs/protocol-eng.md (Call 3), msg/refs/protocol-init-staging.md (Step 1)
+# and the HAS_GH_REMOTE probe at msg/refs/protocol-init.md (Step 5, reused by
+# the --update GitHub Actions question). Copies could age apart; this script is the single copy.
 #
 # Mutates nothing — no branch is created, checked out, fetched or pushed.
 #

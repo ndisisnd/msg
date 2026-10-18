@@ -32,6 +32,7 @@ Load + validate `devkit/policy.json` once per run (`policy-schema.md` read-contr
 | Manifest state | Behavior |
 |---|---|
 | `components[]` present, non-empty | **run** the resolved pipeline |
+| no `devkit/` at all | setup runs by itself: `/msg --init` first (`../../shared/refs/setup-first.md`), then the row below |
 | `policy.json` absent, or present with **no** `components[]` | **first-run setup**, in the main conversation: run `protocol-init.md` (batched questions, gaps only), save `devkit/policy.json`, commit the setup outputs as one `chore(pre-merge): setup` commit (`protocol-init.md` step 7), then **continue into the gate in the same run** |
 | `policy.json` malformed, or `version` ≠ 1 | stop and name the parse error (resolver exit `8`, §1); setup never overwrites a file it cannot read |
 

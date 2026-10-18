@@ -39,7 +39,7 @@ allowed_tools:
   .claude/scripts/script-policy-set.py --file devkit/policy.json --set policies.plan_em.review=<true|false>
   ```
 
-  No `devkit/policy.json` → say the setting needs `/msg --init`, and use the value for this run only. Absent = off: the closing message suggests `/plan-review` instead. The certification gate still runs plan-review on an uncertified PRD either way.
+  No `devkit/policy.json` (a project set up before the file existed) → say `/msg --update` adds it, and use the value for this run only. Absent = off: the closing message suggests `/plan-review` instead. The certification gate still runs plan-review on an uncertified PRD either way.
 
 **Hard refusals:**
 - Invocation without a PRD path: refuse. State that `plan-em` requires an existing PRD. Offer two paths: run `/plan-pm` to create one, or supply a path to an existing PRD `.md` file.

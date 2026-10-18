@@ -52,8 +52,8 @@ G=.claude/scripts/script-prd-digest.py; [ -f "$G" ] || G="$HOME/.claude/scripts/
 The `plan` slice returns `frontmatter` (incl. `deps` — plus `platform`/`module`/`affects`/`depends_on` on an older PRD, `null` otherwise), `summary`, `features` (F-IDs + acceptance criteria verbatim), `exec_table` and `engineering_agents`. The generator re-parses the PRD on every call, so the slice is never stale (`.claude/skills/shared/refs/session-cache.md`). **Escape hatch:** if a pre-flight check needs prose the slice omits — User-flow narrative for a terminology/architecture-conflict finding, or a heading under the digest's `unparsed_sections` — read only that section's `prose_lines` range. Do **not** default to the whole PRD.
 
 **Absent-file rule.**
-- No `devkit/` → emit `devkit/ not found — run /msg --init to initialise the project first.` and **stop** (do not proceed to Step 2).
-- `devkit/` exists but a file missing → emit `<filename> not found — run /msg --init to initialise the project first.` Proceed without it; do not create it.
+- No `devkit/` → setup runs by itself first: run `/msg --init`, then continue this command (`../../shared/refs/setup-first.md`). Setup stopped ⇒ **stop** (do not proceed to Step 2).
+- `devkit/` exists but a file missing → emit `<filename> not found — /msg --update adds it.` Proceed without it; do not create it.
 
 **1c. Multi-PRD cross-reference — consume the certified graph, ask only on conflict.** intake graded sequencing into the `S:` cell, and plan-review check 6 verified the frontmatter `deps` graph. plan-em does not re-ask what they answered.
 
