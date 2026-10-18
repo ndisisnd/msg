@@ -12,8 +12,8 @@ signed off, and a durable marker on `prod` recording the answer.
 Every part of that is deterministic, so it is **scripted, not reasoned**:
 
 ```bash
-S=.claude/scripts/script-release-identity.sh
-bash "$S" --prod "$PROD" [--version <x.y.z>] [--probe-sha <sha>]
+ID=.claude/scripts/script-release-identity.sh
+bash "$ID" --prod "$PROD" [--version <x.y.z>] [--probe-sha <sha>]
 ```
 
 It emits `key=value` lines — `CURRENT_TAG`, `CURRENT_VERSION`, `CURRENT_BUILD`,

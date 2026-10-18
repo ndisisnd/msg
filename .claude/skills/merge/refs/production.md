@@ -13,14 +13,16 @@ Every deterministic check here is **scripted, not reasoned**. Each emits
 `key=value` lines the protocol below reads; none of them is re-derived by hand:
 
 ```bash
-S=.claude/scripts/script-signoff-coverage.sh   # coverage verdict + uncertified commits
-S=.claude/scripts/script-release-lock.sh       # acquire | release | status
-S=.claude/scripts/script-release-identity.sh   # tag, version, build, monotonicity, provenance
-S=.claude/scripts/script-ci-status.py          # the CI verdict (Steps 1 + 5)
-S=.claude/scripts/script-policy-read.py        # every policy mode + its `?? default`
-S=.claude/scripts/script-platforms-parse.py    # PLATFORMS.md → per-platform key=value
-S=.claude/scripts/script-smoke-run.sh          # the v2 smoke loops + macOS checks
-S=.claude/scripts/script-intake-stamp.sh --find-row   # PRD id → ledger row # (Step 8)
+COV=.claude/scripts/script-signoff-coverage.sh   # coverage verdict + uncertified commits
+LOCK=.claude/scripts/script-release-lock.sh      # acquire | release | status
+ID=.claude/scripts/script-release-identity.sh    # tag, version, build, monotonicity, provenance
+CI=.claude/scripts/script-ci-status.py           # the CI verdict (Steps 1 + 5)
+POL=.claude/scripts/script-policy-read.py        # every policy mode + its `?? default`
+PLAT=.claude/scripts/script-platforms-parse.py   # PLATFORMS.md → per-platform key=value
+SMOKE=.claude/scripts/script-smoke-run.sh        # the v2 smoke loops + macOS checks
+INTAKE=.claude/scripts/script-intake-stamp.sh    # PRD id → ledger row # (Step 8, --find-row)
+P=.claude/scripts/script-prd-stamp.sh            # PRD frontmatter stamps (sign-off, status)
+S=.claude/scripts/script-status-tick.sh          # the run heartbeat (opened below)
 ```
 
 (Resolution form — repo copy first, global install second — is stated once in
@@ -43,7 +45,7 @@ writes nothing and never touches git.
 Before the confirmation, so the human sees exactly what will be tagged:
 
 ```bash
-bash "$S" --prod "$PROD" [--version <x.y.z>]
+bash "$ID" --prod "$PROD" [--version <x.y.z>]
 ```
 
 Read `CURRENT_TAG`, `NEXT_VERSION`, `BUILD`, `NEXT_TAG`. `VERDICT=version_regression`
@@ -76,7 +78,7 @@ release:
 
 1. **Staging CI is green** — the same scripted verdict `--staging` Step 2 runs, in branch mode:
    ```bash
-   S=.claude/scripts/script-ci-status.py; python3 "$S" --branch "$STG"
+   CI=.claude/scripts/script-ci-status.py; python3 "$CI" --branch "$STG"
    ```
    `green` (0) → proceed. `red`/`pending` (3/4) → refuse (`staging_not_green`), quoting `FAILING_CHECKS`/`PENDING_CHECKS`. `empty-inactive` (5) → the precondition is **inactive**: proceed, recording `NOTE` when it is non-empty. `empty-vacuous` (6) → proceed + the `low` `vacuous-ci` note. The empty-set branch is the script's (`github_actions` outranking `steps.ci`), so a real failing or in-flight status still refuses.
 2. **`staging-signoff:` stamp present** in the PRD frontmatter. Missing → refuse (`no_signoff`) — a human has not signed staging off; run `--staging` first.
@@ -92,7 +94,7 @@ once*; it cannot prove nothing landed afterwards. The pin closes that hole, and
 the script decides it:
 
 ```bash
-bash "$S" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> [--stamp …]
+bash "$COV" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> [--stamp …]
 ```
 
 | `VERDICT` (exit) | Meaning | Do |
@@ -133,7 +135,7 @@ On **Yes**, re-stamp via the shared writer, then re-run the coverage script with
 the now-pinned set:
 
 ```bash
-S=.claude/scripts/script-prd-stamp.sh; bash "$S" <prd-path> staging-signoff "<today>@<STAGING_HEAD>"
+P=.claude/scripts/script-prd-stamp.sh; bash "$P" <prd-path> staging-signoff "<today>@<STAGING_HEAD>"
 ```
 
 Record a `low` `unpinned-signoff` note in the run report either way.
@@ -274,7 +276,7 @@ acquire, the holder metadata, the 2h staleness read, the remote holder read, and
 the manual-unlock line:
 
 ```bash
-bash "$S" acquire --prod "$PROD" --prds "<prd ids>"
+bash "$LOCK" acquire --prod "$PROD" --prds "<prd ids>"
 ```
 
 | Exit | `LOCK_STATUS` | Do |
@@ -299,7 +301,7 @@ Step 1 checked coverage **before the lock existed**. Between then and here a
 against a fresh fetch:
 
 ```bash
-S=.claude/scripts/script-signoff-coverage.sh; bash "$S" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> …
+COV=.claude/scripts/script-signoff-coverage.sh; bash "$COV" --fetch --head "origin/$STG" --stamp <prd-id>=<sha> …
 ```
 
 Anything but `VERDICT=covered` → **release the lock**, then refuse
@@ -314,7 +316,7 @@ re-verify. This is the production-side half of the race `refs/staging.md`
 window closes — no exception path.**
 
 ```bash
-bash "$S" release --prod "$PROD"
+bash "$LOCK" release --prod "$PROD"
 ```
 
 `release` is idempotent (`LOCK_STATUS=absent` when there is nothing to delete)
@@ -388,7 +390,7 @@ Branch protection enforces both; merge checks them, then merges:
    wait as `refs/open-pr.md` § *Wait for CI* (up to `MERGE_CI_WAIT_MINUTES`, ticking
    the heartbeat between calls):
    ```bash
-   S=.claude/scripts/script-ci-status.py; python3 "$S" --pr <number> --wait-seconds 270 --deadline "$DEADLINE"
+   CI=.claude/scripts/script-ci-status.py; python3 "$CI" --pr <number> --wait-seconds 270 --deadline "$DEADLINE"
    ```
    `red` (3) → refuse `red_ci`; still pending at the limit (9) → refuse `pending_ci` — each releasing the lock first. `empty-inactive`/`empty-vacuous` (5/6) → proceed, recording `NOTE`. The empty-check-set branch is the script's, identical to `--staging`'s — one implementation, three call sites.
 2. Verify the required human review: `gh pr view <n> --json reviewDecision` → must be `APPROVED`. Not approved → refuse (`no_review`).
@@ -454,7 +456,7 @@ legitimate checkpoint — tick there too, carrying the real attempt
 deployed artifact's source commit and pass it to the identity script:
 
 ```bash
-S=.claude/scripts/script-release-identity.sh; bash "$S" --prod "$PROD" --probe-sha "$PROBE_SHA"
+ID=.claude/scripts/script-release-identity.sh; bash "$ID" --prod "$PROD" --probe-sha "$PROBE_SHA"
 ```
 
 `PROVENANCE=verified` → the artifact was built inside **this release's window**.
@@ -486,9 +488,9 @@ Close the loop for each shipped PRD. Both halves go through the ledger's one
 parser — the lookup as much as the write, so no second table parser exists:
 
 ```bash
-S=.claude/scripts/script-intake-stamp.sh
-bash "$S" INTAKE.md - --find-row --prd prd-<n>-<slug>   # read: ROW=<#> STATUS=…
-bash "$S" INTAKE.md <ROW> --status completed            # write: that cell only
+INTAKE=.claude/scripts/script-intake-stamp.sh
+bash "$INTAKE" INTAKE.md - --find-row --prd prd-<n>-<slug>   # read: ROW=<#> STATUS=…
+bash "$INTAKE" INTAKE.md <ROW> --status completed            # write: that cell only
 ```
 
 `--find-row` is read-only and matches on the `prd-<n>-<slug>` token, so a bare
@@ -536,7 +538,7 @@ shipped PRD**:
 1. **Stamp `status: complete`** via the shared scalar writer — the `wip →
    complete` transition owned here (plan-em set it to `wip` at the branch cut):
    ```bash
-   S=.claude/scripts/script-prd-stamp.sh; bash "$S" <prd-path> status complete
+   P=.claude/scripts/script-prd-stamp.sh; bash "$P" <prd-path> status complete
    ```
    On a PRD written before v5.4 the enum's terminal value is `done`, not
    `complete` — read the current value first and stamp the terminal value of the

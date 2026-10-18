@@ -2,6 +2,13 @@
 
 ## 2026-10-18
 
+### [203] v6.0.0 final — staging and production heartbeat calls reach the status script
+
+- `.claude/skills/merge/refs/staging.md`: Fixed — the release-lock, test-selection-miss and PRD-stamp calls use their own variables (`L`, `M`, `P`), so every `"$S" --tick`/`--end` reaches the status-tick script.
+- `.claude/skills/merge/refs/production.md`: Fixed — each script gets its own variable (`COV`, `LOCK`, `ID`, `CI`, `INTAKE`, `P`, …); `S` stays the status-tick script, so ticks, the lock and the coverage re-check each reach the right script.
+- `.claude/skills/merge/refs/open-pr.md`: Fixed — merge-checks, policy-set and CI-status calls use `CHK`, `SET`, `CI`, so the CI wait no longer overwrites the heartbeat's `S`.
+- `.claude/skills/merge/refs/deploy.md`, `verify-deploy.md`, `protection.md`, `release-identity.md`: Fixed — their script calls use `PLAT`, `SMOKE`, `BP`, `ID` instead of `S`.
+
 ### [202] v6.0.0 final — pre-merge and merge setup wording drops the old --init
 
 - `.claude/skills/msg/refs/protocol-init.md`: Changed — the seed's unfilled blocks are filled by pre-merge's and merge's first-run setup, not a gate `--init`.

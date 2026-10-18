@@ -31,8 +31,8 @@ run `--verify` at all — record "protection check skipped by policy" and procee
 When `mode_b` is `enforced` or `optional` (resolution form: `sanctioned-writes.md`):
 
 ```bash
-S=.claude/scripts/script-branch-protection.sh
-bash "$S" --verify <branch>       # <branch> = staging (--staging) or main (--production)
+BP=.claude/scripts/script-branch-protection.sh
+bash "$BP" --verify <branch>       # <branch> = staging (--staging) or main (--production)
 ```
 
 Interpret the machine output against the resolved `mode_b`:

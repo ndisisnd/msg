@@ -75,7 +75,7 @@ reopening the uncertified-commit hole at the concurrency level. So `--staging`
 **reads** the production release lock (`../shared/refs/policy-schema-merge.md` §6):
 
 ```bash
-S=.claude/scripts/script-release-lock.sh; bash "$S" status --prod "$PROD"
+L=.claude/scripts/script-release-lock.sh; bash "$L" status --prod "$PROD"
 ```
 
 | Exit | Meaning | Do |
@@ -129,8 +129,8 @@ run full or minified → the 30-day count. `script-ts-miss.py` is the one
 implementation; the model never re-derives it.
 
 ```bash
-S=.claude/scripts/script-ts-miss.py
-python3 "$S" --report features/**/prd-<n>-<slug>/reports/report-prd-<N>-<K>.json \
+M=.claude/scripts/script-ts-miss.py
+python3 "$M" --report features/**/prd-<n>-<slug>/reports/report-prd-<N>-<K>.json \
              --failing-check "<name>" [--failing-check "<name>" …]
 ```
 
@@ -275,8 +275,8 @@ On **Staging works**, stamp the PRD frontmatter through the shared scalar writer
 whole-file re-emit (`sanctioned-writes.md`, item 2):
 
 ```bash
-S=.claude/scripts/script-prd-stamp.sh
-bash "$S" <prd-path> staging-signoff "$(date -u +%Y-%m-%d)@${CERTIFIED_SHA}"   # CERTIFIED_SHA from Step 3
+P=.claude/scripts/script-prd-stamp.sh
+bash "$P" <prd-path> staging-signoff "$(date -u +%Y-%m-%d)@${CERTIFIED_SHA}"   # CERTIFIED_SHA from Step 3
 ```
 
 - Value shape `<YYYY-MM-DD>@<sha>` — today's date **and the certified sha**, full

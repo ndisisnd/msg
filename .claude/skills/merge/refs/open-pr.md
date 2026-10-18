@@ -49,7 +49,7 @@ together (`.pre-merge/last-check.json`, written by `script-premerge-last-check.s
 Grade the branch tip against it by script:
 
 ```bash
-S=.claude/scripts/script-merge-checks.py; python3 "$S" pass --branch "$BRANCH"
+CHK=.claude/scripts/script-merge-checks.py; python3 "$CHK" pass --branch "$BRANCH"
 ```
 
 | `PASS_STATE` (exit) | Meaning | Do |
@@ -75,8 +75,8 @@ How the script counts (merge-2 build decisions, owned by the script, never re-de
 removes a path:
 
 ```bash
-S=.claude/scripts/script-policy-set.py
-python3 "$S" --file devkit/policy.json --set policies.merge.risky_paths='<RISKY_PATHS_JSON>'
+SET=.claude/scripts/script-policy-set.py
+python3 "$SET" --file devkit/policy.json --set policies.merge.risky_paths='<RISKY_PATHS_JSON>'
 ```
 
 ### Quick check (`small` only)
@@ -132,8 +132,8 @@ Wait for CI on the PR, with progress messages, up to `MERGE_CI_WAIT_MINUTES`
 
 ```bash
 DEADLINE=$(( $(date +%s) + MERGE_CI_WAIT_MINUTES * 60 ))
-S=.claude/scripts/script-ci-status.py
-python3 "$S" --pr "$PR_NUMBER" --wait-seconds 270 --deadline "$DEADLINE"
+CI=.claude/scripts/script-ci-status.py
+python3 "$CI" --pr "$PR_NUMBER" --wait-seconds 270 --deadline "$DEADLINE"
 ```
 
 Each call polls for at most 270 seconds. Exit 4 (still pending, deadline not reached) ⇒
