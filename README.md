@@ -54,14 +54,14 @@ It installs as nine slash commands in Claude Code. There is no server and no acc
 
 - **Plan** — `/intake` captures and grades ideas into a backlog, `/plan-pm` writes the PRD, `/plan-review` certifies it, `/plan-em` writes the engineering sections.
 - **Build** — `/eng --plan` proposes the file changes, `/eng --build` writes the code on a feature branch, `/eng --review` runs an adversarial pass over the diff.
-- **Ship** — `/pre-merge` runs your test pipeline and opens the PR, `/merge` is the only skill that merges anything.
+- **Ship** — `/pre-merge` runs your test pipeline and fixes what fails, `/merge` opens the PR and is the only skill that merges anything.
 - **See it** — `/msg --gui` serves a local Notion-style PRD board on `127.0.0.1`.
 
 **Run reports.** Every build, gate, and merge writes a report you can read: what was done, what you should now be able to do, and the exact steps to check it yourself. The board collects them under a Reports tab, grouped by feature.
 
 **Closing message.** Every run ends by telling you where you stand — a 🟢 / 🟡 / 🔴 headline, one line of plain English, a short table of what happened, and the concrete next thing to run. Same shape whether it passed, needs your call, or hit a blocker.
 
-**Safety floor.** No skill can quietly widen its own reach. `/eng` only commits to feature branches, `/pre-merge` opens a pull request but never merges it, and `/merge` is the only skill that merges anything — nothing reaches production except through a release you confirmed twice. The human gates don't disappear either: you sign off on staging, you're offered a rollback rather than given one, and production asks twice. See [ARCHITECTURE.md § Safety floor](ARCHITECTURE.md#safety-floor).
+**Safety floor.** No skill can quietly widen its own reach. `/eng` only commits to feature branches, `/pre-merge` stays on your machine — it never pushes and never opens a pull request, and `/merge` is the only skill that merges anything — nothing reaches production except through a release you confirmed twice. The human gates don't disappear either: you sign off on staging, you're offered a rollback rather than given one, and production asks twice. See [ARCHITECTURE.md § Safety floor](ARCHITECTURE.md#safety-floor).
 
 ## Install
 
@@ -93,7 +93,7 @@ halfway leaves every project looking exactly as it did before.
 
 Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the restart didn't pick up `~/.claude/skills` — quit and reopen rather than starting a new session.
 
-New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/pre-merge` and `/merge` each need their own one-time `--init` before the pipeline runs anything.
+New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/merge` needs its own one-time `--init`. `/pre-merge` sets itself up on its first run.
 
 **Current release: v5.0.1** — see [RELEASES.md](./RELEASES.md) for what's new, release by release.
 
@@ -108,20 +108,20 @@ flowchart TD
     em["<b>/plan-em</b><br/>certify, then engineer the plan"]
     plan["<b>/eng --plan</b><br/>propose changes + todos"]
     build["<b>/eng --build</b><br/>write the code"]
-    pre["<b>/pre-merge</b><br/>run the pipeline, open the PR"]
+    pre["<b>/pre-merge</b><br/>run the pipeline, fix what fails"]
     stg["<b>/merge --staging</b><br/>merge, deploy, hand you a test script"]
     prod["<b>/merge --production</b><br/>release PR, deploy, tag"]
 
     intake --> pm --> em --> plan
     plan -->|you approve the changes| build
     build --> pre
-    pre -->|PR to staging| stg
+    pre -->|Next: /merge — opens the PR to staging| stg
     stg -->|you sign off on the commit you tested| prod
 ```
 
 `/plan-review` is a step you choose. `/plan-pm` and `/plan-em` suggest it when they finish, and `--review on` makes either one run it for you every time. If you skip it, `/plan-em` still runs it before it builds on an uncertified PRD — so a build can never start on an uncertified plan.
 
-The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_manifest`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~58 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
+The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_diff`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~58 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
 
 ## The skills
 
@@ -157,7 +157,7 @@ Nine slash commands. Run `/msg` to browse them interactively, or invoke any one 
 | `/eng --build` | Writes the code, on its own branch. Asks one question at the end — "Commit?" — and pauses separately before touching a database, your data, or production config. |
 | `/eng --review` | A fresh agent reads the whole change looking for problems. Runs inside `--build` by default; you can also point it at any branch yourself. |
 | `/eng --bug "<what is wrong>"` | Files a bug you found by hand as its own numbered report in the PRD's `reports/` folder, then fixes it with the normal fix flow. |
-| `/pre-merge` | Runs your project's checks — tests, lint, coverage, security, a smoke test — in a throwaway sandbox, then opens the pull request. One-time `/pre-merge --init` first, so it knows what your project actually has. |
+| `/pre-merge` | Runs your project's checks — tests, lint, coverage, security, a smoke test — in a throwaway sandbox. When a check fails, it plans and builds the fix by itself and checks again, up to 2 rounds. Its first run asks a few setup questions first, then carries on. It stays local; its last line says "Next: /merge". |
 | `/merge --staging` | Merges once CI is green, deploys to staging, and hands you a script to test it by. Your sign-off is pinned to the exact commit you tested. |
 | `/merge --production` | The release. Double-confirms, opens the release PR, merges on green CI and human review, deploys, and tags the version. If the deploy goes wrong it offers you a rollback rather than taking one on its own. |
 | `/emulate` | Runs the app on a simulator or emulator and opens the window on your desktop, from whatever branch you're on. Clears the leftover build processes from your last attempt first. `--ios` / `--adr` / `--expo` pick the lane; with no flag it reads which platform you ship from `devkit/PLATFORMS.md`. It never writes to your repo. |
@@ -174,21 +174,20 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 Restart Claude Code afterwards, the same as a first install.
 
-**Updating a project msg already set up.** Three commands, each additive and preview-gated:
+**Updating a project msg already set up.** Two commands, each additive and preview-gated:
 
 | Command | Reconciles |
 |---------|-----------|
 | `/msg --update` | `devkit/` files and template rows added to msg after your repo was bootstrapped |
 | `/pre-merge --update` | the `components[]` manifest, as your test and lint tooling drifts |
-| `/pre-merge --update-criticality` | the critical-test floor, as your suite grows |
 
 None of them rewrite a line you already have.
 
 ## FAQ
 
-**Why does `/pre-merge` refuse with `no_manifest`?**
+**Why does my first `/pre-merge` ask setup questions?**
 
-Because `/pre-merge --init` hasn't run in this repo yet. Bootstrapping with `/msg --init` isn't enough — the CI gate needs a `components[]` manifest in `devkit/policy.json` describing which checks your project actually has. Without it the gate would run zero components and report a pass it hadn't earned, so it refuses instead.
+Because the gate needs a `components[]` manifest in `devkit/policy.json` describing which checks your project actually has. Bootstrapping with `/msg --init` isn't enough. So the first run finds your tools, asks about the real gaps (a few questions at a time), saves the manifest, and then runs the gate in the same run. `/pre-merge --update` redoes it later.
 
 **Why doesn't `/pre-merge` stop for my approval?**
 
@@ -225,8 +224,7 @@ pause inside it to report from. Rather than go silent and unexplained, the run
 announces the step and how long it's expected to take right before starting it,
 so the quiet stretch is expected, not worrying. Outside of steps like that,
 you'll see a short status line roughly every five minutes on any long-running
-phase. Turn it off for one run with `--quiet`, or change how often it reports
-with `--status <n>m`.
+phase. Progress messages are always on; there is no switch to turn them off.
 
 When a phase fans work out to parallel agents, the run also watches each one
 for signs of life. An agent that has produced nothing gets mentioned at 5

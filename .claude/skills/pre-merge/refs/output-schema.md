@@ -28,7 +28,7 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
   "prior_issues_loaded": false,
   "profile": "strict" | "standard" | "lenient",
   "issues_file": "features/prd-<N>-<slug>/reports/report-prd-<N>-<K>.json" | "features/reports/report-<K>.json" | null,
-  "pr_url": "<feature→staging PR url>" | null,
+  "pr_url": null,
   "pipeline": { "waves": [["mechanical","security","unit","integration"],["coverage"],["regression"]], "pruned": [ {"id": "e2e", "by": "--changed-only"} ] },
   "test_selection": {
     "mode": "minified",
@@ -44,7 +44,7 @@ description: JSON schema for the pre-merge final emission. Defines field names, 
 
 - `profile` — the platform-tolerance profile resolved for this run.
 - `issues_file` — path to the issues file (the **universal report**, C7) written on a non-clean verdict (`fail`), consumed by `eng --build report=`; `null` on a clean pass. NO-PRD runs fall back to `features/reports/report-<K>.json`.
-- `pr_url` — the feature→staging PR opened by OPEN-PR on `pass`/`pass_with_warnings`; `null` otherwise. Pre-merge never merges it.
+- `pr_url` — always `null`: pre-merge never pushes and never opens a PR (`/merge` does). The key stays for readers of older verdicts.
 - `pipeline` — **additive, optional** (v3): the resolved, ordered wave list the executor ran + which components each flag pruned. Observability only — its absence does not change any other field. Under test selection its per-component entries carry the selection suffix — `"unit: minified (42/731, tier S)"`.
 - `test_selection` — **additive, optional** (v4): what the run's minified test selection did. **Emitted only when selection actually ran** (`policies.test_selection` enabled, or `--minified`, and not `--full`); **absent** on a full or disabled run — absence is the pre-key shape, never a signal to interpret. Its presence never changes any other field, and `verdict`/`summary`/`issues[]` semantics are identical to a full run. See [`test_selection`](#test_selection--minified-run-honesty) below.
 - **All keys above are unchanged from pre-v3; `pipeline` and `test_selection` are additive new keys, never renames of anything existing.**
@@ -125,7 +125,7 @@ When `verdict` is `"refused"`, the top-level object is:
 ```json
 {
   "verdict": "refused",
-  "reason": "no_manifest" | "no_diff" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
+  "reason": "no_diff" | "schema_mismatch" | "out_of_scope_modify" | "out_of_scope_action",
   "detail": "<human-readable explanation>",
   "base": "<base ref>",
   "prior_issues_loaded": false,
@@ -142,15 +142,16 @@ When `verdict` is `"skipped"`:
 ```json
 {
   "verdict": "skipped",
-  "reason": "sync_conflict_declined",
+  "reason": "sync_conflict",
   "base": "<base ref>",
   "branch": "<branch>",
   "timestamp": "<ISO 8601>",
-  "detail": "<what the human declined and where>"
+  "detail": "<the conflicting files and hunks>",
+  "conflicts": [ { "file": "<path>", "hunks": ["<hunk>"] } ]
 }
 ```
 
-- `sync_conflict_declined` — the human aborted the SYNC merge at a semantic conflict.
+- `sync_conflict` — SYNC hit a same-lines conflict. The gate ran `git merge --abort` (branch unchanged) and stopped; `conflicts[]` is the gate request the main conversation asks about ("Resolve now / Abort", `refs/sync.md`).
 
 ## Field reference
 

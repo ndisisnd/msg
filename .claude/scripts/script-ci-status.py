@@ -327,7 +327,7 @@ def main():
                  checks, ga, ga_reason, steps_ci, pr_number, pr_url, head,
                  "`steps.ci` expected a pipeline but the PR reported zero "
                  "checks — likely a broken or missing .github/workflows/ "
-                 "pipeline; run `/pre-merge --init`.", "", 6)
+                 "pipeline; run `/pre-merge --update`.", "", 6)
         reason = {"opted_out": "step_opted_out",
                   "n/a": "step_na"}.get(steps_ci, "no_ci_record")
         emit("empty-inactive", reason, source, fail, pend, pas, checks, ga,

@@ -129,10 +129,10 @@ web-only *runner* against a broader applicability is an **enforced
   blocking**, and routed to the human via `manual-test-plan`'s checklist, walked at
   merge `--staging`. The component's criticality stays `advisory`: it never aborts the
   run. `script-aggregate-verdict.sh` applies the per-rule blocking filter.
-- **ᵃ** — **`active_when: prd` resolves from PRD auto-discovery**: a `features/prd-<N>-*/`
-  directory matched to the branch enables the `prd` group by default; `--prd <path>` is
-  an explicit override for an unmatched or ambiguous case. **No PRD found ⇒ the whole
-  `prd` group is pruned**, exactly as a no-PRD hotfix always did.
+- **ᵃ** — **`active_when: prd` resolves from the PRD the run found**: the branch name
+  `feat/prd-<N>-<slug>` → `features/prd-<N>-*/`, or the user's one answer when none or
+  several match (`pre-merge/refs/executor.md` §0b). **No PRD ⇒ the whole `prd` group is
+  pruned** (the quick-fix case).
 - **ᵐ** — **emit-only** (C22): `manual-test-plan` is `advisory` and **never blocks
   the PR** — it generates a significance-rated human-test checklist (reusing
   `prd-consistency`'s per-item evidence grades) and emits it; it never contributes a

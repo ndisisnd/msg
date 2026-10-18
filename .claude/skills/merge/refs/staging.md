@@ -196,8 +196,8 @@ test_selection is enabled; consider whether a selected-away test caused it."
 `test-selection-miss` findings across this PRD's committed reports plus the rest
 of the repo's `features/**/reports/report-*.json`, restricted to the most recent
 30 days, **plus this run's misses**. `RECOMMENDATION` names
-`/pre-merge --update-criticality` (tag the escapee critical so it stops being
-selected away) or `/msg --update` to disable `policies.test_selection` outright,
+tagging the escapee critical in its test file (so it stops being selected away;
+pre-merge's automatic tagging step never removes a tag) or `/msg --update` to disable `policies.test_selection` outright,
 and points at `force_full_paths`
 (`../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection.force_full_paths`)
 — a cross-cutting-enough surface that selection should stop trying to prune

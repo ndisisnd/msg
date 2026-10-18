@@ -74,7 +74,7 @@ Exactly one `env` block per file.
 `provisioner: "none"` (the scaffolded default) is valid and honest: it means nobody
 has declared how this project stands an environment up. Every environment-needing
 check then runs against whatever is ambient and carries a loud
-`sandbox-unprovisioned` finding — never a silent pass. Run `/pre-merge --init` to
+`sandbox-unprovisioned` finding — never a silent pass. Run `/pre-merge --update` to
 detect and fill this in, or write the verbs by hand.
 
 **Composite environments.** A repo needing two provisioners at once (a simulator

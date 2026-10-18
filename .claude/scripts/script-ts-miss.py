@@ -263,9 +263,9 @@ def main():
     ]
     if escalate:
         out.append(
-            "RECOMMENDATION=%d test-selection misses in the last %d days — run "
-            "`/pre-merge --update-criticality` to tag the escapee critical, or "
-            "`/msg --update` to disable policies.test_selection outright; add "
+            "RECOMMENDATION=%d test-selection misses in the last %d days — "
+            "tag the escapee critical in its test file (add the critical marker), or "
+            "run `/msg --update` to disable policies.test_selection outright; add "
             "the escapee's test file to policies.test_selection.force_full_paths"
             % (total_window, args.window_days))
     out.append("FORCE_FULL_CANDIDATES=%s"

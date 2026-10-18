@@ -93,7 +93,7 @@ these modes into refuse / warn-proceed / skip at merge time lives in `policy-sch
 **Phantom-check guard — a workflow must exist first.** Requiring "green CI" via protection is
 meaningless if no CI pipeline produces any status check. Before offering `--bootstrap`, resolve
 whether a gate workflow exists — read `steps.ci` from `policy.json` (written by
-`pre-merge --init`), or probe directly:
+pre-merge setup), or probe directly:
 
 ```bash
 grep -lE 'pull_request' .github/workflows/*.yml .github/workflows/*.yaml 2>/dev/null
@@ -104,11 +104,11 @@ required checks**; then branch on `ga = policies.github_actions.enabled ?? true`
 (`../../shared/refs/policy-schema.md` §2b):
 
 - `ga:false` — the absent workflow is the user's **decision**, not a gap. Say nothing about
-  `/pre-merge --init`, record no gap, and **still offer `--bootstrap`**: protection is bootstrapped
+  `/pre-merge --update`, record no gap, and **still offer `--bootstrap`**: protection is bootstrapped
   with `required_status_checks {strict:true, contexts:[]}`, which is meaningful without any CI
   (linear history, no force-push, review required). Note once in the run output that Actions is
   disabled by policy and `/msg --update` changes it.
-- `ga:true`/absent — unchanged: note the gap and point the user at **`/pre-merge --init`**, which
+- `ga:true`/absent — unchanged: note the gap and point the user at **`/pre-merge --update`**, which
   owns the `ci` step and scaffolds the pipeline.
  Merge `--init` **never writes `steps.ci`** and **never
 scaffolds a workflow** — it only reads the record so it doesn't bootstrap protection around checks
@@ -259,7 +259,7 @@ duplicate them here.
 
 - Never merge, open a PR, deploy, or run a smoke check — `--init` is setup only.
 - Never write `devkit/PLATFORMS.md` — report gaps and delegate to `/msg --init`.
-- Never write `steps.ci` or scaffold a `.github/workflows/` pipeline — that's `/pre-merge --init`'s; only *read* `steps.ci` to guard the protection offer.
+- Never write `steps.ci` or scaffold a `.github/workflows/` pipeline — that's pre-merge setup's; only *read* `steps.ci` to guard the protection offer.
 - Never write `policies.github_actions` — that decision belongs to `/msg --init` / `/msg --update`; only *read* it. If the user asks to change it here, name `/msg --update` rather than writing the key.
 - Never create a staging branch — offer `/msg --init-staging`, which owns branch creation.
 - Never install a paid/SaaS tool or sign the user up for a host — record `deferred`/`opted_out` with the paid tool named.

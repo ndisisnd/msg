@@ -101,8 +101,8 @@ It prints the run's **plan JSON**:
 
 **Quote the plan verbatim.** The run report's `## How to verify`, the verdict JSON's
 `pipeline` block (§5), and every wave the executor runs come from this output — the
-executor never re-orders or re-prunes on its own. Exit `2` is the `no_manifest`
-refusal (§0); exit `4` is a dependency cycle (refuse, never loop); exit `6` names a
+executor never re-orders or re-prunes on its own. Exit `2` is the no-manifest
+case — run setup first (§0), never a refusal; exit `4` is a dependency cycle (refuse, never loop); exit `6` names a
 **mandatory component absent from `components[]`** — one `MANDATORY_ABSENT=<id>` line
 per gap, no plan. The safety floor is not prunable, so this is a refusal, not a
 `pruned[]` row: run `/pre-merge --update` to write the missing row(s), then re-run. Exit `7` means `--platforms-file` exists but could not be read — a

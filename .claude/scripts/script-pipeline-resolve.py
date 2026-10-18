@@ -66,7 +66,7 @@ Exit codes:
      `MANDATORY_ABSENT=<id>` line per component on stdout, then refuse. A
      mandatory component that was never written into `components[]` used to
      resolve as a `pruned[]` row and the run proceeded without it; the safety
-     floor is not a prunable step, so this is a refusal — run /pre-merge --init.
+     floor is not a prunable step, so this is a refusal — run /pre-merge --update.
   7  --platforms-file exists but could not be read (A19). An ABSENT file keeps
      its old behaviour (no targets, no coverage-gap findings); an unreadable
      one is a tooling failure, not "this repo ships nothing".
@@ -324,7 +324,7 @@ COST_RANK = {"cheap": 0, "moderate": 1, "expensive": 2}
 def resolve(args):
     # ── manifest ──────────────────────────────────────────────────────────
     if not os.path.exists(args.policy):
-        fail(2, "no_manifest", "%s absent — run /pre-merge --init" % args.policy)
+        fail(2, "no_manifest", "%s absent — run /pre-merge (its first run sets it up)" % args.policy)
     try:
         with open(args.policy, "r", encoding="utf-8") as fh:
             policy = json.load(fh)
@@ -335,7 +335,7 @@ def resolve(args):
     entries = policy.get("components")
     if not isinstance(entries, list) or not entries:
         fail(2, "no_manifest",
-             "%s has no components[] — run /pre-merge --init" % args.policy)
+             "%s has no components[] — run /pre-merge (its first run sets it up)" % args.policy)
 
     catalog = parse_catalog(args.catalog)
 
@@ -424,8 +424,8 @@ def resolve(args):
             print("MANDATORY_ABSENT=%s" % cid)
         fail(6, "mandatory-absent",
              "%s mandatory in the catalog but absent from %s's components[] — "
-             "the safety floor is not a prunable step; run /pre-merge --init "
-             "(or --update) to write the missing row(s)" %
+             "the safety floor is not a prunable step; run /pre-merge --update "
+             "to write the missing row(s)" %
              (",".join(sorted(mandatory_absent)), args.policy))
 
     # ── C12 coverage-gap correlation ──────────────────────────────────────

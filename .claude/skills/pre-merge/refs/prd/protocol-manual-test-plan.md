@@ -8,9 +8,9 @@ description: Gate component 18 (prd group, advisory, EMIT-ONLY) — generate a s
 Gives pre-merge the same **walk-the-list** affordance `/merge` uses: a human-testable checklist
 mapping the PRD's product intent to plain-language `do X → see Y` steps, each carrying
 a **significance rating**, generated **once** at pre-merge and rendered by both human
-gates. It is `advisory` and **EMIT-ONLY — it never blocks the PR and never changes the
-verdict**. It runs whenever a PRD resolves — auto-discovered from `features/prd-<N>-*/` or
-supplied with `--prd` (the whole `prd` group is skipped on a no-PRD hotfix). `depends_on: [prd-consistency]` — it **reuses** that component's per-item
+gates. It is `advisory` and **EMIT-ONLY — it never blocks the gate and never changes the
+verdict**. It runs whenever the run found a PRD — from the branch name, or the user's one answer
+(`../executor.md` §0b); with no PRD the whole `prd` group is skipped. `depends_on: [prd-consistency]` — it **reuses** that component's per-item
 evidence grades rather than re-walking the diff.
 
 ## Read the PRD via digest slice
@@ -140,5 +140,5 @@ list still emits; it is never blocked or omitted.
 ## Never blocks (emit-only invariant)
 
 `manual-test-plan` contributes **no** blocker/high/medium finding to the gate verdict —
-its result report is always `pass` (or `skipped` when no `--prd`), and the checklist is
+its result report is always `pass` (or `skipped` when no PRD was found), and the checklist is
 context, not a gate signal. Nothing in this component can flip a `pass` to a `fail`. The executor's fail-fast never considers it (its `criticality: advisory`).

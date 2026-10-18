@@ -4,7 +4,7 @@ Two setup phases — **machine**, then **repo** — followed by one guided run t
 
 Every step below carries a **verify** line. If a verify fails, stop and fix it before continuing; the gates are ordered and a skipped step surfaces later as a refusal, not a warning.
 
-> **The one thing people miss:** `/pre-merge` and `/merge` each need their own one-time `--init` (steps 5 and 6). Until then `/pre-merge` refuses with `no_manifest` and runs zero components. Bootstrapping the repo with `/msg --init` alone is not enough.
+> **The one thing people miss:** `/merge` needs its own one-time `--init` (step 6). `/pre-merge` sets itself up on its first run (step 5) — it asks a few setup questions, then runs the gate. Bootstrapping the repo with `/msg --init` alone is not enough.
 
 ---
 
@@ -15,7 +15,7 @@ Every step below carries a **verify** line. If a verify fails, stop and fix it b
 | `git` | Everything | `git --version` |
 | `curl` | Installer | `curl --version` |
 | Claude Code | Runs the skills | — |
-| `gh` CLI, authenticated | pre-merge opens PRs, merge merges them | `gh auth status` |
+| `gh` CLI, authenticated | merge opens and merges PRs | `gh auth status` |
 | A git repo with a remote | Branch protection, PRs, release tags | `git rev-parse --is-inside-work-tree` → `true` |
 
 Working without a remote or without `gh` is possible, but branch protection degrades to `NO_GH` / `NO_REMOTE` and the ship gate runs in a reduced mode.
@@ -65,7 +65,7 @@ Creates `devkit/AHA.md`, `ARCHITECTURE.md`, `DESIGN-SYSTEM.md`, `DOCTOR.md`, `EN
 
 Idempotent and strictly additive — re-running only fills gaps. Accumulated `AHA.md` and `GLOSSARY.md` content is never rewritten.
 
-On a GitHub repo it also asks whether you want **GitHub Actions CI** at all. Answer no (no Actions minutes on a private Free repo, or CI hosted elsewhere) and the gates stop expecting PR status checks: `/pre-merge --init` won't offer to scaffold a workflow, and `/merge` accepts a PR reporting zero checks instead of flagging it. Red or pending checks from any CI still block the merge, and every human gate stands. Change the answer any time with `/msg --update`.
+On a GitHub repo it also asks whether you want **GitHub Actions CI** at all. Answer no (no Actions minutes on a private Free repo, or CI hosted elsewhere) and the gates stop expecting PR status checks: pre-merge setup won't offer to scaffold a workflow, and `/merge` accepts a PR reporting zero checks instead of flagging it. Red or pending checks from any CI still block the merge, and every human gate stands. Change the answer any time with `/msg --update`.
 
 ### 4. `/msg --init-staging` *(only if you chose direct flow and now want staging)*
 
@@ -75,13 +75,13 @@ The only path that creates a `staging` branch: branches off prod, pushes, offers
 
 Skip this if you deliberately ship direct-to-prod — every human gate is preserved either way.
 
-### 5. `/pre-merge --init`
+### 5. pre-merge setup — automatic on the first `/pre-merge`
 
-Detects your pipeline (tests, lint, coverage, security, smoke, and whether `.github/workflows/` runs the gate on PRs), offers to install or scaffold the missing free/OSS pieces, and writes the `components[]` manifest into `devkit/policy.json`.
+There is no separate setup command. The first `/pre-merge` run detects your pipeline (tests, lint, coverage, security, smoke, and whether `.github/workflows/` runs the gate on PRs), asks about the real gaps a few questions at a time, offers to install or scaffold the missing free/OSS pieces, writes the `components[]` manifest into `devkit/policy.json`, and then runs the gate.
 
-**Verify:** `policy.json` has a non-empty `components[]`.
+**Verify (after your first `/pre-merge`):** `policy.json` has a non-empty `components[]`.
 
-Without it `/pre-merge` refuses `no_manifest` and runs nothing. Use `/pre-merge --update` later to reconcile the manifest as the code drifts.
+Use `/pre-merge --update` later to redo setup or reconcile the manifest as the code drifts.
 
 ### 6. `/merge --init`
 
@@ -106,7 +106,7 @@ Conventional-commit formatter and changelog manager. Installed separately from m
 ```
 /intake → /plan-pm → /plan-em → /eng --plan → /eng --build
                                                     ↓
-                                /pre-merge   (opens PR feature→staging)
+                                /pre-merge   (checks + fixes; then /merge)
                                                     ↓
                         /merge --staging   (merge, deploy, human test)
                                                     ↓
@@ -120,7 +120,7 @@ Conventional-commit formatter and changelog manager. Installed separately from m
 | 10 | `/plan-em` | Certifies the PRD, picks the specialists, writes the engineering sections | Approve the roster only when it is unusual for the project |
 | 11 | `/eng --plan` | Proposes file changes and writes the per-feature todo tickets | Approve the file changes |
 | 12 | `/eng --build` | Writes the code on a `feat/prd-<n>-*` branch | — |
-| 13 | `/pre-merge` | Runs the pipeline in an ephemeral test sandbox, opens the PR to staging | — (the human test happens at `/merge --staging`) |
+| 13 | `/pre-merge` | Runs the pipeline in an ephemeral test sandbox and fixes failures by itself (up to 2 rounds); the first run asks a few setup questions first. Stays local — ends with "Next: /merge" | Answer the setup questions on the first run |
 | 14 | `/merge --staging` | Merges on green CI, deploys, hands you a human test script | Run the script, then sign off |
 | 15 | `/merge --production` | Opens the staging→main release PR, merges on green CI + review, deploys, tags `v<x.y.z>+<build>` | **Double-confirm** |
 
@@ -154,16 +154,13 @@ verify check and report the result. If a verify fails, STOP and tell me what fai
    Verify: a remote `staging` branch exists and policy.json shows release_flow=staged.
    Skip this step entirely if the flow is already `staged` or I want direct-to-prod.
 
-3. /pre-merge --init
-   Verify: devkit/policy.json has a non-empty components[] array.
-
-4. /merge --init
+3. /merge --init
    Verify: ~/.claude/scripts/script-branch-protection.sh --verify prints PROTECTED
    for each branch. NO_GH or a Free-plan `optional` stance is an acceptable result
    — report it rather than treating it as a failure.
 
-When all four are done, summarise the resolved release flow, the components[] the
-pre-merge pipeline will run, and the branch-protection stance.
+When all three are done, summarise the resolved release flow and the
+branch-protection stance. (pre-merge sets itself up on the first /pre-merge run.)
 ```
 
 Then start the feature loop with `/intake`.
@@ -175,7 +172,6 @@ Then start the feature loop with `/intake`.
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | Slash commands don't exist | Claude Code hasn't reloaded `~/.claude/skills` | Fully quit and reopen |
-| `/pre-merge` refuses `no_manifest` | No `components[]` in `policy.json` — step 5 not run, or the file predates v3 | `/pre-merge --init` |
 | Pipeline runs the wrong checks | Manifest drifted from the code | `/pre-merge --update` |
 | `/merge --production` refuses `stale_signoff` | Commits landed on staging after the sign-off sha | Re-run `/merge --staging` and re-test |
 | `/merge --production` refuses `release_in_flight` | Another release holds the lock | Wait, or follow the printed manual unlock if the lock is over 2h stale |

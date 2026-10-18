@@ -68,7 +68,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
 | Planning | plan-review | PRD contract certifier — seven consumer-bound checks; suggested after plan-pm and plan-em |
 | Planning | plan-em | Engineering plan generator — certifies each wave, asks about the roster only when it is unusual |
 | Build & Ship | eng | Plan or build engineering work from exec-table rows |
-| Build & Ship | pre-merge | The CI gate — sync, mechanical, tests, regression, security/migration, PRD-consistency, opens PR feature→staging |
+| Build & Ship | pre-merge | The quality gate — sync, mechanical, tests, regression, security/migration, PRD-consistency; fixes failures by itself (≤2 rounds); first run sets it up; stays local, ends "Next: /merge" |
 | Build & Ship | merge | The ship gate — `--staging` (merge on green CI, deploy, human test, sign-off) and `--production` (double-confirmed staging→main release) |
 | Build & Ship | emulate | The local run lane — boots a simulator/emulator on the current branch and opens the window; a leaf, never part of the pipeline |
 | Delivery | kermit | Conventional-commit formatter and changelog manager |
@@ -82,7 +82,7 @@ the run does next. `--doctor` is the reader, never a writer of incident rows.
                                                                          ↓
                                                              /eng --build
                                                                          ↓
-                                             /pre-merge  (CI gate: opens PR feature→staging)
+                                             /pre-merge  (quality gate; then /merge)
                                                                          ↓
                               /merge --staging  (merge on green CI, deploy, human test)
                                                                          ↓

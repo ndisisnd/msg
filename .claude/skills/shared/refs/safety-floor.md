@@ -17,7 +17,7 @@ lanes:
 | Skill | May write | Must never |
 |---|---|---|
 | `eng` | commits to `feat/prd-<n>-*` **feature branches only** | push to / merge into / open a PR against `staging` or `main` |
-| `pre-merge` | opens **exactly one** PR `feature → staging`, plus the D7 sync-merge commit | merge any PR; touch `main`; modify source |
+| `pre-merge` | the D7 sync-merge commit, and the critical-test tag commit when test selection is on — all local | push; open or merge any PR; touch `main`; modify source |
 | `merge` | the **only** skill that merges, plus the stamps, reports and release tags its own protocol enumerates — canonical list: `merge/SKILL.md` (Hard refusals) | reach `main` any other way than the double-confirmed release; merge on red/pending CI; self-certify staging; modify source |
 | `emulate` | **nothing in the repo** — no commit, branch, PR, stamp or report; its only writes are its own launch logs under `.emulate/` | modify source; write any tracked file; touch `.gitignore` |
 | all others | their own artifacts (PRDs, reports, tickets, devkit appends) | push, merge, or open PRs |
@@ -52,7 +52,7 @@ scanner is detected, `security` emits a `blocker` (`no-secret-scanner`,
 `safety-floor-unmet`): there is **no green-gate path without secret-scan coverage**. A
 leaked credential is the highest-stakes, cheapest-to-catch failure, so this is the one
 signal the floor genuinely guarantees. The scanner **install** stays per-item approved
-(the gated-install rule holds — `/pre-merge --init` strongly offers gitleaks and flags
+(the gated-install rule holds — pre-merge setup strongly offers gitleaks and flags
 declining it as a safety-floor gap), but a *passing* gate can never have had zero
 secret-scan coverage. SAST / dependency / container / `/cook` semantic layers stay
 best-effort — their absence is a note, never a blocker (`pre-merge/refs/universal/protocol-security.md`).

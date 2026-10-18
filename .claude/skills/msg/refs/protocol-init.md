@@ -37,7 +37,7 @@ type: reference
 |------|---------|
 | `AHA.md` | Institutional knowledge log — past learnings that future agents must not repeat |
 | `DOCTOR.md` | Harness-incident ledger — where the harness itself misbehaved (script failures, tool errors, retries, missed writes). Write-mostly: no skill reads it during a run; `/msg --doctor` reads it on demand. **Gitignored** (see `.gitignore` row). Contract: [`shared/refs/doctor-logging.md`](../../shared/refs/doctor-logging.md) |
-| `ENV.md` | Env-setup contract — how to stand up an isolated test environment. Human prose (prereqs, ports, seed fixture, gotchas) around one fenced `env` block with the provision/seed/reset/teardown verbs both gates read. **Committed** (documentation, not telemetry). `/pre-merge --init` fills in what it detects; gate runs only read. Contract: [`shared/refs/env-contract.md`](../../shared/refs/env-contract.md) |
+| `ENV.md` | Env-setup contract — how to stand up an isolated test environment. Human prose (prereqs, ports, seed fixture, gotchas) around one fenced `env` block with the provision/seed/reset/teardown verbs both gates read. **Committed** (documentation, not telemetry). pre-merge setup (the first `/pre-merge` run) fills in what it detects; gate runs only read. Contract: [`shared/refs/env-contract.md`](../../shared/refs/env-contract.md) |
 | `GLOSSARY.md` | Canonical domain terms — ensures consistent naming across all agents |
 | `ARCHITECTURE.md` | System constraints, layers, and integration points — scopes what agents may touch |
 | `DESIGN-SYSTEM.md` | Component registry — tells agents which UI components exist and what needs data ingestion |
@@ -67,7 +67,7 @@ type: reference
 | devkit/ | Directory — agent context files | `<cwd>/devkit/` |
 | devkit/AHA.md | Markdown from `refs/init/templates/template-AHA.md` | `<cwd>/devkit/AHA.md` |
 | devkit/DOCTOR.md | Markdown from `refs/init/templates/template-DOCTOR.md` — the harness-incident ledger, appended to by `.claude/scripts/script-doctor-log.sh` and read only by `/msg --doctor`. **Gitignored** (see `.gitignore` row) — created, then ignored | `<cwd>/devkit/DOCTOR.md` |
-| devkit/ENV.md | Markdown from `refs/init/templates/template-ENV.md` — the env-setup contract, scaffolded with `provisioner: "none"` and `[USER: …]` placeholders; `/pre-merge --init` detects and fills the verbs. **Committed**, never gitignored | `<cwd>/devkit/ENV.md` |
+| devkit/ENV.md | Markdown from `refs/init/templates/template-ENV.md` — the env-setup contract, scaffolded with `provisioner: "none"` and `[USER: …]` placeholders; pre-merge setup (the first `/pre-merge` run) detects and fills the verbs. **Committed**, never gitignored | `<cwd>/devkit/ENV.md` |
 | devkit/GLOSSARY.md | Markdown from `refs/init/templates/template-GLOSSARY.md` | `<cwd>/devkit/GLOSSARY.md` |
 | devkit/ARCHITECTURE.md | Markdown from `refs/init/templates/template-ARCHITECTURE.md`, customised with the platform and architecture answers (eng) or recommendations (cto) | `<cwd>/devkit/ARCHITECTURE.md` |
 | devkit/DESIGN-SYSTEM.md | Markdown from `refs/init/templates/template-DESIGN-SYSTEM.md`, customised with the design-system answers (eng) or recommendations (cto) | `<cwd>/devkit/DESIGN-SYSTEM.md` |
@@ -311,7 +311,7 @@ If `HAS_GH_REMOTE=true`, ask **both** questions in a single `AskUserQuestion`
 call:
 
 > header **GitHub Actions**, question "Run your CI on GitHub Actions? Actions minutes are metered on private repos on the Free plan."
-> - **Yes, use GitHub Actions** — `/pre-merge --init` will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
+> - **Yes, use GitHub Actions** — pre-merge setup (the first `/pre-merge` run) will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
 > - **No — CI elsewhere or none** — no workflow is scaffolded and `/merge` accepts a PR with **zero** checks instead of flagging it. Every other gate is unchanged: red or pending checks (from any CI) still block the merge, and every human gate stands.
 
 > header **Branch protection**, question "Set up branch protection on `staging` + `main` now? (recommended for `/merge`)"
@@ -358,7 +358,7 @@ Do not invoke another skill (the bootstrap script is not a skill). The next slas
 - `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars. Accepts an optional `INTERACTIVE_LANES` env var (set by `/msg --update` only) that turns silent rung-3 PRD-lane defaulting into an `UNRESOLVED` report instead
 - `refs/init/templates/template-AHA.md` — template for AHA.md (institutional knowledge log)
 - `refs/init/templates/template-DOCTOR.md` — template for devkit/DOCTOR.md (the harness-incident ledger; gitignored, written by `script-doctor-log.sh`, read by `/msg --doctor`)
-- `refs/init/templates/template-ENV.md` — template for devkit/ENV.md (the env-setup contract: prose + one fenced `env` block of provision/seed/reset/teardown verbs; committed, read by both gates, filled in by `/pre-merge --init`)
+- `refs/init/templates/template-ENV.md` — template for devkit/ENV.md (the env-setup contract: prose + one fenced `env` block of provision/seed/reset/teardown verbs; committed, read by both gates, filled in by pre-merge setup)
 - `refs/init/templates/template-GLOSSARY.md` — template for GLOSSARY.md (canonical domain terms)
 - `refs/init/templates/template-README.md` — template for README.md (project placeholder)
 - `refs/init/templates/template-gitignore.md` — .gitignore content keyed by platform/stack

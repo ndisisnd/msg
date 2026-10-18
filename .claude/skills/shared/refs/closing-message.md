@@ -59,7 +59,7 @@ Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from T
 | plan-review (product / eng check) | Run `/plan-em <prd>` now | Decide on each open item in the result block, then run `/plan-em <prd>` | Resolve the open Critical named above, then re-run `/plan-review <prd>` |
 | eng --plan | Run `/eng --build` now | Review the plan's open questions in `<fix-plan path>`, then run `/eng --build` | Fix the stated blocker, then re-run `/eng --plan report=<path>` |
 | eng --build | Run `/pre-merge` now | Decide on each flagged item, then run `/pre-merge` | Run `/eng --plan report=<report .json path>` (or `/eng --build report=<path>` to fix directly, per fix-loop.md) |
-| pre-merge | Run `/merge --staging` now | Review the warnings in the report, then run `/merge --staging` | Run `/eng --build report=<report .json path>` (or `/eng --plan report=<path>` first, per fix-loop.md) |
+| pre-merge | Next: /merge | Review the warnings in the report. Next: /merge | The automatic fix loop stopped (fix-loop.md): name why, then the next command — `/eng --build report=<report .json path>` to fix by hand, or `/pre-merge` after resolving the pause or conflict |
 | merge --staging | Work through the test checklist above on staging, then reply **approved** | Resolve each flagged item, then re-run `/merge --staging` | Fix the stated blocker, then re-run `/merge --staging` |
 | merge --production | Nothing to do — you're done. The release is live. | Watch the flagged platform(s) per the rollback notes above | Follow the failed-ship loop step named above, then re-run `/merge --production` |
 | msg (--init / --update / --init-staging) | Run the stage command the pipeline table above points at | Answer the open question(s), then re-run the same `/msg` command | Fix the stated blocker, then re-run the same `/msg` command |
@@ -100,13 +100,13 @@ Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pur
 > **Next steps**
 > 1. Reply **keep** or **drop** for the `date-fns` dependency
 > 2. Reply **accept** to proceed without the F3 test, or **add test** to have it written first
-> 3. Then run `/merge --staging`
+> 3. Next: /merge
 
 **🔴 — pre-merge, fail:**
 
 > 🔴 Fail!
 >
-> 2 checks failed — the login flow breaks when the password field is empty; nothing was merged.
+> 2 checks still fail after 2 automatic fix rounds — the login flow breaks when the password field is empty; nothing was pushed.
 >
 > | What happened | Detail |
 > |---|---|

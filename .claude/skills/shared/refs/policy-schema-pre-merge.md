@@ -25,7 +25,7 @@ facts, so a catalog change (a new `depends_on` edge, a shifted criticality defau
 never reach an existing manifest. Not copying it is the fix — a catalog edit is live for
 every repo on the next gate run, with no migration (AC-UP2).
 
-`--init`/`--update` assemble the manifest by running the `script-preflight-*.sh` family and
+Setup (the first `/pre-merge` run) and `--update` assemble the manifest by running the `script-preflight-*.sh` family and
 recording what detection found plus what the user decided. **Additive** — it lives beside
 `release_flow`/`github_actions`/`init`, which are untouched (AC-PF5). The pre-merge
 **executor** reads it as the pipeline source (`pre-merge/refs/executor.md`); a `/pre-merge`
@@ -76,7 +76,7 @@ the same run (`pre-merge/refs/executor.md` §0).
 
 ### The optional per-entry overrides
 
-Written **only** when the user decided something or `--init` resolved a project fact the
+Written **only** when the user decided something or setup resolved a project fact the
 catalog cannot know. Absent ⇒ the catalog default applies.
 
 | Field | Type | Written when |
@@ -84,8 +84,8 @@ catalog cannot know. Absent ⇒ the catalog default applies.
 | `criticality` | enum `critical`\|`blocking`\|`advisory`\|`config-driven` | the user or a platform profile overrode the catalog default. **Never re-graded by `--update`** (AC-UP2). Absent ⇒ catalog default, and a later catalog change reaches this repo |
 | `active_when` | string | an approved trigger change from `--update` (a surface the catalog default does not cover, or `always`). `script-pipeline-resolve.py` reads it before the catalog default, so the change takes effect on the next run. Absent ⇒ catalog default |
 | `needs_env` | bool | **C23** — only where the value is *resolved*, not catalog-constant: `regression`, whose value follows its suite composition (AC-SBX8). Every other component inherits the catalog `env` column |
-| `hot_tables[]` | string[] | `migration` — the large/hot tables declared at `--init` (C17) |
-| `consumers[]` | string[] | `api` — the known API consumers declared at `--init` (C15) |
+| `hot_tables[]` | string[] | `migration` — the large/hot tables declared at setup (C17) |
+| `consumers[]` | string[] | `api` — the known API consumers declared at setup (C15) |
 | `traffic_mix` | object | `load` — the declared read/write mix (C16) |
 | `matrix[]` | `{platform, os}[]` | `mobile` — the enforced device/OS matrix (C18) |
 | `reason` | string | required alongside `status` `opted_out`/`n/a`/`deferred` — missing → honored + `unjustified-policy` warn (AC-S3) |
@@ -159,14 +159,13 @@ team makes once**, in a committed file — never something a gate run rediscover
 | `tiers.medium_max_modules` | int | ✖ | `6` | **M** requires `modules ≤` this; above it → **L** |
 | `tiers.medium_max_fan_in_pct` | number | ✖ | `0.90` | fan-in percentile bound: a touched file at or above this percentile is **not S**. Graph unavailable ⇒ treated as exceeding the bound (degrade toward more testing, AC-TS10) |
 | `max_affected_ratio` | number | ✖ | `0.5` | the **M/L** boundary — an affected set larger than this share of the suite isn't worth selecting; run full |
-| `critical_markers` | object `<platform, string>` | ✖ | catalog defaults | the per-platform **tag vocabulary** naming the critical floor (`web`/`python`/`go`/`apple`/`android`). Policy records only the vocabulary — the tags themselves live in test code (ground truth, reviewed in PRs). Resolved per detected platform at `--init`; a declared-but-unresolvable marker is a `medium` `policy-mismatch` finding (AC-ST3 pattern), never a silent empty critical set |
+| `critical_markers` | object `<platform, string>` | ✖ | catalog defaults | the per-platform **tag vocabulary** naming the critical floor (`web`/`python`/`go`/`apple`/`android`). Policy records only the vocabulary — the tags themselves live in test code (ground truth, reviewed in PRs). Resolved per detected platform at setup; a declared-but-unresolvable marker is a `medium` `policy-mismatch` finding (AC-ST3 pattern), never a silent empty critical set |
 
-**Written only by `/msg --update` and pre-merge `--init`/`--update`/
-`--update-criticality`** — it is the user's setup decision, not a detection
-result. (`--init`/`--update` run the enabling interview and resolve the
-catalog-defaulted fields; `--update-criticality` touches nothing inside this
-object — it restamps the sibling `criticality_review` only.) **No gate run ever
-writes it** (AC-OW1, AC-TS2); a gate never writes a critical tag either.
+**Written only by `/msg --update` and pre-merge setup / `--update`** — it is the
+user's setup decision, not a detection result. (Setup/`--update` run the enabling
+interview and resolve the catalog-defaulted fields.) **No gate run ever writes it**
+(AC-OW1, AC-TS2). The gate's critical-test tagging step (`pre-merge/refs/executor.md`
+§3c.4) writes tags in test files and the sibling `criticality_review` stamp only.
 
 **Back-compat — opt-IN, deliberately inverted.** Absent object ⇒
 `enabled: false` ⇒ **pre-key behaviour verbatim**, so existing `policy.json`
@@ -186,7 +185,7 @@ tags or `run_minified`.
 ## `source_signature` — staleness hash
 
 A hash of the **detect-section tuple** across all preflight reports, stamped by
-`--init`/`--update` (AC-UP4). Defined precisely so the gate can recompute it cheaply:
+setup/`--update` (AC-UP4). Defined precisely so the gate can recompute it cheaply:
 
 ```
 source_signature = "sha256:" + sha256(
@@ -218,11 +217,11 @@ inventory was last reconciled, so the next pass can diff against it.
 | `reviewed_at` | `YYYY-MM-DD` | when the last criticality pass completed (stamped by `script-policy-set.py` from the system clock) |
 | `suite_hash` | string | `"sha256:"` + hash over the enumerated test tree (sorted test-file paths + each file's declared markers), so a pass can enumerate only what changed since |
 
-**Writers — two, both human-gated:** pre-merge `--update-criticality`, and the
-test-selection **enabling interview**'s initial tagging pass (so the critical
-floor is non-empty from day one). **No gate run ever writes it** (AC-OW1,
-AC-TS2) — a minified run may *read* it (and cheaply count untagged tests) to
-print a read-only staleness nudge, then proceeds. Absent stamp ⇒ "never
+**Writers — two:** the gate's **critical-test tagging step**, which runs
+automatically before selection on every run with selection on
+(`pre-merge/refs/protocol-criticality.md`), and the test-selection **enabling
+interview**'s initial tagging pass (so the critical floor is non-empty from day
+one). Both write only tags in test files and this stamp. Absent stamp ⇒ "never
 reviewed"; never a validation error. Like every other selection artifact it is
 **dead config when `test_selection` resolves disabled** (AC-TS12).
 

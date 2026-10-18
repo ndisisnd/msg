@@ -130,7 +130,7 @@ mode_b = overrides[b] ?? branch_protection.mode ?? "enforced"
 | key absent / no file | **built-in fall-back, unchanged** (back-compat invariant, AC-ST5) |
 
 **`ci` — read by merge's green-CI check, not run as a step.** It records whether a
-`.github/workflows/` pipeline runs the gate on PRs (written by `pre-merge --init`). It has
+`.github/workflows/` pipeline runs the gate on PRs (written by pre-merge setup). It has
 no runner and never runs as a gate *step*; it exists so a missing pipeline surfaces instead
 of passing vacuously. When merge's PR check finds an **empty** status-check set
 (nothing ran), it resolves `steps.ci`: `ready` → emit one `low` `vacuous-ci` note

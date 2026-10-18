@@ -245,7 +245,7 @@ wire shape:
     "tool": "merge",
     "snippet": "unit: minified (42/731, tier S) — excluded: not-affected"
   },
-  "suggestion": "Tag this test critical and run `/pre-merge --update-criticality`, or disable selection with `/msg --update`.",
+  "suggestion": "Tag this test critical in its test file (add the platform's critical marker), or disable selection with `/msg --update`.",
   "repro": "<the exact failing CI check name, or the staging re-test command>",
   "regression_of": null
 }
@@ -262,7 +262,7 @@ wire shape:
   showing the component ran minified and what excluded this test — the audit trail
   that makes the miss attributable, never asserted from memory.
 - Two or more of these findings inside 30 days adds one report line recommending
-  `/pre-merge --update-criticality` or `/msg --update`, and names this finding's
+  tagging the escapee critical in its test file or `/msg --update`, and names this finding's
   `file` as a `force_full_paths` candidate — mechanism owned by `refs/staging.md`.
 - Additive to whatever refusal/finding already covers the backstop failure itself
   (`red_ci`, a failed staging sign-off); it never substitutes for it and never

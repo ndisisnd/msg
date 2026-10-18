@@ -2,6 +2,17 @@
 
 ## 2026-10-17
 
+### [188] v6.0.0 pre-merge — stays local, sets itself up, finds its PRD, tags critical tests by itself
+
+- `.claude/skills/pre-merge/SKILL.md`: Changed — no `--init`, `--update-criticality`, `--prd`, `--quiet`, `--status`; first run sets up then gates; never pushes or opens a PR; ends "Next: /merge"; questions and the fix loop stay in the main conversation.
+- `.claude/skills/pre-merge/refs/executor.md`: Changed — §7 pass terminal is the verdict plus "Next: /merge" (no PR); fail hands to the automatic fix loop; exit 2 means "run setup".
+- `.claude/skills/pre-merge/refs/refusal-patterns.md`, `output-schema.md`: Changed — `no_manifest` refusal removed; the out-of-scope text is true ("does not push or create PRs"); `pr_url` always null; `sync_conflict` skipped shape.
+- `.claude/skills/pre-merge/refs/prd/protocol-manual-test-plan.md`, `shared/refs/{component-catalog,report-schema}.md`: Changed — the PRD comes from the branch name or one question, never a flag.
+- `.claude/skills/shared/refs/{policy-schema,policy-schema-pre-merge,policy-schema-merge,env-contract,safety-floor,closing-message}.md`: Changed — writer tables name pre-merge setup and the automatic tagging step; `status_cadence` retired and ignored; pre-merge's closing line is "Next: /merge".
+- `.claude/skills/merge/refs/{protocol-init,staging,output-schema}.md`, `.claude/scripts/{script-ts-miss.py,script-ci-status.py,script-doctor-detect.sh,script-pipeline-resolve.py}`: Changed — no command names `/pre-merge --init` or `--update-criticality`.
+- `.claude/skills/msg/SKILL.md`, `msg/refs/{protocol-init,protocol-update,protocol-init-staging}.md`, `msg/refs/init/templates/template-ENV.md`: Changed — menu and setup text match.
+- `README.md`, `QUICKSTART.md`, `ARCHITECTURE.md`: Changed — pre-merge sets itself up, fixes failures, stays local; progress messages always on.
+
 ### [187] v6.0.0 pre-merge — progress messages are always on
 
 - `.claude/scripts/script-status-tick.sh`: Changed — fixed 5-minute cadence; `MSG_STATUS_INTERVAL` and an old `policies.status_cadence` are ignored without error.

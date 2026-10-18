@@ -40,7 +40,7 @@ that: **secret-scan coverage is a hard requirement to *pass*.**
   message *"No secret scanner is configured — the safety floor requires secret-scan
   coverage before this gate can pass"* + `evidence.snippet: "safety-floor-unmet"`.
   There is **no green-gate path without secret-scan coverage**. The fix
-  is `/pre-merge --init` (it strongly offers gitleaks), not a forced install here —
+  is pre-merge setup or `/pre-merge --update` (it strongly offers gitleaks), not a forced install here —
   the install stays per-item approved.
 - **This blocker is not declinable at gate time** — a passing gate can never have had
   zero secret-scan coverage. Only `--init` recording the scanner (or the user

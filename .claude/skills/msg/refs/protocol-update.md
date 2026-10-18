@@ -114,7 +114,7 @@ write nothing.
 
 > header **GitHub Actions**, question "GitHub Actions CI is currently **`<enabled|disabled>`**`<, reason: "<reason>"` when disabled`>`. Change it?"
 > - **Keep it as is** — write nothing; `policy.json` is untouched.
-> - **Turn it on** — CI runs on Actions; `/pre-merge --init` will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
+> - **Turn it on** — CI runs on Actions; pre-merge setup (the first `/pre-merge` run) will scaffold `.github/workflows/pre-merge.yml`, and the gates expect PR checks to report.
 > - **Turn it off** — no workflow is scaffolded and `/merge` accepts a PR with **zero** checks instead of flagging it. For repos with no Actions minutes (private repo on GitHub Free), or CI hosted elsewhere. Red or pending checks from any CI still block the merge; every human gate stands.
 
 When the current state is *absent*, phrase it as "not set (defaults to enabled)"
@@ -152,7 +152,7 @@ nothing to select over, skip silently and write nothing.
 >   is a bigger decision than flipping a boolean: it requires verifying the
 >   declared `full_run_backstop` actually exists and running the initial
 >   criticality-tagging pass so the critical floor isn't empty on day one
->   (AC-TS8) — that full interview belongs to `/pre-merge --init`/`--update`
+>   (AC-TS8) — that full interview belongs to pre-merge setup / `/pre-merge --update`
 >   (`pre-merge/refs/protocol-init.md`'s enabling interview; not duplicated
 >   here). Tell the user to run one of those next.
 > - **Turn it off** — the complete single-run disable (AC-TS12): flip
@@ -164,7 +164,7 @@ nothing to select over, skip silently and write nothing.
 >   End with the one-line retained-inert audit
 >   (`../../shared/refs/policy-schema-pre-merge.md` §`policies.test_selection`), e.g.
 >   *"test_selection disabled — critical tags and `run_minified` commands
->   retained (inert); re-enable via `/pre-merge --init` or `--update`."*
+>   retained (inert); re-enable via `/pre-merge --update`."*
 
 When the current state is *absent*, phrase it as "not set (defaults to
 disabled)" and offer the same three options — note that this key's absent
@@ -184,7 +184,7 @@ every other key under `test_selection` survive untouched and inert:
 Report the transition in the Step 4 summary as
 `test_selection: <old> → <new>`; "Keep it as is" and "Turn it on" (hand-off)
 report nothing written. `/msg --update` never writes `enabled:true` itself
-(AC-TS2) — only `/pre-merge --init`/`--update`'s enabling interview does.
+(AC-TS2) — only pre-merge setup / `/pre-merge --update`'s enabling interview does.
 
 **Step 3-FT — Untrack a previously committed `features/`** (named alongside Steps 3-CI
 and 3-TS)

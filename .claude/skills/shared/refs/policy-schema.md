@@ -29,17 +29,20 @@ The **env-setup contract** is not in `policy.json` at all: it is [`devkit/ENV.md
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow`, and `policies.github_actions` when the CI question was asked (nothing else) |
 | `/msg --update` | **CI decision** — sets/changes `policies.github_actions`, and the **test-selection decision** `policies.test_selection` (the only keys it writes; it otherwise delegates to `/msg --init`'s top-up) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
-| `--init` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling + `branch_protection`, records `staging_ready` (merge `--init`, `staged` flow only), flips `init:true`. Also scaffolds `devkit/ENV.md` (pre-merge `--init`) — a devkit doc, not a policy key |
-| `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`run`/`tooling`/`status` changes and new components, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
-| `--update-criticality` | **criticality reconcile** — pre-merge only; writes approved critical markers into the test files and restamps `criticality_review` (`{reviewed_at, suite_hash}`). Never re-grades a human-set tag (AC-TS7); writes **no other** policy key |
+| pre-merge setup (the first `/pre-merge` run) | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling, then writes `init:true` with an explicit `--set init=true`. Also scaffolds `devkit/ENV.md` — a devkit doc, not a policy key |
+| merge `--init` | **completion** — fills `branch_protection`, records `staging_ready` (`staged` flow only), flips `init:true` |
+| `--update` | **reconcile** — re-runs the preflight checks, diffs `components[]` vs reality, applies approved `present`/`run`/`tooling`/`status`/`active_when` changes and new components, restamps `source_signature` (never re-grades user-set `criticality`, never re-prompts `opted_out`/`n/a`) |
+| pre-merge's critical-test tagging (gate step, test selection on) | **criticality stamp** — writes critical markers into the test files (committed on the branch) and restamps `criticality_review` (`{reviewed_at, suite_hash}`). Never re-grades or removes an existing tag (AC-TS7); writes **no other** policy key |
 
 Every write goes through **`.claude/scripts/script-policy-set.py`** — the one sanctioned
 writer. It sets a dotted key path, creates missing parents, preserves every sibling,
 stamps `generated`/`generated_by` from the system clock, re-parses the result, and rolls
 back a bad write. No skill hand-authors this file.
 
-No gate run ever writes it (AC-OW1, AC-UP6) — a gate only recomputes `source_signature`
-read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
+No gate run writes it (AC-OW1, AC-UP6) — a gate only recomputes `source_signature`
+read-only to nudge (Fork E). Two exceptions, both pre-merge: a first run's setup (which
+completes before the gate starts), and the `criticality_review` stamp of the
+critical-test tagging step. Setup never writes `devkit/PLATFORMS.md` (that stays `/msg --init`'s).
 
 ## Canonical v1 schema (annotated — core keys)
 
@@ -67,7 +70,6 @@ read-only to nudge (Fork E). `--init` never writes `devkit/PLATFORMS.md` (that s
     }
     // branch_protection, staging_readiness → policy-schema-merge.md
     // test_selection                     → policy-schema-pre-merge.md
-    // status_cadence                     → below, § policies.status_cadence
     // agent_watch                        → below, § policies.agent_watch
     // intake                             → below, § policies.intake
   }
@@ -108,7 +110,7 @@ did before the key existed.
 | `version` | int | ✔ | — | must be `1`; any other value → whole file treated as absent (AC-S1) |
 | `init` | bool | ✔ | `false` (if omitted) | lifecycle gate. `false` → gates auto-run `--init` first; `true` → gates run the protocol. `/msg --init` seeds `false`; `--init` flips it `true` on completion |
 | `generated` | `YYYY-MM-DD` | ✔ | — | stamped by `script-policy-set.py` from the system clock (`--stamp-by`); informational |
-| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge --init` \| `pre-merge --update` \| `merge --init` \| `merge --update` | ✖ | — | last writer; informational. Repos initialised before v5 still carry `post-merge --init` / `post-merge --update`; nothing branches on this field, so the old string is read and displayed as written, never rejected or rewritten |
+| `generated_by` | enum `msg --init` \| `msg --update` \| `msg --init-staging` \| `pre-merge setup` \| `pre-merge --update` \| `merge --init` \| `merge --update` | ✖ | — | last writer; informational. Repos initialised before v5 still carry `post-merge --init` / `post-merge --update`; nothing branches on this field, so the old string is read and displayed as written, never rejected or rewritten |
 | `repo` | object | ✖ | — | evidence/audit only — gates never branch on it |
 | `policies` | object | ✖ | `{}` | the enforced half |
 | `components` | object[] | ✖ | — | the **preflight manifest** — the per-project deltas over the catalog. Purely **additive** to the same file (AC-PF5). Spec: [`policy-schema-pre-merge.md`](policy-schema-pre-merge.md) § `components[]` |
@@ -175,17 +177,11 @@ through `script-policy-set.py`. A bare `--review` runs plan-review for one run a
 `/msg --init` does not seed them. plan-em's certification gate does not depend on this switch:
 an uncertified PRD is still certified before engineering.
 
-### `policies.status_cadence` — the status-heartbeat interval
+### Retired: `policies.status_cadence`
 
-| Field | Type | Required | Default | Notes |
-|---|---|---|---|---|
-| `enabled` | bool | ✖ | `true` | `false` disables the status heartbeat project-wide, absent a per-run override |
-| `interval_minutes` | int | ✖ | `5` | minutes between heartbeat reports |
-
-Read only by `.claude/scripts/script-status-tick.sh`, once, at `--start` — absent,
-unreadable or malformed falls through silently to the built-in default. **Not**
-read by `script-policy-read.py`, so no skill plumbs this key itself. Per-run
-override, precedence and the 2-minute clamp: `status-heartbeat.md`.
+Progress messages are always on, every 5 minutes (`status-heartbeat.md` § *Cadence*).
+An old `policies.status_cadence` key (`enabled`, `interval_minutes`) is **ignored
+without error** — no validation warning, no migration. No writer adds it.
 
 ### `policies.agent_watch` — the subagent stall-detection thresholds
 
@@ -239,18 +235,18 @@ init = policy.init ?? false          // file present but no `init` → false
 
 | State | Gate behavior |
 |---|---|
-| file **absent** (repo never ran `/msg --init`) | built-in defaults + a one-line nudge to run `/msg --init` or `/pre-merge --init`. **No auto-init** — an ad-hoc gate run in an unmanaged repo is never hijacked (back-compat, AC-LC6). |
+| file **absent** (repo never ran `/msg --init`) | built-in defaults + a one-line nudge to run `/msg --init`. **No auto-init** — an ad-hoc gate run in an unmanaged repo is never hijacked (back-compat, AC-LC6). |
 | `init: false` | **auto-run `--init` inline before the protocol** (AC-LC2). `--init` completes setup and flips `init:true` (AC-LC3), then the gate continues. If the user **aborts** `--init`, the gate stops — nothing was set up, so it runs **no** protocol step on a half-configured repo (AC-LC4). |
 | `init: true` | run the protocol directly — no init run (AC-LC5). |
 
 Lifecycle: `/msg --init` seeds `{init:false}` → first `/pre-merge` or `/merge` auto-runs `--init` → `--init` flips `init:true` → every later run is a normal gate. `--init` can still be invoked manually anytime to re-tune (it does not depend on `init`).
 
-> **Pre-merge override (Fork C, AC-PF13/PF14).** The pre-merge executor gates on the
-> **`components[]` manifest**, not on the `init` states above: a `/pre-merge` run with no
-> `components[]` (file absent, malformed, or a manifest-less policy) **refuses `no_manifest`**
-> and names `/pre-merge --init` — it does **not** fall back to built-in defaults and does
-> **not** auto-run `--init` inline (`AC-LC6`/`AC-ST5` retired). See
-> `pre-merge/refs/executor.md`. Merge still follows the `init` table above until its
+> **Pre-merge override.** The pre-merge executor gates on the **`components[]`
+> manifest**, not on the `init` states above: a `/pre-merge` run with no `components[]`
+> (file absent, or a manifest-less policy) **runs pre-merge setup inline**, saves the
+> manifest, then continues into the gate in the same run. It never falls back to
+> built-in defaults. A malformed file stops with its parse error. See
+> `pre-merge/refs/executor.md` §0. Merge still follows the `init` table above until its
 > own executor lands.
 
 ## 1 · `release_flow` (both gates)
@@ -277,7 +273,7 @@ ga = policies.github_actions.enabled ?? true
 | `ga` | gate behavior |
 |---|---|
 | `true` (or absent) | **unchanged** — every CI expectation and note documented elsewhere applies verbatim (AC-GA5) |
-| `false` | the **CI stage is inactive**: an **empty** PR/commit status set is intentional — proceed silently, no `vacuous-ci` note, no "run `/pre-merge --init`" nudge, no workflow-scaffold offer. Report one line: "GitHub Actions disabled by policy (`<reason>`) — change with `/msg --update`" (AC-GA1, AC-GA3) |
+| `false` | the **CI stage is inactive**: an **empty** PR/commit status set is intentional — proceed silently, no `vacuous-ci` note, no "run `/pre-merge --update`" nudge, no workflow-scaffold offer. Report one line: "GitHub Actions disabled by policy (`<reason>`) — change with `/msg --update`" (AC-GA1, AC-GA3) |
 
 **`false` never means "ignore CI that exists."** If the PR *does* report checks —
 an external CI posting commit statuses, a leftover workflow, a required check

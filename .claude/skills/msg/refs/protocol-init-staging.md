@@ -103,7 +103,7 @@ staging ready** — each shipping platform still needs its staging environment d
 non-placeholder `staging_deploy_cmd` + target, any staging config file, and a named internal/
 TestFlight track for store-submission platforms). Hand off: run **`/merge --init`**, which
 verifies that per-platform readiness and flags every gap with its exact fix (fill the gap in
-`devkit/PLATFORMS.md`, then re-run `--init`). Then `/pre-merge` opens PRs against `staging`. This
+`devkit/PLATFORMS.md`, then re-run `--init`). Then `/pre-merge` gates against `staging` (and `/merge` opens PRs against it). This
 mode never merges, deploys, or opens PRs.
 
 Close with the closing message per [`shared/refs/closing-message.md`](../../shared/refs/closing-message.md).
