@@ -2,6 +2,14 @@
 
 ## 2026-10-17
 
+### [199] v6.0.0 msg — /msg --update runs all three updates with one approval
+
+- `.claude/skills/msg/refs/protocol-update.md`: Changed — one pass over msg's update, `/pre-merge --update` and `/merge --update`; one shared change-list format; one prompt holds the approval and the settings questions; no `devkit/` runs setup instead of refusing.
+- `.claude/skills/pre-merge/refs/protocol-init.md`, `.claude/skills/merge/refs/protocol-init.md`: Changed — `--update` uses the shared change-list format; inside `/msg --update` it returns its lines and does not ask again.
+- `.claude/skills/shared/refs/policy-schema.md`: Changed — writer table names the one-pass update.
+- `.claude/scripts/script-policy-set.py`: Changed — docstring names the new step.
+- `README.md`, `ARCHITECTURE.md`, `llms.txt`: Changed — bare `/msg` next steps, setup by itself, one-pass `/msg --update`, new `script-msg-next.py`.
+
 ### [198] v6.0.0 msg — setup runs by itself when devkit/ is missing; one interview, no modes
 
 - `.claude/skills/shared/refs/setup-first.md`: Added — the one rule: no `devkit/` ⇒ run `/msg --init`, then continue the user's command.

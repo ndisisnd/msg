@@ -125,14 +125,15 @@ The gates are ordered on purpose. A skipped step surfaces later as a refusal wit
 
 ## The skills
 
-Nine slash commands. Run `/msg` to browse them interactively, or invoke any one directly. `/msg --gui` opens a local PRD board on `127.0.0.1` — Kanban and table views, PRD editing, todo toggling, the backlog, project docs, and run reports.
+Nine slash commands. Run `/msg` to see the next step for each PRD in progress and run it, or open the menu to browse; or invoke any one directly. `/msg --gui` opens a local PRD board on `127.0.0.1` — Kanban and table views, PRD editing, todo toggling, the backlog, project docs, and run reports.
 
 ### Plan
 
 | Skill | What it's for |
 |-------|---------------|
-| `/msg --init` | Sets a project up, once. A short interview about what you're building and how you release it, then it writes the reference docs every other skill reads. Safe to re-run. |
-| `/msg --update` | Adds anything msg gained since you set the project up. Shows you the change before making it, and never rewrites a line you already have. |
+| `/msg` | Says what to run next for each PRD in progress (up to 4) — plan it, build it, check it, ship it, or give the staging sign-off — and offers to run one. "Show menu" opens the skill picker. |
+| `/msg --init` | Sets a project up, once. A short interview about what you're building and how you release it, then it writes the reference docs every other skill reads. You rarely need to type it: any msg command in a project with no setup runs it first, then carries on. Safe to re-run. |
+| `/msg --update` | Updates everything in one pass: anything msg gained since you set the project up, plus pre-merge's and merge's settings. Shows one list of changes and asks once. Never rewrites a line you already have. |
 | `/msg --init-staging` | Adds a staging branch to a project that currently ships straight to production. The only skill that creates one. |
 | `/msg --doctor` | Tells you when msg itself is misbehaving. Every skill logs its own glitches; this reads that log and reports what keeps recurring, so a broken tool is visible instead of quietly absorbed. |
 | `/msg --version` | Tells you which release of msg is installed, in one line. Run it in any repo after installing or updating to confirm the new version actually landed — the skills live outside your projects, so a reinstall that silently failed otherwise looks identical to one that worked. |
@@ -176,7 +177,7 @@ curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash
 
 Restart Claude Code afterwards, the same as a first install.
 
-**Updating a project msg already set up.** Two commands, each additive and preview-gated:
+**Updating a project msg already set up.** Run `/msg --update`: it runs all three updates below in one pass, shows one combined list of changes, and asks once. Each skill's own `--update` still works alone:
 
 | Command | Reconciles |
 |---------|-----------|

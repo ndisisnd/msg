@@ -250,10 +250,14 @@ real gaps (the same batches as setup). It **never merges, opens a PR, or deploys
 | (e) risky paths (item 7) | re-run `libs --all` on the whole codebase; add new folders; **never** remove a user-added path |
 | (f) CI wait limit (item 8) | re-measure; propose the new limit |
 
-**One approval.** Show every proposed change as one list (`<key>: <old> → <new>`, one line
-each), then ask once — `AskUserQuestion`, header **Update**, "Save these changes to
-devkit/policy.json?" — **Save** / **Cancel**. Nothing changed ⇒ say so and save nothing.
-Cancel ⇒ nothing is written.
+**One approval.** Show every proposed change as one list in the shared change-list format
+(`merge · <key>: <old> → <new>`, one line each; a release-flow line ends `— report only` —
+`../../msg/refs/protocol-update.md` § *The shared change-list format*), then ask once —
+`AskUserQuestion`, header **Update**, "Save these changes to devkit/policy.json?" —
+**Save** / **Cancel**. Nothing changed ⇒ say so and save nothing. Cancel ⇒ nothing is
+written. **Inside `/msg --update`** the list is returned instead of asked: `/msg --update`
+shows it with msg's and pre-merge's and asks the one approval, and its yes is this
+**Save**.
 
 ## Step-coverage map
 

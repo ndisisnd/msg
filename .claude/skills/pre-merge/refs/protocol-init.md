@@ -497,8 +497,12 @@ reconciles **facts about the code**, never settled policy choices.
    flipped (tool added/removed), which `active_when` surface appeared/vanished (first
    migration, new API/mobile surface), any newly-detected component not yet in the
    manifest.
-3. **Present the delta for approval BEFORE writing** — a compact
-   added/changed/removed table; nothing is written until the user approves.
+3. **Present the delta for approval BEFORE writing** — one line per change in the
+   shared change-list format (`pre-merge · <key>: <old> → <new>`,
+   `../../msg/refs/protocol-update.md` § *The shared change-list format*); nothing is
+   written until the user approves. **Inside `/msg --update`** this step only returns
+   the lines: `/msg --update` shows them with msg's and merge's and asks the one
+   approval, and steps 4–6 then run without a second question.
 4. **Apply only**:
    - `present` flips (a runner appeared or disappeared),
    - `active_when` changes — an approved trigger change is written as the entry's own

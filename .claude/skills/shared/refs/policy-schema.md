@@ -27,7 +27,7 @@ The **env-setup contract** is not in `policy.json` at all: it is [`devkit/ENV.md
 | Writer | Writes |
 |---|---|
 | `/msg --init` | **seed** — `version`, `init:false`, `generated`, `policies.release_flow`, and `policies.github_actions` when the CI question was asked (nothing else) |
-| `/msg --update` | **CI decision** — sets/changes `policies.github_actions`, and the **test-selection decision** `policies.test_selection` (the only keys it writes; it otherwise delegates to `/msg --init`'s top-up) |
+| `/msg --update` | **CI decision** — sets/changes `policies.github_actions`, and the **test-selection decision** `policies.test_selection` (the only keys msg's own part writes; it otherwise delegates to `/msg --init`'s top-up). The same pass also runs `/pre-merge --update` and `/merge --update` behind its one approval; those writes are theirs (rows below) |
 | `/msg --init-staging` | **flow flip** — sets `release_flow.mode:"staged"`, `staging_branch:"staging"` after creating the branch |
 | pre-merge setup (the first `/pre-merge` run) and `/pre-merge --update` | **completion** — runs the preflight checks, assembles `components[]`, stamps `source_signature`, fills tooling, then writes `init:true` with an explicit `--set init=true`. Also scaffolds `devkit/ENV.md` — a devkit doc, not a policy key |
 | merge setup (the first `/merge` run) and `/merge --update` | **completion / reconcile** — fills `branch_protection`, `steps.deploy_*`/`smoke`, `policies.merge` (`risky_paths`, `ci_wait_minutes`), records `staging_ready` (`staged` flow only), writes `init:true`. Reads `release_flow` and reports a mismatch — never writes it (`/msg --init` is its one writer) |

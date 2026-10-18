@@ -15,7 +15,7 @@ msg is prompts, not a program. Each skill is a `SKILL.md` — a structured promp
 
 Each is the router for its own behaviour — start here to change what a skill does.
 
-- [msg](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/msg/SKILL.md): skill browser, `--init` project bootstrap, `--gui` PRD board, `--doctor`
+- [msg](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/msg/SKILL.md): bare `/msg` says the next step per PRD, skill browser, `--init` setup (runs by itself when `devkit/` is missing), `--update` one-pass update, `--gui` PRD board, `--doctor`
 - [intake](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/intake/SKILL.md): the backlog front door — captures and grades ideas into `INTAKE.md`
 - [plan-pm](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-pm/SKILL.md): autonomous PRD writer, consumes a graded intake row
 - [plan-review](https://raw.githubusercontent.com/ndisisnd/msg/main/.claude/skills/plan-review/SKILL.md): seven-check contract certifier, each check bound to a named downstream consumer

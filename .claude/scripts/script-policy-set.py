@@ -3,8 +3,8 @@
 script-policy-set.py — the one writer for `devkit/policy.json`.
 
 Every msg write to the policy file goes through here: the `/msg --init` Step 3
-seed, its Step 5 `policies.github_actions` merge, `/msg --update`'s Step 3-CI
-and Step 3-TS merges, and `/msg --init-staging`'s release-flow flip. Four call
+seed, its Step 5 `policies.github_actions` merge, `/msg --update`'s Step 4
+settings merges, and `/msg --init-staging`'s release-flow flip. Four call
 sites used to hand-author or hand-edit the JSON, each carrying its own
 "surgical, byte-identical, only this key" prose and none of them verified.
 
