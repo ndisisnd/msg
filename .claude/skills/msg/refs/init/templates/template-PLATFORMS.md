@@ -1,14 +1,15 @@
 ---
 name: PLATFORMS Template
-description: Template for devkit/PLATFORMS.md — one row per shipping platform declaring rollback capability, gate tolerance profile, staging + production deploy commands, an optional staging config file, a post-deploy smoke check with its optional v2 watch-window / poll modifiers, optional macOS notarization / signing / appcast checks, an executable rollback/rollout-halt lever, an optional version probe for release provenance, and required pre-merge buckets. Read by /pre-merge Step 0 (strictness profile + bucket set) and by /merge (per-platform staging/production deploy pipeline + deploy verification + executable rollback + release identity).
+description: Template for devkit/PLATFORMS.md — one row per shipping platform declaring rollback capability, gate tolerance profile, staging + production deploy commands, an optional staging config file, a post-deploy smoke check with its optional v2 watch-window / poll modifiers, optional macOS notarization / signing / appcast checks, an executable rollback/rollout-halt lever, and an optional version probe for release provenance. Read by /pre-merge Step 0 (strictness profile) and by /merge (per-platform staging/production deploy pipeline + deploy verification + executable rollback + release identity).
 type: reference
 ---
 
 # PLATFORMS Template
 
 `devkit/PLATFORMS.md` tells `/pre-merge` how strict to be **per platform**. Step 0
-of the gate reads it, resolves the `tolerance` profile, and from that picks which
-platform buckets run and how severity thresholds are set. It is scaffolded by
+of the gate reads it, resolves the `tolerance` profile, and from that sets how strict
+each platform check is and how severity thresholds are set (which checks run comes
+from the component catalog and detection, not from this file). It is scaffolded by
 `/msg --init` (one interview question — which platforms ship) and is idempotent:
 `--init` never overwrites an existing file. Edit the rows freely afterward.
 
@@ -29,7 +30,7 @@ skips-with-a-note per the column's rule.
 | `platform` | shipping target: `web` / `ios` / `android` / `macos` (add your own row for anything else) |
 | `rollback_possible` | honest per-platform reversibility, drives the release-PR rollback note: `yes` (redeploy the previous build fully restores) / `limited` (a lever exists but does **not** fully un-ship — e.g. a store staged-rollout **halt** stops further exposure but the already-approved build stays out) / `no` (**IRREVERSIBLE** — an approved app-store release cannot be pulled). Defaults: web → `yes`, macOS → `limited`, **Android → `limited`** (staged-rollout halt exists — I6), **iOS → `no`** (a released build is permanent; its *phased release* can still be halted via `rollout_halt_cmd`, but the build is not recallable, so it stays `IRREVERSIBLE`-flagged). |
 | `release_model` | `deploy` (synchronous — deploy-cmd exit 0 ⇒ the target is **live**; smoke the live target; rollback = redeploy) or `submission` (asynchronous — deploy-cmd exit 0 ⇒ **submitted to store review**, never "live"; the app goes live downstream, out-of-band; rollback lever = halt the rollout). Defaults by platform: web/macOS → `deploy`, iOS/Android → `submission`. Missing ⇒ merge **infers** it from the platform identity and **warns**, never guesses silently (AC-RM1). Every verify/rollback/lifecycle branch keys off this field. |
-| `tolerance` | gate profile: `strict` / `standard` / `lenient` — drives bucket set + severity thresholds |
+| `tolerance` | gate profile: `strict` / `standard` / `lenient` — drives check strictness (blocking vs advisory) + severity thresholds |
 | `staging_deploy_cmd` | the command `/merge --staging` runs to deploy the staging environment after merging (or `[USER: …]` until filled; empty ⇒ merge asks or skips with a note). For a `submission` platform this is where the **internal / TestFlight track** is named — a non-placeholder value here is what `/merge --init` reads as the staging-readiness signal |
 | `staging_config` | **optional** — a staging config file this platform's deploy needs (e.g. `.env.staging`). When a **real path** is given, `/merge --init` checks it exists on disk as part of staging-readiness (AC-SR2). Blank or `[USER: …]` ⇒ *not declared* — no config-file check (many platforms need none) |
 | `production_deploy_cmd` | the command `/merge --production` runs to deploy production after the release merges (or `[USER: …]`; empty ⇒ ask/skip with a note) |
@@ -42,7 +43,6 @@ skips-with-a-note per the column's rule.
 | `rollback_cmd` | **`deploy` model only** — the command that **restores the last-good release** (redeploy the previous artifact), e.g. `vercel rollback`, re-publish the prior appcast build. On a deploy/smoke **failure** `/merge` **offers to run it** via `AskUserQuestion` *before* the fix loop (always-ask, never auto — D12; AC-RB1/RB3). Empty / `[USER: …]` ⇒ no executable rollback — `/merge` falls back to **notes-only** and flags the gap (AC-RB2). Leave blank (`—`) for a `submission` platform — its lever is `rollout_halt_cmd`. |
 | `rollout_halt_cmd` | **`submission` model only** — the command that **halts the staged rollout / phased release** (Play `--rollout 0`, App Store Connect phased-release pause). Offered via `AskUserQuestion` before the fix loop **once a rollout exists** (a `--production` submission whose track is in staged rollout / phased release; not meaningful in `--staging`'s internal track, nor for a rejected-at-upload where nothing was submitted). Halt ≠ full un-ship (the approved build stays out — this is why Android/iOS are not `rollback_possible: yes`). Empty / `[USER: …]` ⇒ notes-only + gap (AC-RB2). Leave blank (`—`) for a `deploy` platform — its lever is `rollback_cmd`. |
 | `version_probe` | **optional** — a command that prints the **deployed/submitted artifact's source commit** (full or short sha), e.g. `curl -fsS https://myapp.com/version` returning the live commit, or a mobile build that echoes its embedded `GIT_COMMIT`. `/merge --production` runs it to **verify provenance** — that what actually shipped was built from the signed-off commit (AC-RI2): a probe sha outside the signed-off release → `fail` with a provenance finding. Blank / `[USER: …]` ⇒ **not declared** — provenance is asserted *structurally* (merge deployed from the merged prod branch) and recorded as unverified, never a fail. Declared-artifact style: no new probing infra, only what a platform states. |
-| `required_buckets` | comma-separated platform buckets Step 5 must run for this platform |
 | `emulate_cmd` | **optional (`ios` / `android` only)** — the command `/emulate` runs to build, install and launch this platform on a **local** simulator or emulator, e.g. `npx expo run:ios`, `./gradlew installDebug && adb shell am start -n com.acme/.MainActivity`. Declared wins over `/emulate`'s own runner detection; blank / `—` / `[USER: …]` ⇒ **not configured**, and `/emulate` detects the runner from the working tree (Expo config, `ios/*.xcworkspace`, `android/gradlew`) — the command is never invented. `$EMULATE_DEVICE_ID` / `$EMULATE_DEVICE_NAME` are exported into its environment, so a row can pin the destination without knowing which device the user picked. Nothing here affects a deploy or a gate — this column is read by `/emulate` alone. |
 
 ## Tolerance profiles (baked-in defaults)
@@ -55,7 +55,7 @@ skips-with-a-note per the column's rule.
 
 The **safety floor runs in every profile** regardless of tolerance — security,
 migration, and every human gate (staging sign-off, production
-double-confirm) are never relaxed. Tolerance only moves bucket selection and
+double-confirm) are never relaxed. Tolerance only moves check strictness and
 severity thresholds.
 
 ## Doc body
@@ -63,7 +63,7 @@ severity thresholds.
 ```
 # PLATFORMS — Pre-merge tolerance profiles
 
-`/pre-merge` reads this file (Step 0) to pick a strictness profile and bucket set
+`/pre-merge` reads this file (Step 0) to pick a strictness profile
 per shipping platform; `/merge` reads the `staging_deploy_cmd` /
 `production_deploy_cmd` columns to run each platform's deploy pipeline, then — per
 the platform's `release_model` — either smokes the live target (`deploy`) or
@@ -84,8 +84,8 @@ contract in `.claude/skills/msg/refs/init/templates/template-PLATFORMS.md`. Miss
 this file → pre-merge falls back to the `standard` profile and warns to run
 `/msg --init`.
 
-| platform | rollback_possible | release_model | tolerance | staging_deploy_cmd | staging_config | production_deploy_cmd | smoke_cmd | smoke_watch_window | smoke_poll | notarize_status_cmd | signing_smoke_cmd | appcast_url | rollback_cmd | rollout_halt_cmd | version_probe | required_buckets | emulate_cmd |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| platform | rollback_possible | release_model | tolerance | staging_deploy_cmd | staging_config | production_deploy_cmd | smoke_cmd | smoke_watch_window | smoke_poll | notarize_status_cmd | signing_smoke_cmd | appcast_url | rollback_cmd | rollout_halt_cmd | version_probe | emulate_cmd |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
 ```
 
 `rollback_cmd` / `rollout_halt_cmd` are **mutually exclusive per platform** by

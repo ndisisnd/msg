@@ -1,0 +1,11 @@
+NO_RECORD branch=feat/prd-1-a
+exit=3
+RECORDED=feat/prd-1-a HEAD=aaa111 VERDICT=fail
+RECORDED=feat/prd-2-b HEAD=bbb222 VERDICT=pass
+RECORDED=feat/prd-1-a HEAD=ccc333 VERDICT=pass_with_warnings
+{"head":"ccc333","verdict":"pass_with_warnings","checked_at":"2026-10-17T01:00:00Z","report":"r.md","run_dir":null}
+exit=0
+{"head":"bbb222","verdict":"pass","checked_at":"2026-10-17T00:00:00Z","report":null,"run_dir":null}
+exit=0
+NO_RECORD branch=feat/prd-1-a
+exit=3

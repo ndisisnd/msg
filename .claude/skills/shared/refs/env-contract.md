@@ -113,8 +113,9 @@ safety-floor pattern), defined once in `pre-merge/refs/executor.md` §3b:
 
 - **Non-destructive** env-needing checks run against the **ambient** environment, each
   carrying a `high` finding (`rule: sandbox-unprovisioned`, `source: pre-merge:executor`).
-- **Destructive** checks (the migration up→down→up round-trip) are **skipped-with-note** —
-  never run against shared state.
+- **Destructive or server-bound** checks (the migration up→down→up round-trip and the
+  live API check) are **not run** and report *"not run: no sandbox"* — never run
+  against shared state, never listed as run.
 - A provisioner **without** a `seed_script` runs the sandbox but flags the same loud note
   for seed-dependent realism (`load`/`perf`/`integration` against an empty DB).
 

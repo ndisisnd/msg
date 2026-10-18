@@ -146,7 +146,7 @@ web-only *runner* against a broader applicability is an **enforced
   integration-level tests; resolved at `--init`/`--update` and recorded in the manifest.
 - **ˡ** — **live-half only** (C23): the `api` **component** is `needs_env: false` — its
   base-vs-PR **spec-diff** is static and runs outside. Only its **#3 live-conformance
-  pass** (spec-vs-implementation against a running server) runs inside the sandbox,
+  pass** (spec-vs-implementation against a running server; `pre-merge/refs/platform/protocol-api.md` § Live conformance) runs inside the sandbox,
   with the env wave.
 - **ˢᵉˡ** — **selection-capable** (`policies.test_selection`): the component can resolve a
   `run_minified` invocation and therefore participate in minified runs. **Exactly three
@@ -196,8 +196,9 @@ before; a static component never triggers provisioning and never enters the sand
 - **No provisioner ⇒ loud degrade** (AC-SBX6, the D28 safety-floor pattern):
   non-destructive env-needing checks run against the ambient environment with a `high`
   `sandbox-unprovisioned` finding ("cannot run hermetically — no sandbox provisioner");
-  **destructive** checks (migration up→down→up) are skipped-with-note — never run
-  against shared state, never a silent pass.
+  **destructive or server-bound** checks (migration up→down→up, the live API check)
+  report *"not run: no sandbox"* — never run against shared state, never a silent
+  pass, never listed as run.
 
 ## The selection-capable tier (`policies.test_selection`)
 

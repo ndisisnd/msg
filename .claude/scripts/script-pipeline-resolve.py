@@ -112,7 +112,7 @@ SURFACE_PATTERNS = {
 # stale manifest copied; it is ignored with a warn rather than honored.
 MANIFEST_FIELDS = {
     "id", "present", "run", "run_minified", "tooling", "status",
-    "criticality", "needs_env", "reason",
+    "criticality", "needs_env", "reason", "active_when",
     "hot_tables", "consumers", "traffic_mix", "matrix",
 }
 
@@ -393,8 +393,12 @@ def resolve(args):
         if status in ("opted_out", "n/a") and not meta["mandatory"]:
             drop(cid, "status: %s" % status)
             continue
-        # 2 · active_when
-        aw = meta["active_when"]
+        # 2 · active_when — an approved manifest override (written by
+        # `/pre-merge --update`) wins over the catalog default, so an approved
+        # trigger change takes effect on the next run.
+        aw = (normalise_active_when(entry["active_when"])
+              if isinstance(entry.get("active_when"), str) and entry["active_when"].strip()
+              else meta["active_when"])
         if aw == "prd" and not args.prd:
             drop(cid, "active_when: prd (no --prd)")
             continue

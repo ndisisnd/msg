@@ -1,6 +1,6 @@
 # Minimal ephemeral test-sandbox stack for the C23 gate sandbox.
 #
-# Copied by `/pre-merge --init` under per-item approval, then referenced from
+# Copied by pre-merge setup under per-item approval, then referenced from
 # `devkit/ENV.md`'s fenced `env` block:
 #
 #   provision: docker compose -f docker-compose.test.yml up -d --wait

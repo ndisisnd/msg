@@ -2,6 +2,21 @@
 
 ## 2026-10-17
 
+### [186] v6.0.0 pre-merge — one base, conflicts asked outside the gate, honest sandbox checks, batched setup
+
+- `.claude/skills/pre-merge/refs/sync.md`, `shared/refs/gate-dispatch.md`: Changed — a same-lines conflict aborts the merge and stops with `sync_conflict`; the main conversation asks "Resolve now / Abort".
+- `.claude/skills/pre-merge/refs/executor.md` §0a, `universal/protocol-mechanical.md`, `scripts/script-resolve-diff.sh`: Changed — the base is resolved once and passed to every step; the diff script has no default.
+- `.claude/skills/pre-merge/refs/platform/protocol-api.md`, `platform/protocol-migration.md`, `shared/refs/env-contract.md`, `shared/refs/component-catalog.md`: Changed — defined the live API check and the migration up/down/up round-trip; with no sandbox both report "not run: no sandbox".
+- `.claude/skills/pre-merge/refs/platform-profiles.md`, `_common.md`, `output-schema.md`, `msg/refs/init/templates/template-PLATFORMS.md`, `msg/refs/protocol-init.md`, `plan-review/refs/certification.md`, `.claude/scripts/script-cert-mech.py`: Changed — the catalog plus detection decide which checks run; the profile only sets strictness; `required_buckets` retired; check 6 checks platform rows.
+- `.claude/skills/pre-merge/refs/protocol-init.md`: Changed — setup asks up to 4 questions per prompt, gaps only, tuning questions in the same batches; final write sets `init: true`; `--update` writes approved `active_when` overrides; CI stub follows the detected language.
+- `.claude/scripts/script-pipeline-resolve.py`, `shared/refs/policy-schema-pre-merge.md`: Changed — a manifest `active_when` override wins over the catalog.
+- `.claude/scripts/script-premerge-last-check.sh`: Added — stores the last-checked commit and the verdict together per branch.
+- `.claude/scripts/script-policy-set.py`: Changed — documents that only `--set init=true` flips `init`.
+- `.claude/skills/pre-merge/refs/stubs/pre-merge.yml`, `stubs/*`: Changed — one setup block per language; no Node steps in a non-Node repo.
+- `.claude/skills/shared/refs/fix-loop.md`: Changed — pre-merge's fix loop runs automatically in the main conversation, up to 2 rounds, with stop rules; merge keeps its offers.
+- `.claude/skills/pre-merge/refs/protocol-criticality.md`: Changed — renamed from `protocol-update-criticality.md`; tagging becomes an automatic gate step.
+- `evals/cases/{premerge-last-check,pipeline-active-when-override,policy-set-init-true}/`: Added; `a06-cert-mech-no-prds-matched`: Changed — facet renamed; `agg-verdict-prd-regrades`: Changed — fixture folder tracked.
+
 ### [185] v6.0.0 pre-merge — honest checks: no rtk, one tests file, smoke never skips, script-owned verdict
 
 - `.claude/skills/pre-merge/refs/{sync,universal/protocol-mechanical,universal/protocol-security,platform/protocol-e2e}.md`, `shared/refs/{verify-prelude,finding-schema}.md`, `eng/refs/plan/fix-plan.md`, `.claude/scripts/changelog-gate.py`: Changed — plain commands, no hard-coded `rtk` prefix; a missing `rtk` no longer turns every check into a silent warning.

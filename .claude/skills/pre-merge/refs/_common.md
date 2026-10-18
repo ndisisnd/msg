@@ -5,10 +5,10 @@ description: Shared contract for pre-merge's platform components (e2e, qa, mobil
 
 # Platform components — common contract
 
-Which components run is decided by the resolved pipeline (`executor.md` §1) layered
-with the platform profile's required-components set (`refs/platform-profiles.md`, sourced from the `required_buckets`
-column of `devkit/PLATFORMS.md` — the column's on-disk name predates this rename and
-is unchanged by it) — **never hardcoded**. Each selected component runs as its own
+Which components run is decided by the resolved pipeline (`executor.md` §1) alone —
+the catalog trigger (`active_when`) plus detection, **never hardcoded**. The platform
+profile (`refs/platform-profiles.md`) changes only how strict a component is
+(blocking vs advisory), never whether it runs. Each selected component runs as its own
 parallel `Agent` subagent and uses the `run` command resolved for it in
 `devkit/policy.json` `components[]` (detected at `--init`/`--update` by the
 `script-preflight-*.sh` family); it does not re-detect.

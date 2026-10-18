@@ -1,35 +1,44 @@
 ---
 name: sync
-description: SYNC — the un-prunable DAG root: fetch + merge latest staging into the feature branch. Trivial conflicts auto-resolve; semantic same-hunk conflicts pause for a human. This sync-merge commit is pre-merge's ONLY direct write.
+description: SYNC — the un-prunable DAG root: fetch + merge the run's resolved base into the feature branch. Trivial conflicts auto-resolve; a same-lines conflict aborts the merge and is asked in the main conversation, never inside the gate. This sync-merge commit is pre-merge's ONLY direct write.
 ---
 
 # SYNC (D7) — the un-prunable DAG root
 
-Bring the feature branch up to date with `staging` before gating, so the gate
+Bring the feature branch up to date with the base (`staging`, else `main`) before gating, so the gate
 grades what will actually merge. The resulting sync-merge commit is pre-merge's
 **only** direct write to the repo (B4) — mechanical, one correct answer or a pause.
 
 ## Preconditions
 
 1. `git fetch origin`.
-2. **Resolve the sync target.** The v2 topology (D3) is `feature → staging → main`, so `staging` is the preferred target. If neither `origin/staging` nor a local `staging` resolves, **fall back to `main`** (`origin/main`, else local `main`) — do not refuse or warn. Use the resolved branch as the sync target below and as the OPEN-PR base. (Emit no `no_staging` refusal — that failure mode is retired.)
+2. **Use the run's resolved base.** The base is resolved **once** at the start of the run (`executor.md` §0a) by this rule: `staging` when `origin/staging` or a local `staging` resolves, else `main` (`origin/main`, else local `main`) — never a refusal or a warning. SYNC merges that base; every later step and script uses the same one.
 
 ## Merge + conflict handling
 
-Run `git merge origin/<target>` into the current feature branch, where `<target>` is the branch resolved in precondition 2 (`staging`, else `main`). When the remote branch does not resolve but a local one does (e.g. no remote yet), merge the local branch instead: `git merge <target>`.
+Run `git merge origin/<base>` into the current feature branch, where `<base>` is the run's resolved base (`staging`, else `main`). When the remote branch does not resolve but a local one does (e.g. no remote yet), merge the local branch instead: `git merge <base>`.
 
-- **Clean merge** → commit the merge (message: `sync: merge <target> into <branch> before gate`). Proceed.
+- **Clean merge** → commit the merge (message: `sync: merge <base> into <branch> before gate`). Proceed.
 - **Conflicts** → classify each conflicted hunk:
 
 | Conflict class | Test | Action |
 |---|---|---|
 | Non-overlapping | changes touch different regions the merge driver could not auto-place | auto-resolve (take both) |
 | Whitespace-only | the only delta is whitespace/EOL | auto-resolve |
-| Lockfile | path is a known lockfile (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Podfile.lock`, `pubspec.lock`) | auto-resolve by regenerating (`<pm> install`) or taking staging's, then re-lock |
-| **Semantic (same-hunk)** | both sides edited the same lines with differing intent | **PAUSE** |
+| Lockfile | path is a known lockfile (`package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `Cargo.lock`, `poetry.lock`, `Podfile.lock`, `pubspec.lock`) | auto-resolve by regenerating (`<pm> install`) or taking the base's, then re-lock |
+| **Semantic (same-hunk)** | both sides edited the same lines with differing intent | **STOP** — asked in the main conversation |
 
 - Auto-resolved everything → stage the resolutions and commit the sync-merge. Record which files were auto-resolved (surfaced in the report's `## Work done`).
-- **Any semantic same-hunk conflict** → `AskUserQuestion`: present the conflicting hunks and ask the human to resolve (Resolve now / Abort gate). On **Abort**, `git merge --abort` and terminate with `verdict: "skipped"`, `reason: "sync_conflict_declined"`. Never guess a semantic merge.
+- **Any semantic same-hunk conflict** → the gate never asks and never guesses:
+  1. run `git merge --abort`, so the branch is unchanged;
+  2. stop with `verdict: "skipped"`, `reason: "sync_conflict"`, and a **gate request**
+     listing each conflicting file and its hunks;
+  3. the main conversation asks the user **"Resolve now / Abort"**
+     (`../../shared/refs/gate-dispatch.md` § *Phase-split*);
+  4. on **Resolve**, the conflict is resolved in the main conversation and `/pre-merge`
+     runs again from the start. On **Abort**, the run ends with that `skipped` verdict.
+
+  The question is never pre-approved, even inside the automatic fix loop.
 
 ## Re-run gate after sync
 
@@ -39,7 +48,7 @@ non-negotiable regardless of profile.
 
 ## Write scope
 
-The sync-merge commit is the sole carve-out to pre-merge's no-write rule. Pre-merge
-still never edits source, never `git push`, never `gh pr merge`/`git merge` into
-`main`. Regression-test writes happen via the `regression` component's spawned eng subagent, never
+The sync-merge commit is the sole carve-out to pre-merge's no-write rule (beside the
+critical-test tags, `executor.md` §3c.4). Pre-merge still never edits source, never
+`git push`, never opens a PR, never `gh pr merge`/`git merge` into `main`. Regression-test writes happen via the `regression` component's spawned eng subagent, never
 by pre-merge's own hand.

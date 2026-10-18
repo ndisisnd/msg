@@ -21,27 +21,57 @@ performs the join; nothing here re-derives component metadata by hand.
 
 The **spine is un-prunable** (Fork B): `SYNC` is the mandatory DAG root — every
 component implicitly depends on it, so the tree is synced before anything runs —
-and `OPEN-PR / issues-loop` is the terminal. Neither is a `components[]` entry;
+and the verdict (pass → "Next: /merge", fail → the fix loop) is the terminal. Neither is a `components[]` entry;
 both bracket the resolved pipeline.
 
-## 0 · Load the manifest (Fork C — the no-manifest refusal)
+## 0 · Load the manifest — first run sets it up
 
 Load + validate `devkit/policy.json` once per run (`policy-schema.md` read-contract
 §0/§1 + `policy-schema-pre-merge.md` §2c — merge's sections are never loaded).
-Then gate on `components[]` per the manifest-state table in
-`../refs/refusal-patterns.md` §`no_manifest` — the one home for that gate.
 
-There is no defaults path — a run without a manifest does nothing but tell the user to run
-`--init`. Run-vs-skip comes from component **presence**: an absent component simply
-isn't in the pipeline.
+| Manifest state | Behavior |
+|---|---|
+| `components[]` present, non-empty | **run** the resolved pipeline |
+| `policy.json` absent, or present with **no** `components[]` | **first-run setup**, in the main conversation: run `protocol-init.md` (batched questions, gaps only), save `devkit/policy.json`, then **continue into the gate in the same run** |
+| `policy.json` malformed, or `version` ≠ 1 | stop and name the parse error; setup never overwrites a file it cannot read |
+
+There is no built-in-defaults path: the gate runs the pipeline the manifest declares,
+and the first run writes that manifest. Run-vs-skip comes from component **presence**:
+an absent component simply isn't in the pipeline. Setup asks the user, so it runs
+**before** the gate subagent is spawned (`../../shared/refs/gate-dispatch.md` step 1);
+only the user starts `/pre-merge`, so a user is present to answer.
 
 **Manifest staleness nudge — the canonical statement (Fork E, read-only).** With a
 valid manifest, recompute `source_signature` cheaply (`policy-schema-pre-merge.md` §`source_signature`) and, on mismatch, print one line —
 *"pipeline may be stale — run `/pre-merge --update`"* — then **proceed on the current
-manifest**. The executor **never** writes `policy.json` or mutates `components[]`;
-only `--init`/`--update` do. Every other mention of this nudge cites this section
-rather than restating it; its test-tree sibling (the untagged-test count) is defined
-once in `../refs/protocol-update-criticality.md` § *Staleness nudge*.
+manifest**. The gate **never** writes `policy.json` or mutates `components[]`;
+only setup and `--update` do (the one gate-run write is the `criticality_review`
+stamp, §3c.4). Every other mention of this nudge cites this section rather than
+restating it.
+
+## 0a · Resolve the base — once
+
+Resolve the base branch **once**, at the start of the run, and pass it to every step
+and script: `staging` when `origin/staging` (or a local `staging`) resolves, else
+`main` — the sync rule (`sync.md` precondition 2). SYNC merges it, `script-resolve-diff.sh
+<base>` diffs against it, the comment scan and the commit-cap audit range over it, and
+the verdict records it. No step or script keeps a default of its own.
+
+## 0b · Find the PRD — from the branch name
+
+pre-merge finds the PRD itself; there is no PRD flag. In the main conversation, before
+the spawn:
+
+| Branch | PRD |
+|---|---|
+| `feat/prd-<N>-<slug>` and exactly one `features/**/prd-<N>-*/` directory matches | that PRD |
+| the name does not match, or several PRDs match | ask **once** (`AskUserQuestion`) — the matching PRDs (or the open PRDs), each as one option, plus **No PRD** (skips the PRD checks — the quick-fix case) |
+
+With no user present (a sub-agent run): no PRD matches ⇒ **No PRD**; several match ⇒
+stop and report the matches, never guess. The one PRD found feeds every PRD consumer —
+the `prd` group (`prd-consistency`, `manual-test-plan`), `regression`, and the review
+coverage check (§5a.1) — and is passed to the scripts as their internal `--prd <path>`
+argument. One run checks one PRD. **No PRD ⇒ the `prd` group is pruned.**
 
 ## 1 · Resolve the pipeline — one script call
 
@@ -56,7 +86,7 @@ the fail-silent class `script-*` exists to close.
   --policy devkit/policy.json \
   --catalog .claude/skills/shared/refs/component-catalog.md \
   --platforms-file devkit/PLATFORMS.md \
-  [--diff <resolve-diff output>] [--prd <path>] [--changed-only] [--flaky <N>]
+  [--diff <resolve-diff output>] [--prd <the PRD found at §0b>] [--changed-only] [--flaky <N>]
 ```
 
 It prints the run's **plan JSON**:
@@ -75,12 +105,15 @@ executor never re-orders or re-prunes on its own. Exit `2` is the `no_manifest`
 refusal (§0); exit `4` is a dependency cycle (refuse, never loop); exit `6` names a
 **mandatory component absent from `components[]`** — one `MANDATORY_ABSENT=<id>` line
 per gap, no plan. The safety floor is not prunable, so this is a refusal, not a
-`pruned[]` row: run `/pre-merge --init` (or `--update`) to write the missing row(s),
-then re-run. Exit `7` means `--platforms-file` exists but could not be read — a
+`pruned[]` row: run `/pre-merge --update` to write the missing row(s), then re-run. Exit `7` means `--platforms-file` exists but could not be read — a
 tooling failure, distinct from the file being absent (absent = no targets, no
 coverage-gap findings, and the run proceeds).
 
-Write the plan to `.pre-merge/<ts>/plan.json` so §5's completeness check can read it.
+Write the plan to `.pre-merge/<ts>/plan.json` so §5's completeness check can read it,
+with two run facts added at the top level: `base` (§0a) and `last_checked` — the
+commit the previous run on this branch checked, read from
+`script-premerge-last-check.sh --read --branch <branch>` (`null` when there is no
+record). The commit-cap audit reads `last_checked` (`universal/protocol-mechanical.md`).
 
 **Heartbeat starts here** (`../../shared/refs/status-heartbeat.md`). Once the plan
 is written, call `--start --phase pre-merge --run-id premerge-<epoch> --total <len(run[])> --label "<resolved pipeline>"` —
@@ -94,16 +127,16 @@ quoted verbatim above. `<epoch>` is fixed once, at this call, and every later
    `security` + `migration` are always `mandatory` and can never be pruned (Fork D) — with no scanner detected, `security` still runs its
    `/cook` semantic pass; `migration` is `active_when` the diff touches migrations.
 2. **`active_when` gate.** Drop a present component whose presence gate isn't met
-   this run — the `prd` group needs a **discovered or supplied PRD** (a
-   `features/prd-<N>-*/` directory matched to the branch, else `--prd <path>`); `ui-surface`/`api-surface`/`migrations`/
+   this run — the `prd` group needs the **PRD found at §0b** (passed as `--prd`);
+   a manifest `active_when` override (written by `--update`) wins over the catalog
+   trigger; `ui-surface`/`api-surface`/`migrations`/
    `mobile-surface`/`perf-config` need the matching surface in the diff; `smoke`'s
    union gate needs a UI **or** api/migration/deploy surface.
 3. **Flag pruning** (record what each prunes for observability, §5):
    - `--changed-only` — drop a platform component whose surface the diff doesn't
      touch (`../_common.md` surface map). Fail-open: unresolved diff → keep it.
-   - `--prd <path>` — an **override** naming the PRD when auto-discovery found none
-     or matched ambiguously. The `prd` group runs whenever a PRD resolves either way;
-     with no PRD at all it is pruned (a hotfix skips it).
+   - `--prd <path>` (internal — the executor passes the §0b PRD) — the `prd` group
+     runs when a PRD was found; with no PRD it is pruned (a quick fix skips it).
    - `--flaky <N>` changes retry behavior, not membership.
 
 An **absent** component produces **no** step and **no** "skipped/no_tooling" note
@@ -127,7 +160,7 @@ applicability is a coverage fact, not a narrowing. The check correlates three in
 that already exist: catalog `platforms` + the repo's **target platforms** + component
 **detection**.
 
-**Target platforms** come from `devkit/PLATFORMS.md` (detected/declared at `--init`) —
+**Target platforms** come from `devkit/PLATFORMS.md` (declared by `/msg --init`) —
 the platforms the repo actually ships to (∈ web · iOS · macOS · Android · backend).
 
 For **each target platform** `T`, for **each component** `C` where `T` falls in
@@ -171,7 +204,7 @@ Order is computed every run by `script-pipeline-resolve.py` (§1) — the manife
 2. **Tie-break** components with no dependency path between them (same wave) by
    `criticality` (critical → blocking → advisory/config-driven) then `cost` (cheap → moderate → expensive). This is a **display/scheduling** order
    within a wave; it never overrides a hard edge.
-3. **Reject a cycle.** The DAG is validated acyclic at `--init`; if a
+3. **Reject a cycle.** The DAG is validated acyclic at setup; if a
    loaded manifest is somehow cyclic, refuse rather than loop.
 
 The sort yields **waves** — each wave is the set of components whose dependencies
@@ -190,7 +223,7 @@ correctness waves are green (§3b). For a universal+prd web-app manifest (C5):
 
 **The table is illustrative, not normative** — the wave numbers a run actually gets
 come from the plan JSON. A component whose dependencies clear early lands early: with
-`--prd`, `manual-test-plan` joins the wave right after `prd-consistency` rather than
+a PRD found, `manual-test-plan` joins the wave right after `prd-consistency` rather than
 waiting for `coverage`, because it needs no sandbox and no other input.
 
 **Smoke runs first in the env wave (C21).** `smoke` is cheap and `blocking`, and the
@@ -301,7 +334,7 @@ provisioning and **never** enters the sandbox — the static waves run exactly a
 **The mechanism is read from `devkit/ENV.md`, never invented and never written.** That
 file is the project's committed env-setup contract (`../../shared/refs/env-contract.md`):
 human prose around one fenced `env` block carrying the four verbs below. The executor
-**reads** it (Fork E — gate runs never write it); `--init` scaffolds it and `--update`
+**reads** it (Fork E — gate runs never write it); setup scaffolds it and `--update`
 reconciles it. Resolution, including the placeholder and absent-file cases, is the table
 in `env-contract.md` § *Resolution*; every unresolved case lands on the loud degrade at
 the bottom of this section. A
@@ -335,11 +368,15 @@ a full re-provision (minutes).
 - **Non-destructive** env-needing checks run against the **ambient** environment,
   each carrying a `high` finding (`rule: sandbox-unprovisioned`,
   `source: pre-merge:executor`): *"cannot run hermetically — no sandbox provisioner;
-  declare one in `devkit/ENV.md`, or run `/pre-merge --init` to scaffold it"*. Never a
+  declare one in `devkit/ENV.md`, or run `/pre-merge --update` to scaffold it"*. Never a
   silent pass. The finding names the **exact** unresolved line (missing file / missing
   fence / the placeholder verb) so the fix is one edit.
-- **Destructive** checks (the migration up→down→up round-trip) are **skipped-with-note**
-  — never run against shared state.
+- **Destructive or server-bound** checks — the migration up→down→up round-trip
+  (`platform/protocol-migration.md` § *Round-trip*) and the live API check
+  (`platform/protocol-api.md` § *Live conformance*) — are **not run**, never run against
+  shared state. Each reports *"not run: no sandbox"* in its result report and in the
+  run report's `## Test results`. A check that did not run is never listed as run,
+  never "passed", never omitted.
 - A provisioner **without** a `seed_script` runs the sandbox but flags the same loud
   note for seed-dependent realism (`load`/`perf`/`integration` against an empty DB).
 
@@ -361,7 +398,7 @@ every component runs its `run` command exactly as before the key existed, and
 **no** selection artifact is read at all — not `run_minified`, not `tiers`, not
 `force_full_paths`, not `critical_markers`, not the `criticality_review` stamp,
 not the in-code tags. Nothing is emitted: no `test_selection` verdict block, no
-pipeline-line suffix, no staleness nudge. `--full` is the per-run kill switch;
+pipeline-line suffix, no critical-tagging pass (§3c.4). `--full` is the per-run kill switch;
 `/msg --update` flipping `enabled:false` is the repo-wide one.
 
 The scope is exactly the three **selection-capable** components (catalog legend
@@ -410,7 +447,14 @@ Thresholds come from `policies.test_selection.tiers` + `max_affected_ratio` (def
 short-circuiting signal (rule step 1) that lands directly in **L**.
 
 **The tier is resolved by script, not by judgment.** Run
-`../scripts/script-tier-resolve.sh <base> [--affected-ratio <r>] [--fan-in-pct <p>]`
+the tier script with the two-path pattern —
+
+```bash
+T=.claude/scripts/script-tier-resolve.sh; [ -f "$T" ] || T="$HOME/.claude/scripts/script-tier-resolve.sh"
+bash "$T" <base> [--affected-ratio <r>] [--fan-in-pct <p>]
+```
+
+
 — it reads the thresholds + `force_full_paths` from `devkit/policy.json`, derives
 `modules` from the diff itself, and prints `{tier, signals, trigger}`. Record that
 `tier` and those `signals` verbatim (§3c.3); `trigger` is the human-readable
@@ -476,10 +520,16 @@ never how a finding is graded (`../severity-rubric.md` is untouched by this
 section). A run that fell back to full at steps 1–4 records the reason in the same
 places, so "why did this take 40 minutes" is answerable from the artifacts.
 
-**Untagged-test staleness nudge.** A minified run counts untagged tests cheaply and,
-over the threshold, prints one nudge line before proceeding. The rule, the threshold,
-and the read-only contract are stated once in
-`../refs/protocol-update-criticality.md` § *Staleness nudge*.
+### 3c.4 · Critical-test tagging — before selection, automatic
+
+When `selection_on` is true, **before** the rule above picks any test, run the
+critical-test tagging pass (`protocol-criticality.md`): find untagged tests, tag the
+ones that must always run (with cited evidence), commit the tags on the branch as one
+`test(criticality): …` commit, restamp `criticality_review`, and list the tags in the
+run report. No question — a wrong "critical" tag only makes a test run more often.
+No critical-marker vocabulary from setup ⇒ skip the pass and say so in the report.
+This and the sync-merge commit are the gate's only file writes. Selection off ⇒ the
+pass is skipped.
 
 ## 4 · Result reports (one per component, every run)
 
@@ -668,21 +718,37 @@ issues-file shape (`issues[]` + `context` + `summary` + `followUp`) with a
   JSON is emitted. **Both close on every exit path after §1's `--start`**, not just a
   completed run: a critical abort (§3), an unresolvable env degrade, a refusal reached
   mid-run. The verdict JSON (§5b) remains stdout's final machine emission,
-  byte-identical whether the heartbeat ran or was disabled/quiet.
+  byte-identical whatever the heartbeat printed.
+- **Record the last check — the commit and the verdict together.** On every run that
+  reached a `pass`, `pass_with_warnings` or `fail` verdict, write the checked commit
+  (`git rev-parse HEAD` after the sync and any regression or tag commits — the verdict
+  JSON's `head`) and the verdict in one record:
+
+  ```bash
+  L=.claude/scripts/script-premerge-last-check.sh; [ -f "$L" ] || L="$HOME/.claude/scripts/script-premerge-last-check.sh"
+  bash "$L" --write --branch <branch> --head <head> --verdict <verdict> \
+       --report <run report path> --run-dir .pre-merge/<ts>/
+  ```
+
+  `.pre-merge/last-check.json` is the one durable store: the next run's commit-cap
+  audit starts from its `head`, and `merge` reads it to check that pre-merge passed on
+  the current branch tip — the commit or the verdict missing means no pass.
 
 ## 7 · Terminals + emission order
 
-**OPEN-PR — clean verdict only.** On `pass` / `pass_with_warnings`:
-`gh pr create --base <target> --head <feature-branch>` (`<target>` = the SYNC target,
-`staging` else `main`), verdict JSON + report path linked in the body, `pr_url`
-recorded. **Never** `gh pr merge` — `merge --staging` merges it on green CI.
+**Pass — `pass` / `pass_with_warnings`.** The run ends with the verdict, the report
+path and **"Next: /merge"** as the closing message's last line. pre-merge **never
+pushes and never opens a PR**: `/merge` checks the stored pass (§6), pushes the
+branch, opens the PR and waits for CI. The branch stays local.
 
-**Issues-file loop — non-clean verdict.** No PR opens. Write the **issues file** —
-the run report's paired `.json` (same stem, folder, N and K), the **universal
-report** (C7) per §5b. With both files written, hand off to
-`../../shared/refs/fix-loop.md`, which owns Offer #1 (`eng --plan`) → Offer #2
-(`eng --build`) off this same file; do **not** re-spell that wording here. The
-fixed branch comes back through the gate.
+**Fix loop — `fail`.** No PR, no push. Write the **issues file** — the run report's
+paired `.json` (same stem, folder, N and K), the **universal report** (C7) per §5b —
+and end the gate run. The gate subagent does **not** plan or build fixes. The **main
+conversation** runs the automatic fix rounds in `../../shared/refs/fix-loop.md`
+§ *pre-merge — automatic, up to 2 rounds* (plan → build → gate again, no question,
+up to 2 rounds, with its stop rules); do **not** re-spell that wording here. A round
+that passes ends with "Next: /merge"; a loop that stops hands to the user with the
+reason and the next command.
 
 **Every run ends with, in order:** (1) the run report — best-effort, skipped on
 `refused`/`skipped`; (2) the terminal `Issue summary` block — every verdict; (3) the

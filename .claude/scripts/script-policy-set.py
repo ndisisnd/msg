@@ -25,7 +25,9 @@ Semantics
   * `--skip-if-exists` is AC-LC7 in one flag: with `--create`, an existing file
     is left byte-for-byte alone and the run reports `STATUS=skipped-exists`.
   * `--stamp-by <writer>` stamps `generated` (today, `YYYY-MM-DD`, from the
-    system clock) and `generated_by`. Scripts *can* stamp the date — the
+    system clock) and `generated_by`. It never touches `init`: a setup that
+    completes flips it with an explicit `--set init=true` in its final call
+    (pre-merge setup, `pre-merge/refs/protocol-init.md`). Scripts *can* stamp the date — the
     protocol's old claim that they can't was the whole reason the seed was
     hand-written.
   * The result is re-read and re-parsed before the run reports success. A

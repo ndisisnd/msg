@@ -37,8 +37,36 @@ the Swift model expects it non-optional."*
 consumer, ever.** Record `consumers_source` = `pact` | `hint` | `none` so the grade is
 auditable.
 
-> **Live-server conformance** (spec-vs-implementation drift) needs a running server and
-> is run in the env wave, against the C23 sandbox — not here.
+## Live conformance — the running app against its spec (env wave)
+
+Spec-vs-implementation drift needs a running server, so this half runs in the **env
+wave**, inside the C23 sandbox (`../executor.md` §3b), after `smoke` proves the app is
+alive.
+
+1. **Start the app** in the sandbox (`devkit/ENV.md` `provision` + `seed`). Its base URL
+   comes from the env block.
+2. **Pick the endpoints.** Every endpoint the diff touches (a route file, a handler, or
+   the spec path itself changed), plus a sample of up to **10** other endpoints from the
+   spec, chosen in spec order. A spec with 10 endpoints or fewer runs them all.
+3. **Send each endpoint one request** built from the spec: the documented method, path
+   parameters from the spec's `example` values (else a minimal valid value from the
+   schema), and a request body from the request schema's example when one is required.
+   Use the seed fixture's credentials when the operation declares security.
+4. **Compare** the status code to the operation's documented responses and the response
+   body to that response's schema (required fields present, types match, no field the
+   schema forbids).
+5. **Each mismatch is one finding**: `high`, `rule: api-live-mismatch`,
+   `category: api`, `file` = the spec path, message naming method + path + what differed
+   (`GET /todos → 500, spec documents 200` / `GET /todos → dueDate is null, spec says
+   string`).
+
+Record `live: {ran: true, endpoints: <n>, sampled: <n>, mismatches: <n>}`.
+
+**No sandbox ⇒ not run.** `devkit/ENV.md` absent, or the provisioner unresolved
+(§3b *loud degrade*) ⇒ do **not** run against an ambient server. Record
+`live: {ran: false, reason: "no sandbox"}` and the report line reads *"live API check:
+not run — no sandbox"*. Never "passed", never omitted, and never listed as a check that
+ran. No spec ⇒ `live: {ran: false, reason: "no spec"}`.
 
 ## Discover + run (spec linters + contract tests)
 

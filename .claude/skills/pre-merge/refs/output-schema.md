@@ -108,7 +108,7 @@ Array of stages/components omitted from this run. Each entry:
 ```json
 {
   "bucket": "load",
-  "reason": "no_tooling" | "not_in_profile" | "not_triggered"
+  "reason": "no_tooling" | "not_triggered"
 }
 ```
 
@@ -116,7 +116,6 @@ Array of stages/components omitted from this run. Each entry:
 `refs/_common.md`'s component envelope note.)
 
 - `no_tooling` — no detected tool supports the component.
-- `not_in_profile` — the component is not in the platform profile's `required_buckets`.
 - `not_triggered` — a component whose `active_when` gate wasn't met (`migration` with no migration files, `smoke` with no matching surface, the `prd` group with no PRD).
 
 ## Refusal shape

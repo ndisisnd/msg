@@ -2,8 +2,8 @@
 # the model's re-grade lowers the unit blocker and marks a regression; the script, not
 # the model, derives the final verdict and counts. An unmatched re-grade is reported.
 S="$REPO/.claude/scripts/script-aggregate-verdict.sh"
-bash "$S" --run-dir run --regrades regrades.json \
+bash "$S" --run-dir reports --regrades regrades.json \
   | jq -c '{verdict, summary, regressions, regrades_applied, unmatched: (.regrades_unmatched | length), sev: [.issues[] | {rule, severity, regression}]}'
 # the same run with an unmet acceptance criterion added fails the gate
-jq '.findings += [{"severity":"high","category":"functional","rule":"acceptance-unmet","source":"pre-merge:prd-consistency","file":"src/c.ts","line":3,"message":"F2 AC1 unmet"}]' run/prd-consistency.json > p.tmp && mv p.tmp run/prd-consistency.json
-bash "$S" --run-dir run --regrades regrades.json | jq -r .verdict
+jq '.findings += [{"severity":"high","category":"functional","rule":"acceptance-unmet","source":"pre-merge:prd-consistency","file":"src/c.ts","line":3,"message":"F2 AC1 unmet"}]' reports/prd-consistency.json > p.tmp && mv p.tmp reports/prd-consistency.json
+bash "$S" --run-dir reports --regrades regrades.json | jq -r .verdict

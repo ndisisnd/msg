@@ -38,9 +38,15 @@ sense, for a wave of exactly one leaf.
 
 Run the mode's **cheap** refusal checks inline first, before any spawn. These are
 the ones answered by a file existence test or a one-line command — pre-merge's
-`no_manifest` and `no_diff`, merge's mode-argument and `release_flow` checks. If one
-trips, refuse in the main thread with the mode's existing refusal shape and stop.
-Spawning a subagent only to have it refuse in its first ten seconds is pure waste.
+`no_diff`, merge's mode-argument and `release_flow` checks. If one trips, refuse in
+the main thread with the mode's existing refusal shape and stop. Spawning a subagent
+only to have it refuse in its first ten seconds is pure waste.
+
+Pre-merge also does two cheap **main-thread** steps here, before the spawn, because
+both may need the user: **first-run setup** when `devkit/policy.json` has no
+`components[]` (`pre-merge/refs/protocol-init.md`, then continue into the gate), and
+**finding the PRD** from the branch name, asking once when none or several match
+(`pre-merge/refs/executor.md` §0b). The resolved PRD is passed to the subagent.
 
 Anything that needs the pipeline resolved, the policy fully read, or a network call
 is **not** a cheap probe. Those refusals happen inside the subagent and come back
@@ -138,6 +144,22 @@ verdict-so-far plus a **gate request** naming which question to ask. The dispatc
 asks it **verbatim, per the mode ref's existing wording**. The dispatcher chooses
 *when* to ask, never *what* to ask, and never whether.
 
+**pre-merge's one gate request — a merge conflict.** When the sync step hits a
+same-lines conflict, the gate subagent runs `git merge --abort` (the branch is
+unchanged) and stops with `verdict: "skipped"`, `reason: "sync_conflict"`, listing
+the conflicting files and hunks as its gate request (`pre-merge/refs/sync.md`). The
+dispatcher asks the user **"Resolve now / Abort"**. On **Resolve**, the conflict is
+resolved in the main conversation and `/pre-merge` runs again from the start. On
+**Abort**, the run ends with that `skipped` verdict. The question is never
+pre-approved and a merge is never guessed.
+
+### Hand-back after a fail (pre-merge)
+
+A `fail` verdict is relayed first (step 4). Then the **main conversation** runs the
+automatic fix rounds in `fix-loop.md` § *pre-merge — automatic, up to 2 rounds*: plan,
+build, dispatch the gate again. The gate subagent never plans or builds fixes itself,
+because those steps can pause for the user.
+
 Two rules bound this, and neither bends:
 
 - **No gate weakens.** Every `AskUserQuestion` in today's protocols still fires, in
@@ -152,7 +174,7 @@ Two rules bound this, and neither bends:
 Interactive and interview modes are cheap, conversational and gate-dense. They stay
 inline, unchanged, and never dispatch:
 
-- any `--init`, `--update`, or other interview mode;
+- any setup, `--update`, or other interview mode (pre-merge's first-run setup included);
 - refusals answered by the pre-spawn probe;
 - every human gate, per the phase-split rule above.
 

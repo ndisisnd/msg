@@ -1,0 +1,1 @@
+{"version":1,"init":true,"components":[{"id":"mechanical","present":true,"run":"npm run lint"},{"id":"security","present":true,"run":"gitleaks detect"},{"id":"migration","present":true},{"id":"e2e","present":true,"run":"npx playwright test","active_when":"always"},{"id":"a11y","present":true,"run":"npx axe"}]}

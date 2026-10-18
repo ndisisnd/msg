@@ -29,7 +29,8 @@ every repo on the next gate run, with no migration (AC-UP2).
 recording what detection found plus what the user decided. **Additive** — it lives beside
 `release_flow`/`github_actions`/`init`, which are untouched (AC-PF5). The pre-merge
 **executor** reads it as the pipeline source (`pre-merge/refs/executor.md`); a `/pre-merge`
-run with **no** `components[]` refuses `no_manifest` (Fork C, AC-PF13/PF14).
+run with **no** `components[]` runs setup inline first, saves the manifest, then gates in
+the same run (`pre-merge/refs/executor.md` §0).
 
 ```json
 "components": [
@@ -81,6 +82,7 @@ catalog cannot know. Absent ⇒ the catalog default applies.
 | Field | Type | Written when |
 |---|---|---|
 | `criticality` | enum `critical`\|`blocking`\|`advisory`\|`config-driven` | the user or a platform profile overrode the catalog default. **Never re-graded by `--update`** (AC-UP2). Absent ⇒ catalog default, and a later catalog change reaches this repo |
+| `active_when` | string | an approved trigger change from `--update` (a surface the catalog default does not cover, or `always`). `script-pipeline-resolve.py` reads it before the catalog default, so the change takes effect on the next run. Absent ⇒ catalog default |
 | `needs_env` | bool | **C23** — only where the value is *resolved*, not catalog-constant: `regression`, whose value follows its suite composition (AC-SBX8). Every other component inherits the catalog `env` column |
 | `hot_tables[]` | string[] | `migration` — the large/hot tables declared at `--init` (C17) |
 | `consumers[]` | string[] | `api` — the known API consumers declared at `--init` (C15) |
@@ -90,8 +92,9 @@ catalog cannot know. Absent ⇒ the catalog default applies.
 
 ### What the manifest does **not** carry
 
-- **`nn` · `group` · `kind` · `cost` · `depends_on` · `active_when` · `platforms` ·
-  `mandatory`** — catalog constants, resolved by `id` at run time. The executor and the
+- **`nn` · `group` · `kind` · `cost` · `depends_on` · `platforms` · `mandatory`** —
+  catalog constants, resolved by `id` at run time. (`active_when` is a catalog constant
+  too, unless `--update` wrote an approved override above.) The executor and the
   preflight scripts read the catalog, never a manifest copy.
 - **`order`** — ordering is a runtime topo-sort on the catalog's `depends_on` (Fork B,
   AC-PF4); the manifest never freezes a sequence.
@@ -115,6 +118,7 @@ Because the manifest is deltas, `--update`'s job is small and complete:
 | `status` `ready` ↔ `no_tooling` | re-detected fact |
 | new components | a catalog row with no manifest entry — seeded from fresh detection |
 | `needs_env` on `regression` | re-resolved from suite composition (AC-SBX8) |
+| `active_when` flips | an approved trigger change written as the entry's `active_when` override |
 | **catalog metadata** | **nothing to reconcile — it was never copied.** This is the AC-UP2 drift hole closed |
 
 `--update` **never** re-prompts a settled `opted_out`/`n/a`, **never** changes a user-set

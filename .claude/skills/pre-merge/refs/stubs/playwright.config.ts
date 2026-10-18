@@ -1,4 +1,4 @@
-// Minimal Playwright config — scaffolded by `/pre-merge --init`.
+// Minimal Playwright config — scaffolded by pre-merge setup.
 // Just enough for the e2e component to run: one project, a tests dir, list reporter.
 import { defineConfig, devices } from "@playwright/test";
 
