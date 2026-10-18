@@ -36,11 +36,11 @@
   <b>AI agents / LLMs:</b> read <a href="llms.txt"><code>llms.txt</code></a>.
 </sub></p>
 
-<!-- mkpub:release v5.6.5 -->
+<!-- mkpub:release v6.0.0 -->
 > [!NOTE]
-> **🚀 New in v5.6.5 · Long runs now survive interruptions, and cost less**
+> **🚀 New in v6.0.0 · Fewer questions, setup by itself, a clear next step**
 >
-> If a session dies or you close your laptop mid-run, `plan-em` picks up where it left off instead of starting over — finished work stays finished, only the unfinished agents are re-dispatched. Compiled coding standards are also remembered between runs, and agent briefings are now ordered so the shared portion hits the prompt cache instead of being billed in full each time.
+> msg now sets each project up the first time you need it, asks far fewer questions, and a bare `/msg` tells you what to run next. This is a breaking release: `/pre-merge` now stays local, `/merge` pushes and opens the PR, and the gates' `--init` and several other flags are gone — read the release notes before your next run.
 > Update with `curl -fsSL https://raw.githubusercontent.com/ndisisnd/msg/main/install.sh | bash -s -- --with-cook` · [Release notes](RELEASES.md)
 <!-- /mkpub:release -->
 
@@ -95,7 +95,7 @@ Then restart Claude Code fully and run `/msg`. If the menu doesn't render, the r
 
 New here? [QUICKSTART.md](./QUICKSTART.md) walks from install to your first shipped feature, with a verify check at every step. It also covers the step people miss: `/pre-merge` and `/merge` each set themselves up on their first run, so the first run of each asks a few setup questions.
 
-**Current release: v5.0.1** — see [RELEASES.md](./RELEASES.md) for what's new, release by release.
+**Current release: v6.0.0** — see [RELEASES.md](./RELEASES.md) for what's new, release by release.
 
 ## How it works
 
@@ -121,7 +121,7 @@ flowchart TD
 
 `/plan-review` is a step you choose. `/plan-pm` and `/plan-em` suggest it when they finish, and `--review on` makes either one run it for you every time. If you skip it, `/plan-em` still runs it before it builds on an uncertified PRD — so a build can never start on an uncertified plan.
 
-The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_diff`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~58 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
+The gates are ordered on purpose. A skipped step surfaces later as a refusal with a named reason (`no_diff`, `stale_signoff`, `release_in_flight`), not as a warning you can scroll past. [ARCHITECTURE.md](./ARCHITECTURE.md) covers the four layers underneath: the installer, the skill prompts, the ~70 scripts that handle everything decidable without a model, and the `devkit/` docs each project gets.
 
 ## The skills
 

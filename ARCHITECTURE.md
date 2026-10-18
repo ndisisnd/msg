@@ -35,7 +35,7 @@ Bash and Python helpers invoked by skills at runtime. Skills resolve scripts loc
 
 **Naming convention.** Every script is named `script-<slug>.<ext>` (v5). The prefix marks the shared script library at a glance, and — deliberately — the slug carries **no owning-skill prefix**, so renaming a skill never cascades into renaming its scripts. The one exception is `changelog-gate.py`, whose path is pinned inside a `PreToolUse` hook in `.claude/settings.json` that Claude Code resolves at session start; renaming it would break the hook for any session already running, so it keeps its pre-v5 name.
 
-There are ~58 scripts. Grouped by what they own:
+There are ~70 scripts. Grouped by what they own:
 
 **PRD lifecycle**
 

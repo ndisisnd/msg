@@ -2,6 +2,11 @@
 
 ## 2026-10-18
 
+### [205] v6.0.0 release — README and llms.txt for v6.0.0
+
+- `README.md`: Changed — header release blurb now announces v6.0.0 (setup by itself, fewer questions, bare `/msg` next step, breaking gate hand-off); "Current release" line reads v6.0.0, not the stale v5.0.1; script count reads ~70.
+- `llms.txt`, `ARCHITECTURE.md`: Changed — script count reads ~70 (72 files in `.claude/scripts/`), not ~58.
+
 ### [204] v6.0.0 release — version 6.0.0 and release notes
 
 - `RELEASES.md`: Added — v6.0.0 notes covering [166]–[203]: new (bare `/msg` next steps, setup runs by itself, one-pass `/msg --update`, `/eng --bug`, `/intake --health` and brainstorm switch, `/plan-pm --update`, `--review on|off`), improved (fewer questions, honest pre-merge checks, automatic fix loops, bare `/merge` picks the step) and breaking changes (pre-merge stays local and `/merge` pushes and opens the PR; `--init` on both gates, `--bump`, `--prd`, `--update-criticality`, `--quiet`, `--status` and the `--cto`/`--eng` setup modes removed).
