@@ -177,7 +177,7 @@ Then start the feature loop with `/intake`.
 | `/merge` refuses `push_rejected` | The remote branch has commits yours lacks | Pull them, run `/pre-merge`, then `/merge` |
 | `script-branch-protection.sh` prints `NO_GH` | `gh` missing or unauthenticated | Install `gh`, then `gh auth login` |
 | `script-branch-protection.sh` prints `NO_REMOTE` | No git remote configured | `git remote add origin <url>` |
-| `/msg --init-staging` stops immediately | No `devkit/policy.json` — repo was never bootstrapped | `/msg --init` first |
+| `/msg --init-staging` stops immediately | `devkit/` exists but has no `policy.json` (no `devkit/` at all runs `/msg --init` by itself) | `/msg --update` — adds the missing file |
 | Coding standards never load | cook isn't installed | `curl -fsSL https://raw.githubusercontent.com/ndisisnd/cook/main/install.sh \| bash` |
 | The same harness glitch keeps happening | Skills log harness incidents to `devkit/DOCTOR.md` | `/msg --doctor` — it reports which problems have recurred enough to be worth fixing (it never fixes them itself) |
 | `devkit/AHA.md` has grown long and noisy | Agents append a learning every time one surfaces | `/msg --aha` — sweeps the ledger, merges repeats, prunes noise, and flags recurring lessons to fix at the source (its only write is the ledger itself) |

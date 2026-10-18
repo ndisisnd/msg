@@ -66,7 +66,7 @@ Look the step up — never compose it. Fill `<path>`/`<prd>` placeholders from T
 | emulate | Test the build in the window that just opened — stop it with `kill <pid>` when you're done | Test the build anyway, then resolve the flagged item named above before the next run | Fix the stated blocker (the fix line names it), then re-run `/emulate` |
 | msg --doctor | Nothing to do — the harness is healthy. | Start a new session to fix the graduated issue(s) in `devkit/DOCTOR.md` — this mode never fixes | Fix the stated blocker, then re-run `/msg --doctor` |
 
-Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pure-emission modes — default picker, `--gui`, `--help` — whose strict output contracts ("Stop. Do not emit anything else." / board render) stay untouched.
+Out of scope: `improve` (local tooling, not part of the pipeline), and msg's pure-emission modes — bare `/msg`, `--gui`, `--help` — whose strict output contracts ("Stop. Do not emit anything else." / board render) stay untouched.
 
 ## Worked examples
 

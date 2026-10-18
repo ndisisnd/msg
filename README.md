@@ -181,7 +181,7 @@ Restart Claude Code afterwards, the same as a first install.
 
 | Command | Reconciles |
 |---------|-----------|
-| `/msg --update` | `devkit/` files and template rows added to msg after your repo was bootstrapped |
+| `/msg --update` (msg's own part) | `devkit/` files and template rows added to msg after your repo was bootstrapped |
 | `/pre-merge --update` | the `components[]` manifest, as your test and lint tooling drifts |
 | `/merge --update` | merge's settings — branch protection, deploy and smoke tools, platforms and staging readiness, risky paths, the CI wait limit |
 

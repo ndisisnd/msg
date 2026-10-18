@@ -21,9 +21,11 @@ type: reference
 - Hand-off from merge setup or `/merge --update` when they report a flow mismatch
 
 **Preconditions.**
-- A git repo with `devkit/policy.json` present. If it is **absent**, the repo was never
-  bootstrapped — stop and direct the user to run `/msg --init` first (that seeds the policy this
-  mode flips). Do not create the file here.
+- A git repo with `devkit/`. No `devkit/` ⇒ run `/msg --init` first, then continue
+  (`../../shared/refs/setup-first.md`).
+- `devkit/policy.json` present. `devkit/` exists but `policy.json` is **absent** ⇒ stop and
+  direct the user to run `/msg --update` (it adds the missing file this mode flips). Do not
+  create the file here.
 - Read `policies.release_flow.prod_branch` from `devkit/policy.json` (default `main`). This is the
   branch `staging` is cut from.
 

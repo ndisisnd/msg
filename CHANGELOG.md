@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-18
+
+### [200] v6.0.0 final — msg wording matches the new update and setup flows
+
+- `.claude/skills/msg/refs/protocol-update.md`: Changed — approval input names the real options; no change lines ⇒ ask only the settings questions.
+- `.claude/skills/msg/refs/protocol-init.md`: Changed — `--update` reference names the pre-merge and merge updates behind one approval.
+- `.claude/skills/msg/refs/protocol-init-staging.md`, `QUICKSTART.md`: Changed — no `devkit/` runs `/msg --init` first; a missing `policy.json` points to `/msg --update`.
+- `.claude/skills/shared/refs/closing-message.md`: Changed — "default picker" is now bare `/msg`.
+- `.claude/skills/msg/refs/init/init-setup.sh`: Changed — comment names the setup interview, not eng mode.
+- `README.md`: Changed — `/msg --update` row says it is msg's own part.
+
 ## 2026-10-17
 
 ### [199] v6.0.0 msg — /msg --update runs all three updates with one approval

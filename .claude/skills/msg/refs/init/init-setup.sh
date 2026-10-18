@@ -46,7 +46,7 @@ done
 
 # The same stack files are a language list in disguise — recover the signal
 # stack_default throws away by collapsing each file to a platform. Feeds Q2b,
-# which eng mode asks ONLY when this comes back "Not specified" (the empty-repo
+# which the setup interview asks ONLY when this comes back "Not specified" (the empty-repo
 # bootstrap case, where there is nothing to detect from).
 # package.json is deliberately unmapped — it names no language on its own; a
 # TypeScript repo is identified by tsconfig.json, which follows it in STACK_FILES.

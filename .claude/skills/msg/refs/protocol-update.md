@@ -60,7 +60,7 @@ the `<part> · ` prefix being required).
 |------|--------|--------|
 | Working directory state | `key=value` lines from `init-setup.sh` | Step 1 |
 | pre-merge and merge deltas | change-list lines | Step 1, from each part's detection |
-| The one approval | apply \| full reinit \| cancel | Step 3 `AskUserQuestion` |
+| The one approval | Apply all \| Apply + redo setup answers \| Cancel | Step 3 `AskUserQuestion` |
 | GitHub Actions decision | keep \| on \| off (+ reason when off) | Step 3, same prompt, gated on a GitHub remote + `gh` |
 | Test selection decision | keep \| on (hand-off) \| off (+ reason when off) | Step 3, same prompt, gated on a detected test suite (a `unit`/`integration`/`regression` component present) |
 | Untrack-`features/` decision | leave tracked \| untrack | Step 3, same prompt, gated on `git ls-files -- features/` being non-empty |
@@ -123,7 +123,8 @@ one settings question applies (the settings stay revisable); otherwise stop here
 **Step 3/6 — One approval (one prompt)**
 
 One `AskUserQuestion` call. The first question is always asked; each settings question is
-added only when its gate holds (up to 4 questions in the prompt):
+added only when its gate holds (up to 4 questions in the prompt). No change lines ⇒ leave
+out the first question; ask only the settings questions that apply.
 
 > header **Update**, question "Apply these `<n>` changes?"
 > - **Apply all (recommended)** — add only what is missing and save the pre-merge and merge

@@ -326,7 +326,7 @@ closing message, and hand back: the user's own command runs next.
 
 ## References
 
-- `refs/protocol-update.md` — `/msg --update`: re-scans an already-bootstrapped repo for the same gaps this protocol's Top-up mode closes, plus interactive (batched) classification of `FLAT_PRDS` — delegates back into this protocol's Steps 2–5 rather than duplicating them
+- `refs/protocol-update.md` — `/msg --update`: re-scans an already-bootstrapped repo for the same gaps this protocol's Top-up mode closes, plus interactive (batched) classification of `FLAT_PRDS`, and runs pre-merge's and merge's `--update` behind one approval — delegates back into this protocol's Steps 2–5 rather than duplicating them
 - `refs/protocol-eng.md` — Step 2, the one interview (direct questions, ≤4 calls)
 - `refs/init/init-setup.sh` — directory scanner; called at Step 1; outputs `ALL_COMPLETE`, `PRESENT`, `MISSING`, `STACK_HINTS`, `STACK_DEFAULT`, `LANG_DEFAULT`, `INITIALISED`, `ROW_GAPS`, `FLAT_PRDS`. **Its `TARGETS` list gates `ALL_COMPLETE`** — any file this protocol creates must be listed there, or an already-bootstrapped repo can never receive it
 - `refs/init/init.sh` — deterministic template writer; called at Step 3 with every Step 2 variable as env vars. Accepts an optional `INTERACTIVE_LANES` env var (set by `/msg --update` only) that turns silent rung-3 PRD-lane defaulting into an `UNRESOLVED` report instead
