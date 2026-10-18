@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-19
+
+### [206] settings — drop the stale /commit-this hint hook
+
+- `.claude/settings.json`: Removed — the `PostToolUse` Bash hook that printed "invoke /commit-this" after every `git add`; `/commit-this` no longer exists, so the hint only added noise.
+
 ## 2026-10-18
 
 ### [205] v6.0.0 release — README and llms.txt for v6.0.0
