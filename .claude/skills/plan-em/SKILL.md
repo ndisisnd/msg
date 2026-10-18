@@ -12,7 +12,7 @@ description: >
   large one. An Opus orchestrator engineer decomposes each half into file-disjoint,
   model-tiered packets fanned out to leaf eng subagents. Refuses without a referenced
   PRD .md path.
-argument-hint: "<prd-path> [--quiet | --status <n>m] [--review [on|off]]"
+argument-hint: "<prd-path> [--review [on|off]]"
 allowed_tools:
   - Agent
   - AskUserQuestion
@@ -32,7 +32,7 @@ allowed_tools:
 **Invoke**: `/plan-em <prd-path>`. The PRD path is a `.md` file inside a PRD folder in any lane — `features/{planned,wip,done}/prd-[n]-[slug]/` or the legacy flat `features/prd-[n]-[slug]/`.
 
 - Slash command: `/plan-em` · natural language: "engineering plan for <PRD>", "scope this PRD", "spin up eng agents" · context: a path to an existing approved PRD `.md` file, typically passed forward from `plan-pm` or `plan-review`
-- `/plan-em <prd-path> --quiet` / `--status <n>m` — suppress or retune this run's status heartbeat; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
+- Progress messages are always on, every 5 minutes (`../shared/refs/status-heartbeat.md`)
 - `/plan-em <prd-path> --review` — run the plan-review eng check at the end of the plan half, this run only. `--review on` / `--review off` (or "always review the plan") — save it for the project:
 
   ```bash

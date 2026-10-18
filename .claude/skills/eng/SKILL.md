@@ -2,7 +2,7 @@
 name: eng
 description: >
   Platform-agnostic engineering agent with four modes: --plan (propose file changes for human approval AND write the per-feature todo tickets in the same pass), --build (write code from the todo tickets — the single and final build spec), --review (one adversarial whole-change review of the working diff, run by a separate reviewer subagent — spawned by --build automatically, and available standalone on any branch at any time), --bug "<what is wrong>" (file a bug you found by hand as a new numbered report in the PRD's reports/ folder, then fix it with the normal fix flow). Use --bug when the user says "I found a bug", "report a bug", "this is broken", or invokes /eng --bug. Use --review when the user says "review this change", "review my diff", "code review this branch", or invokes /eng --review. Invoked by plan-em or directly by the user.
-argument-hint: "<--plan | --build | --review | --bug \"<what is wrong>\"> [report=<path>] [--quiet | --status <n>m]"
+argument-hint: "<--plan | --build | --review | --bug \"<what is wrong>\"> [report=<path>]"
 allowed_tools:
   - Bash
   - Read
@@ -33,7 +33,7 @@ Read the invocation flag and load exactly one mode file:
 
 **Natural-language triggers for `--review`:** "review this change", "review my diff", "code review this branch", "adversarial review", "look for bugs in what I just wrote". Anything about *style, naming or standards* is `/cook`, not this mode.
 
-**`--quiet` / `--status <n>m`** (`--build` only) — progress-message control; flag beats policy beats default (`../shared/refs/status-heartbeat.md`).
+Progress messages (`--build`) are always on, every 5 minutes (`../shared/refs/status-heartbeat.md`).
 
 Exactly one mode flag must be present. Zero, several, or `--todo` hard-fail with the messages in `refs/protocol-core.md` § Step 0. Then read the active mode file **fully** and run the spine end to end.
 

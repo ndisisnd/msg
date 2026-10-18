@@ -2,6 +2,13 @@
 
 ## 2026-10-17
 
+### [187] v6.0.0 pre-merge — progress messages are always on
+
+- `.claude/scripts/script-status-tick.sh`: Changed — fixed 5-minute cadence; `MSG_STATUS_INTERVAL` and an old `policies.status_cadence` are ignored without error.
+- `.claude/skills/shared/refs/status-heartbeat.md`: Changed — § Cadence replaces the resolution table; no off switch.
+- `.claude/skills/eng/SKILL.md`, `plan-em/SKILL.md`, `merge/SKILL.md`: Changed — removed `--quiet` and `--status <n>m`.
+- `evals/cases/status-tick-clamp/`: Removed — no interval to clamp; `status-tick-disabled/` renamed `status-tick-no-off-switch/` and checks old switches are ignored.
+
 ### [186] v6.0.0 pre-merge — one base, conflicts asked outside the gate, honest sandbox checks, batched setup
 
 - `.claude/skills/pre-merge/refs/sync.md`, `shared/refs/gate-dispatch.md`: Changed — a same-lines conflict aborts the merge and stops with `sync_conflict`; the main conversation asks "Resolve now / Abort".

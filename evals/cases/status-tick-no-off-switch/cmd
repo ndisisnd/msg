@@ -1,0 +1,10 @@
+# pre-merge-16 — progress messages have no off switch. An old MSG_STATUS_INTERVAL=0
+# and an old policies.status_cadence {enabled:false} are both ignored without error:
+# the heartbeat opens and reports on the fixed 5-minute cadence.
+export MSG_STATUS_INTERVAL=0
+mkdir -p devkit && echo '{"version":1,"policies":{"status_cadence":{"enabled":false,"interval_minutes":1}}}' > devkit/policy.json
+git init -q . 2>/dev/null
+S="$REPO/.claude/scripts/script-status-tick.sh"
+"$S" --start --phase build --run-id e1 --now 1754000000 | grep -c STATUS_STATE
+"$S" --tick --run-id e1 --now 1754000100
+"$S" --tick --run-id e1 --now 1754000400 | head -1

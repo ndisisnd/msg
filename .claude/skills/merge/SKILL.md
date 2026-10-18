@@ -7,7 +7,7 @@ description: >
   double-confirmed release to `main` and deploys production. Never
   self-certifies staging; nothing reaches `main` any other way. Activates on
   /merge after pre-merge's PR exists.
-argument-hint: "<--staging | --production> [--prd <path>] [--bump <major|minor|patch>] [--version <x.y.z>] [--quiet | --status <n>m]"
+argument-hint: "<--staging | --production> [--prd <path>] [--bump <major|minor|patch>] [--version <x.y.z>]"
 allowed_tools:
   - Bash
   - Read
@@ -33,7 +33,7 @@ pre-merge (PR feature→staging) → merge --staging → (human tests staging) �
 - `/merge --production [--prd <path>]...` — the double-confirmed release: PR to `prod`, merge, deploy, verify, tag (`refs/production.md`); `--prd` (repeatable) names the PRD(s) this release ships — the release body + the sign-off precondition
 - `/merge --production [--bump <major|minor|patch>] [--version <x.y.z>]` — override the release version (default: **minor** bump from the last `v*` tag on prod); the resolved `v<x.y.z>+<build>` is shown in the confirm (`refs/release-identity.md`)
 - `/merge --init` — detect ship tooling, interview about the gaps, write `devkit/policy.json`; performs **no** merge, PR, or deploy (`refs/protocol-init.md`)
-- `/merge --quiet` / `--status <n>m` — suppress or retune this run's status heartbeat; flag beats policy beats default (`../shared/refs/status-heartbeat.md`)
+- Progress messages are always on, every 5 minutes (`../shared/refs/status-heartbeat.md`)
 
 Natural language: "ship this to staging", "merge the staging PR", "promote to production", "release to production", "ship it live".
 
