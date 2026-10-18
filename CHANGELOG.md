@@ -2,6 +2,10 @@
 
 ## 2026-10-19
 
+### [207] msg — CLAUDE.md template lists the real pipeline
+
+- `.claude/skills/msg/refs/init/templates/template-CLAUDE.md`: Changed — drop `/commit-this` (the skill no longer exists); add bare `/msg`, `/eng --build`, `/pre-merge` and `/merge`, so a new project's CLAUDE.md names every step from idea to ship.
+
 ### [206] settings — drop the stale /commit-this hint hook
 
 - `.claude/settings.json`: Removed — the `PostToolUse` Bash hook that printed "invoke /commit-this" after every `git add`; `/commit-this` no longer exists, so the hint only added noise.

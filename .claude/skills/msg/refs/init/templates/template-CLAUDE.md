@@ -41,12 +41,15 @@ This file is read by Claude Code on every session start. Keep it short, current,
 
 ## Working with msg skills
 
+- `/msg` — Names the next command for each PRD in progress
 - `/msg --init` — One-time project bootstrap (already run if you are reading this)
 - `/intake` — Capture + grade feature ideas and bugs into the `INTAKE.md` backlog (infers from context, asks only when unclear)
 - `/plan-pm` — Autonomous PRD writer — drafts the full PRD from a graded intake row
 - `/plan-review` — Contract certifier — seven consumer-bound checks on an existing PRD (auto-run by `/plan-em`)
 - `/plan-em` — Engineering plan generation from an approved PRD
-- `/commit-this` — Conventional commit message from staged diff
+- `/eng --build` — Builds the code from the PRD's todo tickets
+- `/pre-merge` — Local quality gate — checks the branch, never pushes
+- `/merge` — Ship gate — pushes the branch, opens the PR, merges on green CI
 ```
 
 ## Notes
